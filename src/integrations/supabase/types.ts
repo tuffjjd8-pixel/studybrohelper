@@ -14,7 +14,113 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          solve_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          solve_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          solve_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_solve_id_fkey"
+            columns: ["solve_id"]
+            isOneToOne: false
+            referencedRelation: "solves"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          daily_solves_used: number
+          display_name: string | null
+          id: string
+          is_premium: boolean
+          last_solve_date: string | null
+          referral_code: string | null
+          streak_count: number
+          total_solves: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          daily_solves_used?: number
+          display_name?: string | null
+          id?: string
+          is_premium?: boolean
+          last_solve_date?: string | null
+          referral_code?: string | null
+          streak_count?: number
+          total_solves?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          daily_solves_used?: number
+          display_name?: string | null
+          id?: string
+          is_premium?: boolean
+          last_solve_date?: string | null
+          referral_code?: string | null
+          streak_count?: number
+          total_solves?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      solves: {
+        Row: {
+          created_at: string
+          id: string
+          question_image_url: string | null
+          question_text: string | null
+          solution_markdown: string
+          subject: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_image_url?: string | null
+          question_text?: string | null
+          solution_markdown: string
+          subject?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_image_url?: string | null
+          question_text?: string | null
+          solution_markdown?: string
+          subject?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
