@@ -1,4 +1,7 @@
 import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
 import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, MessageCircle, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -135,8 +138,10 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </Button>
           </div>
         </div>
-        <div className="prose prose-invert prose-sm max-w-none">
+        <div className="prose prose-invert prose-sm max-w-none math-solution">
           <ReactMarkdown
+            remarkPlugins={[remarkMath]}
+            rehypePlugins={[rehypeKatex]}
             components={{
               h1: ({ children }) => <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>,
               h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>,
@@ -156,6 +161,26 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                 <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-3">
                   {children}
                 </pre>
+              ),
+              table: ({ children }) => (
+                <div className="overflow-x-auto my-4">
+                  <table className="min-w-full border border-border rounded-lg">
+                    {children}
+                  </table>
+                </div>
+              ),
+              thead: ({ children }) => (
+                <thead className="bg-primary/10">{children}</thead>
+              ),
+              th: ({ children }) => (
+                <th className="px-4 py-2 text-left font-semibold text-foreground border-b border-border">
+                  {children}
+                </th>
+              ),
+              td: ({ children }) => (
+                <td className="px-4 py-2 text-foreground/90 border-b border-border/50">
+                  {children}
+                </td>
               ),
             }}
           >
