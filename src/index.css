@@ -225,3 +225,55 @@
     scrollbar-width: none;
   }
 }
+
+/* KaTeX Math Styling */
+.math-solution .katex {
+  font-size: 1.1em;
+  color: hsl(var(--foreground));
+}
+
+.math-solution .katex-display {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: hsl(var(--muted) / 0.5);
+  border-radius: var(--radius);
+  border-left: 3px solid hsl(var(--primary));
+  overflow-x: auto;
+}
+
+.math-solution .katex-display > .katex {
+  font-size: 1.2em;
+}
+
+/* Boxed answers - highlight final results */
+.math-solution .katex .boxed,
+.math-solution .katex .fbox {
+  border: 2px solid hsl(var(--primary));
+  background: hsl(var(--primary) / 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+/* Color-coded math elements */
+.math-solution .katex .mord.text {
+  color: hsl(var(--foreground));
+}
+
+.math-solution .katex .mbin,
+.math-solution .katex .mrel {
+  color: hsl(var(--secondary));
+}
+
+.math-solution .katex .mop {
+  color: hsl(var(--primary));
+}
+
+/* Fraction styling */
+.math-solution .katex .mfrac .frac-line {
+  background: hsl(var(--primary));
+}
+
+/* Radical styling */
+.math-solution .katex .sqrt-sign {
+  color: hsl(var(--primary));
+}
