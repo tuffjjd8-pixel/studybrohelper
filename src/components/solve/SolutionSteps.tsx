@@ -1,16 +1,19 @@
 import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
-import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, MessageCircle } from "lucide-react";
+import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, MessageCircle, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface SolutionStepsProps {
   subject: string;
   question: string;
   solution: string;
   questionImage?: string;
+  solveId?: string;
   onFollowUp?: () => void;
+  onTakeQuiz?: () => void;
 }
 
 const subjectIcons: Record<string, React.ReactNode> = {
@@ -29,8 +32,25 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, onFollowUp }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, onTakeQuiz }: SolutionStepsProps) {
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+
+  const handleChat = () => {
+    if (solveId) {
+      navigate(`/chat/${solveId}`);
+    } else if (onFollowUp) {
+      onFollowUp();
+    }
+  };
+
+  const handleQuiz = () => {
+    if (solveId) {
+      navigate(`/quiz/${solveId}`);
+    } else if (onTakeQuiz) {
+      onTakeQuiz();
+    }
+  };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(solution);
@@ -144,25 +164,32 @@ export function SolutionSteps({ subject, question, solution, questionImage, onFo
         </div>
       </motion.div>
 
-      {/* Follow up button */}
-      {onFollowUp && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="flex justify-center"
+      {/* Action buttons */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4 }}
+        className="flex flex-col sm:flex-row justify-center gap-3"
+      >
+        <Button
+          variant="glass"
+          size="lg"
+          onClick={handleChat}
+          className="gap-2"
         >
-          <Button
-            variant="glass"
-            size="lg"
-            onClick={onFollowUp}
-            className="gap-2"
-          >
-            <MessageCircle className="w-5 h-5" />
-            Ask a follow-up question
-          </Button>
-        </motion.div>
-      )}
+          <MessageCircle className="w-5 h-5" />
+          Ask follow-up
+        </Button>
+        <Button
+          variant="neon"
+          size="lg"
+          onClick={handleQuiz}
+          className="gap-2"
+        >
+          <GraduationCap className="w-5 h-5" />
+          Test yourself
+        </Button>
+      </motion.div>
     </motion.div>
   );
 }

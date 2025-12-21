@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { CameraButton } from "@/components/home/CameraButton";
 import { TextInputBox } from "@/components/home/TextInputBox";
 import { RecentSolves } from "@/components/home/RecentSolves";
@@ -8,18 +9,63 @@ import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const Index = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [solution, setSolution] = useState<{
     subject: string;
     question: string;
     answer: string;
     image?: string;
+    solveId?: string;
   } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [recentSolves] = useState<{ id: string; subject: string; question: string; createdAt: Date }[]>([]);
+  const [recentSolves, setRecentSolves] = useState<{ id: string; subject: string; question: string; createdAt: Date }[]>([]);
+  const [profile, setProfile] = useState<{ streak_count: number; total_solves: number } | null>(null);
+
+  // Fetch recent solves and profile for logged-in users
+  useEffect(() => {
+    if (user) {
+      fetchRecentSolves();
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchRecentSolves = async () => {
+    const { data } = await supabase
+      .from("solves")
+      .select("id, subject, question_text, created_at")
+      .eq("user_id", user?.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (data) {
+      setRecentSolves(
+        data.map((s) => ({
+          id: s.id,
+          subject: s.subject,
+          question: s.question_text || "Image question",
+          createdAt: new Date(s.created_at),
+        }))
+      );
+    }
+  };
+
+  const fetchProfile = async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("streak_count, total_solves")
+      .eq("user_id", user?.id)
+      .single();
+
+    if (data) {
+      setProfile(data);
+    }
+  };
 
   const handleSolve = async (input: string, imageData?: string) => {
     setIsLoading(true);
@@ -32,11 +78,45 @@ const Index = () => {
 
       if (error) throw error;
 
+      let solveId: string | undefined;
+
+      // Save to database if logged in
+      if (user) {
+        const { data: solveData, error: saveError } = await supabase
+          .from("solves")
+          .insert({
+            user_id: user.id,
+            subject: data.subject || "other",
+            question_text: input || null,
+            question_image_url: imageData || null,
+            solution_markdown: data.solution,
+          })
+          .select("id")
+          .single();
+
+        if (saveError) {
+          console.error("Save error:", saveError);
+        } else {
+          solveId = solveData?.id;
+          // Update profile stats
+          await supabase
+            .from("profiles")
+            .update({ 
+              total_solves: (profile?.total_solves || 0) + 1,
+              last_solve_date: new Date().toISOString().split('T')[0]
+            })
+            .eq("user_id", user.id);
+          fetchRecentSolves();
+          fetchProfile();
+        }
+      }
+
       setSolution({
         subject: data.subject || "other",
         question: input || "Image question",
         answer: data.solution,
         image: imageData,
+        solveId,
       });
       setShowConfetti(true);
     } catch (error: any) {
@@ -61,7 +141,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header streak={0} totalSolves={0} />
+      <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
       
       <main className="pt-20 pb-24 px-4">
         <div className="max-w-4xl mx-auto">
@@ -123,6 +203,7 @@ const Index = () => {
                 question={solution.question}
                 solution={solution.answer}
                 questionImage={solution.image}
+                solveId={solution.solveId}
               />
             </motion.div>
           )}
