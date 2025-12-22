@@ -35,6 +35,36 @@ const Index = () => {
     }
   }, [user]);
 
+  // Handle clipboard paste for images (Ctrl+V)
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      // Don't trigger if we're already loading or showing a solution
+      if (isLoading || solution) return;
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64 = reader.result as string;
+              handleImageCapture(base64);
+            };
+            reader.readAsDataURL(file);
+          }
+          break;
+        }
+      }
+    };
+
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [isLoading, solution]);
+
   const fetchRecentSolves = async () => {
     const { data } = await supabase
       .from("solves")
@@ -172,6 +202,16 @@ const Index = () => {
 
               {/* Camera button */}
               <CameraButton onImageCapture={handleImageCapture} isLoading={isLoading} />
+
+              {/* Paste hint */}
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-xs text-muted-foreground/60"
+              >
+                or paste an image (Ctrl+V / ⌘+V)
+              </motion.p>
 
               {/* Divider */}
               <div className="flex items-center gap-4 w-full max-w-md">
