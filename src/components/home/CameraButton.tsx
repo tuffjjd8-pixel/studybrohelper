@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Camera, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { fileToOptimizedDataUrl } from "@/lib/image";
 
 interface CameraButtonProps {
   onImageCapture: (imageData: string) => void;
@@ -19,13 +20,13 @@ export function CameraButton({ onImageCapture, isLoading }: CameraButtonProps) {
     }
   };
 
-  const processFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      onImageCapture(base64);
-    };
-    reader.readAsDataURL(file);
+  const processFile = async (file: File) => {
+    const optimized = await fileToOptimizedDataUrl(file, {
+      maxDimension: 1280,
+      quality: 0.8,
+      mimeType: "image/webp",
+    });
+    onImageCapture(optimized);
   };
 
   const handleDrop = (e: React.DragEvent) => {
