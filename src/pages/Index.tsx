@@ -11,6 +11,7 @@ import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { fileToOptimizedDataUrl } from "@/lib/image";
 
 const Index = () => {
   const { user } = useAuth();
@@ -49,12 +50,14 @@ const Index = () => {
           e.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const base64 = reader.result as string;
-              handleImageCapture(base64);
-            };
-            reader.readAsDataURL(file);
+            (async () => {
+              const optimized = await fileToOptimizedDataUrl(file, {
+                maxDimension: 1280,
+                quality: 0.8,
+                mimeType: "image/webp",
+              });
+              handleImageCapture(optimized);
+            })();
           }
           break;
         }

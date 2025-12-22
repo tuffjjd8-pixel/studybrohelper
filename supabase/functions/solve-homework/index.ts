@@ -90,7 +90,7 @@ serve(async (req) => {
       });
     }
 
-    console.log("Calling Lovable AI with model: google/gemini-2.5-flash");
+    console.log("Calling Lovable AI with model: google/gemini-2.5-flash-lite");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -99,7 +99,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-lite",
         messages,
       }),
     });
