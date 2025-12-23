@@ -3,11 +3,13 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
-import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, MessageCircle, GraduationCap } from "lucide-react";
+import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, GraduationCap, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SolutionStepsProps {
   subject: string;
@@ -38,14 +40,9 @@ const subjectGradients: Record<string, string> = {
 export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, onTakeQuiz }: SolutionStepsProps) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-
-  const handleChat = () => {
-    if (solveId) {
-      navigate(`/chat/${solveId}`);
-    } else if (onFollowUp) {
-      onFollowUp();
-    }
-  };
+  const [followUpText, setFollowUpText] = useState("");
+  const [isAsking, setIsAsking] = useState(false);
+  const [followUpResponse, setFollowUpResponse] = useState<string | null>(null);
 
   const handleQuiz = () => {
     if (solveId) {
@@ -74,6 +71,46 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       }
     } else {
       handleCopy();
+    }
+  };
+
+  const handleFollowUpSubmit = async () => {
+    if (!followUpText.trim() || isAsking) return;
+
+    setIsAsking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("follow-up-chat", {
+        body: {
+          solveId,
+          message: followUpText.trim(),
+          context: {
+            subject,
+            question,
+            solution,
+          },
+          history: followUpResponse ? [
+            { role: "assistant", content: followUpResponse }
+          ] : [],
+        },
+      });
+
+      if (error) throw error;
+
+      setFollowUpResponse(data.response);
+      setFollowUpText("");
+      toast.success("Got your answer!");
+    } catch (error) {
+      console.error("Follow-up error:", error);
+      toast.error("Failed to get answer. Try again.");
+    } finally {
+      setIsAsking(false);
+    }
+  };
+
+  const handleFollowUpKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleFollowUpSubmit();
     }
   };
 
@@ -189,22 +226,83 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         </div>
       </motion.div>
 
-      {/* Action buttons */}
+      {/* Follow-up response */}
+      {followUpResponse && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-6 border-l-4 border-l-secondary"
+        >
+          <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-4">
+            Follow-up Answer
+          </h3>
+          <div className="prose prose-invert prose-sm max-w-none">
+            <ReactMarkdown
+              remarkPlugins={[remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              components={{
+                p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
+                strong: ({ children }) => <strong className="font-bold text-secondary">{children}</strong>,
+              }}
+            >
+              {followUpResponse}
+            </ReactMarkdown>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Inline follow-up input */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="glass-card p-4"
+      >
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+          Ask a follow-up question
+        </h3>
+        <div className="flex items-end gap-3">
+          <Textarea
+            value={followUpText}
+            onChange={(e) => setFollowUpText(e.target.value)}
+            onKeyDown={handleFollowUpKeyDown}
+            placeholder="Still confused? Ask me anything about this solution..."
+            disabled={isAsking}
+            className="
+              min-h-[50px] max-h-[120px] resize-none
+              bg-muted/50 border-none
+              placeholder:text-muted-foreground/50
+              focus-visible:ring-1 focus-visible:ring-primary/50
+              text-sm
+            "
+            rows={2}
+          />
+          <Button
+            onClick={handleFollowUpSubmit}
+            disabled={!followUpText.trim() || isAsking}
+            variant="neon"
+            size="icon"
+            className="shrink-0"
+          >
+            {isAsking ? (
+              <Sparkles className="w-4 h-4 animate-pulse" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          Press Enter to ask • Shift+Enter for new line
+        </p>
+      </motion.div>
+
+      {/* Test yourself button */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="flex flex-col sm:flex-row justify-center gap-3"
+        className="flex justify-center"
       >
-        <Button
-          variant="glass"
-          size="lg"
-          onClick={handleChat}
-          className="gap-2"
-        >
-          <MessageCircle className="w-5 h-5" />
-          Ask follow-up
-        </Button>
         <Button
           variant="neon"
           size="lg"

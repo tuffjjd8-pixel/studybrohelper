@@ -6,7 +6,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Trophy } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Trophy, Zap, Brain, Flame } from "lucide-react";
 import { toast } from "sonner";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 
@@ -24,6 +24,14 @@ interface Solve {
   solution_markdown: string;
 }
 
+type Difficulty = "easy" | "medium" | "hard";
+
+const difficultyConfig = {
+  easy: { icon: Zap, color: "text-green-500", bg: "bg-green-500/20", label: "Easy" },
+  medium: { icon: Brain, color: "text-yellow-500", bg: "bg-yellow-500/20", label: "Medium" },
+  hard: { icon: Flame, color: "text-red-500", bg: "bg-red-500/20", label: "Hard" },
+};
+
 const Quiz = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -38,6 +46,11 @@ const Quiz = () => {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  
+  // Test mode selection
+  const [showSettings, setShowSettings] = useState(true);
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
+  const [questionCount, setQuestionCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -47,11 +60,11 @@ const Quiz = () => {
 
   useEffect(() => {
     if (user && id) {
-      fetchSolveAndGenerateQuiz();
+      fetchSolve();
     }
   }, [user, id]);
 
-  const fetchSolveAndGenerateQuiz = async () => {
+  const fetchSolve = async () => {
     try {
       const { data, error } = await supabase
         .from("solves")
@@ -68,7 +81,6 @@ const Quiz = () => {
 
       setSolve(data);
       setLoading(false);
-      await generateQuiz(data);
     } catch (error) {
       console.error("Error:", error);
       toast.error("Failed to load");
@@ -76,14 +88,20 @@ const Quiz = () => {
     }
   };
 
-  const generateQuiz = async (solveData: Solve) => {
+  const startQuiz = async () => {
+    if (!solve || !difficulty || !questionCount) return;
+    
+    setShowSettings(false);
     setGenerating(true);
+    
     try {
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
         body: {
-          subject: solveData.subject,
-          question: solveData.question_text,
-          solution: solveData.solution_markdown,
+          subject: solve.subject,
+          question: solve.question_text,
+          solution: solve.solution_markdown,
+          difficulty,
+          count: questionCount,
         },
       });
 
@@ -134,6 +152,10 @@ const Quiz = () => {
     setIsAnswered(false);
     setScore(0);
     setIsComplete(false);
+    setShowSettings(true);
+    setDifficulty(null);
+    setQuestionCount(null);
+    setQuestions([]);
   };
 
   if (authLoading || loading) {
@@ -163,7 +185,97 @@ const Quiz = () => {
             Back to Solution
           </button>
 
-          {generating ? (
+          {/* Settings Screen */}
+          {showSettings && !generating && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-8"
+            >
+              <div className="text-center">
+                <h2 className="text-2xl font-heading font-bold mb-2">Test Mode</h2>
+                <p className="text-muted-foreground">Choose your difficulty and number of questions</p>
+              </div>
+
+              {/* Difficulty Selection */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                  Difficulty
+                </h3>
+                <div className="grid grid-cols-3 gap-3">
+                  {(Object.keys(difficultyConfig) as Difficulty[]).map((level) => {
+                    const config = difficultyConfig[level];
+                    const Icon = config.icon;
+                    const isSelected = difficulty === level;
+                    
+                    return (
+                      <motion.button
+                        key={level}
+                        onClick={() => setDifficulty(level)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`
+                          p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2
+                          ${isSelected 
+                            ? `${config.bg} border-current ${config.color}` 
+                            : "bg-card border-border hover:border-muted-foreground"
+                          }
+                        `}
+                      >
+                        <Icon className={`w-6 h-6 ${isSelected ? config.color : "text-muted-foreground"}`} />
+                        <span className={`text-sm font-medium ${isSelected ? config.color : ""}`}>
+                          {config.label}
+                        </span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Question Count Selection */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                  Number of Questions
+                </h3>
+                <div className="grid grid-cols-5 gap-2">
+                  {[1, 2, 3, 5, 10].map((count) => {
+                    const isSelected = questionCount === count;
+                    
+                    return (
+                      <motion.button
+                        key={count}
+                        onClick={() => setQuestionCount(count)}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={`
+                          p-3 rounded-xl border-2 transition-all text-center
+                          ${isSelected 
+                            ? "bg-primary/20 border-primary text-primary" 
+                            : "bg-card border-border hover:border-muted-foreground"
+                          }
+                        `}
+                      >
+                        <span className="text-lg font-bold">{count}</span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Start Button */}
+              <Button
+                onClick={startQuiz}
+                disabled={!difficulty || !questionCount}
+                variant="neon"
+                size="lg"
+                className="w-full"
+              >
+                Start Quiz
+              </Button>
+            </motion.div>
+          )}
+
+          {generating && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -174,10 +286,12 @@ const Quiz = () => {
               </div>
               <h3 className="text-lg font-medium mb-2">Generating Quiz...</h3>
               <p className="text-muted-foreground text-sm">
-                Creating questions based on your problem
+                Creating {questionCount} {difficulty} question{questionCount !== 1 ? "s" : ""} for you
               </p>
             </motion.div>
-          ) : isComplete ? (
+          )}
+
+          {!showSettings && !generating && isComplete && (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -192,7 +306,7 @@ const Quiz = () => {
               </p>
               <p className="text-muted-foreground mb-8">
                 {finalScore === questions.length
-                  ? "Perfect score! You're a genius, bro! 🎉"
+                  ? "Perfect score! You're a genius! 🎉"
                   : finalScore >= questions.length * 0.7
                   ? "Great job! You've got this! 💪"
                   : "Keep practicing, you'll get it! 📚"}
@@ -207,7 +321,9 @@ const Quiz = () => {
                 </Button>
               </div>
             </motion.div>
-          ) : currentQuestion ? (
+          )}
+
+          {!showSettings && !generating && !isComplete && currentQuestion && (
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentIndex}
@@ -309,7 +425,7 @@ const Quiz = () => {
                 )}
               </motion.div>
             </AnimatePresence>
-          ) : null}
+          )}
         </div>
       </main>
 

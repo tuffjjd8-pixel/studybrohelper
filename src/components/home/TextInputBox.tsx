@@ -7,23 +7,34 @@ import { fileToOptimizedDataUrl } from "@/lib/image";
 
 interface TextInputBoxProps {
   onSubmit: (text: string) => void;
+  onEmptySubmit?: () => void;
   onImagePaste?: (imageData: string) => void;
   isLoading?: boolean;
+  hasPendingImage?: boolean;
   placeholder?: string;
 }
 
 export function TextInputBox({ 
   onSubmit, 
+  onEmptySubmit,
   onImagePaste,
-  isLoading, 
+  isLoading,
+  hasPendingImage = false,
   placeholder = "Paste or type your homework question..." 
 }: TextInputBoxProps) {
   const [text, setText] = useState("");
 
   const handleSubmit = () => {
-    if (text.trim() && !isLoading) {
+    if (isLoading) return;
+    
+    // If there's text, submit it
+    if (text.trim()) {
       onSubmit(text.trim());
       setText("");
+    } 
+    // If no text but pending image, trigger empty submit (solve image)
+    else if (hasPendingImage && onEmptySubmit) {
+      onEmptySubmit();
     }
   };
 
@@ -56,6 +67,8 @@ export function TextInputBox({
     // Text paste is handled automatically by the textarea
   };
 
+  const canSubmit = text.trim() || hasPendingImage;
+
   return (
     <motion.div
       className="w-full max-w-2xl mx-auto"
@@ -85,7 +98,7 @@ export function TextInputBox({
           </div>
           <Button
             onClick={handleSubmit}
-            disabled={!text.trim() || isLoading}
+            disabled={!canSubmit || isLoading}
             variant="neon"
             size="icon-lg"
             className="shrink-0"
@@ -98,7 +111,10 @@ export function TextInputBox({
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2 text-center">
-          Press Enter to send • Shift+Enter for new line • Paste images with Ctrl+V
+          {hasPendingImage 
+            ? "Press Enter to solve image • Add text for more context"
+            : "Press Enter to send • Shift+Enter for new line • Paste images with Ctrl+V"
+          }
         </p>
       </div>
     </motion.div>
