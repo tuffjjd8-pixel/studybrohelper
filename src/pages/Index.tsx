@@ -11,7 +11,6 @@ import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { fileToOptimizedDataUrl } from "@/lib/image";
 
 const Index = () => {
   const { user } = useAuth();
@@ -27,6 +26,9 @@ const Index = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [recentSolves, setRecentSolves] = useState<{ id: string; subject: string; question: string; createdAt: Date }[]>([]);
   const [profile, setProfile] = useState<{ streak_count: number; total_solves: number } | null>(null);
+  
+  // Pending image state - waits for user instruction before solving
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
 
   // Fetch recent solves and profile for logged-in users
   useEffect(() => {
@@ -35,38 +37,6 @@ const Index = () => {
       fetchProfile();
     }
   }, [user]);
-
-  // Handle clipboard paste for images (Ctrl+V)
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      // Don't trigger if we're already loading or showing a solution
-      if (isLoading || solution) return;
-
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      for (const item of Array.from(items)) {
-        if (item.type.startsWith("image/")) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) {
-            (async () => {
-              const optimized = await fileToOptimizedDataUrl(file, {
-                maxDimension: 1280,
-                quality: 0.8,
-                mimeType: "image/webp",
-              });
-              handleImageCapture(optimized);
-            })();
-          }
-          break;
-        }
-      }
-    };
-
-    document.addEventListener("paste", handlePaste);
-    return () => document.removeEventListener("paste", handlePaste);
-  }, [isLoading, solution]);
 
   const fetchRecentSolves = async () => {
     const { data } = await supabase
@@ -103,6 +73,7 @@ const Index = () => {
   const handleSolve = async (input: string, imageData?: string) => {
     setIsLoading(true);
     setSolution(null);
+    setPendingImage(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("solve-homework", {
@@ -160,16 +131,35 @@ const Index = () => {
     }
   };
 
+  // When image is captured, store it and wait for user instruction
   const handleImageCapture = (imageData: string) => {
-    handleSolve("", imageData);
+    setPendingImage(imageData);
+    toast.info("Image ready! Press Enter or type a question to solve.");
   };
 
+  // When text is submitted, solve with pending image if available
   const handleTextSubmit = (text: string) => {
-    handleSolve(text);
+    if (pendingImage) {
+      handleSolve(text, pendingImage);
+    } else {
+      handleSolve(text);
+    }
+  };
+
+  // Handle Enter press with pending image (solve immediately)
+  const handleSolveWithPendingImage = () => {
+    if (pendingImage) {
+      handleSolve("", pendingImage);
+    }
   };
 
   const handleReset = () => {
     setSolution(null);
+    setPendingImage(null);
+  };
+
+  const handleClearPendingImage = () => {
+    setPendingImage(null);
   };
 
   return (
@@ -203,31 +193,50 @@ const Index = () => {
                 </motion.p>
               </div>
 
-              {/* Camera button */}
+              {/* Camera button - click only, stores pending image */}
               <CameraButton onImageCapture={handleImageCapture} isLoading={isLoading} />
 
-              {/* Paste hint */}
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-xs text-muted-foreground/60"
-              >
-                or paste an image (Ctrl+V / ⌘+V)
-              </motion.p>
+              {/* Pending image preview */}
+              {pendingImage && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="relative max-w-xs"
+                >
+                  <img 
+                    src={pendingImage} 
+                    alt="Pending homework" 
+                    className="rounded-lg border-2 border-primary/50 max-h-32 object-contain"
+                  />
+                  <button
+                    onClick={handleClearPendingImage}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs font-bold hover:bg-destructive/80"
+                  >
+                    ×
+                  </button>
+                  <p className="text-xs text-primary text-center mt-2">
+                    Press Enter below to solve, or add a question
+                  </p>
+                </motion.div>
+              )}
 
               {/* Divider */}
               <div className="flex items-center gap-4 w-full max-w-md">
                 <div className="flex-1 h-px bg-border" />
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">or type it</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                  {pendingImage ? "add details or press enter" : "or type it"}
+                </span>
                 <div className="flex-1 h-px bg-border" />
               </div>
 
-              {/* Text input */}
+              {/* Text input - handles both text and solving pending images */}
               <TextInputBox 
-                onSubmit={handleTextSubmit} 
+                onSubmit={handleTextSubmit}
+                onEmptySubmit={handleSolveWithPendingImage}
                 onImagePaste={handleImageCapture}
-                isLoading={isLoading} 
+                isLoading={isLoading}
+                hasPendingImage={!!pendingImage}
+                placeholder={pendingImage ? "Add details or press Enter to solve..." : "Paste or type your homework question..."}
               />
 
               {/* Recent solves */}

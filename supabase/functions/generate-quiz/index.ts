@@ -8,15 +8,20 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { subject, question, solution } = await req.json();
+    const { subject, question, solution, difficulty = "medium", count = 4 } = await req.json();
 
-    console.log("Generating quiz for:", { subject, question: question?.slice(0, 50) });
+    console.log("Generating quiz:", { subject, difficulty, count });
+
+    const difficultyInstructions = {
+      easy: "Make questions simple and straightforward. Focus on basic recall and understanding.",
+      medium: "Balance between recall and application. Include some problem-solving.",
+      hard: "Make questions challenging. Include edge cases, multi-step reasoning, and deeper analysis."
+    };
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -29,38 +34,33 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a quiz generator. Create 3-5 multiple choice questions to test understanding of a homework problem and its solution.
+            content: `You are a quiz generator. Create exactly ${count} multiple choice questions.
 
-Return ONLY valid JSON in this exact format:
+Difficulty: ${difficulty.toUpperCase()}
+${difficultyInstructions[difficulty as keyof typeof difficultyInstructions] || difficultyInstructions.medium}
+
+Return ONLY valid JSON:
 {
   "questions": [
     {
-      "question": "Question text here?",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "question": "Question text?",
+      "options": ["A", "B", "C", "D"],
       "correctIndex": 0,
-      "explanation": "Brief explanation of why this is correct"
+      "explanation": "Why this is correct"
     }
   ]
 }
 
-Make questions progressively harder:
-1. Basic concept check
-2. Application of the method
-3. Deeper understanding
-4-5. Edge cases or extensions (optional)
-
-Questions should test UNDERSTANDING, not just memorization.`,
+Test UNDERSTANDING, not memorization. Keep explanations brief.`,
           },
           {
             role: "user",
             content: `Subject: ${subject || "general"}
-            
-Original Problem: ${question || "Image-based problem"}
-
+Problem: ${question || "Image-based problem"}
 Solution:
 ${solution}
 
-Generate 4 quiz questions to test understanding of this problem and solution.`,
+Generate exactly ${count} ${difficulty} quiz questions.`,
           },
         ],
         max_tokens: 2000,
@@ -69,77 +69,32 @@ Generate 4 quiz questions to test understanding of this problem and solution.`,
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI API error:", errorText);
       throw new Error(`AI API error: ${response.status}`);
     }
 
     const data = await response.json();
     let content = data.choices?.[0]?.message?.content || "";
 
-    console.log("Raw AI response:", content);
-
-    // Extract JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No valid JSON in response");
-    }
+    if (!jsonMatch) throw new Error("No valid JSON");
 
     const quizData = JSON.parse(jsonMatch[0]);
 
-    console.log("Quiz generated successfully with", quizData.questions?.length, "questions");
-
-    return new Response(
-      JSON.stringify(quizData),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify(quizData), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
-    console.error("Error generating quiz:", error);
-    
-    // Return fallback quiz
+    console.error("Quiz error:", error);
     return new Response(
       JSON.stringify({
-        questions: [
-          {
-            question: "Based on the solution, what was the main approach used?",
-            options: [
-              "Step-by-step breakdown",
-              "Direct formula application",
-              "Estimation method",
-              "Graphical analysis"
-            ],
-            correctIndex: 0,
-            explanation: "The solution used a step-by-step approach to break down the problem."
-          },
-          {
-            question: "What's the most important thing to remember from this problem?",
-            options: [
-              "Understanding the concept",
-              "Memorizing the answer",
-              "Using a calculator",
-              "Guessing quickly"
-            ],
-            correctIndex: 0,
-            explanation: "Understanding concepts helps you solve similar problems in the future."
-          },
-          {
-            question: "Could you apply this method to similar problems?",
-            options: [
-              "Yes, the method is generalizable",
-              "No, it only works for this exact problem",
-              "Only with major modifications",
-              "I'm not sure"
-            ],
-            correctIndex: 0,
-            explanation: "Good problem-solving methods can usually be applied to related problems."
-          }
-        ]
+        questions: [{
+          question: "Did you understand the solution?",
+          options: ["Yes!", "Mostly", "Need practice", "Not really"],
+          correctIndex: 0,
+          explanation: "Understanding is key to learning."
+        }]
       }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
