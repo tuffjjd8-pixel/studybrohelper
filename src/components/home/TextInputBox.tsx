@@ -3,14 +3,21 @@ import { Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
+import { fileToOptimizedDataUrl } from "@/lib/image";
 
 interface TextInputBoxProps {
   onSubmit: (text: string) => void;
+  onImagePaste?: (imageData: string) => void;
   isLoading?: boolean;
   placeholder?: string;
 }
 
-export function TextInputBox({ onSubmit, isLoading, placeholder = "Paste or type your homework question..." }: TextInputBoxProps) {
+export function TextInputBox({ 
+  onSubmit, 
+  onImagePaste,
+  isLoading, 
+  placeholder = "Paste or type your homework question..." 
+}: TextInputBoxProps) {
   const [text, setText] = useState("");
 
   const handleSubmit = () => {
@@ -27,6 +34,28 @@ export function TextInputBox({ onSubmit, isLoading, placeholder = "Paste or type
     }
   };
 
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file && onImagePaste) {
+          const optimized = await fileToOptimizedDataUrl(file, {
+            maxDimension: 1280,
+            quality: 0.8,
+            mimeType: "image/webp",
+          });
+          onImagePaste(optimized);
+        }
+        return;
+      }
+    }
+    // Text paste is handled automatically by the textarea
+  };
+
   return (
     <motion.div
       className="w-full max-w-2xl mx-auto"
@@ -41,6 +70,7 @@ export function TextInputBox({ onSubmit, isLoading, placeholder = "Paste or type
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder={placeholder}
               disabled={isLoading}
               className="
@@ -68,7 +98,7 @@ export function TextInputBox({ onSubmit, isLoading, placeholder = "Paste or type
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2 text-center">
-          Press Enter to send • Shift+Enter for new line
+          Press Enter to send • Shift+Enter for new line • Paste images with Ctrl+V
         </p>
       </div>
     </motion.div>
