@@ -224,7 +224,11 @@ const Index = () => {
               </div>
 
               {/* Text input */}
-              <TextInputBox onSubmit={handleTextSubmit} isLoading={isLoading} />
+              <TextInputBox 
+                onSubmit={handleTextSubmit} 
+                onImagePaste={handleImageCapture}
+                isLoading={isLoading} 
+              />
 
               {/* Recent solves */}
               <RecentSolves solves={recentSolves} />
