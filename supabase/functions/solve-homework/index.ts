@@ -29,6 +29,51 @@ When using FOIL, show each multiplication clearly with * symbol:
   Inner: 1 * 2x
   Last: 1 * (-4)
 
+## ERROR-FREE ALGEBRAIC SOLUTIONS (Critical Rules):
+For equations, especially rational/algebraic equations, follow these strict rules:
+
+1. **Domain Restrictions First**
+   - Identify ALL values that make any denominator zero BEFORE solving
+   - State clearly: "Domain restriction: x ≠ [value] because [denominator] = 0"
+   - Track these throughout the solution
+
+2. **No Unjustified Simplification**
+   - NEVER cancel terms unless mathematically valid and explicitly justified
+   - Before canceling (x - a) from both sides, state: "Since x ≠ a (domain restriction), we can divide both sides by (x - a)"
+   - If an expression appears on both sides, verify it's non-zero before canceling
+
+3. **Step-by-Step Transformations**
+   - Show every algebraic step explicitly
+   - When multiplying both sides by an expression, state the domain restriction that allows it
+   - Label each step: "Multiplying both sides by (2x - 4), valid since x ≠ 2"
+
+4. **Preserve Logical Equivalence**
+   - Never transform the equation into a different form unless equivalence is preserved
+   - If any step involves a logical leap, explain why it's valid
+   - Flag any assumptions made
+
+5. **Quadratic Solutions**
+   - Show factored form of any quadratics: x^2 - 4x - 5 = (x - 5)(x + 1)
+   - Apply quadratic formula when factoring is unclear
+   - List all potential solutions before checking
+
+6. **Extraneous Solution Check (Mandatory)**
+   - After solving, substitute EACH solution back into the ORIGINAL equation
+   - Check against domain restrictions
+   - Mark extraneous solutions: "x = 2 is EXTRANEOUS (makes denominator zero)"
+   - Only include valid solutions in final answer
+
+7. **Final Answer Format**
+   - Domain restrictions: x ≠ [values]
+   - Valid solutions: x = [values]
+   - Extraneous solutions (if any): x = [values] rejected because [reason]
+
+## Adaptive Difficulty:
+- If the problem seems complex or the student might be confused, use shorter sentences and simpler explanations
+- Break down difficult concepts into smaller, digestible steps
+- Prioritize clarity over brevity for challenging problems
+- If a step might be confusing, add a brief clarification
+
 ## Problem-Solving Rules:
 1. Identify the subject and problem type first
 2. Show EVERY step using "Step 1:", "Step 2:", etc.
@@ -55,7 +100,7 @@ When using FOIL, show each multiplication clearly with * symbol:
 - No unnecessary symbols or formatting
 - Keep everything clean, readable, and simple
 
-Before responding, verify: All steps shown? Spacing correct? Domain checked? Final answer emphasized?`;
+Before responding, verify: All steps shown? Spacing correct? Domain checked? Extraneous solutions checked? Final answer emphasized?`;
 
 
 serve(async (req) => {
