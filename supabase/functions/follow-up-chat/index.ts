@@ -34,7 +34,7 @@ Original question: ${context?.question || "Image question"}
 Your previous solution:
 ${context?.solution || "No previous solution"}
 
-Now help with follow-up questions. Be friendly, clear, and educational. Use markdown for formatting. If they ask for a different method, provide one. If they don't understand, explain differently.`,
+Now help with follow-up questions. Be friendly, clear, and educational. Use markdown for formatting and LaTeX for math (wrap inline math in $...$ and display math in $$...$$). If they ask for a different method, provide one. If they don't understand, explain differently.`,
       },
     ];
 
@@ -64,7 +64,7 @@ Now help with follow-up questions. Be friendly, clear, and educational. Use mark
         "X-Title": "StudyBro AI",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
+        model: "google/gemma-3-27b-it:free",
         messages,
         max_tokens: 2000,
         temperature: 0.7,
