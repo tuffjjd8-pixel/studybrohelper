@@ -64,7 +64,7 @@ Now help with follow-up questions. Be friendly, clear, and educational. Use mark
         "X-Title": "StudyBro AI",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-preview",
+        model: "google/gemini-2.0-flash-001",
         messages,
         max_tokens: 2000,
         temperature: 0.7,
