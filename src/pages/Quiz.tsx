@@ -167,9 +167,7 @@ const Quiz = () => {
   }
 
   const currentQuestion = questions[currentIndex];
-  const finalScore = isComplete
-    ? score + (selectedAnswer === questions[currentIndex]?.correctIndex ? 1 : 0)
-    : score;
+  const finalScore = score;
 
   return (
     <div className="min-h-screen bg-background">
