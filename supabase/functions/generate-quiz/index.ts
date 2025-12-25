@@ -37,7 +37,7 @@ serve(async (req) => {
         "X-Title": "StudyBro AI",
       },
       body: JSON.stringify({
-        model: "google/gemma-3-27b-it:free",
+        model: "google/gemini-2.0-flash-001",
         messages: [
           {
             role: "system",
