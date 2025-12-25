@@ -15,6 +15,11 @@ serve(async (req) => {
 
   try {
     const { message, context, history } = await req.json();
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY is not configured");
+    }
 
     console.log("Follow-up chat request:", { message, subject: context?.subject });
 
@@ -49,15 +54,17 @@ Now help with follow-up questions. Be friendly, clear, and educational. Use mark
       content: message,
     });
 
-    // Call Lovable AI
-    const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    // Call OpenRouter API
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://studybro.app",
+        "X-Title": "StudyBro AI",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-preview",
         messages,
         max_tokens: 2000,
         temperature: 0.7,
@@ -66,8 +73,8 @@ Now help with follow-up questions. Be friendly, clear, and educational. Use mark
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI API error:", errorText);
-      throw new Error(`AI API error: ${response.status}`);
+      console.error("OpenRouter API error:", errorText);
+      throw new Error(`OpenRouter API error: ${response.status}`);
     }
 
     const data = await response.json();
