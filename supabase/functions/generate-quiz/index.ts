@@ -14,6 +14,11 @@ serve(async (req) => {
 
   try {
     const { subject, question, solution, difficulty = "medium", count = 4 } = await req.json();
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY is not configured");
+    }
 
     console.log("Generating quiz:", { subject, difficulty, count });
 
@@ -23,14 +28,16 @@ serve(async (req) => {
       hard: "Make questions challenging. Include edge cases, multi-step reasoning, and deeper analysis."
     };
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://studybro.app",
+        "X-Title": "StudyBro AI",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-preview",
         messages: [
           {
             role: "system",
@@ -69,7 +76,9 @@ Generate exactly ${count} ${difficulty} quiz questions.`,
     });
 
     if (!response.ok) {
-      throw new Error(`AI API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error("OpenRouter API error:", errorText);
+      throw new Error(`OpenRouter API error: ${response.status}`);
     }
 
     const data = await response.json();
