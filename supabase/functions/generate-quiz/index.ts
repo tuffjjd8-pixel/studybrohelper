@@ -7,6 +7,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// ============================================================
+// MODEL CONFIGURATION
+// Change this to any Gemini model (e.g., "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash")
+// ============================================================
+const GEMINI_MODEL = "gemini-2.0-flash";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -14,10 +20,10 @@ serve(async (req) => {
 
   try {
     const { subject, question, solution, difficulty = "medium", count = 4 } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY is not configured");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
     console.log("Generating quiz:", { subject, difficulty, count });
@@ -28,20 +34,7 @@ serve(async (req) => {
       hard: "Make questions challenging. Include edge cases, multi-step reasoning, and deeper analysis."
     };
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://studybro.app",
-        "X-Title": "StudyBro AI",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
-        messages: [
-          {
-            role: "system",
-            content: `You are a quiz generator. Create exactly ${count} multiple choice questions.
+    const systemPrompt = `You are a quiz generator. Create exactly ${count} multiple choice questions.
 
 Difficulty: ${difficulty.toUpperCase()}
 ${difficultyInstructions[difficulty as keyof typeof difficultyInstructions] || difficultyInstructions.medium}
@@ -58,31 +51,48 @@ Return ONLY valid JSON:
   ]
 }
 
-Test UNDERSTANDING, not memorization. Keep explanations brief.`,
-          },
-          {
-            role: "user",
-            content: `Subject: ${subject || "general"}
+Test UNDERSTANDING, not memorization. Keep explanations brief.`;
+
+    const userMessage = `Subject: ${subject || "general"}
 Problem: ${question || "Image-based problem"}
 Solution:
 ${solution}
 
-Generate exactly ${count} ${difficulty} quiz questions.`,
+Generate exactly ${count} ${difficulty} quiz questions.`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: systemPrompt }]
           },
-        ],
-        max_tokens: 2000,
-        temperature: 0.7,
-      }),
-    });
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: userMessage }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 2000,
+          }
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("OpenRouter API error:", errorText);
-      throw new Error(`OpenRouter API error: ${response.status}`);
+      console.error("Gemini API error:", errorText);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
-    let content = data.choices?.[0]?.message?.content || "";
+    let content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No valid JSON");

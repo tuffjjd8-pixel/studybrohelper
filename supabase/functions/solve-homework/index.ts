@@ -6,6 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ============================================================
+// MODEL CONFIGURATION
+// Change this to any Gemini model (e.g., "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash")
+// ============================================================
+const GEMINI_MODEL = "gemini-2.0-flash";
+
 const SYSTEM_PROMPT = `You are StudyBro AI, a friendly math tutor who explains everything clearly with proper LaTeX math formatting.
 
 ## Core Formatting Rules:
@@ -91,50 +97,65 @@ serve(async (req) => {
 
   try {
     const { question, image } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY is not configured");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    const messages: any[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-    ];
+    // Build the request parts for Gemini API
+    const parts: any[] = [];
 
+    // Add text content
+    const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide a step-by-step solution.";
+    parts.push({ text: textContent });
+
+    // Add image if provided
     if (image) {
-      messages.push({
-        role: "user",
-        content: [
-          { type: "text", text: question || "Please solve this homework problem from the image. Identify the subject and provide a step-by-step solution." },
-          { type: "image_url", image_url: { url: image } },
-        ],
-      });
-    } else {
-      messages.push({
-        role: "user",
-        content: question,
-      });
+      // Extract base64 data and mime type from data URL
+      const matches = image.match(/^data:([^;]+);base64,(.+)$/);
+      if (matches) {
+        const mimeType = matches[1];
+        const base64Data = matches[2];
+        parts.push({
+          inlineData: {
+            mimeType: mimeType,
+            data: base64Data
+          }
+        });
+      }
     }
 
-    console.log("Calling OpenRouter API");
+    console.log("Calling Google Gemini API with model:", GEMINI_MODEL);
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://studybro.app",
-        "X-Title": "StudyBro AI",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
-        messages,
-      }),
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: SYSTEM_PROMPT }]
+          },
+          contents: [
+            {
+              role: "user",
+              parts: parts
+            }
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 8192,
+          }
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("OpenRouter API error:", response.status, errorText);
+      console.error("Gemini API error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -143,11 +164,11 @@ serve(async (req) => {
         );
       }
       
-      throw new Error(`OpenRouter API error: ${response.status}`);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const solution = data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
+    const solution = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't solve this problem.";
 
     // Detect subject from response
     let subject = "other";
