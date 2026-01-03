@@ -12,7 +12,32 @@ const corsHeaders = {
 // ============================================================
 const GEMINI_MODEL = "gemini-2.0-flash";
 
-const SYSTEM_PROMPT = `You are StudyBro AI, a friendly math tutor who explains everything clearly with proper LaTeX math formatting.
+// System prompt for free users
+const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a friendly math tutor who explains everything clearly with proper LaTeX math formatting.
+
+## Core Formatting Rules:
+- When solving math problems, format all expressions using LaTeX-style math notation
+- Wrap inline equations in \`$...$\` for inline math
+- Wrap display equations in \`$$...$$\` for display math
+- Do NOT use plain text like x^2 or sqrt() - always use proper LaTeX
+
+## LaTeX Examples:
+- Fractions: $\\frac{3}{4}$
+- Exponents: $x^2$
+- Square roots: $\\sqrt{25} = 5$
+- Display equations: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
+
+## Problem-Solving Rules:
+1. Identify the subject and problem type first
+2. Show key steps using "Step 1:", "Step 2:", etc.
+3. Write final answers with emphasis: **Final Answer: $x = 5$**
+
+## Tone:
+- Friendly, supportive, and organized
+- Keep explanations concise but clear`;
+
+// Enhanced system prompt for premium users - more detailed and accurate
+const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, an expert tutor providing the most detailed and accurate solutions with proper LaTeX math formatting.
 
 ## Core Formatting Rules:
 - When solving math problems, format all expressions using LaTeX-style math notation
@@ -35,27 +60,23 @@ For equations, especially rational/algebraic equations, follow these strict rule
 1. **Domain Restrictions First**
    - Identify ALL values that make any denominator zero BEFORE solving
    - State clearly: "Domain restriction: $x \\neq [value]$ because [denominator] = 0"
-   - Track these throughout the solution
 
 2. **No Unjustified Simplification**
    - NEVER cancel terms unless mathematically valid and explicitly justified
-   - Before canceling $(x - a)$ from both sides, state: "Since $x \\neq a$ (domain restriction), we can divide both sides by $(x - a)$"
+   - Before canceling $(x - a)$ from both sides, state: "Since $x \\neq a$ (domain restriction), we can divide"
 
 3. **Step-by-Step Transformations**
    - Show every algebraic step explicitly
-   - When multiplying both sides by an expression, state the domain restriction that allows it
-   - Label each step: "Multiplying both sides by $(2x - 4)$, valid since $x \\neq 2$"
+   - When multiplying both sides by an expression, state the domain restriction
 
 4. **Quadratic Solutions**
    - Show factored form of any quadratics: $x^2 - 4x - 5 = (x - 5)(x + 1)$
    - Apply quadratic formula when factoring is unclear
-   - List all potential solutions before checking
 
 5. **Extraneous Solution Check (Mandatory)**
    - After solving, substitute EACH solution back into the ORIGINAL equation
    - Check against domain restrictions
-   - Mark extraneous solutions: "$x = 2$ is EXTRANEOUS (makes denominator zero)"
-   - Only include valid solutions in final answer
+   - Mark extraneous solutions clearly
 
 6. **Final Answer Format**
    - Domain restrictions: $x \\neq [values]$
@@ -96,12 +117,15 @@ serve(async (req) => {
   }
 
   try {
-    const { question, image } = await req.json();
+    const { question, image, isPremium } = await req.json();
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
     if (!GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY is not configured");
     }
+
+    // Use appropriate prompt based on user tier
+    const systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
 
     // Build the request parts for Gemini API
     const parts: any[] = [];
@@ -126,7 +150,7 @@ serve(async (req) => {
       }
     }
 
-    console.log("Calling Google Gemini API with model:", GEMINI_MODEL);
+    console.log("Calling Google Gemini API with model:", GEMINI_MODEL, "Premium:", isPremium);
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
@@ -137,7 +161,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           systemInstruction: {
-            parts: [{ text: SYSTEM_PROMPT }]
+            parts: [{ text: systemPrompt }]
           },
           contents: [
             {
@@ -146,8 +170,8 @@ serve(async (req) => {
             }
           ],
           generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 8192,
+            temperature: isPremium ? 0.5 : 0.7, // Lower temperature for premium = more accurate
+            maxOutputTokens: isPremium ? 16384 : 8192, // More tokens for premium
           }
         }),
       }

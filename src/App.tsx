@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
+import Premium from "./pages/Premium";
 import SolveDetail from "./pages/SolveDetail";
 import Chat from "./pages/Chat";
 import Quiz from "./pages/Quiz";
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/history" element={<History />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/premium" element={<Premium />} />
             <Route path="/solve/:id" element={<SolveDetail />} />
             <Route path="/chat/:id" element={<Chat />} />
             <Route path="/quiz/:id" element={<Quiz />} />
