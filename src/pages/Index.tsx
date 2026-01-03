@@ -25,7 +25,7 @@ const Index = () => {
   } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [recentSolves, setRecentSolves] = useState<{ id: string; subject: string; question: string; createdAt: Date }[]>([]);
-  const [profile, setProfile] = useState<{ streak_count: number; total_solves: number } | null>(null);
+  const [profile, setProfile] = useState<{ streak_count: number; total_solves: number; is_premium: boolean; daily_solves_used: number } | null>(null);
   
   // Pending image state - waits for user instruction before solving
   const [pendingImage, setPendingImage] = useState<string | null>(null);
@@ -61,7 +61,7 @@ const Index = () => {
   const fetchProfile = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("streak_count, total_solves")
+      .select("streak_count, total_solves, is_premium, daily_solves_used")
       .eq("user_id", user?.id)
       .single();
 
@@ -71,13 +71,26 @@ const Index = () => {
   };
 
   const handleSolve = async (input: string, imageData?: string) => {
+    // Check daily limit for free users
+    if (user && profile && !profile.is_premium) {
+      if (profile.daily_solves_used >= 10) {
+        toast.error("Daily limit reached! Upgrade to Pro for unlimited solves.");
+        navigate("/premium");
+        return;
+      }
+    }
+
     setIsLoading(true);
     setSolution(null);
     setPendingImage(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("solve-homework", {
-        body: { question: input, image: imageData },
+        body: { 
+          question: input, 
+          image: imageData,
+          isPremium: profile?.is_premium || false 
+        },
       });
 
       if (error) throw error;
@@ -102,11 +115,12 @@ const Index = () => {
           console.error("Save error:", saveError);
         } else {
           solveId = solveData?.id;
-          // Update profile stats
+          // Update profile stats and daily usage
           await supabase
             .from("profiles")
             .update({ 
               total_solves: (profile?.total_solves || 0) + 1,
+              daily_solves_used: (profile?.daily_solves_used || 0) + 1,
               last_solve_date: new Date().toISOString().split('T')[0]
             })
             .eq("user_id", user.id);
@@ -125,7 +139,11 @@ const Index = () => {
       setShowConfetti(true);
     } catch (error: any) {
       console.error("Solve error:", error);
-      toast.error("Failed to solve. Please try again.");
+      if (error.message?.includes("429")) {
+        toast.error("AI is busy. Please try again in a moment.");
+      } else {
+        toast.error("Failed to solve. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
