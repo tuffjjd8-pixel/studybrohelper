@@ -8,11 +8,11 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION - Groq Only
-// Vision model for images: "llama-3-8b-vision"
-// Text model for text-only: "llama3-8b-8192"
+// Vision model for images: "llama-3.2-11b-vision-preview"
+// Text model for text-only: "llama-3.1-8b-instant"
 // ============================================================
-const GROQ_VISION_MODEL = "llama-3-8b-vision";
-const GROQ_TEXT_MODEL = "llama3-8b-8192";
+const GROQ_VISION_MODEL = "llama-3.2-11b-vision-preview";
+const GROQ_TEXT_MODEL = "llama-3.1-8b-instant";
 
 // System prompt for free users
 const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a friendly math tutor who explains everything clearly with proper LaTeX math formatting.
