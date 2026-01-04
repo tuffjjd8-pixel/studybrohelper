@@ -10,9 +10,11 @@ const corsHeaders = {
 // MODEL CONFIGURATION - Groq Only
 // Vision model for images: "meta-llama/llama-4-scout-17b-16e-instruct"
 // Text model for text-only: "llama-3.1-8b-instant"
+// Graph model: Use the more capable model for structured JSON output
 // ============================================================
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const GROQ_TEXT_MODEL = "llama-3.1-8b-instant";
+const GROQ_GRAPH_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"; // Better at structured output
 
 // ============================================================
 // TIER LIMITS
@@ -274,6 +276,9 @@ async function callGroqText(
     throw new Error("GROQ_API_KEY is not configured");
   }
 
+  // Use the more capable model when generating graphs (better at structured JSON)
+  const model = generateGraph ? GROQ_GRAPH_MODEL : GROQ_TEXT_MODEL;
+
   let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
   // Add animated steps instruction
@@ -287,7 +292,7 @@ async function callGroqText(
     systemPrompt += GRAPH_PROMPT;
   }
   
-  console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "GenerateGraph:", generateGraph);
+  console.log("Calling Groq Text API with model:", model, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "GenerateGraph:", generateGraph);
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -296,7 +301,7 @@ async function callGroqText(
       "Authorization": `Bearer ${GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: GROQ_TEXT_MODEL,
+      model: model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: question }
