@@ -179,29 +179,17 @@ Keep each step focused on ONE key action or concept.`;
 }
 
 // Prompt to generate graph data - structured JSON for frontend rendering
-// CRITICAL: Never output images, URLs, base64, ASCII art, or symbolic drawings
 const GRAPH_PROMPT = `
 
-## GRAPH GENERATION RULES (CRITICAL):
-When generateGraph is true, output a structured JSON object describing the graph.
+You are generating structured graph data for a math or data problem.
 
-### NEVER DO:
-- NEVER generate images, URLs, base64, ASCII art, or symbolic drawings
-- NEVER say "here is a graph" and describe it visually
-- NEVER output anything except structured JSON data and a short explanation
+## CRITICAL RULES:
+- Do NOT generate images, URLs, base64, ASCII art, or symbolic drawings
+- Do NOT say "here is a graph" and describe it visually
+- ONLY return structured JSON data that the frontend can render
 
-### WHEN to Generate a Graph:
-Only generate graph data when the problem contains:
-- An equation (y = 2x + 3, f(x) = x², etc.)
-- A function to plot
-- Data that can be charted (Jan 100, Feb 150, etc.)
-- Systems of equations
-- Trends or statistics
-
-If the problem is simple arithmetic, definitions, word problems without functions, or conceptual questions, DO NOT generate a graph. Return NO graph block.
-
-### Graph JSON Format:
-At the END of your response, include ONLY this JSON block:
+## Graph JSON Format:
+At the END of your response, include this exact JSON block wrapped in \`\`\`graph tags:
 
 \`\`\`graph
 {
@@ -216,53 +204,60 @@ At the END of your response, include ONLY this JSON block:
 }
 \`\`\`
 
-### Rules for Generating Graph Data:
-1. **For equations** (like y = 2x + 3):
+## Rules:
+1. **For equations** (y = mx + b, y = x², etc.):
    - Generate x values from -10 to 10 (21 values) unless user specifies a range
-   - Calculate corresponding y values by substituting each x
-   - type: "line" for linear, "scatter" for quadratics/complex
+   - Calculate corresponding y values by substituting each x into the equation
+   - Use type: "line" for linear, "scatter" for quadratics/complex
 
-2. **For data** (like "Jan: 100, Feb: 150, Mar: 200"):
-   - labels: the category names ["Jan", "Feb", "Mar"]
+2. **For data** (Jan: 100, Feb: 150):
+   - labels: category names ["Jan", "Feb", "Mar"]
    - data: the values [100, 150, 200]
-   - type: "bar" for comparisons, "line" for trends
+   - Use type: "bar" for comparisons, "line" for trends
 
 3. **Supported types**: "line" | "bar" | "scatter"
 
 4. **Keep explanations SHORT** (3-5 steps max):
    - Step 1: Identify the equation/function
-   - Step 2: Note key points (intercepts, slope, vertex)
+   - Step 2: Calculate key points
    - Step 3: Describe what the graph shows
 
-### Example for y = x:
+## Examples:
+
+### Linear equation y = x:
 \`\`\`graph
 {
   "type": "line",
   "labels": [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-  "datasets": [
-    {
-      "label": "y = x",
-      "data": [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    }
-  ]
+  "datasets": [{"label": "y = x", "data": [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}]
 }
 \`\`\`
 
-### Example for y = x² (quadratic):
+### Quadratic y = x²:
 \`\`\`graph
 {
   "type": "scatter",
   "labels": [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5],
-  "datasets": [
-    {
-      "label": "y = x²",
-      "data": [25, 16, 9, 4, 1, 0, 1, 4, 9, 16, 25]
-    }
-  ]
+  "datasets": [{"label": "y = x²", "data": [25, 16, 9, 4, 1, 0, 1, 4, 9, 16, 25]}]
 }
 \`\`\`
 
-Do NOT include any text outside the explanation and JSON block.`;
+Return ONLY the explanation and JSON block. No extra text.`;
+
+// Check if problem should trigger graph generation
+function shouldGenerateGraph(question: string): boolean {
+  const lowerQ = question.toLowerCase();
+  return (
+    lowerQ.includes("graph") ||
+    lowerQ.includes("plot") ||
+    lowerQ.includes("y =") ||
+    lowerQ.includes("y=") ||
+    lowerQ.includes("f(x)") ||
+    lowerQ.includes("chart") ||
+    lowerQ.includes("visualize") ||
+    /\by\s*=\s*[\dx\+\-\*\/\^\(\)]+/i.test(question)
+  );
+}
 
 // Call Groq API for text-only input
 async function callGroqText(

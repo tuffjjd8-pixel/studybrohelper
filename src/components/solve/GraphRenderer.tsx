@@ -54,23 +54,32 @@ export const GraphRenderer = ({ graph }: GraphRendererProps) => {
 
   // Transform data for Recharts format
   const chartData = useMemo(() => {
-    if (!graphData.labels || !graphData.datasets?.[0]?.data) {
+    if (!graphData?.labels || !graphData?.datasets?.[0]?.data) {
       return [];
     }
 
     return graphData.labels.map((x, index) => {
-      const point: Record<string, number> = { x };
+      const point: Record<string, number | string> = { x: String(x) };
       graphData.datasets.forEach((dataset, i) => {
-        point[`y${i}`] = dataset.data[index];
+        point[`y${i}`] = dataset.data[index] ?? 0;
       });
       return point;
     });
   }, [graphData]);
 
+  // Handle missing or malformed data gracefully
+  if (!graph || !graphData) {
+    return (
+      <div className="glass-card p-6 text-center">
+        <p className="text-muted-foreground">No graph data available</p>
+      </div>
+    );
+  }
+
   if (!chartData.length) {
     return (
       <div className="glass-card p-6 text-center">
-        <p className="text-muted-foreground">Unable to render graph data</p>
+        <p className="text-muted-foreground">Unable to render graph - invalid data format</p>
       </div>
     );
   }
