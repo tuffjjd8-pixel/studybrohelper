@@ -7,12 +7,12 @@ const corsHeaders = {
 };
 
 // ============================================================
-// MODEL CONFIGURATION
-// DeepSeek for text-only: "deepseek-chat"
-// Groq LLaMA Vision for images: "llama-3.2-90b-vision-preview"
+// MODEL CONFIGURATION - Groq Only
+// Vision model for images: "llama-3-8b-vision"
+// Text model for text-only: "llama3-8b-8192"
 // ============================================================
-const DEEPSEEK_MODEL = "deepseek-chat";
-const GROQ_VISION_MODEL = "llama-3.2-90b-vision-preview";
+const GROQ_VISION_MODEL = "llama-3-8b-vision";
+const GROQ_TEXT_MODEL = "llama3-8b-8192";
 
 // System prompt for free users
 const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a friendly math tutor who explains everything clearly with proper LaTeX math formatting.
@@ -112,25 +112,25 @@ For equations, especially rational/algebraic equations, follow these strict rule
 
 Before responding, verify: All steps shown? LaTeX formatted correctly? Domain checked? Extraneous solutions checked? Final answer emphasized?`;
 
-// Call DeepSeek API for text-only input
-async function callDeepSeek(question: string, isPremium: boolean): Promise<string> {
-  const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
-  if (!DEEPSEEK_API_KEY) {
-    throw new Error("DEEPSEEK_API_KEY is not configured");
+// Call Groq API for text-only input
+async function callGroqText(question: string, isPremium: boolean): Promise<string> {
+  const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+  if (!GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY is not configured");
   }
 
   const systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
-  console.log("Calling DeepSeek API with model:", DEEPSEEK_MODEL, "Premium:", isPremium);
+  console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium);
 
-  const response = await fetch("https://api.deepseek.com/chat/completions", {
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: DEEPSEEK_MODEL,
+      model: GROQ_TEXT_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: question }
@@ -142,20 +142,20 @@ async function callDeepSeek(question: string, isPremium: boolean): Promise<strin
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("DeepSeek API error:", response.status, errorText);
+    console.error("Groq Text API error:", response.status, errorText);
     
     if (response.status === 429) {
       throw new Error("Rate limit exceeded. Please try again in a moment.");
     }
     
-    throw new Error(`DeepSeek API error: ${response.status}`);
+    throw new Error(`Groq API error: ${response.status}`);
   }
 
   const data = await response.json();
   return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
 }
 
-// Call Groq API for image input (LLaMA 3.2 Vision)
+// Call Groq API for image input (Vision model)
 async function callGroqVision(question: string, imageBase64: string, mimeType: string, isPremium: boolean): Promise<string> {
   const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
   if (!GROQ_API_KEY) {
@@ -197,7 +197,7 @@ async function callGroqVision(question: string, imageBase64: string, mimeType: s
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("Groq API error:", response.status, errorText);
+    console.error("Groq Vision API error:", response.status, errorText);
     
     if (response.status === 429) {
       throw new Error("Rate limit exceeded. Please try again in a moment.");
@@ -220,9 +220,9 @@ serve(async (req) => {
     
     let solution: string;
 
-    // Route to appropriate AI provider based on input type
+    // Route to appropriate Groq model based on input type
     if (image) {
-      // Image input → use Groq LLaMA Vision
+      // Image input → use Groq Vision
       const matches = image.match(/^data:([^;]+);base64,(.+)$/);
       if (!matches) {
         throw new Error("Invalid image format");
@@ -231,8 +231,8 @@ serve(async (req) => {
       const base64Data = matches[2];
       solution = await callGroqVision(question || "", base64Data, mimeType, isPremium || false);
     } else if (question) {
-      // Text-only input → use DeepSeek
-      solution = await callDeepSeek(question, isPremium || false);
+      // Text-only input → use Groq Text
+      solution = await callGroqText(question, isPremium || false);
     } else {
       throw new Error("Please provide a question or image");
     }
