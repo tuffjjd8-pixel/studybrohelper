@@ -14,7 +14,15 @@ const corsHeaders = {
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const GROQ_TEXT_MODEL = "llama-3.1-8b-instant";
 
-// System prompt for free users
+// ============================================================
+// TIER LIMITS
+// ============================================================
+const FREE_ANIMATED_STEPS = 5;
+const PREMIUM_ANIMATED_STEPS = 16;
+const FREE_GRAPHS_PER_DAY = 4;
+const PREMIUM_GRAPHS_PER_DAY = 15;
+
+// System prompt for free users - basic explanations
 const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a friendly math tutor who explains everything clearly with proper LaTeX math formatting.
 
 ## Core Formatting Rules:
@@ -38,8 +46,8 @@ const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a friendly math tutor who expla
 - Friendly, supportive, and organized
 - Keep explanations concise but clear`;
 
-// Enhanced system prompt for premium users - more detailed and accurate
-const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, an expert tutor providing the most detailed and accurate solutions with proper LaTeX math formatting.
+// Enhanced system prompt for premium users - detailed, accurate, priority reasoning
+const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, an expert tutor providing the most detailed and accurate solutions with proper LaTeX math formatting. You have access to Groq's latest models for enhanced OCR, formatting, and reasoning.
 
 ## Core Formatting Rules:
 - When solving math problems, format all expressions using LaTeX-style math notation
@@ -112,16 +120,62 @@ For equations, especially rational/algebraic equations, follow these strict rule
 
 Before responding, verify: All steps shown? LaTeX formatted correctly? Domain checked? Extraneous solutions checked? Final answer emphasized?`;
 
+// Prompt to generate structured animated steps
+function getAnimatedStepsPrompt(maxSteps: number): string {
+  return `
+
+IMPORTANT: Structure your response as exactly ${maxSteps} numbered steps maximum.
+Each step should be self-contained and build on the previous.
+Format each step as:
+**Step N: [Title]**
+[Content with LaTeX formatting]
+
+Keep each step focused on ONE key action or concept.`;
+}
+
+// Prompt to generate graph data
+const GRAPH_PROMPT = `
+
+If this problem involves a function, equation, or data that can be graphed:
+At the END of your response, include a JSON block for graphing:
+\`\`\`graph
+{
+  "type": "line|bar|scatter",
+  "title": "Graph Title",
+  "xLabel": "X Axis Label",
+  "yLabel": "Y Axis Label", 
+  "points": [[x1,y1],[x2,y2],...],
+  "equation": "y = mx + b (if applicable)"
+}
+\`\`\`
+Only include the graph block if the problem genuinely benefits from visualization.`;
+
 // Call Groq API for text-only input
-async function callGroqText(question: string, isPremium: boolean): Promise<string> {
+async function callGroqText(
+  question: string, 
+  isPremium: boolean,
+  animatedSteps: boolean,
+  generateGraph: boolean
+): Promise<string> {
   const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
   if (!GROQ_API_KEY) {
     throw new Error("GROQ_API_KEY is not configured");
   }
 
-  const systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
+  let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
-  console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium);
+  // Add animated steps instruction
+  if (animatedSteps) {
+    const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
+    systemPrompt += getAnimatedStepsPrompt(maxSteps);
+  }
+  
+  // Add graph generation instruction
+  if (generateGraph) {
+    systemPrompt += GRAPH_PROMPT;
+  }
+  
+  console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "GenerateGraph:", generateGraph);
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -155,17 +209,47 @@ async function callGroqText(question: string, isPremium: boolean): Promise<strin
   return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
 }
 
-// Call Groq API for image input (Vision model)
-async function callGroqVision(question: string, imageBase64: string, mimeType: string, isPremium: boolean): Promise<string> {
+// Call Groq API for image input (Vision model) - Enhanced OCR for premium
+async function callGroqVision(
+  question: string, 
+  imageBase64: string, 
+  mimeType: string, 
+  isPremium: boolean,
+  animatedSteps: boolean,
+  generateGraph: boolean
+): Promise<string> {
   const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
   if (!GROQ_API_KEY) {
     throw new Error("GROQ_API_KEY is not configured");
   }
 
-  const systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
+  let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
+  
+  // Premium gets enhanced OCR instructions
+  if (isPremium) {
+    systemPrompt += `
+
+## Enhanced Image Processing (Premium):
+- Extract ALL text from the image with high accuracy
+- Preserve mathematical notation and formatting exactly as shown
+- Identify handwritten vs printed text and handle appropriately
+- If the image quality is poor, state what you can read and any uncertainties`;
+  }
+  
+  // Add animated steps instruction
+  if (animatedSteps) {
+    const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
+    systemPrompt += getAnimatedStepsPrompt(maxSteps);
+  }
+  
+  // Add graph generation instruction
+  if (generateGraph) {
+    systemPrompt += GRAPH_PROMPT;
+  }
+
   const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide a step-by-step solution.";
   
-  console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium);
+  console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "GenerateGraph:", generateGraph);
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -210,29 +294,100 @@ async function callGroqVision(question: string, imageBase64: string, mimeType: s
   return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
 }
 
+// Parse structured steps from solution
+function parseAnimatedSteps(solution: string, maxSteps: number): Array<{ title: string; content: string }> {
+  const steps: Array<{ title: string; content: string }> = [];
+  
+  // Match patterns like "**Step 1: Title**" or "Step 1:" or "## Step 1"
+  const stepPattern = /(?:\*\*)?(?:##?\s*)?Step\s*(\d+):?\s*([^\*\n]*)?(?:\*\*)?\n?([\s\S]*?)(?=(?:\*\*)?(?:##?\s*)?Step\s*\d+|$)/gi;
+  
+  let match;
+  while ((match = stepPattern.exec(solution)) !== null && steps.length < maxSteps) {
+    const stepNum = parseInt(match[1]);
+    const title = match[2]?.trim() || `Step ${stepNum}`;
+    const content = match[3]?.trim() || "";
+    
+    if (content) {
+      steps.push({ title, content });
+    }
+  }
+  
+  // If no structured steps found, create a single step with the full content
+  if (steps.length === 0 && solution.trim()) {
+    steps.push({ title: "Solution", content: solution.trim() });
+  }
+  
+  return steps.slice(0, maxSteps);
+}
+
+// Parse graph data from solution
+function parseGraphData(solution: string): { type: string; data: Record<string, unknown> } | null {
+  const graphMatch = solution.match(/```graph\n?([\s\S]*?)\n?```/);
+  
+  if (!graphMatch) return null;
+  
+  try {
+    const graphJson = JSON.parse(graphMatch[1]);
+    return {
+      type: graphJson.type || "line",
+      data: graphJson
+    };
+  } catch (e) {
+    console.error("Failed to parse graph data:", e);
+    return null;
+  }
+}
+
+// Remove graph block from solution text
+function cleanSolutionText(solution: string): string {
+  return solution.replace(/```graph\n?[\s\S]*?\n?```/g, "").trim();
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { question, image, isPremium } = await req.json();
+    const { 
+      question, 
+      image, 
+      isPremium = false,
+      animatedSteps = false,
+      generateGraph = false,
+      userGraphCount = 0 // Current graph count for the day
+    } = await req.json();
+    
+    // Check graph limit
+    const maxGraphs = isPremium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
+    const canGenerateGraph = generateGraph && userGraphCount < maxGraphs;
+    
+    if (generateGraph && !canGenerateGraph) {
+      console.log(`Graph limit reached: ${userGraphCount}/${maxGraphs} (Premium: ${isPremium})`);
+    }
     
     let solution: string;
 
     // Route to appropriate Groq model based on input type
     if (image) {
-      // Image input → use Groq Vision
+      // Image input → use Groq Vision (Enhanced OCR for premium)
       const matches = image.match(/^data:([^;]+);base64,(.+)$/);
       if (!matches) {
         throw new Error("Invalid image format");
       }
       const mimeType = matches[1];
       const base64Data = matches[2];
-      solution = await callGroqVision(question || "", base64Data, mimeType, isPremium || false);
+      solution = await callGroqVision(
+        question || "", 
+        base64Data, 
+        mimeType, 
+        isPremium, 
+        animatedSteps,
+        canGenerateGraph
+      );
     } else if (question) {
       // Text-only input → use Groq Text
-      solution = await callGroqText(question, isPremium || false);
+      solution = await callGroqText(question, isPremium, animatedSteps, canGenerateGraph);
     } else {
       throw new Error("Please provide a question or image");
     }
@@ -250,10 +405,43 @@ serve(async (req) => {
       subject = "english";
     }
 
-    console.log("Solution generated, subject:", subject);
+    // Build response object
+    const responseData: Record<string, unknown> = {
+      solution: cleanSolutionText(solution),
+      subject,
+      tier: isPremium ? "premium" : "free"
+    };
+    
+    // Add animated steps if requested
+    if (animatedSteps) {
+      const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
+      responseData.steps = parseAnimatedSteps(solution, maxSteps);
+      responseData.maxSteps = maxSteps;
+    }
+    
+    // Add graph data if generated
+    if (canGenerateGraph) {
+      const graphData = parseGraphData(solution);
+      if (graphData) {
+        responseData.graph = graphData;
+        responseData.graphsRemaining = maxGraphs - userGraphCount - 1;
+      }
+    }
+    
+    // Add tier info for frontend
+    responseData.limits = {
+      animatedSteps: isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS,
+      graphsPerDay: maxGraphs,
+      graphsUsed: canGenerateGraph && responseData.graph ? userGraphCount + 1 : userGraphCount,
+      hasEnhancedOCR: isPremium,
+      hasPriorityResponse: isPremium,
+      hasModelSelection: isPremium
+    };
+
+    console.log("Solution generated, subject:", subject, "steps:", responseData.steps ? (responseData.steps as Array<unknown>).length : 0, "hasGraph:", !!responseData.graph);
 
     return new Response(
-      JSON.stringify({ solution, subject }),
+      JSON.stringify(responseData),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
