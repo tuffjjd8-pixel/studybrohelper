@@ -48,8 +48,32 @@ const getCSTDate = (): string => {
 };
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
+  
+  // Redirect to auth if not signed in
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
+  
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Don't render anything if not authenticated (will redirect)
+  if (!user) {
+    return null;
+  }
   const [isLoading, setIsLoading] = useState(false);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -157,19 +181,9 @@ const Index = () => {
     setSolution(null);
     setPendingImage(null);
 
-    // Check if animated steps toggle is on but user is at limit
-    if (animatedSteps && animatedStepsUsedToday >= maxAnimatedSteps) {
-      toast.error("You've reached your daily animated steps limit. Toggle off to continue solving.");
-      setIsLoading(false);
-      return;
-    }
-
-    // Check if graph toggle is on but user is at limit
-    if (generateGraph && graphsUsedToday >= maxGraphs) {
-      toast.error("You've reached your daily graph limit. Toggle off to continue solving.");
-      setIsLoading(false);
-      return;
-    }
+    // Auto-disable toggles if limits are hit (don't block solving)
+    const useAnimatedSteps = animatedSteps && animatedStepsUsedToday < maxAnimatedSteps;
+    const useGraph = generateGraph && graphsUsedToday < maxGraphs;
 
     try {
       const { data, error } = await supabase.functions.invoke("solve-homework", {
@@ -177,8 +191,8 @@ const Index = () => {
           question: input, 
           image: imageData,
           isPremium,
-          animatedSteps,
-          generateGraph,
+          animatedSteps: useAnimatedSteps,
+          generateGraph: useGraph,
           userGraphCount: graphsUsedToday,
         },
       });
@@ -214,8 +228,8 @@ const Index = () => {
             last_usage_date: currentCSTDate,
           };
           
-          // Increment animated steps usage if toggle was on
-          if (animatedSteps && data.steps?.length > 0) {
+          // Increment animated steps usage if toggle was on and steps were generated
+          if (useAnimatedSteps && data.steps?.length > 0) {
             updates.animated_steps_used_today = animatedStepsUsedToday + 1;
           }
           
