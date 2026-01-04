@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
@@ -17,6 +17,10 @@ import {
   Crown,
   Calendar,
   Target,
+  Camera,
+  Upload,
+  Sparkles,
+  LineChart,
 } from "lucide-react";
 
 interface Profile {
@@ -28,7 +32,15 @@ interface Profile {
   daily_solves_used: number;
   referral_code: string | null;
   created_at: string;
+  avatar_url: string | null;
+  animated_steps_used_today: number;
+  graphs_used_today: number;
 }
+
+const FREE_GRAPHS_PER_DAY = 4;
+const PREMIUM_GRAPHS_PER_DAY = 15;
+const FREE_ANIMATED_STEPS_PER_DAY = 5;
+const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -37,6 +49,8 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -90,6 +104,58 @@ const Profile = () => {
     }
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/avatar.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile with avatar URL
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("user_id", user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile((prev) => prev ? { ...prev, avatar_url: publicUrl } : null);
+      toast.success("Avatar updated!");
+    } catch (error) {
+      console.error("Avatar upload error:", error);
+      toast.error("Failed to upload avatar");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const copyReferralCode = () => {
     if (profile?.referral_code) {
       navigator.clipboard.writeText(`https://studybro.ai?ref=${profile.referral_code}`);
@@ -111,6 +177,11 @@ const Profile = () => {
     );
   }
 
+  const maxGraphs = profile?.is_premium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
+  const maxAnimatedSteps = profile?.is_premium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
+  const graphsUsed = profile?.graphs_used_today || 0;
+  const animatedStepsUsed = profile?.animated_steps_used_today || 0;
+
   return (
     <div className="min-h-screen bg-background">
       <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
@@ -122,12 +193,43 @@ const Profile = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            {/* Profile header */}
+            {/* Profile header with avatar */}
             <div className="text-center py-6">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-4">
-                <User className="w-10 h-10 text-primary-foreground" />
+              <div className="relative inline-block">
+                {profile?.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt="Avatar" 
+                    className="w-20 h-20 rounded-full object-cover border-2 border-primary/50"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                    <User className="w-10 h-10 text-primary-foreground" />
+                  </div>
+                )}
+                
+                {/* Upload button overlay */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center border-2 border-background hover:bg-primary/80 transition-colors"
+                >
+                  {isUploadingAvatar ? (
+                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4 text-primary-foreground" />
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                />
               </div>
-              <h1 className="text-2xl font-heading font-bold">
+              
+              <h1 className="text-2xl font-heading font-bold mt-4">
                 {profile?.display_name || "Study Bro"}
               </h1>
               <p className="text-muted-foreground text-sm">{user.email}</p>
@@ -169,11 +271,9 @@ const Profile = () => {
                 transition={{ delay: 0.2 }}
                 className="p-4 bg-card rounded-xl border border-border text-center"
               >
-                <Target className="w-8 h-8 text-secondary mx-auto mb-2" />
-                <div className="text-2xl font-bold">
-                  {profile?.is_premium ? "∞" : `${10 - (profile?.daily_solves_used || 0)}`}
-                </div>
-                <div className="text-xs text-muted-foreground">Solves Left Today</div>
+                <Sparkles className="w-8 h-8 text-primary mx-auto mb-2" />
+                <div className="text-2xl font-bold">{animatedStepsUsed}/{maxAnimatedSteps}</div>
+                <div className="text-xs text-muted-foreground">Animated Steps Today</div>
               </motion.div>
 
               <motion.div
@@ -182,24 +282,38 @@ const Profile = () => {
                 transition={{ delay: 0.25 }}
                 className="p-4 bg-card rounded-xl border border-border text-center"
               >
-                <Calendar className="w-8 h-8 text-violet-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold">
+                <LineChart className="w-8 h-8 text-secondary mx-auto mb-2" />
+                <div className="text-2xl font-bold">{maxGraphs - graphsUsed}/{maxGraphs}</div>
+                <div className="text-xs text-muted-foreground">Graphs Remaining</div>
+              </motion.div>
+            </div>
+
+            {/* Member since */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 }}
+              className="p-4 bg-card rounded-xl border border-border flex items-center gap-4"
+            >
+              <Calendar className="w-8 h-8 text-violet-500" />
+              <div>
+                <div className="text-lg font-bold">
                   {profile?.created_at
                     ? Math.floor(
                         (Date.now() - new Date(profile.created_at).getTime()) /
                           (1000 * 60 * 60 * 24)
                       )
-                    : 0}
+                    : 0} days
                 </div>
-                <div className="text-xs text-muted-foreground">Days as Member</div>
-              </motion.div>
-            </div>
+                <div className="text-xs text-muted-foreground">Member since joining</div>
+              </div>
+            </motion.div>
 
             {/* Edit name */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.35 }}
               className="p-4 bg-card rounded-xl border border-border"
             >
               <label className="text-sm text-muted-foreground mb-2 block">
@@ -226,7 +340,7 @@ const Profile = () => {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
+                transition={{ delay: 0.4 }}
                 className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl border border-primary/20"
               >
                 <h3 className="font-medium mb-2">Invite Friends</h3>
@@ -251,7 +365,7 @@ const Profile = () => {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
+                transition={{ delay: 0.45 }}
                 className="p-6 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl border border-primary/30 text-center"
               >
                 <Crown className="w-10 h-10 text-primary mx-auto mb-3" />
@@ -259,7 +373,7 @@ const Profile = () => {
                   Go Premium, Bro!
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Unlimited solves, no ads, priority voice mode
+                  16 animated steps, 15 graphs/day, enhanced solving
                 </p>
                 <Button onClick={() => navigate("/premium")} className="w-full">
                   Upgrade for $4.99/month
@@ -271,7 +385,7 @@ const Profile = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.45 }}
+              transition={{ delay: 0.5 }}
             >
               <Button
                 variant="outline"

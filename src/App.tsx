@@ -12,6 +12,7 @@ import Premium from "./pages/Premium";
 import SolveDetail from "./pages/SolveDetail";
 import Chat from "./pages/Chat";
 import Quiz from "./pages/Quiz";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/solve/:id" element={<SolveDetail />} />
             <Route path="/chat/:id" element={<Chat />} />
             <Route path="/quiz/:id" element={<Quiz />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

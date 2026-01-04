@@ -10,6 +10,8 @@ import { SolveToggles } from "@/components/solve/SolveToggles";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import { SidebarTrigger } from "@/components/layout/SidebarTrigger";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -17,6 +19,8 @@ import { toast } from "sonner";
 // Tier limits
 const FREE_GRAPHS_PER_DAY = 4;
 const PREMIUM_GRAPHS_PER_DAY = 15;
+const FREE_ANIMATED_STEPS_PER_DAY = 5;
+const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 
 interface SolutionData {
   subject: string;
@@ -34,6 +38,15 @@ interface SolutionData {
   };
 }
 
+// Helper to get current date in CST
+const getCSTDate = (): string => {
+  const now = new Date();
+  const cstOffset = -6 * 60; // CST is UTC-6
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const cstTime = new Date(utc + (cstOffset * 60000));
+  return cstTime.toISOString().split('T')[0];
+};
+
 const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -41,18 +54,36 @@ const Index = () => {
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [recentSolves, setRecentSolves] = useState<{ id: string; subject: string; question: string; createdAt: Date }[]>([]);
-  const [profile, setProfile] = useState<{ streak_count: number; total_solves: number; is_premium: boolean; daily_solves_used: number } | null>(null);
+  const [profile, setProfile] = useState<{ 
+    streak_count: number; 
+    total_solves: number; 
+    is_premium: boolean; 
+    daily_solves_used: number;
+    animated_steps_used_today: number;
+    graphs_used_today: number;
+    last_usage_date: string | null;
+  } | null>(null);
   
-  // Pending image state - waits for user instruction before solving
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Pending image state
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   
   // Solve toggles
   const [animatedSteps, setAnimatedSteps] = useState(true);
   const [generateGraph, setGenerateGraph] = useState(false);
-  const [graphsUsedToday, setGraphsUsedToday] = useState(0);
 
   const isPremium = profile?.is_premium || false;
   const maxGraphs = isPremium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
+  const maxAnimatedSteps = isPremium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
+  
+  // Check if usage needs reset (midnight CST)
+  const currentCSTDate = getCSTDate();
+  const needsReset = profile?.last_usage_date !== currentCSTDate;
+  
+  const graphsUsedToday = needsReset ? 0 : (profile?.graphs_used_today || 0);
+  const animatedStepsUsedToday = needsReset ? 0 : (profile?.animated_steps_used_today || 0);
 
   // Fetch recent solves and profile for logged-in users
   useEffect(() => {
@@ -61,6 +92,13 @@ const Index = () => {
       fetchProfile();
     }
   }, [user]);
+
+  // Reset usage counters at midnight CST if needed
+  useEffect(() => {
+    if (user && profile && needsReset) {
+      resetDailyUsage();
+    }
+  }, [user, profile, needsReset]);
 
   const fetchRecentSolves = async () => {
     const { data } = await supabase
@@ -85,7 +123,7 @@ const Index = () => {
   const fetchProfile = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("streak_count, total_solves, is_premium, daily_solves_used")
+      .select("streak_count, total_solves, is_premium, daily_solves_used, animated_steps_used_today, graphs_used_today, last_usage_date")
       .eq("user_id", user?.id)
       .single();
 
@@ -94,10 +132,44 @@ const Index = () => {
     }
   };
 
+  const resetDailyUsage = async () => {
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        animated_steps_used_today: 0,
+        graphs_used_today: 0,
+        last_usage_date: currentCSTDate,
+      })
+      .eq("user_id", user?.id);
+
+    if (!error) {
+      setProfile(prev => prev ? {
+        ...prev,
+        animated_steps_used_today: 0,
+        graphs_used_today: 0,
+        last_usage_date: currentCSTDate,
+      } : null);
+    }
+  };
+
   const handleSolve = async (input: string, imageData?: string) => {
     setIsLoading(true);
     setSolution(null);
     setPendingImage(null);
+
+    // Check if animated steps toggle is on but user is at limit
+    if (animatedSteps && animatedStepsUsedToday >= maxAnimatedSteps) {
+      toast.error("You've reached your daily animated steps limit. Toggle off to continue solving.");
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if graph toggle is on but user is at limit
+    if (generateGraph && graphsUsedToday >= maxGraphs) {
+      toast.error("You've reached your daily graph limit. Toggle off to continue solving.");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const { data, error } = await supabase.functions.invoke("solve-homework", {
@@ -133,23 +205,33 @@ const Index = () => {
           console.error("Save error:", saveError);
         } else {
           solveId = solveData?.id;
-          // Update profile stats
+          
+          // Update profile stats including usage counters
+          const updates: Record<string, unknown> = {
+            total_solves: (profile?.total_solves || 0) + 1,
+            daily_solves_used: (profile?.daily_solves_used || 0) + 1,
+            last_solve_date: new Date().toISOString().split('T')[0],
+            last_usage_date: currentCSTDate,
+          };
+          
+          // Increment animated steps usage if toggle was on
+          if (animatedSteps && data.steps?.length > 0) {
+            updates.animated_steps_used_today = animatedStepsUsedToday + 1;
+          }
+          
+          // Increment graph usage if a graph was generated
+          if (data.graph) {
+            updates.graphs_used_today = graphsUsedToday + 1;
+          }
+
           await supabase
             .from("profiles")
-            .update({ 
-              total_solves: (profile?.total_solves || 0) + 1,
-              daily_solves_used: (profile?.daily_solves_used || 0) + 1,
-              last_solve_date: new Date().toISOString().split('T')[0]
-            })
+            .update(updates)
             .eq("user_id", user.id);
+            
           fetchRecentSolves();
           fetchProfile();
         }
-      }
-
-      // Update graph usage if a graph was generated
-      if (data.graph) {
-        setGraphsUsedToday(data.limits?.graphsUsed || graphsUsedToday + 1);
       }
 
       setSolution({
@@ -177,13 +259,11 @@ const Index = () => {
     }
   };
 
-  // When image is captured, store it and wait for user instruction
   const handleImageCapture = (imageData: string) => {
     setPendingImage(imageData);
     toast.info("Image ready! Press Enter or type a question to solve.");
   };
 
-  // When text is submitted, solve with pending image if available
   const handleTextSubmit = (text: string) => {
     if (pendingImage) {
       handleSolve(text, pendingImage);
@@ -192,7 +272,6 @@ const Index = () => {
     }
   };
 
-  // Handle Enter press with pending image (solve immediately)
   const handleSolveWithPendingImage = () => {
     if (pendingImage) {
       handleSolve("", pendingImage);
@@ -208,11 +287,16 @@ const Index = () => {
     setPendingImage(null);
   };
 
-  // Determine if we should show animated steps or regular solution
   const showAnimatedSteps = animatedSteps && solution?.steps && solution.steps.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Sidebar trigger */}
+      <SidebarTrigger onClick={() => setSidebarOpen(true)} />
+      
+      {/* Sidebar */}
+      <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      
       <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
       
       <main className="pt-20 pb-24 px-4">
@@ -242,7 +326,7 @@ const Index = () => {
                 </motion.p>
               </div>
 
-              {/* Camera button - click only, stores pending image */}
+              {/* Camera button */}
               <CameraButton onImageCapture={handleImageCapture} isLoading={isLoading} />
 
               {/* Pending image preview */}
@@ -278,6 +362,8 @@ const Index = () => {
                 isPremium={isPremium}
                 graphsUsed={graphsUsedToday}
                 maxGraphs={maxGraphs}
+                animatedStepsUsed={animatedStepsUsedToday}
+                maxAnimatedSteps={maxAnimatedSteps}
               />
 
               {/* Divider */}
@@ -289,7 +375,7 @@ const Index = () => {
                 <div className="flex-1 h-px bg-border" />
               </div>
 
-              {/* Text input - handles both text and solving pending images */}
+              {/* Text input */}
               <TextInputBox 
                 onSubmit={handleTextSubmit}
                 onEmptySubmit={handleSolveWithPendingImage}
@@ -336,10 +422,11 @@ const Index = () => {
                   {/* Animated steps */}
                   <AnimatedSolutionSteps
                     steps={solution.steps!}
-                    maxSteps={solution.maxSteps || (isPremium ? 16 : 5)}
+                    maxSteps={solution.maxSteps || maxAnimatedSteps}
                     isPremium={isPremium}
                     autoPlay={false}
                     autoPlayDelay={3000}
+                    fullSolution={solution.answer}
                   />
 
                   {/* Graph visualization if available */}
