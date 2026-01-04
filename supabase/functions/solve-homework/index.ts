@@ -7,14 +7,14 @@ const corsHeaders = {
 };
 
 // ============================================================
-// MODEL CONFIGURATION - Groq Only
-// Vision model for images: "meta-llama/llama-4-scout-17b-16e-instruct"
-// Text model for text-only: "llama-3.1-8b-instant"
-// Graph model: Use the more capable model for structured JSON output
+// MODEL CONFIGURATION
+// Vision model for images: "meta-llama/llama-4-scout-17b-16e-instruct" (Groq)
+// Text model for text-only: "llama-3.1-8b-instant" (Groq)
+// Graph model: Mistral Small 3.1 24B via OpenRouter (best for structured JSON)
 // ============================================================
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const GROQ_TEXT_MODEL = "llama-3.1-8b-instant";
-const GROQ_GRAPH_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"; // Better at structured output
+const OPENROUTER_GRAPH_MODEL = "mistralai/mistral-small-3.1-24b-instruct";
 
 // ============================================================
 // TIER LIMITS
@@ -178,71 +178,32 @@ Format each step as:
 Keep each step focused on ONE key action or concept.`;
 }
 
-// Prompt to generate graph data - structured JSON for frontend rendering
-const GRAPH_PROMPT = `
+// Prompt to generate graph data - optimized for Mistral Small 3.1 24B
+const GRAPH_PROMPT = `You are generating structured graph data. 
+Do NOT generate Python code, images, ASCII art, or explanations.
 
-You are generating structured graph data for a math or data problem.
+Return ONLY a JSON object in this format:
 
-## CRITICAL RULES:
-- Do NOT generate images, URLs, base64, ASCII art, or symbolic drawings
-- Do NOT say "here is a graph" and describe it visually
-- ONLY return structured JSON data that the frontend can render
-
-## Graph JSON Format:
-At the END of your response, include this exact JSON block wrapped in \`\`\`graph tags:
-
-\`\`\`graph
 {
-  "type": "line",
-  "labels": [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-  "datasets": [
-    {
-      "label": "y = 2x + 3",
-      "data": [-17, -15, -13, -11, -9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23]
-    }
-  ]
+  "graph": {
+    "type": "line" | "bar" | "scatter",
+    "labels": [...],
+    "datasets": [
+      {
+        "label": "string",
+        "data": [...]
+      }
+    ]
+  }
 }
-\`\`\`
 
-## Rules:
-1. **For equations** (y = mx + b, y = x², etc.):
-   - Generate x values from -10 to 10 (21 values) unless user specifies a range
-   - Calculate corresponding y values by substituting each x into the equation
-   - Use type: "line" for linear, "scatter" for quadratics/complex
-
-2. **For data** (Jan: 100, Feb: 150):
-   - labels: category names ["Jan", "Feb", "Mar"]
-   - data: the values [100, 150, 200]
-   - Use type: "bar" for comparisons, "line" for trends
-
-3. **Supported types**: "line" | "bar" | "scatter"
-
-4. **Keep explanations SHORT** (3-5 steps max):
-   - Step 1: Identify the equation/function
-   - Step 2: Calculate key points
-   - Step 3: Describe what the graph shows
-
-## Examples:
-
-### Linear equation y = x:
-\`\`\`graph
-{
-  "type": "line",
-  "labels": [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-  "datasets": [{"label": "y = x", "data": [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}]
-}
-\`\`\`
-
-### Quadratic y = x²:
-\`\`\`graph
-{
-  "type": "scatter",
-  "labels": [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5],
-  "datasets": [{"label": "y = x²", "data": [25, 16, 9, 4, 1, 0, 1, 4, 9, 16, 25]}]
-}
-\`\`\`
-
-Return ONLY the explanation and JSON block. No extra text.`;
+Rules:
+- If the user provides an equation (e.g., y = 2x + 3), generate x values from -10 to 10 and compute y.
+- If the user provides data (e.g., Jan 100, Feb 150), convert it into labels and datasets.
+- Do not include any text before or after the JSON.
+- Do not output code.
+- Do not describe the graph.
+- Only output the JSON object.`;
 
 // Check if problem should trigger graph generation
 function shouldGenerateGraph(question: string): boolean {
@@ -259,20 +220,57 @@ function shouldGenerateGraph(question: string): boolean {
   );
 }
 
+// Call OpenRouter API for graph generation (Mistral Small 3.1 24B)
+async function callOpenRouterGraph(question: string): Promise<string> {
+  const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+  if (!OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY is not configured");
+  }
+
+  console.log("Calling OpenRouter API with model:", OPENROUTER_GRAPH_MODEL, "for graph generation");
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_GRAPH_MODEL,
+      messages: [
+        { role: "system", content: GRAPH_PROMPT },
+        { role: "user", content: question }
+      ],
+      temperature: 0.3,
+      max_tokens: 4096,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenRouter API error:", response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error("Rate limit exceeded. Please try again in a moment.");
+    }
+    
+    throw new Error(`OpenRouter API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "{}";
+}
+
 // Call Groq API for text-only input
 async function callGroqText(
   question: string, 
   isPremium: boolean,
-  animatedSteps: boolean,
-  generateGraph: boolean
+  animatedSteps: boolean
 ): Promise<string> {
   const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
   if (!GROQ_API_KEY) {
     throw new Error("GROQ_API_KEY is not configured");
   }
-
-  // Use the more capable model when generating graphs (better at structured JSON)
-  const model = generateGraph ? GROQ_GRAPH_MODEL : GROQ_TEXT_MODEL;
 
   let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
@@ -282,12 +280,7 @@ async function callGroqText(
     systemPrompt += getAnimatedStepsPrompt(maxSteps);
   }
   
-  // Add graph generation instruction
-  if (generateGraph) {
-    systemPrompt += GRAPH_PROMPT;
-  }
-  
-  console.log("Calling Groq Text API with model:", model, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "GenerateGraph:", generateGraph);
+  console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -296,7 +289,7 @@ async function callGroqText(
       "Authorization": `Bearer ${GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: model,
+      model: GROQ_TEXT_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: question }
@@ -327,8 +320,7 @@ async function callGroqVision(
   imageBase64: string, 
   mimeType: string, 
   isPremium: boolean,
-  animatedSteps: boolean,
-  generateGraph: boolean
+  animatedSteps: boolean
 ): Promise<string> {
   const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
   if (!GROQ_API_KEY) {
@@ -353,15 +345,10 @@ async function callGroqVision(
     const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
     systemPrompt += getAnimatedStepsPrompt(maxSteps);
   }
-  
-  // Add graph generation instruction
-  if (generateGraph) {
-    systemPrompt += GRAPH_PROMPT;
-  }
 
   const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide a step-by-step solution.";
   
-  console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "GenerateGraph:", generateGraph);
+  console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -432,20 +419,34 @@ function parseAnimatedSteps(solution: string, maxSteps: number): Array<{ title: 
   return steps.slice(0, maxSteps);
 }
 
-// Parse graph data from solution
-function parseGraphData(solution: string): { type: string; data: Record<string, unknown> } | null {
-  const graphMatch = solution.match(/```graph\n?([\s\S]*?)\n?```/);
-  
-  if (!graphMatch) return null;
+// Parse graph data from raw JSON response (OpenRouter returns raw JSON)
+function parseGraphData(response: string): { type: string; data: Record<string, unknown> } | null {
+  if (!response || response.trim() === "") return null;
   
   try {
-    const graphJson = JSON.parse(graphMatch[1]);
-    return {
-      type: graphJson.type || "line",
-      data: graphJson
-    };
+    // Try to parse the raw JSON directly (Mistral returns clean JSON)
+    let jsonStr = response.trim();
+    
+    // Remove any markdown code fences if present
+    if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.replace(/```(?:json|graph)?\n?/g, "").replace(/\n?```$/g, "");
+    }
+    
+    const parsed = JSON.parse(jsonStr);
+    
+    // Handle both { graph: {...} } and direct graph object formats
+    const graphData = parsed.graph || parsed;
+    
+    if (graphData.type && graphData.labels && graphData.datasets) {
+      return {
+        type: graphData.type || "line",
+        data: graphData
+      };
+    }
+    
+    return null;
   } catch (e) {
-    console.error("Failed to parse graph data:", e);
+    console.error("Failed to parse graph data:", e, "Response:", response.substring(0, 200));
     return null;
   }
 }
@@ -480,7 +481,7 @@ serve(async (req) => {
     
     let solution: string;
 
-    // Route to appropriate Groq model based on input type
+    // Route to appropriate model based on input type
     if (image) {
       // Image input → use Groq Vision (Enhanced OCR for premium)
       const matches = image.match(/^data:([^;]+);base64,(.+)$/);
@@ -494,14 +495,24 @@ serve(async (req) => {
         base64Data, 
         mimeType, 
         isPremium, 
-        animatedSteps,
-        canGenerateGraph
+        animatedSteps
       );
     } else if (question) {
       // Text-only input → use Groq Text
-      solution = await callGroqText(question, isPremium, animatedSteps, canGenerateGraph);
+      solution = await callGroqText(question, isPremium, animatedSteps);
     } else {
       throw new Error("Please provide a question or image");
+    }
+    
+    // If graph generation is enabled, call OpenRouter separately for graph data
+    let graphResponse = "";
+    if (canGenerateGraph && shouldGenerateGraph(question || "")) {
+      try {
+        graphResponse = await callOpenRouterGraph(question || "graph this equation");
+        console.log("OpenRouter graph response:", graphResponse);
+      } catch (graphError) {
+        console.error("Graph generation failed:", graphError);
+      }
     }
 
     // Detect subject from response
@@ -531,9 +542,9 @@ serve(async (req) => {
       responseData.maxSteps = maxSteps;
     }
     
-    // Add graph data if generated
-    if (canGenerateGraph) {
-      const graphData = parseGraphData(solution);
+    // Add graph data if generated (from OpenRouter/Mistral)
+    if (canGenerateGraph && graphResponse) {
+      const graphData = parseGraphData(graphResponse);
       if (graphData) {
         responseData.graph = graphData;
         responseData.graphsRemaining = maxGraphs - userGraphCount - 1;
