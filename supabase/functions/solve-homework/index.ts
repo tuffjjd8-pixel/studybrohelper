@@ -8,9 +8,11 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// Change this to any Gemini model (e.g., "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash")
+// DeepSeek for text-only: "deepseek-chat"
+// Groq LLaMA Vision for images: "llama-3.2-90b-vision-preview"
 // ============================================================
-const GEMINI_MODEL = "gemini-2.0-flash";
+const DEEPSEEK_MODEL = "deepseek-chat";
+const GROQ_VISION_MODEL = "llama-3.2-90b-vision-preview";
 
 // System prompt for free users
 const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a friendly math tutor who explains everything clearly with proper LaTeX math formatting.
@@ -110,6 +112,103 @@ For equations, especially rational/algebraic equations, follow these strict rule
 
 Before responding, verify: All steps shown? LaTeX formatted correctly? Domain checked? Extraneous solutions checked? Final answer emphasized?`;
 
+// Call DeepSeek API for text-only input
+async function callDeepSeek(question: string, isPremium: boolean): Promise<string> {
+  const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+  if (!DEEPSEEK_API_KEY) {
+    throw new Error("DEEPSEEK_API_KEY is not configured");
+  }
+
+  const systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
+  
+  console.log("Calling DeepSeek API with model:", DEEPSEEK_MODEL, "Premium:", isPremium);
+
+  const response = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: DEEPSEEK_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question }
+      ],
+      temperature: isPremium ? 0.5 : 0.7,
+      max_tokens: isPremium ? 8192 : 4096,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("DeepSeek API error:", response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error("Rate limit exceeded. Please try again in a moment.");
+    }
+    
+    throw new Error(`DeepSeek API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
+}
+
+// Call Groq API for image input (LLaMA 3.2 Vision)
+async function callGroqVision(question: string, imageBase64: string, mimeType: string, isPremium: boolean): Promise<string> {
+  const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+  if (!GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY is not configured");
+  }
+
+  const systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
+  const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide a step-by-step solution.";
+  
+  console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium);
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: GROQ_VISION_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: textContent },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${imageBase64}`
+              }
+            }
+          ]
+        }
+      ],
+      temperature: isPremium ? 0.5 : 0.7,
+      max_tokens: isPremium ? 8192 : 4096,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Groq API error:", response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error("Rate limit exceeded. Please try again in a moment.");
+    }
+    
+    throw new Error(`Groq API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -118,81 +217,25 @@ serve(async (req) => {
 
   try {
     const { question, image, isPremium } = await req.json();
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    
+    let solution: string;
 
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
-    }
-
-    // Use appropriate prompt based on user tier
-    const systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
-
-    // Build the request parts for Gemini API
-    const parts: any[] = [];
-
-    // Add text content
-    const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide a step-by-step solution.";
-    parts.push({ text: textContent });
-
-    // Add image if provided
+    // Route to appropriate AI provider based on input type
     if (image) {
-      // Extract base64 data and mime type from data URL
+      // Image input → use Groq LLaMA Vision
       const matches = image.match(/^data:([^;]+);base64,(.+)$/);
-      if (matches) {
-        const mimeType = matches[1];
-        const base64Data = matches[2];
-        parts.push({
-          inlineData: {
-            mimeType: mimeType,
-            data: base64Data
-          }
-        });
+      if (!matches) {
+        throw new Error("Invalid image format");
       }
+      const mimeType = matches[1];
+      const base64Data = matches[2];
+      solution = await callGroqVision(question || "", base64Data, mimeType, isPremium || false);
+    } else if (question) {
+      // Text-only input → use DeepSeek
+      solution = await callDeepSeek(question, isPremium || false);
+    } else {
+      throw new Error("Please provide a question or image");
     }
-
-    console.log("Calling Google Gemini API with model:", GEMINI_MODEL, "Premium:", isPremium);
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          contents: [
-            {
-              role: "user",
-              parts: parts
-            }
-          ],
-          generationConfig: {
-            temperature: isPremium ? 0.5 : 0.7, // Lower temperature for premium = more accurate
-            maxOutputTokens: isPremium ? 16384 : 8192, // More tokens for premium
-          }
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
-      throw new Error(`Gemini API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const solution = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't solve this problem.";
 
     // Detect subject from response
     let subject = "other";
@@ -216,6 +259,15 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error("Error in solve-homework:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to solve homework";
+    
+    // Handle rate limits
+    if (errorMessage.includes("Rate limit")) {
+      return new Response(
+        JSON.stringify({ error: errorMessage }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
