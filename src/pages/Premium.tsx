@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
@@ -11,14 +11,21 @@ import {
   Crown,
   Check,
   Zap,
-  Shield,
   Target,
   MessageSquare,
   Sparkles,
   ArrowLeft,
+  Calculator,
+  LineChart,
+  Heart,
 } from "lucide-react";
 
 const PREMIUM_FEATURES = [
+  {
+    icon: Sparkles,
+    title: "Unlimited Solves",
+    description: "No daily limits, solve as much as you want",
+  },
   {
     icon: Target,
     title: "99% Accuracy",
@@ -26,7 +33,7 @@ const PREMIUM_FEATURES = [
   },
   {
     icon: Zap,
-    title: "Priority AI Responses",
+    title: "Priority Responses",
     description: "Faster processing and shorter wait times",
   },
   {
@@ -35,27 +42,43 @@ const PREMIUM_FEATURES = [
     description: "Detailed step-by-step problem breakdowns",
   },
   {
-    icon: Shield,
-    title: "Unlimited Solves",
-    description: "No daily limits, solve as much as you want",
+    icon: LineChart,
+    title: "Advanced Graph Maker",
+    description: "Create complex graphs and visualizations",
   },
   {
-    icon: Sparkles,
-    title: "Ad-Free Experience",
-    description: "Focus on learning without distractions",
+    icon: Calculator,
+    title: "Advanced Calculator",
+    description: "Scientific and graphing calculator tools",
   },
   {
-    icon: Crown,
+    icon: Heart,
     title: "Support Development",
     description: "Help us build more amazing features",
   },
+];
+
+const FREE_FEATURES = [
+  "10 solves per day",
+  "Basic explanations",
+  "Basic calculator",
+  "Basic graph maker",
+  "Text + image solving (limited detail)",
 ];
 
 const Premium = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [isUpgrading, setIsUpgrading] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("monthly");
+
+  // Check if it's Friday (5) or Saturday (6) for weekend discount
+  const isWeekendDiscount = useMemo(() => {
+    const today = new Date().getDay();
+    return today === 5 || today === 6; // Friday = 5, Saturday = 6
+  }, []);
+
+  const currentPrice = isWeekendDiscount ? 4.99 : 8.0;
+  const regularPrice = 8.0;
 
   const handleUpgrade = async () => {
     if (!user) {
@@ -75,7 +98,7 @@ const Premium = () => {
 
       if (error) throw error;
 
-      toast.success("🎉 Welcome to Premium, Bro! You're all set!");
+      toast.success("🎉 Welcome to Premium! You're all set!");
       navigate("/profile");
     } catch (error) {
       console.error("Upgrade error:", error);
@@ -123,40 +146,42 @@ const Premium = () => {
               </p>
             </div>
 
-            {/* Plan selection */}
-            <div className="grid grid-cols-2 gap-3">
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setSelectedPlan("monthly")}
-                className={`p-4 rounded-xl border-2 transition-all ${
-                  selectedPlan === "monthly"
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-card hover:border-primary/50"
-                }`}
-              >
-                <div className="text-lg font-bold">$4.99</div>
-                <div className="text-xs text-muted-foreground">per month</div>
-              </motion.button>
-
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setSelectedPlan("yearly")}
-                className={`p-4 rounded-xl border-2 transition-all relative ${
-                  selectedPlan === "yearly"
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-card hover:border-primary/50"
-                }`}
-              >
-                <div className="absolute -top-2 right-2 px-2 py-0.5 bg-secondary text-secondary-foreground text-[10px] font-bold rounded-full">
-                  SAVE 35%
+            {/* Pricing Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              className="p-6 rounded-2xl border-2 border-primary bg-primary/5 relative overflow-hidden"
+            >
+              {isWeekendDiscount && (
+                <div className="absolute top-3 right-3 px-3 py-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full animate-pulse">
+                  🎉 WEEKEND DEAL!
                 </div>
-                <div className="text-lg font-bold">$39</div>
-                <div className="text-xs text-muted-foreground">per year</div>
-              </motion.button>
-            </div>
+              )}
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <span className="text-4xl font-bold">${currentPrice.toFixed(2)}</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+                {isWeekendDiscount && (
+                  <p className="text-sm text-muted-foreground">
+                    <span className="line-through">${regularPrice.toFixed(2)}</span>
+                    <span className="text-secondary font-medium ml-2">
+                      Save ${(regularPrice - currentPrice).toFixed(2)} this weekend!
+                    </span>
+                  </p>
+                )}
+                {!isWeekendDiscount && (
+                  <p className="text-sm text-muted-foreground">
+                    💡 Come back Friday or Saturday for $4.99!
+                  </p>
+                )}
+              </div>
+            </motion.div>
 
-            {/* Features list */}
+            {/* Premium Features list */}
             <div className="space-y-3">
+              <h2 className="font-semibold text-lg">Premium Features</h2>
               {PREMIUM_FEATURES.map((feature, index) => (
                 <motion.div
                   key={feature.title}
@@ -179,6 +204,26 @@ const Premium = () => {
               ))}
             </div>
 
+            {/* Free Plan Comparison */}
+            <div className="space-y-3">
+              <h2 className="font-semibold text-lg text-muted-foreground">
+                Free Plan Includes
+              </h2>
+              <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                <ul className="space-y-2">
+                  {FREE_FEATURES.map((feature, index) => (
+                    <li
+                      key={index}
+                      className="flex items-center gap-2 text-sm text-muted-foreground"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
             {/* CTA */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -196,7 +241,7 @@ const Premium = () => {
                 ) : (
                   <>
                     <Crown className="w-5 h-5" />
-                    Upgrade Now - {selectedPlan === "monthly" ? "$4.99/mo" : "$39/year"}
+                    Upgrade Now - ${currentPrice.toFixed(2)}/mo
                   </>
                 )}
               </Button>
