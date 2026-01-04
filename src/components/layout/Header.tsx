@@ -22,8 +22,8 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
       "
     >
       <div className="flex items-center justify-between max-w-4xl mx-auto">
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2">
+        {/* Logo - offset to right to make room for sidebar trigger */}
+        <Link to="/" className="flex items-center gap-2 ml-12">
           <motion.div
             whileHover={{ rotate: 10 }}
             className="p-2 bg-primary/10 rounded-xl"

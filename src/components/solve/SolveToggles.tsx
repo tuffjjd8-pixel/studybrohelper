@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sparkles, LineChart, Crown } from "lucide-react";
+import { Sparkles, LineChart, Crown, Clock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -11,6 +11,8 @@ interface SolveTogglesProps {
   isPremium: boolean;
   graphsUsed: number;
   maxGraphs: number;
+  animatedStepsUsed: number;
+  maxAnimatedSteps: number;
 }
 
 export function SolveToggles({
@@ -21,9 +23,14 @@ export function SolveToggles({
   isPremium,
   graphsUsed,
   maxGraphs,
+  animatedStepsUsed,
+  maxAnimatedSteps,
 }: SolveTogglesProps) {
   const graphsRemaining = maxGraphs - graphsUsed;
   const canGenerateGraph = graphsRemaining > 0;
+  
+  const animatedStepsRemaining = maxAnimatedSteps - animatedStepsUsed;
+  const canAnimateSteps = animatedStepsRemaining > 0;
 
   return (
     <motion.div
@@ -47,15 +54,25 @@ export function SolveToggles({
         {/* Animated Steps Toggle */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Sparkles className="w-4 h-4 text-primary" />
+            <div className={`p-2 rounded-lg ${canAnimateSteps ? "bg-primary/10" : "bg-muted"}`}>
+              <Sparkles className={`w-4 h-4 ${canAnimateSteps ? "text-primary" : "text-muted-foreground"}`} />
             </div>
             <div>
-              <Label htmlFor="animated-steps" className="text-sm font-medium cursor-pointer">
+              <Label 
+                htmlFor="animated-steps" 
+                className={`text-sm font-medium cursor-pointer ${!canAnimateSteps && "text-muted-foreground"}`}
+              >
                 Animated Steps
               </Label>
               <p className="text-xs text-muted-foreground">
-                {isPremium ? "Up to 16 steps" : "Up to 5 steps"}
+                {canAnimateSteps ? (
+                  <span>{animatedStepsUsed}/{maxAnimatedSteps} used today</span>
+                ) : (
+                  <span className="flex items-center gap-1 text-orange-400">
+                    <Clock className="w-3 h-3" />
+                    Resets at midnight
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -63,6 +80,7 @@ export function SolveToggles({
             id="animated-steps"
             checked={animatedSteps}
             onCheckedChange={onAnimatedStepsChange}
+            disabled={!canAnimateSteps}
           />
         </div>
 
@@ -80,7 +98,14 @@ export function SolveToggles({
                 Generate Graph
               </Label>
               <p className="text-xs text-muted-foreground">
-                {graphsRemaining}/{maxGraphs} remaining today
+                {canGenerateGraph ? (
+                  <span>{graphsRemaining}/{maxGraphs} remaining today</span>
+                ) : (
+                  <span className="flex items-center gap-1 text-orange-400">
+                    <Clock className="w-3 h-3" />
+                    Resets at midnight
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -97,7 +122,7 @@ export function SolveToggles({
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <Crown className="w-3 h-3 inline mr-1" />
-              Upgrade to Pro for 16 steps & 15 graphs/day
+              Upgrade to Pro for 16 animated steps & 15 graphs/day
             </p>
           </div>
         )}
