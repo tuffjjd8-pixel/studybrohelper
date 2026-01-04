@@ -48,13 +48,16 @@ export type Database = {
       }
       profiles: {
         Row: {
+          animated_steps_used_today: number | null
           avatar_url: string | null
           created_at: string
           daily_solves_used: number
           display_name: string | null
+          graphs_used_today: number | null
           id: string
           is_premium: boolean
           last_solve_date: string | null
+          last_usage_date: string | null
           referral_code: string | null
           streak_count: number
           total_solves: number
@@ -62,13 +65,16 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          animated_steps_used_today?: number | null
           avatar_url?: string | null
           created_at?: string
           daily_solves_used?: number
           display_name?: string | null
+          graphs_used_today?: number | null
           id?: string
           is_premium?: boolean
           last_solve_date?: string | null
+          last_usage_date?: string | null
           referral_code?: string | null
           streak_count?: number
           total_solves?: number
@@ -76,13 +82,16 @@ export type Database = {
           user_id: string
         }
         Update: {
+          animated_steps_used_today?: number | null
           avatar_url?: string | null
           created_at?: string
           daily_solves_used?: number
           display_name?: string | null
+          graphs_used_today?: number | null
           id?: string
           is_premium?: boolean
           last_solve_date?: string | null
+          last_usage_date?: string | null
           referral_code?: string | null
           streak_count?: number
           total_solves?: number
