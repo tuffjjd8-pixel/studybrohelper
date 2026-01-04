@@ -8,10 +8,10 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION - Groq Only
-// Vision model for images: "llama-3.2-11b-vision-preview"
+// Vision model for images: "meta-llama/llama-4-scout-17b-16e-instruct"
 // Text model for text-only: "llama-3.1-8b-instant"
 // ============================================================
-const GROQ_VISION_MODEL = "llama-3.2-11b-vision-preview";
+const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const GROQ_TEXT_MODEL = "llama-3.1-8b-instant";
 
 // System prompt for free users
