@@ -23,47 +23,62 @@ import {
 const PREMIUM_FEATURES = [
   {
     icon: Sparkles,
-    title: "Unlimited Solves",
-    description: "No daily limits, solve as much as you want",
-  },
-  {
-    icon: Target,
-    title: "99% Accuracy",
-    description: "Most accurate AI-powered solutions",
-  },
-  {
-    icon: Zap,
-    title: "Priority Responses",
-    description: "Faster processing and shorter wait times",
-  },
-  {
-    icon: MessageSquare,
-    title: "Advanced Explanations",
-    description: "Detailed step-by-step problem breakdowns",
-  },
-  {
-    icon: LineChart,
-    title: "Advanced Graph Maker",
-    description: "Create complex graphs and visualizations",
+    title: "16 Animated Steps",
+    description: "Detailed animated breakdowns for deeper understanding",
   },
   {
     icon: Calculator,
-    title: "Advanced Calculator",
-    description: "Scientific and graphing calculator tools",
+    title: "Premium Calculator",
+    description: "Pick your model, advanced logic chaining & reasoning",
+  },
+  {
+    icon: LineChart,
+    title: "15 Graphs Per Day",
+    description: "Create more visualizations to master concepts",
+  },
+  {
+    icon: Target,
+    title: "Enhanced Image Solving",
+    description: "Better OCR, formatting, and reasoning accuracy",
+  },
+  {
+    icon: Zap,
+    title: "Priority Response Speed",
+    description: "Skip the queue with faster processing times",
+  },
+  {
+    icon: MessageSquare,
+    title: "Latest AI Models",
+    description: "Access to Groq's cutting-edge text + vision models",
   },
   {
     icon: Heart,
     title: "Support Development",
-    description: "Help us build more amazing features",
+    description: "Help us build more amazing features for students",
   },
 ];
 
 const FREE_FEATURES = [
-  "10 solves per day",
-  "Basic explanations",
-  "Basic calculator",
-  "Basic graph maker",
-  "Text + image solving (limited detail)",
+  {
+    label: "Unlimited solves",
+    description: "Solve as many problems as you need",
+  },
+  {
+    label: "5 animated steps",
+    description: "Clear step-by-step breakdowns",
+  },
+  {
+    label: "Basic calculator",
+    description: "Powerful solving, no model selection",
+  },
+  {
+    label: "4 graphs per day",
+    description: "Visualize your math problems",
+  },
+  {
+    label: "Text + image solving",
+    description: "Snap or type your homework",
+  },
 ];
 
 const Premium = () => {
@@ -206,22 +221,28 @@ const Premium = () => {
 
             {/* Free Plan Comparison */}
             <div className="space-y-3">
-              <h2 className="font-semibold text-lg text-muted-foreground">
-                Free Plan Includes
+              <h2 className="font-semibold text-lg">
+                Free Plan — Already Powerful
               </h2>
-              <div className="p-4 bg-muted/50 rounded-lg border border-border">
-                <ul className="space-y-2">
+              <div className="p-4 bg-card rounded-lg border border-border">
+                <ul className="space-y-3">
                   {FREE_FEATURES.map((feature, index) => (
                     <li
                       key={index}
-                      className="flex items-center gap-2 text-sm text-muted-foreground"
+                      className="flex items-start gap-3"
                     >
-                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-                      {feature}
+                      <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <div>
+                        <span className="text-sm font-medium">{feature.label}</span>
+                        <p className="text-xs text-muted-foreground">{feature.description}</p>
+                      </div>
                     </li>
                   ))}
                 </ul>
               </div>
+              <p className="text-xs text-center text-muted-foreground">
+                Premium takes everything further — more steps, more graphs, faster & smarter AI.
+              </p>
             </div>
 
             {/* CTA */}
