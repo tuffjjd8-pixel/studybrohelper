@@ -70,7 +70,7 @@ export function SolveToggles({
                 ) : (
                   <span className="flex items-center gap-1 text-orange-400">
                     <Clock className="w-3 h-3" />
-                    Resets at midnight
+                    Daily limit reached • Resets at midnight CST
                   </span>
                 )}
               </p>
@@ -83,6 +83,14 @@ export function SolveToggles({
             disabled={!canAnimateSteps}
           />
         </div>
+        
+        {/* Limit message for animated steps */}
+        {!canAnimateSteps && (
+          <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+            You've used all {maxAnimatedSteps} animated step{maxAnimatedSteps > 1 ? 's' : ''} for today. 
+            Solving still works — you'll just see the static solution instead of the animation.
+          </div>
+        )}
 
         {/* Generate Graph Toggle */}
         <div className="flex items-center justify-between">
@@ -103,7 +111,7 @@ export function SolveToggles({
                 ) : (
                   <span className="flex items-center gap-1 text-orange-400">
                     <Clock className="w-3 h-3" />
-                    Resets at midnight
+                    Daily limit reached • Resets at midnight CST
                   </span>
                 )}
               </p>
@@ -116,6 +124,14 @@ export function SolveToggles({
             disabled={!canGenerateGraph}
           />
         </div>
+        
+        {/* Limit message for graphs */}
+        {!canGenerateGraph && (
+          <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+            You've used all {maxGraphs} graph{maxGraphs > 1 ? 's' : ''} for today. 
+            Solving still works — you just won't get graph visualizations until tomorrow.
+          </div>
+        )}
 
         {/* Upgrade hint for free users */}
         {!isPremium && (

@@ -37,6 +37,11 @@ const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a friendly math tutor who expla
 - Square roots: $\\sqrt{25} = 5$
 - Display equations: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
 
+## CRITICAL: Fraction Conversion Rule
+- When subtracting fractions from whole numbers, ALWAYS convert the whole number to a fraction first
+- Example: $10 - \\frac{1}{2}$ → First write $10 = \\frac{20}{2}$, then $\\frac{20}{2} - \\frac{1}{2} = \\frac{19}{2}$
+- NEVER skip the conversion step. Show it explicitly every time.
+
 ## Problem-Solving Rules:
 1. Identify the subject and problem type first
 2. Show key steps using "Step 1:", "Step 2:", etc.
@@ -63,6 +68,12 @@ const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, an expert tutor prov
 - Multiplication: $x \\cdot 2x$, $2 \\times 3 = 6$
 - Not equal: $x \\neq -1$
 - Display equations: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
+
+## CRITICAL: Fraction Conversion Rule (MANDATORY)
+- When subtracting fractions from whole numbers, ALWAYS convert the whole number to a fraction first
+- Example: $10 - \\frac{1}{2}$ → First write $10 = \\frac{20}{2}$, then $\\frac{20}{2} - \\frac{1}{2} = \\frac{19}{2}$
+- NEVER skip the conversion step. Show it explicitly every time.
+- This applies to ALL operations involving whole numbers and fractions.
 
 ## ERROR-FREE ALGEBRAIC SOLUTIONS (Critical Rules):
 For equations, especially rational/algebraic equations, follow these strict rules:
@@ -133,21 +144,35 @@ Format each step as:
 Keep each step focused on ONE key action or concept.`;
 }
 
-// Prompt to generate graph data
+// Prompt to generate graph data - structured JSON for frontend rendering
 const GRAPH_PROMPT = `
 
 If this problem involves a function, equation, or data that can be graphed:
-At the END of your response, include a JSON block for graphing:
+At the END of your response, include a JSON block for graphing.
+DO NOT return image URLs or symbolic representations.
+Return ONLY structured JSON data that can be rendered by a charting library.
+
 \`\`\`graph
 {
-  "type": "line|bar|scatter",
-  "title": "Graph Title",
-  "xLabel": "X Axis Label",
-  "yLabel": "Y Axis Label", 
-  "points": [[x1,y1],[x2,y2],...],
-  "equation": "y = mx + b (if applicable)"
+  "type": "line",
+  "title": "Graph of y = 2x + 1",
+  "xLabel": "x",
+  "yLabel": "y",
+  "labels": [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5],
+  "datasets": [
+    {
+      "label": "y = 2x + 1",
+      "data": [-9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11],
+      "borderColor": "#8b5cf6",
+      "fill": false
+    }
+  ],
+  "equation": "y = 2x + 1"
 }
 \`\`\`
+
+For bar charts use type: "bar". For scatter plots use type: "scatter".
+Always provide numeric labels array and datasets array with data points.
 Only include the graph block if the problem genuinely benefits from visualization.`;
 
 // Call Groq API for text-only input
