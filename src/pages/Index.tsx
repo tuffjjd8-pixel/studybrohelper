@@ -5,6 +5,8 @@ import { CameraButton } from "@/components/home/CameraButton";
 import { TextInputBox } from "@/components/home/TextInputBox";
 import { RecentSolves } from "@/components/home/RecentSolves";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
+import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
+import { SolveToggles } from "@/components/solve/SolveToggles";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
@@ -12,23 +14,45 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+// Tier limits
+const FREE_GRAPHS_PER_DAY = 4;
+const PREMIUM_GRAPHS_PER_DAY = 15;
+
+interface SolutionData {
+  subject: string;
+  question: string;
+  answer: string;
+  image?: string;
+  solveId?: string;
+  steps?: Array<{ title: string; content: string }>;
+  maxSteps?: number;
+  graph?: { type: string; data: Record<string, unknown> };
+  limits?: {
+    animatedSteps: number;
+    graphsPerDay: number;
+    graphsUsed: number;
+  };
+}
+
 const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [solution, setSolution] = useState<{
-    subject: string;
-    question: string;
-    answer: string;
-    image?: string;
-    solveId?: string;
-  } | null>(null);
+  const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [recentSolves, setRecentSolves] = useState<{ id: string; subject: string; question: string; createdAt: Date }[]>([]);
   const [profile, setProfile] = useState<{ streak_count: number; total_solves: number; is_premium: boolean; daily_solves_used: number } | null>(null);
   
   // Pending image state - waits for user instruction before solving
   const [pendingImage, setPendingImage] = useState<string | null>(null);
+  
+  // Solve toggles
+  const [animatedSteps, setAnimatedSteps] = useState(true);
+  const [generateGraph, setGenerateGraph] = useState(false);
+  const [graphsUsedToday, setGraphsUsedToday] = useState(0);
+
+  const isPremium = profile?.is_premium || false;
+  const maxGraphs = isPremium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
 
   // Fetch recent solves and profile for logged-in users
   useEffect(() => {
@@ -71,15 +95,6 @@ const Index = () => {
   };
 
   const handleSolve = async (input: string, imageData?: string) => {
-    // Check daily limit for free users
-    if (user && profile && !profile.is_premium) {
-      if (profile.daily_solves_used >= 10) {
-        toast.error("Daily limit reached! Upgrade to Pro for unlimited solves.");
-        navigate("/premium");
-        return;
-      }
-    }
-
     setIsLoading(true);
     setSolution(null);
     setPendingImage(null);
@@ -89,7 +104,10 @@ const Index = () => {
         body: { 
           question: input, 
           image: imageData,
-          isPremium: profile?.is_premium || false 
+          isPremium,
+          animatedSteps,
+          generateGraph,
+          userGraphCount: graphsUsedToday,
         },
       });
 
@@ -115,7 +133,7 @@ const Index = () => {
           console.error("Save error:", saveError);
         } else {
           solveId = solveData?.id;
-          // Update profile stats and daily usage
+          // Update profile stats
           await supabase
             .from("profiles")
             .update({ 
@@ -129,17 +147,27 @@ const Index = () => {
         }
       }
 
+      // Update graph usage if a graph was generated
+      if (data.graph) {
+        setGraphsUsedToday(data.limits?.graphsUsed || graphsUsedToday + 1);
+      }
+
       setSolution({
         subject: data.subject || "other",
         question: input || "Image question",
         answer: data.solution,
         image: imageData,
         solveId,
+        steps: data.steps,
+        maxSteps: data.maxSteps,
+        graph: data.graph,
+        limits: data.limits,
       });
       setShowConfetti(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Solve error:", error);
-      if (error.message?.includes("429")) {
+      const errMsg = error instanceof Error ? error.message : "";
+      if (errMsg.includes("429")) {
         toast.error("AI is busy. Please try again in a moment.");
       } else {
         toast.error("Failed to solve. Please try again.");
@@ -179,6 +207,9 @@ const Index = () => {
   const handleClearPendingImage = () => {
     setPendingImage(null);
   };
+
+  // Determine if we should show animated steps or regular solution
+  const showAnimatedSteps = animatedSteps && solution?.steps && solution.steps.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -238,6 +269,17 @@ const Index = () => {
                 </motion.div>
               )}
 
+              {/* Solve Toggles */}
+              <SolveToggles
+                animatedSteps={animatedSteps}
+                generateGraph={generateGraph}
+                onAnimatedStepsChange={setAnimatedSteps}
+                onGenerateGraphChange={setGenerateGraph}
+                isPremium={isPremium}
+                graphsUsed={graphsUsedToday}
+                maxGraphs={maxGraphs}
+              />
+
               {/* Divider */}
               <div className="flex items-center gap-4 w-full max-w-md">
                 <div className="flex-1 h-px bg-border" />
@@ -272,13 +314,64 @@ const Index = () => {
               >
                 ← Solve another
               </button>
-              <SolutionSteps
-                subject={solution.subject}
-                question={solution.question}
-                solution={solution.answer}
-                questionImage={solution.image}
-                solveId={solution.solveId}
-              />
+
+              {/* Show animated steps if enabled and available */}
+              {showAnimatedSteps ? (
+                <div className="space-y-6">
+                  {/* Question card */}
+                  <div className="glass-card p-4">
+                    <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                      Question
+                    </h3>
+                    {solution.image && (
+                      <img 
+                        src={solution.image} 
+                        alt="Question" 
+                        className="max-h-48 rounded-lg mb-3 object-contain"
+                      />
+                    )}
+                    <p className="text-foreground">{solution.question}</p>
+                  </div>
+
+                  {/* Animated steps */}
+                  <AnimatedSolutionSteps
+                    steps={solution.steps!}
+                    maxSteps={solution.maxSteps || (isPremium ? 16 : 5)}
+                    isPremium={isPremium}
+                    autoPlay={false}
+                    autoPlayDelay={3000}
+                  />
+
+                  {/* Graph visualization if available */}
+                  {solution.graph && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="glass-card p-6"
+                    >
+                      <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-4">
+                        Graph Visualization
+                      </h3>
+                      <div className="bg-muted/50 rounded-lg p-4 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          Graph type: {solution.graph.type}
+                        </p>
+                        <pre className="text-xs text-left mt-2 overflow-x-auto">
+                          {JSON.stringify(solution.graph.data, null, 2)}
+                        </pre>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              ) : (
+                <SolutionSteps
+                  subject={solution.subject}
+                  question={solution.question}
+                  solution={solution.answer}
+                  questionImage={solution.image}
+                  solveId={solution.solveId}
+                />
+              )}
             </motion.div>
           )}
         </div>
