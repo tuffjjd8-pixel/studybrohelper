@@ -177,64 +177,90 @@ Keep each step focused on ONE key action or concept.`;
 }
 
 // Prompt to generate graph data - structured JSON for frontend rendering
-// CRITICAL: Never output images, URLs, base64, or symbolic drawings
+// CRITICAL: Never output images, URLs, base64, ASCII art, or symbolic drawings
 const GRAPH_PROMPT = `
 
 ## GRAPH GENERATION RULES (CRITICAL):
-When generateGraph is true, you MUST output a structured JSON object describing the graph.
-- DO NOT generate images, URLs, base64, image links, or ASCII art
-- DO NOT say "here is a graph" and describe it symbolically
-- ONLY return structured JSON data that the frontend can render
+When generateGraph is true, output a structured JSON object describing the graph.
 
-### When to Generate a Graph:
-Only generate graph data when the problem involves:
-- Linear equations (y = mx + b)
-- Quadratic equations (y = ax² + bx + c)
+### NEVER DO:
+- NEVER generate images, URLs, base64, ASCII art, or symbolic drawings
+- NEVER say "here is a graph" and describe it visually
+- NEVER output anything except structured JSON data and a short explanation
+
+### WHEN to Generate a Graph:
+Only generate graph data when the problem contains:
+- An equation (y = 2x + 3, f(x) = x², etc.)
+- A function to plot
+- Data that can be charted (Jan 100, Feb 150, etc.)
 - Systems of equations
-- Functions that can be plotted
-- Word problems with trends or data
-- Statistics with data points
-If the problem is simple arithmetic, definitions, or conceptual, return NO graph.
+- Trends or statistics
 
-### Graph Explanation:
-Keep graph explanations under 4 steps. Focus on:
-1. The function/equation being graphed
-2. Key points (intercepts, vertex, etc.)
-3. The graph type and what it shows
+If the problem is simple arithmetic, definitions, word problems without functions, or conceptual questions, DO NOT generate a graph. Return NO graph block.
 
-### JSON Format (at the END of your response):
+### Graph JSON Format:
+At the END of your response, include ONLY this JSON block:
+
 \`\`\`graph
 {
   "type": "line",
-  "title": "Graph of y = 2x + 1",
-  "xLabel": "x",
-  "yLabel": "y",
-  "labels": [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5],
+  "labels": [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
   "datasets": [
     {
-      "label": "y = 2x + 1",
-      "data": [-9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11],
-      "borderColor": "#8b5cf6",
-      "fill": false
+      "label": "y = 2x + 3",
+      "data": [-17, -15, -13, -11, -9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23]
     }
-  ],
-  "equation": "y = 2x + 1",
-  "domain": "all real numbers",
-  "range": "all real numbers"
+  ]
 }
 \`\`\`
 
-### Supported Types:
-- "line" for linear equations, functions
-- "parabola" for quadratic equations
-- "bar" for data comparisons
-- "scatter" for data points
+### Rules for Generating Graph Data:
+1. **For equations** (like y = 2x + 3):
+   - Generate x values from -10 to 10 (21 values) unless user specifies a range
+   - Calculate corresponding y values by substituting each x
+   - type: "line" for linear, "scatter" for quadratics/complex
 
-### Requirements:
-- labels: array of x-values (numbers)
-- datasets: array with at least one object containing label, data (y-values), borderColor
-- Always compute at least 7-11 data points for smooth curves
-- For quadratics, include the vertex point`;
+2. **For data** (like "Jan: 100, Feb: 150, Mar: 200"):
+   - labels: the category names ["Jan", "Feb", "Mar"]
+   - data: the values [100, 150, 200]
+   - type: "bar" for comparisons, "line" for trends
+
+3. **Supported types**: "line" | "bar" | "scatter"
+
+4. **Keep explanations SHORT** (3-5 steps max):
+   - Step 1: Identify the equation/function
+   - Step 2: Note key points (intercepts, slope, vertex)
+   - Step 3: Describe what the graph shows
+
+### Example for y = x:
+\`\`\`graph
+{
+  "type": "line",
+  "labels": [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "datasets": [
+    {
+      "label": "y = x",
+      "data": [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    }
+  ]
+}
+\`\`\`
+
+### Example for y = x² (quadratic):
+\`\`\`graph
+{
+  "type": "scatter",
+  "labels": [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5],
+  "datasets": [
+    {
+      "label": "y = x²",
+      "data": [25, 16, 9, 4, 1, 0, 1, 4, 9, 16, 25]
+    }
+  ]
+}
+\`\`\`
+
+Do NOT include any text outside the explanation and JSON block.`;
 
 // Call Groq API for text-only input
 async function callGroqText(
