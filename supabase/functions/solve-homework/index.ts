@@ -177,13 +177,32 @@ Keep each step focused on ONE key action or concept.`;
 }
 
 // Prompt to generate graph data - structured JSON for frontend rendering
+// CRITICAL: Never output images, URLs, base64, or symbolic drawings
 const GRAPH_PROMPT = `
 
-If this problem involves a function, equation, or data that can be graphed:
-At the END of your response, include a JSON block for graphing.
-DO NOT return image URLs or symbolic representations.
-Return ONLY structured JSON data that can be rendered by a charting library.
+## GRAPH GENERATION RULES (CRITICAL):
+When generateGraph is true, you MUST output a structured JSON object describing the graph.
+- DO NOT generate images, URLs, base64, image links, or ASCII art
+- DO NOT say "here is a graph" and describe it symbolically
+- ONLY return structured JSON data that the frontend can render
 
+### When to Generate a Graph:
+Only generate graph data when the problem involves:
+- Linear equations (y = mx + b)
+- Quadratic equations (y = ax² + bx + c)
+- Systems of equations
+- Functions that can be plotted
+- Word problems with trends or data
+- Statistics with data points
+If the problem is simple arithmetic, definitions, or conceptual, return NO graph.
+
+### Graph Explanation:
+Keep graph explanations under 4 steps. Focus on:
+1. The function/equation being graphed
+2. Key points (intercepts, vertex, etc.)
+3. The graph type and what it shows
+
+### JSON Format (at the END of your response):
 \`\`\`graph
 {
   "type": "line",
@@ -199,13 +218,23 @@ Return ONLY structured JSON data that can be rendered by a charting library.
       "fill": false
     }
   ],
-  "equation": "y = 2x + 1"
+  "equation": "y = 2x + 1",
+  "domain": "all real numbers",
+  "range": "all real numbers"
 }
 \`\`\`
 
-For bar charts use type: "bar". For scatter plots use type: "scatter".
-Always provide numeric labels array and datasets array with data points.
-Only include the graph block if the problem genuinely benefits from visualization.`;
+### Supported Types:
+- "line" for linear equations, functions
+- "parabola" for quadratic equations
+- "bar" for data comparisons
+- "scatter" for data points
+
+### Requirements:
+- labels: array of x-values (numbers)
+- datasets: array with at least one object containing label, data (y-values), borderColor
+- Always compute at least 7-11 data points for smooth curves
+- For quadratics, include the vertex point`;
 
 // Call Groq API for text-only input
 async function callGroqText(

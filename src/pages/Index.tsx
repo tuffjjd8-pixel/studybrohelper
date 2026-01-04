@@ -7,6 +7,7 @@ import { RecentSolves } from "@/components/home/RecentSolves";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
+import { GraphRenderer } from "@/components/solve/GraphRenderer";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
@@ -420,23 +421,7 @@ const Index = () => {
 
                   {/* Graph visualization if available */}
                   {solution.graph && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="glass-card p-6"
-                    >
-                      <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-4">
-                        Graph Visualization
-                      </h3>
-                      <div className="bg-muted/50 rounded-lg p-4 text-center">
-                        <p className="text-sm text-muted-foreground">
-                          Graph type: {solution.graph.type}
-                        </p>
-                        <pre className="text-xs text-left mt-2 overflow-x-auto">
-                          {JSON.stringify(solution.graph.data, null, 2)}
-                        </pre>
-                      </div>
-                    </motion.div>
+                    <GraphRenderer graph={solution.graph} />
                   )}
                 </div>
               ) : (
