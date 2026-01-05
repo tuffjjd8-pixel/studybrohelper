@@ -424,12 +424,12 @@ function parseGraphData(response: string): { type: string; data: Record<string, 
   if (!response || response.trim() === "") return null;
   
   try {
-    // Try to parse the raw JSON directly (Mistral returns clean JSON)
+    // Try to parse the raw JSON directly
     let jsonStr = response.trim();
     
     // Remove any markdown code fences if present
     if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr.replace(/```(?:json|graph)?\n?/g, "").replace(/\n?```$/g, "");
+      jsonStr = jsonStr.replace(/```(?:json|graph)?\n?/g, "").replace(/\n?```$/g, "").trim();
     }
     
     const parsed = JSON.parse(jsonStr);
@@ -438,9 +438,20 @@ function parseGraphData(response: string): { type: string; data: Record<string, 
     const graphData = parsed.graph || parsed;
     
     if (graphData.type && graphData.labels && graphData.datasets) {
+      // Return the full graph object as data so GraphRenderer can access labels/datasets
       return {
         type: graphData.type || "line",
-        data: graphData
+        data: {
+          type: graphData.type || "line",
+          labels: graphData.labels,
+          datasets: graphData.datasets,
+          title: graphData.title,
+          xLabel: graphData.xLabel,
+          yLabel: graphData.yLabel,
+          equation: graphData.equation,
+          domain: graphData.domain,
+          range: graphData.range,
+        }
       };
     }
     
