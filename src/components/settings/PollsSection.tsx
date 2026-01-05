@@ -31,8 +31,6 @@ interface Poll {
   total_votes: number;
 }
 
-const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
-
 // Generate or get a persistent anonymous voter ID
 const getVoterId = (userId?: string) => {
   if (userId) return userId;
@@ -50,6 +48,8 @@ export function PollsSection() {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [loading, setLoading] = useState(true);
   const [votedPolls, setVotedPolls] = useState<Record<string, number>>({});
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
   
   // Admin state
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -61,13 +61,50 @@ export function PollsSection() {
     is_public: true
   });
   
-  const isAdmin = user?.email === ADMIN_EMAIL;
   const voterId = getVoterId(user?.id);
 
   useEffect(() => {
     fetchPolls();
     loadVotedPolls();
   }, []);
+
+  // Check admin status via edge function (server-side validation)
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      setCheckingAdmin(true);
+      
+      if (!user) {
+        setIsAdmin(false);
+        setCheckingAdmin(false);
+        return;
+      }
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.access_token) {
+          setIsAdmin(false);
+          setCheckingAdmin(false);
+          return;
+        }
+
+        const response = await supabase.functions.invoke("check-poll-admin", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        });
+
+        setIsAdmin(response.data?.isAdmin === true);
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+        setIsAdmin(false);
+      } finally {
+        setCheckingAdmin(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
 
   const loadVotedPolls = () => {
     const stored = localStorage.getItem("voted_polls");
