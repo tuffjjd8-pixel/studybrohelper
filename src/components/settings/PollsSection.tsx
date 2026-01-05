@@ -10,15 +10,23 @@ import {
   BarChart3, 
   Plus, 
   Trash2, 
-  Edit2, 
   Check, 
   X, 
   Vote,
   Eye,
   EyeOff,
-  Lock
+  Lock,
+  Clock,
+  RefreshCw
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Poll {
   id: string;
@@ -28,6 +36,7 @@ interface Poll {
   is_public: boolean;
   created_by: string;
   created_at: string;
+  ends_at: string | null;
   total_votes: number;
 }
 
@@ -43,6 +52,31 @@ const getVoterId = (userId?: string) => {
   return anonId;
 };
 
+// Check if poll has expired
+const isPollExpired = (endsAt: string | null): boolean => {
+  if (!endsAt) return false;
+  return new Date(endsAt) < new Date();
+};
+
+// Get time remaining text
+const getTimeRemaining = (endsAt: string | null): string | null => {
+  if (!endsAt) return null;
+  const end = new Date(endsAt);
+  const now = new Date();
+  
+  if (end < now) return "Expired";
+  
+  const diffMs = end.getTime() - now.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffDays > 0) return `${diffDays}d ${diffHours % 24}h left`;
+  if (diffHours > 0) return `${diffHours}h left`;
+  
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  return `${diffMins}m left`;
+};
+
 export function PollsSection() {
   const { user } = useAuth();
   const [polls, setPolls] = useState<Poll[]>([]);
@@ -53,12 +87,12 @@ export function PollsSection() {
   
   // Admin state
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingPoll, setEditingPoll] = useState<Poll | null>(null);
   const [newPoll, setNewPoll] = useState({
     title: "",
     description: "",
     options: ["", ""],
-    is_public: true
+    is_public: true,
+    timeLimit: "none" as "none" | "24h" | "3d" | "7d"
   });
   
   const voterId = getVoterId(user?.id);
@@ -143,56 +177,92 @@ export function PollsSection() {
   };
 
   const handleVote = async (pollId: string, optionIndex: number) => {
-    if (votedPolls[pollId] !== undefined) {
-      toast.error("You've already voted on this poll");
+    const poll = polls.find(p => p.id === pollId);
+    if (!poll) return;
+    
+    // Check if expired
+    if (isPollExpired(poll.ends_at)) {
+      toast.error("This poll has expired");
       return;
     }
+    
+    const previousVote = votedPolls[pollId];
+    const isChangingVote = previousVote !== undefined;
 
     try {
-      // Update the poll options with new vote count
-      const poll = polls.find(p => p.id === pollId);
-      if (!poll) return;
-
-      const updatedOptions = poll.options.map((opt, idx) => ({
-        ...opt,
-        votes: idx === optionIndex ? opt.votes + 1 : opt.votes
-      }));
+      let updatedOptions = [...poll.options];
+      let newTotalVotes = poll.total_votes;
+      
+      if (isChangingVote) {
+        // Decrease old option vote count
+        updatedOptions[previousVote] = {
+          ...updatedOptions[previousVote],
+          votes: Math.max(0, updatedOptions[previousVote].votes - 1)
+        };
+      } else {
+        // New vote, increase total
+        newTotalVotes += 1;
+      }
+      
+      // Increase new option vote count
+      updatedOptions[optionIndex] = {
+        ...updatedOptions[optionIndex],
+        votes: updatedOptions[optionIndex].votes + 1
+      };
 
       const { error: updateError } = await supabase
         .from("polls")
         .update({ 
           options: updatedOptions,
-          total_votes: poll.total_votes + 1
+          total_votes: newTotalVotes
         })
         .eq("id", pollId);
 
       if (updateError) throw updateError;
 
-      // Record the vote
+      // Upsert the vote record
       const { error: voteError } = await supabase
         .from("poll_votes")
-        .insert({
+        .upsert({
           poll_id: pollId,
           voter_id: voterId,
           option_index: optionIndex
+        }, {
+          onConflict: 'poll_id,voter_id'
         });
 
-      if (voteError && !voteError.message.includes("duplicate")) {
+      if (voteError) {
         throw voteError;
       }
 
       // Update local state
       setPolls(prev => prev.map(p => 
         p.id === pollId 
-          ? { ...p, options: updatedOptions, total_votes: p.total_votes + 1 }
+          ? { ...p, options: updatedOptions, total_votes: newTotalVotes }
           : p
       ));
 
       saveVotedPolls({ ...votedPolls, [pollId]: optionIndex });
-      toast.success("Vote recorded!");
+      toast.success(isChangingVote ? "Vote changed!" : "Vote recorded!");
     } catch (error) {
       console.error("Vote error:", error);
       toast.error("Failed to record vote");
+    }
+  };
+
+  const getEndsAt = (timeLimit: string): string | null => {
+    if (timeLimit === "none") return null;
+    
+    const now = new Date();
+    switch (timeLimit) {
+      case "24h":
+        return new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+      case "3d":
+        return new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+      case "7d":
+        return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      default:
+        return null;
     }
   };
 
@@ -219,13 +289,14 @@ export function PollsSection() {
           description: newPoll.description.trim() || null,
           options,
           is_public: newPoll.is_public,
-          created_by: user?.email || "admin"
+          created_by: user?.email || "admin",
+          ends_at: getEndsAt(newPoll.timeLimit)
         });
 
       if (error) throw error;
 
       toast.success("Poll created!");
-      setNewPoll({ title: "", description: "", options: ["", ""], is_public: true });
+      setNewPoll({ title: "", description: "", options: ["", ""], is_public: true, timeLimit: "none" });
       setShowCreateForm(false);
       fetchPolls();
     } catch (error) {
@@ -382,6 +453,29 @@ export function PollsSection() {
                 )}
               </div>
 
+              {/* Time Limit Selector */}
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> Time Limit
+                </label>
+                <Select
+                  value={newPoll.timeLimit}
+                  onValueChange={(value: "none" | "24h" | "3d" | "7d") => 
+                    setNewPoll(prev => ({ ...prev, timeLimit: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select time limit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No limit</SelectItem>
+                    <SelectItem value="24h">24 hours</SelectItem>
+                    <SelectItem value="3d">3 days</SelectItem>
+                    <SelectItem value="7d">7 days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Switch
@@ -414,6 +508,8 @@ export function PollsSection() {
           {polls.map((poll, index) => {
             const hasVoted = votedPolls[poll.id] !== undefined;
             const votedOption = votedPolls[poll.id];
+            const expired = isPollExpired(poll.ends_at);
+            const timeRemaining = getTimeRemaining(poll.ends_at);
             
             return (
               <motion.div
@@ -421,7 +517,7 @@ export function PollsSection() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="p-4 bg-card rounded-xl border border-border"
+                className={`p-4 bg-card rounded-xl border ${expired ? "border-muted opacity-75" : "border-border"}`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
@@ -433,30 +529,52 @@ export function PollsSection() {
                     )}
                   </div>
                   
-                  {isAdmin && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleToggleVisibility(poll.id, !poll.is_public)}
-                      >
-                        {poll.is_public ? (
-                          <Eye className="w-4 h-4" />
-                        ) : (
-                          <EyeOff className="w-4 h-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeletePoll(poll.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {/* Time remaining - only show to admin */}
+                    {isAdmin && timeRemaining && (
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        expired 
+                          ? "bg-destructive/10 text-destructive" 
+                          : "bg-primary/10 text-primary"
+                      }`}>
+                        <Clock className="w-3 h-3 inline mr-1" />
+                        {timeRemaining}
+                      </span>
+                    )}
+                    
+                    {isAdmin && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggleVisibility(poll.id, !poll.is_public)}
+                        >
+                          {poll.is_public ? (
+                            <Eye className="w-4 h-4" />
+                          ) : (
+                            <EyeOff className="w-4 h-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeletePoll(poll.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
+
+                {/* Expired badge for non-admin */}
+                {expired && !isAdmin && (
+                  <div className="mb-3 text-xs text-muted-foreground flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    This poll has ended
+                  </div>
+                )}
 
                 {/* Options */}
                 <div className="space-y-2">
@@ -469,17 +587,21 @@ export function PollsSection() {
                     return (
                       <button
                         key={optIndex}
-                        onClick={() => !hasVoted && handleVote(poll.id, optIndex)}
-                        disabled={hasVoted}
+                        onClick={() => !expired && handleVote(poll.id, optIndex)}
+                        disabled={expired}
                         className={`w-full p-3 rounded-lg text-left transition-all relative overflow-hidden ${
-                          hasVoted
+                          expired
                             ? isSelected
-                              ? "bg-primary/20 border border-primary"
-                              : "bg-muted/50 border border-transparent"
-                            : "bg-muted/30 border border-border hover:border-primary/50 cursor-pointer"
+                              ? "bg-primary/10 border border-primary/50"
+                              : "bg-muted/30 border border-transparent cursor-not-allowed"
+                            : hasVoted
+                              ? isSelected
+                                ? "bg-primary/20 border border-primary"
+                                : "bg-muted/50 border border-transparent hover:border-primary/30 cursor-pointer"
+                              : "bg-muted/30 border border-border hover:border-primary/50 cursor-pointer"
                         }`}
                       >
-                        {hasVoted && (
+                        {(hasVoted || expired) && (
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${percentage}%` }}
@@ -490,10 +612,13 @@ export function PollsSection() {
                           />
                         )}
                         <div className="relative flex items-center justify-between">
-                          <span className={isSelected ? "font-medium" : ""}>
+                          <span className={`flex items-center gap-2 ${isSelected ? "font-medium" : ""}`}>
                             {option.text}
+                            {isSelected && hasVoted && !expired && (
+                              <RefreshCw className="w-3 h-3 text-primary" />
+                            )}
                           </span>
-                          {hasVoted && (
+                          {(hasVoted || expired) && (
                             <span className="text-sm text-muted-foreground">
                               {percentage}% ({option.votes})
                             </span>
@@ -506,7 +631,8 @@ export function PollsSection() {
 
                 <div className="mt-3 text-xs text-muted-foreground text-center">
                   {poll.total_votes} vote{poll.total_votes !== 1 ? "s" : ""}
-                  {hasVoted && " • You voted"}
+                  {hasVoted && !expired && " • Tap to change vote"}
+                  {hasVoted && expired && " • You voted"}
                 </div>
               </motion.div>
             );

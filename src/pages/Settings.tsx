@@ -6,7 +6,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { PollsSection } from "@/components/settings/PollsSection";
+import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, 
   Settings as SettingsIcon, 
@@ -17,20 +17,22 @@ import {
   LogIn,
   Crown,
   Sparkles,
-  LineChart,
-  LogOut
+  LogOut,
+  Clock
 } from "lucide-react";
 
-const FREE_GRAPHS_PER_DAY = 4;
-const PREMIUM_GRAPHS_PER_DAY = 15;
 const FREE_ANIMATED_STEPS_PER_DAY = 5;
 const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 
 interface Profile {
   is_premium: boolean;
   animated_steps_used_today: number;
-  graphs_used_today: number;
 }
+
+// Helper to get current date in user's local timezone
+const getLocalDate = (): string => {
+  return new Date().toISOString().split('T')[0];
+};
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -42,7 +44,6 @@ const Settings = () => {
     if (user) {
       fetchProfile();
     } else {
-      // Load from localStorage for guests
       loadGuestLimits();
     }
   }, [user]);
@@ -51,12 +52,22 @@ const Settings = () => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("is_premium, animated_steps_used_today, graphs_used_today")
+        .select("is_premium, animated_steps_used_today, last_usage_date")
         .eq("user_id", user?.id)
         .maybeSingle();
 
       if (error) throw error;
-      setProfile(data);
+      
+      // Check if needs reset
+      const today = getLocalDate();
+      if (data && data.last_usage_date !== today) {
+        setProfile({
+          is_premium: data.is_premium,
+          animated_steps_used_today: 0
+        });
+      } else {
+        setProfile(data);
+      }
     } catch (error) {
       console.error("Error fetching profile:", error);
     } finally {
@@ -66,28 +77,27 @@ const Settings = () => {
 
   const loadGuestLimits = () => {
     const guestData = localStorage.getItem("guest_usage");
+    const today = getLocalDate();
+    
     if (guestData) {
       const parsed = JSON.parse(guestData);
-      const today = new Date().toISOString().split("T")[0];
       
       if (parsed.date === today) {
         setProfile({
-          is_premium: true, // Guests get premium benefits
+          is_premium: false,
           animated_steps_used_today: parsed.animatedSteps || 0,
-          graphs_used_today: parsed.graphs || 0
         });
       } else {
+        // Reset for new day
         setProfile({
-          is_premium: true,
+          is_premium: false,
           animated_steps_used_today: 0,
-          graphs_used_today: 0
         });
       }
     } else {
       setProfile({
-        is_premium: true,
+        is_premium: false,
         animated_steps_used_today: 0,
-        graphs_used_today: 0
       });
     }
     setLoading(false);
@@ -105,12 +115,11 @@ const Settings = () => {
     { icon: HelpCircle, label: "Help & Support", description: "FAQs and contact support" },
   ];
 
-  // Premium is always active
-  const isPremium = true;
-  const maxGraphs = isPremium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
+  const isPremium = profile?.is_premium || false;
   const maxAnimatedSteps = isPremium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
-  const graphsUsed = profile?.graphs_used_today || 0;
   const animatedStepsUsed = profile?.animated_steps_used_today || 0;
+  const animatedStepsRemaining = maxAnimatedSteps - animatedStepsUsed;
+  const usagePercent = (animatedStepsUsed / maxAnimatedSteps) * 100;
 
   return (
     <div className="min-h-screen bg-background">
@@ -140,55 +149,72 @@ const Settings = () => {
               </div>
             </div>
 
-            {/* Premium Status - Always active */}
+            {/* Premium Status */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-4 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl border border-primary/30"
+              className={`p-4 rounded-xl border ${
+                isPremium 
+                  ? "bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 border-primary/30"
+                  : "bg-card border-border"
+              }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/20 rounded-lg">
-                  <Crown className="w-6 h-6 text-primary" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${isPremium ? "bg-primary/20" : "bg-muted"}`}>
+                    <Crown className={`w-6 h-6 ${isPremium ? "text-primary" : "text-muted-foreground"}`} />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">{isPremium ? "Premium Active" : "Free Plan"}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {isPremium ? "All premium features unlocked" : "Upgrade for more features"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-medium">Premium Active</h3>
-                  <p className="text-sm text-muted-foreground">
-                    All premium features unlocked
-                  </p>
-                </div>
+                {!isPremium && (
+                  <Button 
+                    size="sm"
+                    onClick={() => navigate("/premium")}
+                  >
+                    Upgrade
+                  </Button>
+                )}
               </div>
             </motion.div>
 
-            {/* Daily Limits */}
+            {/* Daily Usage */}
             <div className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground">Daily Usage</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.1 }}
-                  className="p-4 bg-card rounded-xl border border-border text-center"
-                >
-                  <Sparkles className="w-6 h-6 text-primary mx-auto mb-2" />
-                  <div className="text-xl font-bold">
-                    {maxAnimatedSteps - animatedStepsUsed}/{maxAnimatedSteps}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Animated Steps</div>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.15 }}
-                  className="p-4 bg-card rounded-xl border border-border text-center"
-                >
-                  <LineChart className="w-6 h-6 text-secondary mx-auto mb-2" />
-                  <div className="text-xl font-bold">
-                    {maxGraphs - graphsUsed}/{maxGraphs}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Graphs Remaining</div>
-                </motion.div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-muted-foreground">Daily Usage</h3>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Resets at midnight
+                </span>
               </div>
+              
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.1 }}
+                className="p-4 bg-card rounded-xl border border-border"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <div className="flex-1">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm font-medium">Animated Steps</span>
+                      <span className="text-sm text-muted-foreground">
+                        {animatedStepsUsed}/{maxAnimatedSteps}
+                      </span>
+                    </div>
+                    <Progress value={usagePercent} className="h-2" />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {animatedStepsRemaining} remaining today
+                  {!isPremium && " • Upgrade for 16/day"}
+                </p>
+              </motion.div>
             </div>
 
             {/* Sign In / Sign Out Section */}
@@ -233,15 +259,6 @@ const Settings = () => {
                   </Button>
                 </div>
               )}
-            </motion.div>
-
-            {/* Polls Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-            >
-              <PollsSection />
             </motion.div>
 
             {/* Settings list */}

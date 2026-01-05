@@ -32,6 +32,7 @@ const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a friendly math tutor who expla
 - Wrap inline equations in \`$...$\` for inline math
 - Wrap display equations in \`$$...$$\` for display math
 - Do NOT use plain text like x^2 or sqrt() - always use proper LaTeX
+- For right angles in geometry, use the proper symbol ∟ or ⊾ instead of the letter "C"
 
 ## LaTeX Examples:
 - Fractions: $\\frac{3}{4}$
@@ -78,6 +79,7 @@ const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, an expert tutor prov
 - Wrap display equations in \`$$...$$\` for display math
 - Do NOT use plain text like x^2 or sqrt() - always use proper LaTeX
 - Always format math cleanly and clearly for readability
+- For right angles in geometry, use the proper symbol ∟ or ⊾ instead of the letter "C"
 
 ## LaTeX Examples:
 - Fractions: $\\frac{3}{4}$, $\\frac{x + 1}{x - 2}$
