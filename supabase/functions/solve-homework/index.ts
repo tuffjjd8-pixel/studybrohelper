@@ -10,11 +10,11 @@ const corsHeaders = {
 // MODEL CONFIGURATION
 // Vision model for images: "meta-llama/llama-4-scout-17b-16e-instruct" (Groq)
 // Text model for text-only: "llama-3.1-8b-instant" (Groq)
-// Graph model: Mistral Small 3.1 24B via OpenRouter (best for structured JSON)
+// Graph model: LLaMA 3.3 70B via OpenRouter (free tier, structured JSON)
 // ============================================================
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const GROQ_TEXT_MODEL = "llama-3.1-8b-instant";
-const OPENROUTER_GRAPH_MODEL = "mistralai/mistral-small-3.1-24b-instruct";
+const OPENROUTER_GRAPH_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 // ============================================================
 // TIER LIMITS
