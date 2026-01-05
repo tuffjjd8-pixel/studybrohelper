@@ -7,7 +7,6 @@ import { RecentSolves } from "@/components/home/RecentSolves";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
-import { GraphRenderer } from "@/components/solve/GraphRenderer";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
@@ -18,8 +17,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 // Tier limits
-const FREE_GRAPHS_PER_DAY = 4;
-const PREMIUM_GRAPHS_PER_DAY = 15;
 const FREE_ANIMATED_STEPS_PER_DAY = 5;
 const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 
@@ -31,21 +28,11 @@ interface SolutionData {
   solveId?: string;
   steps?: Array<{ title: string; content: string }>;
   maxSteps?: number;
-  graph?: { type: string; data: Record<string, unknown> };
-  limits?: {
-    animatedSteps: number;
-    graphsPerDay: number;
-    graphsUsed: number;
-  };
 }
 
-// Helper to get current date in CST
-const getCSTDate = (): string => {
-  const now = new Date();
-  const cstOffset = -6 * 60; // CST is UTC-6
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const cstTime = new Date(utc + (cstOffset * 60000));
-  return cstTime.toISOString().split('T')[0];
+// Helper to get current date in user's local timezone
+const getLocalDate = (): string => {
+  return new Date().toISOString().split('T')[0];
 };
 
 const Index = () => {
@@ -60,9 +47,11 @@ const Index = () => {
     is_premium: boolean; 
     daily_solves_used: number;
     animated_steps_used_today: number;
-    graphs_used_today: number;
     last_usage_date: string | null;
   } | null>(null);
+  
+  // Guest usage state
+  const [guestUsage, setGuestUsage] = useState({ animatedSteps: 0, date: "" });
   
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -72,18 +61,24 @@ const Index = () => {
   
   // Solve toggles
   const [animatedSteps, setAnimatedSteps] = useState(true);
-  const [generateGraph, setGenerateGraph] = useState(false);
 
   const isPremium = profile?.is_premium || false;
-  const maxGraphs = isPremium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
   const maxAnimatedSteps = isPremium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
   
-  // Check if usage needs reset (midnight CST)
-  const currentCSTDate = getCSTDate();
-  const needsReset = profile?.last_usage_date !== currentCSTDate;
+  // Check if usage needs reset (midnight local time)
+  const currentLocalDate = getLocalDate();
+  const needsReset = user ? (profile?.last_usage_date !== currentLocalDate) : (guestUsage.date !== currentLocalDate);
   
-  const graphsUsedToday = needsReset ? 0 : (profile?.graphs_used_today || 0);
-  const animatedStepsUsedToday = needsReset ? 0 : (profile?.animated_steps_used_today || 0);
+  const animatedStepsUsedToday = user 
+    ? (needsReset ? 0 : (profile?.animated_steps_used_today || 0))
+    : (needsReset ? 0 : guestUsage.animatedSteps);
+
+  // Load guest usage on mount
+  useEffect(() => {
+    if (!user) {
+      loadGuestUsage();
+    }
+  }, [user]);
 
   // Fetch recent solves and profile for logged-in users
   useEffect(() => {
@@ -93,12 +88,35 @@ const Index = () => {
     }
   }, [user]);
 
-  // Reset usage counters at midnight CST if needed
+  // Reset usage counters at midnight if needed
   useEffect(() => {
     if (user && profile && needsReset) {
       resetDailyUsage();
+    } else if (!user && needsReset) {
+      resetGuestUsage();
     }
-  }, [user, profile, needsReset]);
+  }, [user, profile, needsReset, guestUsage]);
+
+  const loadGuestUsage = () => {
+    try {
+      const stored = localStorage.getItem("guest_usage");
+      if (stored) {
+        const usage = JSON.parse(stored);
+        setGuestUsage({
+          animatedSteps: usage.animatedSteps || 0,
+          date: usage.date || ""
+        });
+      }
+    } catch (e) {
+      console.error("Failed to load guest usage:", e);
+    }
+  };
+
+  const resetGuestUsage = () => {
+    const newUsage = { animatedSteps: 0, date: currentLocalDate };
+    localStorage.setItem("guest_usage", JSON.stringify(newUsage));
+    setGuestUsage(newUsage);
+  };
 
   const fetchRecentSolves = async () => {
     const { data } = await supabase
@@ -123,7 +141,7 @@ const Index = () => {
   const fetchProfile = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("streak_count, total_solves, is_premium, daily_solves_used, animated_steps_used_today, graphs_used_today, last_usage_date")
+      .select("streak_count, total_solves, is_premium, daily_solves_used, animated_steps_used_today, last_usage_date")
       .eq("user_id", user?.id)
       .single();
 
@@ -137,8 +155,8 @@ const Index = () => {
       .from("profiles")
       .update({
         animated_steps_used_today: 0,
-        graphs_used_today: 0,
-        last_usage_date: currentCSTDate,
+        daily_solves_used: 0,
+        last_usage_date: currentLocalDate,
       })
       .eq("user_id", user?.id);
 
@@ -146,8 +164,8 @@ const Index = () => {
       setProfile(prev => prev ? {
         ...prev,
         animated_steps_used_today: 0,
-        graphs_used_today: 0,
-        last_usage_date: currentCSTDate,
+        daily_solves_used: 0,
+        last_usage_date: currentLocalDate,
       } : null);
     }
   };
@@ -157,9 +175,8 @@ const Index = () => {
     setSolution(null);
     setPendingImage(null);
 
-    // Auto-disable toggles if limits are hit (don't block solving)
+    // Auto-disable toggle if limit is hit
     const useAnimatedSteps = animatedSteps && animatedStepsUsedToday < maxAnimatedSteps;
-    const useGraph = generateGraph && graphsUsedToday < maxGraphs;
 
     try {
       const { data, error } = await supabase.functions.invoke("solve-homework", {
@@ -168,8 +185,7 @@ const Index = () => {
           image: imageData,
           isPremium,
           animatedSteps: useAnimatedSteps,
-          generateGraph: useGraph,
-          userGraphCount: graphsUsedToday,
+          generateGraph: false, // Graph feature removed
         },
       });
 
@@ -196,22 +212,17 @@ const Index = () => {
         } else {
           solveId = solveData?.id;
           
-          // Update profile stats including usage counters
+          // Update profile stats
           const updates: Record<string, unknown> = {
             total_solves: (profile?.total_solves || 0) + 1,
             daily_solves_used: (profile?.daily_solves_used || 0) + 1,
             last_solve_date: new Date().toISOString().split('T')[0],
-            last_usage_date: currentCSTDate,
+            last_usage_date: currentLocalDate,
           };
           
-          // Increment animated steps usage if toggle was on and steps were generated
+          // Increment animated steps usage if used
           if (useAnimatedSteps && data.steps?.length > 0) {
             updates.animated_steps_used_today = animatedStepsUsedToday + 1;
-          }
-          
-          // Increment graph usage if a graph was generated
-          if (data.graph) {
-            updates.graphs_used_today = graphsUsedToday + 1;
           }
 
           await supabase
@@ -237,27 +248,15 @@ const Index = () => {
         try {
           const existingSolves = JSON.parse(localStorage.getItem("guest_solves") || "[]");
           existingSolves.unshift(guestSolve);
-          // Keep only last 50 solves for guests
           localStorage.setItem("guest_solves", JSON.stringify(existingSolves.slice(0, 50)));
           
           // Update guest usage tracking
-          const guestUsage = JSON.parse(localStorage.getItem("guest_usage") || "{}");
-          const today = new Date().toISOString().split("T")[0];
-          
-          if (guestUsage.date !== today) {
-            guestUsage.date = today;
-            guestUsage.animatedSteps = 0;
-            guestUsage.graphs = 0;
-          }
-          
-          if (useAnimatedSteps && data.steps?.length > 0) {
-            guestUsage.animatedSteps = (guestUsage.animatedSteps || 0) + 1;
-          }
-          if (data.graph) {
-            guestUsage.graphs = (guestUsage.graphs || 0) + 1;
-          }
-          
-          localStorage.setItem("guest_usage", JSON.stringify(guestUsage));
+          const newUsage = {
+            date: currentLocalDate,
+            animatedSteps: guestUsage.animatedSteps + (useAnimatedSteps && data.steps?.length > 0 ? 1 : 0)
+          };
+          localStorage.setItem("guest_usage", JSON.stringify(newUsage));
+          setGuestUsage(newUsage);
         } catch (e) {
           console.error("Failed to save to localStorage:", e);
         }
@@ -271,8 +270,6 @@ const Index = () => {
         solveId,
         steps: data.steps,
         maxSteps: data.maxSteps,
-        graph: data.graph,
-        limits: data.limits,
       });
       setShowConfetti(true);
     } catch (error: unknown) {
@@ -385,12 +382,8 @@ const Index = () => {
               {/* Solve Toggles */}
               <SolveToggles
                 animatedSteps={animatedSteps}
-                generateGraph={generateGraph}
                 onAnimatedStepsChange={setAnimatedSteps}
-                onGenerateGraphChange={setGenerateGraph}
                 isPremium={isPremium}
-                graphsUsed={graphsUsedToday}
-                maxGraphs={maxGraphs}
                 animatedStepsUsed={animatedStepsUsedToday}
                 maxAnimatedSteps={maxAnimatedSteps}
               />
@@ -457,11 +450,6 @@ const Index = () => {
                     autoPlayDelay={3000}
                     fullSolution={solution.answer}
                   />
-
-                  {/* Graph visualization if available */}
-                  {solution.graph && (
-                    <GraphRenderer graph={solution.graph} />
-                  )}
                 </div>
               ) : (
                 <SolutionSteps

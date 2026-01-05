@@ -1,36 +1,27 @@
 import { motion } from "framer-motion";
-import { Sparkles, LineChart, Crown, Clock } from "lucide-react";
+import { Sparkles, Crown, Clock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 
 interface SolveTogglesProps {
   animatedSteps: boolean;
-  generateGraph: boolean;
   onAnimatedStepsChange: (value: boolean) => void;
-  onGenerateGraphChange: (value: boolean) => void;
   isPremium: boolean;
-  graphsUsed: number;
-  maxGraphs: number;
   animatedStepsUsed: number;
   maxAnimatedSteps: number;
 }
 
 export function SolveToggles({
   animatedSteps,
-  generateGraph,
   onAnimatedStepsChange,
-  onGenerateGraphChange,
   isPremium,
-  graphsUsed,
-  maxGraphs,
   animatedStepsUsed,
   maxAnimatedSteps,
 }: SolveTogglesProps) {
-  const graphsRemaining = maxGraphs - graphsUsed;
-  const canGenerateGraph = graphsRemaining > 0;
-  
   const animatedStepsRemaining = maxAnimatedSteps - animatedStepsUsed;
   const canAnimateSteps = animatedStepsRemaining > 0;
+  const usagePercent = (animatedStepsUsed / maxAnimatedSteps) * 100;
 
   return (
     <motion.div
@@ -70,7 +61,7 @@ export function SolveToggles({
                 ) : (
                   <span className="flex items-center gap-1 text-orange-400">
                     <Clock className="w-3 h-3" />
-                    Daily limit reached • Resets at midnight CST
+                    Daily limit reached
                   </span>
                 )}
               </p>
@@ -83,6 +74,14 @@ export function SolveToggles({
             disabled={!canAnimateSteps}
           />
         </div>
+
+        {/* Usage Progress Bar */}
+        <div className="space-y-1">
+          <Progress value={usagePercent} className="h-2" />
+          <p className="text-xs text-muted-foreground text-center">
+            {animatedStepsRemaining} remaining today • Resets at midnight
+          </p>
+        </div>
         
         {/* Limit message for animated steps */}
         {!canAnimateSteps && (
@@ -92,53 +91,12 @@ export function SolveToggles({
           </div>
         )}
 
-        {/* Generate Graph Toggle */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${canGenerateGraph ? "bg-secondary/10" : "bg-muted"}`}>
-              <LineChart className={`w-4 h-4 ${canGenerateGraph ? "text-secondary" : "text-muted-foreground"}`} />
-            </div>
-            <div>
-              <Label 
-                htmlFor="generate-graph" 
-                className={`text-sm font-medium cursor-pointer ${!canGenerateGraph && "text-muted-foreground"}`}
-              >
-                Generate Graph
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                {canGenerateGraph ? (
-                  <span>{graphsRemaining}/{maxGraphs} remaining today</span>
-                ) : (
-                  <span className="flex items-center gap-1 text-orange-400">
-                    <Clock className="w-3 h-3" />
-                    Daily limit reached • Resets at midnight CST
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-          <Switch
-            id="generate-graph"
-            checked={generateGraph}
-            onCheckedChange={onGenerateGraphChange}
-            disabled={!canGenerateGraph}
-          />
-        </div>
-        
-        {/* Limit message for graphs */}
-        {!canGenerateGraph && (
-          <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
-            You've used all {maxGraphs} graph{maxGraphs > 1 ? 's' : ''} for today. 
-            Solving still works — you just won't get graph visualizations until tomorrow.
-          </div>
-        )}
-
         {/* Upgrade hint for free users */}
         {!isPremium && (
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <Crown className="w-3 h-3 inline mr-1" />
-              Upgrade to Pro for 16 animated steps & 15 graphs/day
+              Upgrade to Pro for 16 animated steps/day
             </p>
           </div>
         )}

@@ -1,110 +1,86 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
   Crown,
   Check,
+  X,
   Zap,
   Target,
   MessageSquare,
   Sparkles,
   ArrowLeft,
   Calculator,
-  LineChart,
   Heart,
+  Shield,
+  Clock,
 } from "lucide-react";
 
-const PREMIUM_FEATURES = [
-  {
-    icon: Sparkles,
-    title: "16 Animated Steps",
-    description: "Detailed animated breakdowns for deeper understanding",
-  },
-  {
-    icon: Calculator,
-    title: "Premium Calculator",
-    description: "Pick your model, advanced logic chaining & reasoning",
-  },
-  {
-    icon: LineChart,
-    title: "15 Graphs Per Day",
-    description: "Create more visualizations to master concepts",
-  },
-  {
-    icon: Target,
-    title: "Enhanced Image Solving",
-    description: "Better OCR, formatting, and reasoning accuracy",
-  },
-  {
-    icon: Zap,
-    title: "Priority Response Speed",
-    description: "Skip the queue with faster processing times",
-  },
-  {
-    icon: MessageSquare,
-    title: "Latest AI Models",
-    description: "Access to Groq's cutting-edge text + vision models",
-  },
-  {
-    icon: Heart,
-    title: "Support Development",
-    description: "Help us build more amazing features for students",
-  },
+interface ComparisonItem {
+  feature: string;
+  free: string | boolean;
+  premium: string | boolean;
+}
+
+const COMPARISON: ComparisonItem[] = [
+  { feature: "Daily Solves", free: "Unlimited", premium: "Unlimited" },
+  { feature: "Animated Steps", free: "5/day", premium: "16/day" },
+  { feature: "AI Model", free: "Standard", premium: "Advanced" },
+  { feature: "Enhanced OCR", free: false, premium: true },
+  { feature: "Priority Speed", free: false, premium: true },
+  { feature: "Ads", free: true, premium: false },
 ];
 
-const FREE_FEATURES = [
-  {
-    label: "Unlimited solves",
-    description: "Solve as many problems as you need",
-  },
-  {
-    label: "5 animated steps",
-    description: "Clear step-by-step breakdowns",
-  },
-  {
-    label: "Basic calculator",
-    description: "Powerful solving, no model selection",
-  },
-  {
-    label: "4 graphs per day",
-    description: "Visualize your math problems",
-  },
-  {
-    label: "Text + image solving",
-    description: "Snap or type your homework",
-  },
+const PREMIUM_BENEFITS = [
+  { icon: Sparkles, title: "16 Animated Steps/Day", description: "Detailed step-by-step breakdowns" },
+  { icon: Calculator, title: "Premium Calculator", description: "Advanced reasoning & logic" },
+  { icon: Target, title: "Enhanced Image Solving", description: "Better OCR accuracy" },
+  { icon: Zap, title: "Priority Response", description: "Skip the queue" },
+  { icon: Shield, title: "No Ads", description: "Distraction-free learning" },
+  { icon: MessageSquare, title: "Latest AI Models", description: "Cutting-edge technology" },
 ];
 
 const Premium = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [hasUsedTrial, setHasUsedTrial] = useState(false);
+
+  // Check if user has used trial
+  useEffect(() => {
+    const trialUsed = localStorage.getItem("premium_trial_used");
+    setHasUsedTrial(!!trialUsed);
+  }, []);
 
   // Check if it's Friday (5) or Saturday (6) for weekend discount
   const isWeekendDiscount = useMemo(() => {
     const today = new Date().getDay();
-    return today === 5 || today === 6; // Friday = 5, Saturday = 6
+    return today === 5 || today === 6;
   }, []);
 
   const currentPrice = isWeekendDiscount ? 4.99 : 8.0;
   const regularPrice = 8.0;
 
   const handleUpgrade = async () => {
-    // Premium is always active - this button is just for show
     setIsUpgrading(true);
-    
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
     toast.success("🎉 Premium is already active for everyone!");
     setIsUpgrading(false);
     navigate(user ? "/profile" : "/settings");
+  };
 
+  const handleStartTrial = () => {
+    localStorage.setItem("premium_trial_used", "true");
+    localStorage.setItem("premium_trial_start", new Date().toISOString());
+    setHasUsedTrial(true);
+    toast.success("🎉 3-Day Free Trial Started! Enjoy premium features.");
+    navigate("/");
   };
 
   return (
@@ -145,6 +121,30 @@ const Premium = () => {
               </p>
             </div>
 
+            {/* Free Trial CTA */}
+            {!hasUsedTrial && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-4 rounded-2xl border-2 border-secondary bg-secondary/10 text-center"
+              >
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Clock className="w-5 h-5 text-secondary" />
+                  <span className="font-bold text-lg">Try 3-Day Free Trial</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Experience all premium features for free. No credit card required.
+                </p>
+                <Button 
+                  onClick={handleStartTrial}
+                  variant="secondary"
+                  className="w-full"
+                >
+                  Start Free Trial
+                </Button>
+              </motion.div>
+            )}
+
             {/* Pricing Card */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -178,54 +178,81 @@ const Premium = () => {
               </div>
             </motion.div>
 
-            {/* Premium Features list */}
+            {/* Gauth-style Comparison Table */}
             <div className="space-y-3">
-              <h2 className="font-semibold text-lg">Premium Features</h2>
-              {PREMIUM_FEATURES.map((feature, index) => (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="flex items-start gap-3 p-3 bg-card rounded-lg border border-border"
-                >
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <feature.icon className="w-5 h-5 text-primary" />
+              <h2 className="font-semibold text-lg text-center">Free vs Premium</h2>
+              <div className="rounded-xl border border-border overflow-hidden">
+                {/* Header */}
+                <div className="grid grid-cols-3 bg-muted/50 p-3 font-medium text-sm">
+                  <div>Feature</div>
+                  <div className="text-center">Free</div>
+                  <div className="text-center text-primary">Premium</div>
+                </div>
+                
+                {/* Rows */}
+                {COMPARISON.map((item, index) => (
+                  <div 
+                    key={item.feature}
+                    className={`grid grid-cols-3 p-3 text-sm ${
+                      index % 2 === 0 ? "bg-card" : "bg-muted/20"
+                    }`}
+                  >
+                    <div className="font-medium">{item.feature}</div>
+                    <div className="text-center">
+                      {typeof item.free === "boolean" ? (
+                        item.free ? (
+                          <Check className="w-4 h-4 text-green-500 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 text-muted-foreground mx-auto" />
+                        )
+                      ) : (
+                        <span className="text-muted-foreground">{item.free}</span>
+                      )}
+                    </div>
+                    <div className="text-center">
+                      {typeof item.premium === "boolean" ? (
+                        item.premium ? (
+                          <Check className="w-4 h-4 text-green-500 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 text-muted-foreground mx-auto" />
+                        )
+                      ) : (
+                        <span className="text-primary font-medium">{item.premium}</span>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-sm">{feature.title}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {feature.description}
-                    </p>
-                  </div>
-                  <Check className="w-5 h-5 text-green-500 ml-auto flex-shrink-0" />
-                </motion.div>
-              ))}
+                ))}
+              </div>
             </div>
 
-            {/* Free Plan Comparison */}
+            {/* Premium Benefits */}
             <div className="space-y-3">
-              <h2 className="font-semibold text-lg">
-                Free Plan — Already Powerful
-              </h2>
-              <div className="p-4 bg-card rounded-lg border border-border">
-                <ul className="space-y-3">
-                  {FREE_FEATURES.map((feature, index) => (
-                    <li
-                      key={index}
-                      className="flex items-start gap-3"
-                    >
-                      <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                      <div>
-                        <span className="text-sm font-medium">{feature.label}</span>
-                        <p className="text-xs text-muted-foreground">{feature.description}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+              <h2 className="font-semibold text-lg">Premium Benefits</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {PREMIUM_BENEFITS.map((benefit, index) => (
+                  <motion.div
+                    key={benefit.title}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="p-3 bg-card rounded-lg border border-border"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <benefit.icon className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">{benefit.title}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{benefit.description}</p>
+                  </motion.div>
+                ))}
               </div>
-              <p className="text-xs text-center text-muted-foreground">
-                Premium takes everything further — more steps, more graphs, faster & smarter AI.
+            </div>
+
+            {/* Support */}
+            <div className="p-4 bg-card rounded-lg border border-border text-center">
+              <Heart className="w-6 h-6 text-red-500 mx-auto mb-2" />
+              <p className="text-sm font-medium">Support Student Development</p>
+              <p className="text-xs text-muted-foreground">
+                Your subscription helps us build better learning tools
               </p>
             </div>
 
