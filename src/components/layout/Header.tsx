@@ -1,8 +1,9 @@
 import { StreakCounter } from "@/components/gamification/StreakCounter";
 import { motion } from "framer-motion";
-import { Sparkles, Crown } from "lucide-react";
+import { Sparkles, Crown, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HeaderProps {
   streak: number;
@@ -11,6 +12,8 @@ interface HeaderProps {
 }
 
 export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
+  const { user } = useAuth();
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -20 }}
@@ -38,7 +41,7 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
           </div>
         </Link>
 
-        {/* Stats & Premium */}
+        {/* Stats & Premium & Auth */}
         <div className="flex items-center gap-3">
           <StreakCounter streak={streak} totalSolves={totalSolves} />
           
@@ -47,6 +50,15 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
               <Button variant="cyan" size="sm" className="gap-1.5 hidden sm:flex">
                 <Crown className="w-4 h-4" />
                 <span>Go Pro</span>
+              </Button>
+            </Link>
+          )}
+          
+          {!user && (
+            <Link to="/auth">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
+                <LogIn className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign in</span>
               </Button>
             </Link>
           )}

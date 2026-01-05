@@ -38,16 +38,26 @@ const History = () => {
   const [selectedSolve, setSelectedSolve] = useState<Solve | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, authLoading, navigate]);
-
-  useEffect(() => {
     if (user) {
       fetchSolves();
+    } else if (!authLoading) {
+      // Load from localStorage for guests
+      loadGuestHistory();
     }
-  }, [user]);
+  }, [user, authLoading]);
+
+  const loadGuestHistory = () => {
+    try {
+      const guestSolves = localStorage.getItem("guest_solves");
+      if (guestSolves) {
+        setSolves(JSON.parse(guestSolves));
+      }
+    } catch (error) {
+      console.error("Error loading guest history:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchSolves = async () => {
     try {
@@ -68,6 +78,27 @@ const History = () => {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    if (!user) {
+      // Delete from localStorage for guests
+      try {
+        const guestSolves = localStorage.getItem("guest_solves");
+        if (guestSolves) {
+          const parsed = JSON.parse(guestSolves);
+          const updated = parsed.filter((s: Solve) => s.id !== id);
+          localStorage.setItem("guest_solves", JSON.stringify(updated));
+          setSolves(updated);
+          toast.success("Problem deleted");
+        }
+      } catch (error) {
+        toast.error("Failed to delete");
+      }
+      if (selectedSolve?.id === id) {
+        setSelectedSolve(null);
+      }
+      return;
+    }
+    
     try {
       const { error } = await supabase.from("solves").delete().eq("id", id);
       if (error) throw error;
@@ -87,7 +118,7 @@ const History = () => {
       solve.subject.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (authLoading || !user) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>

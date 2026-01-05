@@ -37,16 +37,43 @@ const Chat = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
+    if (!authLoading) {
+      if (user && id) {
+        fetchData();
+      } else if (!user && id) {
+        loadGuestData();
+      }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, id]);
 
-  useEffect(() => {
-    if (user && id) {
-      fetchData();
+  const loadGuestData = () => {
+    try {
+      const guestSolves = localStorage.getItem("guest_solves");
+      if (guestSolves) {
+        const solves = JSON.parse(guestSolves);
+        const found = solves.find((s: Solve) => s.id === id);
+        if (found) {
+          setSolve(found);
+          // Load guest chat messages from localStorage
+          const guestChats = localStorage.getItem(`guest_chat_${id}`);
+          if (guestChats) {
+            setMessages(JSON.parse(guestChats));
+          }
+        } else {
+          toast.error("Solve not found");
+          navigate("/history");
+        }
+      } else {
+        toast.error("Solve not found");
+        navigate("/history");
+      }
+    } catch (error) {
+      console.error("Error loading guest data:", error);
+      navigate("/history");
+    } finally {
+      setPageLoading(false);
     }
-  }, [user, id]);
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -102,19 +129,6 @@ const Chat = () => {
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
-      // Save user message
-      const { data: savedUserMsg, error: userMsgError } = await supabase
-        .from("chat_messages")
-        .insert({
-          solve_id: solve.id,
-          role: "user",
-          content: userMessage,
-        })
-        .select()
-        .single();
-
-      if (userMsgError) throw userMsgError;
-
       // Call AI for response
       const { data, error } = await supabase.functions.invoke("follow-up-chat", {
         body: {
@@ -131,24 +145,65 @@ const Chat = () => {
 
       if (error) throw error;
 
-      // Save assistant message
-      const { data: savedAssistantMsg, error: assistantMsgError } = await supabase
-        .from("chat_messages")
-        .insert({
-          solve_id: solve.id,
-          role: "assistant",
-          content: data.response,
-        })
-        .select()
-        .single();
+      const newUserMsg: Message = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: userMessage,
+        created_at: new Date().toISOString(),
+      };
 
-      if (assistantMsgError) throw assistantMsgError;
+      const newAssistantMsg: Message = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: data.response,
+        created_at: new Date().toISOString(),
+      };
 
-      setMessages((prev) => [
-        ...prev.filter((m) => m.id !== tempUserMsg.id),
-        { ...savedUserMsg, role: savedUserMsg.role as "user" | "assistant" },
-        { ...savedAssistantMsg, role: savedAssistantMsg.role as "user" | "assistant" },
-      ]);
+      if (user) {
+        // Save to database for authenticated users
+        const { data: savedUserMsg, error: userMsgError } = await supabase
+          .from("chat_messages")
+          .insert({
+            solve_id: solve.id,
+            role: "user",
+            content: userMessage,
+          })
+          .select()
+          .single();
+
+        if (userMsgError) throw userMsgError;
+
+        const { data: savedAssistantMsg, error: assistantMsgError } = await supabase
+          .from("chat_messages")
+          .insert({
+            solve_id: solve.id,
+            role: "assistant",
+            content: data.response,
+          })
+          .select()
+          .single();
+
+        if (assistantMsgError) throw assistantMsgError;
+
+        setMessages((prev) => [
+          ...prev.filter((m) => m.id !== tempUserMsg.id),
+          { ...savedUserMsg, role: savedUserMsg.role as "user" | "assistant" },
+          { ...savedAssistantMsg, role: savedAssistantMsg.role as "user" | "assistant" },
+        ]);
+      } else {
+        // Save to localStorage for guests
+        const updatedMessages = [
+          ...messages,
+          newUserMsg,
+          newAssistantMsg,
+        ];
+        setMessages((prev) => [
+          ...prev.filter((m) => m.id !== tempUserMsg.id),
+          newUserMsg,
+          newAssistantMsg,
+        ]);
+        localStorage.setItem(`guest_chat_${id}`, JSON.stringify(updatedMessages));
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
