@@ -116,8 +116,11 @@ const Auth = () => {
             </h1>
             <p className="text-muted-foreground mt-2">
               {isLogin
-                ? "Log in to track your solves and keep that streak going"
+                ? "Sign in to sync your progress across devices"
                 : "Create an account to save your progress"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Signing in is optional — you can use all features without an account
             </p>
           </div>
 
@@ -232,9 +235,19 @@ const Auth = () => {
               onClick={() => setIsLogin(!isLogin)}
               className="text-primary hover:underline font-medium"
             >
-              {isLogin ? "Sign up" : "Log in"}
+            {isLogin ? "Sign up" : "Log in"}
             </button>
           </p>
+
+          {/* Skip sign in option */}
+          <div className="text-center mt-4">
+            <button
+              onClick={() => navigate("/")}
+              className="text-sm text-muted-foreground hover:text-foreground underline"
+            >
+              Continue without signing in
+            </button>
+          </div>
         </motion.div>
       </div>
     </div>

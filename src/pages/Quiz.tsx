@@ -53,16 +53,37 @@ const Quiz = () => {
   const [questionCount, setQuestionCount] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
+    if (!authLoading) {
+      if (user && id) {
+        fetchSolve();
+      } else if (!user && id) {
+        loadGuestSolve();
+      }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, id]);
 
-  useEffect(() => {
-    if (user && id) {
-      fetchSolve();
+  const loadGuestSolve = () => {
+    try {
+      const guestSolves = localStorage.getItem("guest_solves");
+      if (guestSolves) {
+        const solves = JSON.parse(guestSolves);
+        const found = solves.find((s: Solve) => s.id === id);
+        if (found) {
+          setSolve(found);
+          setLoading(false);
+        } else {
+          toast.error("Solve not found");
+          navigate("/history");
+        }
+      } else {
+        toast.error("Solve not found");
+        navigate("/history");
+      }
+    } catch (error) {
+      console.error("Error loading guest solve:", error);
+      navigate("/history");
     }
-  }, [user, id]);
+  };
 
   const fetchSolve = async () => {
     try {

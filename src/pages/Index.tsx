@@ -222,6 +222,45 @@ const Index = () => {
           fetchRecentSolves();
           fetchProfile();
         }
+      } else {
+        // Save to localStorage for guests
+        solveId = `guest-${Date.now()}`;
+        const guestSolve = {
+          id: solveId,
+          subject: data.subject || "other",
+          question_text: input || null,
+          question_image_url: imageData || null,
+          solution_markdown: data.solution,
+          created_at: new Date().toISOString(),
+        };
+        
+        try {
+          const existingSolves = JSON.parse(localStorage.getItem("guest_solves") || "[]");
+          existingSolves.unshift(guestSolve);
+          // Keep only last 50 solves for guests
+          localStorage.setItem("guest_solves", JSON.stringify(existingSolves.slice(0, 50)));
+          
+          // Update guest usage tracking
+          const guestUsage = JSON.parse(localStorage.getItem("guest_usage") || "{}");
+          const today = new Date().toISOString().split("T")[0];
+          
+          if (guestUsage.date !== today) {
+            guestUsage.date = today;
+            guestUsage.animatedSteps = 0;
+            guestUsage.graphs = 0;
+          }
+          
+          if (useAnimatedSteps && data.steps?.length > 0) {
+            guestUsage.animatedSteps = (guestUsage.animatedSteps || 0) + 1;
+          }
+          if (data.graph) {
+            guestUsage.graphs = (guestUsage.graphs || 0) + 1;
+          }
+          
+          localStorage.setItem("guest_usage", JSON.stringify(guestUsage));
+        } catch (e) {
+          console.error("Failed to save to localStorage:", e);
+        }
       }
 
       setSolution({

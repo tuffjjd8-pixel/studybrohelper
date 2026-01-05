@@ -52,11 +52,7 @@ const Profile = () => {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, authLoading, navigate]);
+  // No redirect - profile is accessible, but shows sign-in prompt for guests
 
   useEffect(() => {
     if (user) {
@@ -169,10 +165,85 @@ const Profile = () => {
     toast.success("Signed out. See you later, bro! 👋");
   };
 
-  if (authLoading || !user) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  // Guest profile view
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header streak={0} totalSolves={0} />
+        <main className="pt-20 pb-24 px-4">
+          <div className="max-w-lg mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <div className="text-center py-6">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto">
+                  <User className="w-10 h-10 text-primary-foreground" />
+                </div>
+                <h1 className="text-2xl font-heading font-bold mt-4">Guest User</h1>
+                <p className="text-muted-foreground text-sm mt-2">
+                  Sign in to sync your progress across devices
+                </p>
+              </div>
+
+              {/* Stats grid for guest - using localStorage */}
+              <div className="grid grid-cols-2 gap-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="p-4 bg-card rounded-xl border border-border text-center"
+                >
+                  <Flame className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                  <div className="text-2xl font-bold">0</div>
+                  <div className="text-xs text-muted-foreground">Day Streak</div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.15 }}
+                  className="p-4 bg-card rounded-xl border border-border text-center"
+                >
+                  <Trophy className="w-8 h-8 text-primary mx-auto mb-2" />
+                  <div className="text-2xl font-bold">
+                    {JSON.parse(localStorage.getItem("guest_solves") || "[]").length}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Problems Solved</div>
+                </motion.div>
+              </div>
+
+              {/* Sign in prompt */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="p-6 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl border border-primary/30 text-center"
+              >
+                <User className="w-10 h-10 text-primary mx-auto mb-3" />
+                <h3 className="font-heading font-bold text-lg mb-2">
+                  Sign in to unlock more
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Sync your progress, track streaks, and access your history anywhere
+                </p>
+                <Button onClick={() => navigate("/auth")} className="w-full">
+                  Sign In (Optional)
+                </Button>
+              </motion.div>
+            </motion.div>
+          </div>
+        </main>
+        <BottomNav />
       </div>
     );
   }

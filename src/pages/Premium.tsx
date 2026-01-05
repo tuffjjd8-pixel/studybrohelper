@@ -96,31 +96,15 @@ const Premium = () => {
   const regularPrice = 8.0;
 
   const handleUpgrade = async () => {
-    if (!user) {
-      toast.error("Please sign in to upgrade");
-      navigate("/auth");
-      return;
-    }
-
+    // Premium is always active - this button is just for show
     setIsUpgrading(true);
+    
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    toast.success("🎉 Premium is already active for everyone!");
+    setIsUpgrading(false);
+    navigate(user ? "/profile" : "/settings");
 
-    try {
-      // Update user's premium status
-      const { error } = await supabase
-        .from("profiles")
-        .update({ is_premium: true })
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      toast.success("🎉 Welcome to Premium! You're all set!");
-      navigate("/profile");
-    } catch (error) {
-      console.error("Upgrade error:", error);
-      toast.error("Failed to upgrade. Please try again.");
-    } finally {
-      setIsUpgrading(false);
-    }
   };
 
   return (
