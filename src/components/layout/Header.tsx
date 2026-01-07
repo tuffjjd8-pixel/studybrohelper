@@ -25,8 +25,8 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
       "
     >
       <div className="flex items-center justify-between max-w-4xl mx-auto">
-        {/* Logo - offset to right to make room for sidebar trigger */}
-        <Link to="/" className="flex items-center gap-2 ml-12">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-2">
           <motion.div
             whileHover={{ rotate: 10 }}
             className="p-2 bg-primary/10 rounded-xl"
@@ -42,23 +42,23 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
         </Link>
 
         {/* Stats & Premium & Auth */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <StreakCounter streak={streak} totalSolves={totalSolves} />
           
           {!isPremium && (
             <Link to="/premium">
-              <Button variant="cyan" size="sm" className="gap-1.5 hidden sm:flex">
+              <Button variant="cyan" size="sm" className="gap-1 px-2 sm:px-3">
                 <Crown className="w-4 h-4" />
-                <span>Go Pro</span>
+                <span className="text-xs sm:text-sm">Pro</span>
               </Button>
             </Link>
           )}
           
           {!user && (
             <Link to="/auth">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground px-2 sm:px-3">
                 <LogIn className="w-4 h-4" />
-                <span className="hidden sm:inline">Sign in</span>
+                <span className="hidden sm:inline text-sm">Sign in</span>
               </Button>
             </Link>
           )}
