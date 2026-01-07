@@ -29,12 +29,12 @@ export function BottomNav() {
     return (
       <nav
         className="
-          fixed left-4 bottom-20 z-50
+          fixed left-3 bottom-4 z-50
           bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl
-          p-2 shadow-lg
+          py-2 px-1.5 shadow-lg
         "
       >
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-stretch gap-0.5">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             const isHome = item.path === "/";
@@ -42,21 +42,21 @@ export function BottomNav() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`relative flex items-center gap-2 px-3 py-2 rounded-lg w-full transition-colors ${
+                className={`relative flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
                   isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
               >
-                <div className="relative">
+                <div className="relative flex-shrink-0">
                   <item.icon className="w-5 h-5" />
                   {isHome && (
                     <button
                       onClick={toggleLayout}
-                      className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full hover:bg-red-400 transition-colors"
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full hover:bg-red-400 transition-colors"
                       aria-label="Toggle navigation layout"
                     />
                   )}
                 </div>
-                <span className={`text-sm ${isActive ? "font-medium" : ""}`}>
+                <span className={`text-xs whitespace-nowrap ${isActive ? "font-medium" : ""}`}>
                   {item.label}
                 </span>
               </Link>
