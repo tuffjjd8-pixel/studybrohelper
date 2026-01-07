@@ -25,18 +25,18 @@ export function BottomNav() {
     setIsVertical(!isVertical);
   };
 
-  // Vertical layout - height matches horizontal bar's width (~320px on mobile)
+  // Vertical layout - stretches from top to bottom like horizontal stretches left to right
   if (isVertical) {
     return (
       <nav
         className="
-          fixed left-3 bottom-4 z-50
+          fixed left-3 top-20 bottom-20 z-50
           bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl
-          p-1 shadow-lg w-[100px]
+          p-2 shadow-lg w-14
+          flex flex-col
         "
-        style={{ height: 'auto', minHeight: '180px' }}
       >
-        <div className="flex flex-col h-full justify-between">
+        <div className="flex flex-col h-full justify-around">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             const isHome = item.path === "/";
@@ -44,21 +44,21 @@ export function BottomNav() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`relative flex items-center gap-1.5 px-2 py-2 rounded-lg ${
+                className={`relative flex flex-col items-center justify-center py-2 rounded-lg ${
                   isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
               >
-                <div className="relative flex-shrink-0">
+                <div className="relative">
                   <item.icon className="w-5 h-5" />
                   {isHome && (
                     <button
                       onClick={toggleLayout}
-                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full hover:bg-red-400"
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full hover:bg-red-400 z-20"
                       aria-label="Toggle navigation layout"
                     />
                   )}
                 </div>
-                <span className={`text-xs whitespace-nowrap ${isActive ? "font-medium" : ""}`}>
+                <span className={`text-[10px] mt-1 ${isActive ? "font-medium" : ""}`}>
                   {item.label}
                 </span>
               </Link>

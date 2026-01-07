@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
-import { FollowUpInput } from "@/components/chat/FollowUpInput";
+import { TextInputBox } from "@/components/home/TextInputBox";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -226,10 +226,9 @@ const SolveDetail = () => {
               </Button>
             </div>
 
-            {/* Follow-up messages */}
+            {/* Chat messages */}
             {messages.length > 0 && (
               <div className="mt-8 space-y-4">
-                <h3 className="font-medium text-sm text-muted-foreground">Follow-up Discussion</h3>
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -262,9 +261,9 @@ const SolveDetail = () => {
               </div>
             )}
 
-            {/* Follow-up input */}
+            {/* Homework-style input box */}
             <div className="mt-8">
-              <FollowUpInput
+              <TextInputBox
                 onSubmit={handleFollowUp}
                 isLoading={isAsking}
                 placeholder="Paste or type your homework question..."
