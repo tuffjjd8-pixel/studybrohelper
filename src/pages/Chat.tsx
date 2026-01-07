@@ -3,11 +3,10 @@ import { motion } from "framer-motion";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { FollowUpInput } from "@/components/chat/FollowUpInput";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ArrowLeft, Send, Bot, User } from "lucide-react";
+import { ArrowLeft, Bot, User } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 
@@ -112,11 +111,10 @@ const Chat = () => {
     }
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || !solve) return;
+  const handleSend = async (message: string) => {
+    if (!message.trim() || !solve) return;
 
-    const userMessage = input.trim();
-    setInput("");
+    const userMessage = message.trim();
     setIsLoading(true);
 
     // Optimistic update
@@ -316,18 +314,12 @@ const Chat = () => {
 
       {/* Input */}
       <div className="fixed bottom-16 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border">
-        <div className="max-w-2xl mx-auto flex gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            placeholder="Ask a follow-up question..."
-            className="bg-card"
-            disabled={isLoading}
+        <div className="max-w-2xl mx-auto">
+          <FollowUpInput
+            onSubmit={handleSend}
+            isLoading={isLoading}
+            placeholder="Paste or type your homework question..."
           />
-          <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
-            <Send className="w-4 h-4" />
-          </Button>
         </div>
       </div>
 
