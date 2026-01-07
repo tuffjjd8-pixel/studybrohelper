@@ -25,12 +25,12 @@ export function BottomNav() {
     setIsVertical(!isVertical);
   };
 
-  // Vertical layout - stretches from top to bottom like horizontal stretches left to right
+  // Vertical layout - stretches from top to bottom matching horizontal bar's full width
   if (isVertical) {
     return (
       <nav
         className="
-          fixed left-3 top-20 bottom-20 z-50
+          fixed left-3 top-4 bottom-4 z-50
           bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl
           p-2 shadow-lg w-14
           flex flex-col
