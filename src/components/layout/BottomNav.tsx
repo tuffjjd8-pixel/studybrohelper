@@ -25,16 +25,18 @@ export function BottomNav() {
     setIsVertical(!isVertical);
   };
 
+  // Vertical layout - height matches horizontal bar's width (~320px on mobile)
   if (isVertical) {
     return (
       <nav
         className="
           fixed left-3 bottom-4 z-50
           bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl
-          py-2 px-1.5 shadow-lg
+          p-1 shadow-lg w-[100px]
         "
+        style={{ height: 'auto', minHeight: '180px' }}
       >
-        <div className="flex flex-col items-stretch gap-0.5">
+        <div className="flex flex-col h-full justify-between">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             const isHome = item.path === "/";
@@ -42,7 +44,7 @@ export function BottomNav() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`relative flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                className={`relative flex items-center gap-1.5 px-2 py-2 rounded-lg ${
                   isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
               >
@@ -51,7 +53,7 @@ export function BottomNav() {
                   {isHome && (
                     <button
                       onClick={toggleLayout}
-                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full hover:bg-red-400 transition-colors"
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full hover:bg-red-400"
                       aria-label="Toggle navigation layout"
                     />
                   )}

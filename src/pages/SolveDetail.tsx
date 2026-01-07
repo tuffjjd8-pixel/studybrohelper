@@ -4,11 +4,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
+import { FollowUpInput } from "@/components/chat/FollowUpInput";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageCircle, BookOpen, Share2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Share2, Bot } from "lucide-react";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
 
 interface Solve {
   id: string;
@@ -19,12 +21,20 @@ interface Solve {
   created_at: string;
 }
 
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
 const SolveDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [solve, setSolve] = useState<Solve | null>(null);
   const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isAsking, setIsAsking] = useState(false);
 
   useEffect(() => {
     if (!authLoading) {
@@ -44,6 +54,11 @@ const SolveDetail = () => {
         const found = solves.find((s: Solve) => s.id === id);
         if (found) {
           setSolve(found);
+          // Load guest chat messages
+          const guestChats = localStorage.getItem(`guest_chat_${id}`);
+          if (guestChats) {
+            setMessages(JSON.parse(guestChats));
+          }
         } else {
           toast.error("Solve not found");
           navigate("/history");
@@ -62,25 +77,87 @@ const SolveDetail = () => {
 
   const fetchSolve = async () => {
     try {
-      const { data, error } = await supabase
-        .from("solves")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
+      const [solveRes, messagesRes] = await Promise.all([
+        supabase.from("solves").select("*").eq("id", id).maybeSingle(),
+        supabase
+          .from("chat_messages")
+          .select("*")
+          .eq("solve_id", id)
+          .order("created_at", { ascending: true }),
+      ]);
 
-      if (error) throw error;
-      if (!data) {
+      if (solveRes.error) throw solveRes.error;
+      if (!solveRes.data) {
         toast.error("Solve not found");
         navigate("/history");
         return;
       }
-      setSolve(data);
+      setSolve(solveRes.data);
+      setMessages(
+        (messagesRes.data || []).map((m) => ({
+          ...m,
+          role: m.role as "user" | "assistant",
+        }))
+      );
     } catch (error) {
       console.error("Error fetching solve:", error);
       toast.error("Failed to load solve");
       navigate("/history");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFollowUp = async (question: string) => {
+    if (!solve || !question.trim()) return;
+
+    setIsAsking(true);
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: question.trim(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("follow-up-chat", {
+        body: {
+          solveId: solve.id,
+          message: question.trim(),
+          context: {
+            subject: solve.subject,
+            question: solve.question_text,
+            solution: solve.solution_markdown,
+          },
+          history: messages.map((m) => ({ role: m.role, content: m.content })),
+        },
+      });
+
+      if (error) throw error;
+
+      const assistantMessage: Message = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: data.response,
+      };
+
+      const updatedMessages = [...messages, userMessage, assistantMessage];
+      setMessages(updatedMessages);
+
+      if (user) {
+        await supabase.from("chat_messages").insert([
+          { solve_id: solve.id, role: "user", content: question.trim() },
+          { solve_id: solve.id, role: "assistant", content: data.response },
+        ]);
+      } else {
+        localStorage.setItem(`guest_chat_${id}`, JSON.stringify(updatedMessages));
+      }
+    } catch (error) {
+      console.error("Error asking follow-up:", error);
+      toast.error("Failed to get response");
+      setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+    } finally {
+      setIsAsking(false);
     }
   };
 
@@ -137,13 +214,6 @@ const SolveDetail = () => {
             {/* Action buttons */}
             <div className="mt-6 flex flex-wrap gap-3">
               <Button
-                onClick={() => navigate(`/chat/${solve.id}`)}
-                className="flex-1 min-w-[140px]"
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Ask Follow-up
-              </Button>
-              <Button
                 variant="outline"
                 onClick={() => navigate(`/quiz/${solve.id}`)}
                 className="flex-1 min-w-[140px]"
@@ -154,6 +224,51 @@ const SolveDetail = () => {
               <Button variant="outline" onClick={handleShare}>
                 <Share2 className="w-4 h-4" />
               </Button>
+            </div>
+
+            {/* Follow-up messages */}
+            {messages.length > 0 && (
+              <div className="mt-8 space-y-4">
+                <h3 className="font-medium text-sm text-muted-foreground">Follow-up Discussion</h3>
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex gap-3 ${
+                      message.role === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    {message.role === "assistant" && (
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <Bot className="w-4 h-4 text-primary" />
+                      </div>
+                    )}
+                    <div
+                      className={`max-w-[80%] p-4 rounded-2xl ${
+                        message.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-card border border-border"
+                      }`}
+                    >
+                      {message.role === "assistant" ? (
+                        <div className="prose prose-sm prose-invert max-w-none">
+                          <ReactMarkdown>{message.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p>{message.content}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Follow-up input */}
+            <div className="mt-8">
+              <FollowUpInput
+                onSubmit={handleFollowUp}
+                isLoading={isAsking}
+                placeholder="Paste or type your homework question..."
+              />
             </div>
           </motion.div>
         </div>
