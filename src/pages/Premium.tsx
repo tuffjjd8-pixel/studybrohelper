@@ -64,8 +64,8 @@ const Premium = () => {
     return today === 5 || today === 6;
   }, []);
 
-  const currentPrice = isWeekendDiscount ? 4.99 : 8.0;
-  const regularPrice = 8.0;
+  const currentPrice = 5.99;
+  const regularPrice = 5.99;
 
   const handleUpgrade = async () => {
     setIsUpgrading(true);
@@ -152,29 +152,14 @@ const Premium = () => {
               transition={{ delay: 0.1 }}
               className="p-6 rounded-2xl border-2 border-primary bg-primary/5 relative overflow-hidden"
             >
-              {isWeekendDiscount && (
-                <div className="absolute top-3 right-3 px-3 py-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full animate-pulse">
-                  🎉 WEEKEND DEAL!
-                </div>
-              )}
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 mb-1">
-                  <span className="text-4xl font-bold">${currentPrice.toFixed(2)}</span>
+                  <span className="text-4xl font-bold">$5.99</span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
-                {isWeekendDiscount && (
-                  <p className="text-sm text-muted-foreground">
-                    <span className="line-through">${regularPrice.toFixed(2)}</span>
-                    <span className="text-secondary font-medium ml-2">
-                      Save ${(regularPrice - currentPrice).toFixed(2)} this weekend!
-                    </span>
-                  </p>
-                )}
-                {!isWeekendDiscount && (
-                  <p className="text-sm text-muted-foreground">
-                    💡 Come back Friday or Saturday for $4.99!
-                  </p>
-                )}
+                <p className="text-sm text-muted-foreground">
+                  Cancel anytime. No questions asked.
+                </p>
               </div>
             </motion.div>
 
@@ -273,7 +258,7 @@ const Premium = () => {
                 ) : (
                   <>
                     <Crown className="w-5 h-5" />
-                    Upgrade Now - ${currentPrice.toFixed(2)}/mo
+                    Upgrade Now - $5.99/mo
                   </>
                 )}
               </Button>

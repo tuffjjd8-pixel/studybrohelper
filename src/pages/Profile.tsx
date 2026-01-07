@@ -447,7 +447,7 @@ const Profile = () => {
                   16 animated steps, 15 graphs/day, enhanced solving
                 </p>
                 <Button onClick={() => navigate("/premium")} className="w-full">
-                  Upgrade for $4.99/month
+                  Upgrade for $5.99/month
                 </Button>
               </motion.div>
             )}
