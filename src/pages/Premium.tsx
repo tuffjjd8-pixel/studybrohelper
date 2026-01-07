@@ -34,7 +34,7 @@ const COMPARISON: ComparisonItem[] = [
   { feature: "AI Model", free: "Standard", premium: "Advanced" },
   { feature: "Enhanced OCR", free: false, premium: true },
   { feature: "Priority Speed", free: false, premium: true },
-  { feature: "Ads", free: true, premium: false },
+  { feature: "Ad-Free Experience", free: false, premium: true },
 ];
 
 const PREMIUM_BENEFITS = [
