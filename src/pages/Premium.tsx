@@ -6,7 +6,6 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import {
   Crown,
   Check,
@@ -20,6 +19,7 @@ import {
   Heart,
   Shield,
   Clock,
+  Volume2,
 } from "lucide-react";
 
 interface ComparisonItem {
@@ -34,7 +34,8 @@ const COMPARISON: ComparisonItem[] = [
   { feature: "AI Model", free: "Standard", premium: "Advanced" },
   { feature: "Enhanced OCR", free: false, premium: true },
   { feature: "Priority Speed", free: false, premium: true },
-  { feature: "Ad-Free Experience", free: false, premium: true },
+  { feature: "Ad-Free Experience", free: true, premium: true },
+  { feature: "Text-to-Speech", free: "5/day", premium: "Unlimited" },
 ];
 
 const PREMIUM_BENEFITS = [
@@ -44,6 +45,7 @@ const PREMIUM_BENEFITS = [
   { icon: Zap, title: "Priority Response", description: "Skip the queue" },
   { icon: Shield, title: "No Ads", description: "Distraction-free learning" },
   { icon: MessageSquare, title: "Latest AI Models", description: "Cutting-edge technology" },
+  { icon: Volume2, title: "Unlimited TTS", description: "Listen to solutions anytime" },
 ];
 
 const Premium = () => {
@@ -64,7 +66,7 @@ const Premium = () => {
     return today === 5 || today === 6;
   }, []);
 
-  const currentPrice = 5.99;
+  const currentPrice = isWeekendDiscount ? 4.99 : 5.99;
   const regularPrice = 5.99;
 
   const handleUpgrade = async () => {
@@ -152,15 +154,44 @@ const Premium = () => {
               transition={{ delay: 0.1 }}
               className="p-6 rounded-2xl border-2 border-primary bg-primary/5 relative overflow-hidden"
             >
+              {isWeekendDiscount && (
+                <div className="absolute top-3 right-3 px-3 py-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full animate-pulse">
+                  🎉 WEEKEND DEAL!
+                </div>
+              )}
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 mb-1">
-                  <span className="text-4xl font-bold">$5.99</span>
+                  <span className="text-4xl font-bold">${currentPrice.toFixed(2)}</span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Cancel anytime. No questions asked.
-                </p>
+                {isWeekendDiscount ? (
+                  <p className="text-sm text-muted-foreground">
+                    <span className="line-through">${regularPrice.toFixed(2)}</span>
+                    <span className="text-secondary font-medium ml-2">
+                      Save $1.00 this weekend!
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Cancel anytime. No questions asked.
+                  </p>
+                )}
               </div>
+            </motion.div>
+
+            {/* Weekend Deal Button (always visible, only active on weekends) */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.15 }}
+            >
+              <Button
+                disabled={!isWeekendDiscount}
+                variant="outline"
+                className={`w-full ${isWeekendDiscount ? "border-secondary text-secondary hover:bg-secondary/10" : "opacity-50 cursor-not-allowed"}`}
+              >
+                {isWeekendDiscount ? "🎉 $4.99/weekend deal - Active!" : "$4.99/weekend deal (Fri-Sat only)"}
+              </Button>
             </motion.div>
 
             {/* Gauth-style Comparison Table */}
@@ -258,7 +289,7 @@ const Premium = () => {
                 ) : (
                   <>
                     <Crown className="w-5 h-5" />
-                    Upgrade Now - $5.99/mo
+                    Upgrade Now - ${currentPrice.toFixed(2)}/mo
                   </>
                 )}
               </Button>
