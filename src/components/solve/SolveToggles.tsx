@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sparkles, Crown, Clock } from "lucide-react";
+import { Sparkles, Crown, Clock, Mic, Volume2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -10,6 +10,10 @@ interface SolveTogglesProps {
   isPremium: boolean;
   animatedStepsUsed: number;
   maxAnimatedSteps: number;
+  voiceInput?: boolean;
+  onVoiceInputChange?: (value: boolean) => void;
+  ttsUsed?: number;
+  maxTts?: number;
 }
 
 export function SolveToggles({
@@ -18,10 +22,18 @@ export function SolveToggles({
   isPremium,
   animatedStepsUsed,
   maxAnimatedSteps,
+  voiceInput = false,
+  onVoiceInputChange,
+  ttsUsed = 0,
+  maxTts = 5,
 }: SolveTogglesProps) {
   const animatedStepsRemaining = maxAnimatedSteps - animatedStepsUsed;
   const canAnimateSteps = animatedStepsRemaining > 0;
   const usagePercent = (animatedStepsUsed / maxAnimatedSteps) * 100;
+
+  const ttsRemaining = isPremium ? Infinity : maxTts - ttsUsed;
+  const canUseTts = isPremium || ttsRemaining > 0;
+  const ttsUsagePercent = isPremium ? 0 : (ttsUsed / maxTts) * 100;
 
   return (
     <motion.div
@@ -75,6 +87,60 @@ export function SolveToggles({
           />
         </div>
 
+        {/* Voice Input Toggle */}
+        {onVoiceInputChange && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${voiceInput ? "bg-primary/10" : "bg-muted"}`}>
+                <Mic className={`w-4 h-4 ${voiceInput ? "text-primary" : "text-muted-foreground"}`} />
+              </div>
+              <div>
+                <Label 
+                  htmlFor="voice-input" 
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  Voice Input
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Speak your questions
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="voice-input"
+              checked={voiceInput}
+              onCheckedChange={onVoiceInputChange}
+            />
+          </div>
+        )}
+
+        {/* Text-to-Speech Usage (for free users) */}
+        {!isPremium && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${canUseTts ? "bg-primary/10" : "bg-muted"}`}>
+                <Volume2 className={`w-4 h-4 ${canUseTts ? "text-primary" : "text-muted-foreground"}`} />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">
+                  Text-to-Speech
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {canUseTts ? (
+                    <span>{ttsUsed}/{maxTts} used today</span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-orange-400">
+                      <Clock className="w-3 h-3" />
+                      Daily limit reached
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <span className="text-xs text-muted-foreground">{ttsRemaining} left</span>
+          </div>
+        )}
+
         {/* Usage Progress Bar */}
         <div className="space-y-1">
           <Progress value={usagePercent} className="h-2" />
@@ -96,7 +162,7 @@ export function SolveToggles({
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <Crown className="w-3 h-3 inline mr-1" />
-              Upgrade to Pro for 16 animated steps/day
+              Upgrade to Pro for 16 animated steps/day + unlimited TTS
             </p>
           </div>
         )}
