@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sparkles, Crown, Clock, Mic, Lock, Globe } from "lucide-react";
+import { Sparkles, Crown, Clock, Mic, Globe } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -91,50 +91,35 @@ export function SolveToggles({
           />
         </div>
 
-        {/* Speech Input Toggle - Premium Only */}
-        {onSpeechInputChange && (
+        {/* Speech Input Toggle - Premium Only (Hidden for free users) */}
+        {isPremium && onSpeechInputChange && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${isPremium && speechInput ? "bg-primary/10" : "bg-muted"}`}>
-                  {isPremium ? (
-                    <Mic className={`w-4 h-4 ${speechInput ? "text-primary" : "text-muted-foreground"}`} />
-                  ) : (
-                    <Lock className="w-4 h-4 text-muted-foreground" />
-                  )}
+                <div className={`p-2 rounded-lg ${speechInput ? "bg-primary/10" : "bg-muted"}`}>
+                  <Mic className={`w-4 h-4 ${speechInput ? "text-primary" : "text-muted-foreground"}`} />
                 </div>
                 <div>
                   <Label 
                     htmlFor="speech-input" 
-                    className={`text-sm font-medium cursor-pointer ${!isPremium && "text-muted-foreground"}`}
+                    className="text-sm font-medium cursor-pointer"
                   >
                     Speech Input
-                    {!isPremium && (
-                      <span className="ml-2 text-xs text-primary">Pro</span>
-                    )}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    {isPremium ? (
-                      "Multilingual voice transcription"
-                    ) : (
-                      <span className="flex items-center gap-1">
-                        <Crown className="w-3 h-3" />
-                        Premium feature
-                      </span>
-                    )}
+                    Multilingual voice transcription
                   </p>
                 </div>
               </div>
               <Switch
                 id="speech-input"
-                checked={speechInput && isPremium}
+                checked={speechInput}
                 onCheckedChange={onSpeechInputChange}
-                disabled={!isPremium}
               />
             </div>
 
             {/* Language Dropdown - Only show when speech is enabled */}
-            {isPremium && speechInput && onSpeechLanguageChange && (
+            {speechInput && onSpeechLanguageChange && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
