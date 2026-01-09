@@ -1,11 +1,14 @@
 import { useState, useRef } from "react";
-import { Send, Sparkles, Mic, MicOff, Loader2, Upload } from "lucide-react";
+import { Send, Sparkles, Mic, MicOff, Loader2, Upload, Globe, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import { fileToOptimizedDataUrl } from "@/lib/image";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { WhisperLanguageCode, isRTL } from "@/lib/whisperLanguages";
+
+type TranscriptionMode = "transcribe" | "translate";
 
 interface TextInputBoxProps {
   onSubmit: (text: string) => void;
@@ -15,8 +18,8 @@ interface TextInputBoxProps {
   hasPendingImage?: boolean;
   placeholder?: string;
   speechInputEnabled?: boolean;
-  onSpeechUsed?: () => void;
-  canUseSpeech?: boolean;
+  speechLanguage?: WhisperLanguageCode;
+  isPremium?: boolean;
 }
 
 export function TextInputBox({ 
@@ -27,25 +30,27 @@ export function TextInputBox({
   hasPendingImage = false,
   placeholder = "Paste or type your homework question...",
   speechInputEnabled = false,
-  onSpeechUsed,
-  canUseSpeech = true,
+  speechLanguage = "auto",
+  isPremium = false,
 }: TextInputBoxProps) {
   const [text, setText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptionMode, setTranscriptionMode] = useState<TranscriptionMode>("transcribe");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Determine text direction based on language
+  const textDirection = isRTL(speechLanguage) && transcriptionMode === "transcribe" ? "rtl" : "ltr";
+
   const handleSubmit = () => {
     if (isLoading) return;
     
-    // If there's text, submit it
     if (text.trim()) {
       onSubmit(text.trim());
       setText("");
     } 
-    // If no text but pending image, trigger empty submit (solve image)
     else if (hasPendingImage && onEmptySubmit) {
       onEmptySubmit();
     }
@@ -77,14 +82,15 @@ export function TextInputBox({
         return;
       }
     }
-    // Text paste is handled automatically by the textarea
   };
 
-  const startRecording = async () => {
-    if (!canUseSpeech) {
-      toast.error("Daily speech limit reached. Upgrade to Premium for unlimited.");
+  const startRecording = async (mode: TranscriptionMode) => {
+    if (!isPremium) {
+      toast.error("Speech input is a Premium feature. Upgrade to use it!");
       return;
     }
+
+    setTranscriptionMode(mode);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -101,12 +107,12 @@ export function TextInputBox({
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
         stream.getTracks().forEach(track => track.stop());
-        await transcribeAudio(audioBlob);
+        await transcribeAudio(audioBlob, mode);
       };
 
       mediaRecorder.start();
       setIsRecording(true);
-      toast.info("🎤 Recording... Click again to stop");
+      toast.info(`🎤 Recording (${mode === "translate" ? "→ English" : speechLanguage === "auto" ? "Auto-detect" : speechLanguage})... Click to stop`);
     } catch (error) {
       console.error('Error accessing microphone:', error);
       toast.error("Could not access microphone. Please check permissions.");
@@ -120,10 +126,9 @@ export function TextInputBox({
     }
   };
 
-  const transcribeAudio = async (audioBlob: Blob) => {
+  const transcribeAudio = async (audioBlob: Blob, mode: TranscriptionMode) => {
     setIsTranscribing(true);
     try {
-      // Convert blob to base64
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve) => {
         reader.onloadend = () => {
@@ -135,15 +140,18 @@ export function TextInputBox({
       const base64Audio = await base64Promise;
 
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body: { audio: base64Audio }
+        body: { 
+          audio: base64Audio,
+          language: speechLanguage === "auto" ? undefined : speechLanguage,
+          mode: mode
+        }
       });
 
       if (error) throw error;
 
       if (data?.text) {
         setText(prev => prev ? `${prev} ${data.text}` : data.text);
-        toast.success("Transcription complete!");
-        onSpeechUsed?.();
+        toast.success(mode === "translate" ? "Translated to English!" : "Transcription complete!");
       }
     } catch (error) {
       console.error('Transcription error:', error);
@@ -153,11 +161,11 @@ export function TextInputBox({
     }
   };
 
-  const handleVoiceClick = () => {
+  const handleVoiceClick = (mode: TranscriptionMode) => {
     if (isRecording) {
       stopRecording();
     } else {
-      startRecording();
+      startRecording(mode);
     }
   };
 
@@ -165,19 +173,17 @@ export function TextInputBox({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!canUseSpeech) {
-      toast.error("Daily speech limit reached. Upgrade to Premium for unlimited.");
+    if (!isPremium) {
+      toast.error("Speech input is a Premium feature. Upgrade to use it!");
       return;
     }
 
-    // Validate file type
     const validTypes = ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/webm', 'audio/ogg', 'audio/m4a', 'audio/x-m4a'];
     if (!validTypes.some(type => file.type.includes(type.split('/')[1]))) {
       toast.error("Please upload an audio file (MP3, WAV, M4A, WebM)");
       return;
     }
 
-    // Check file size (max 25MB)
     if (file.size > 25 * 1024 * 1024) {
       toast.error("Audio file too large. Maximum 25MB.");
       return;
@@ -185,7 +191,6 @@ export function TextInputBox({
 
     setIsTranscribing(true);
     try {
-      // Convert file to base64
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
         reader.onloadend = () => {
@@ -199,22 +204,24 @@ export function TextInputBox({
       const base64Audio = await base64Promise;
 
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body: { audio: base64Audio }
+        body: { 
+          audio: base64Audio,
+          language: speechLanguage === "auto" ? undefined : speechLanguage,
+          mode: transcriptionMode
+        }
       });
 
       if (error) throw error;
 
       if (data?.text) {
         setText(prev => prev ? `${prev} ${data.text}` : data.text);
-        toast.success("Transcription complete!");
-        onSpeechUsed?.();
+        toast.success(transcriptionMode === "translate" ? "Translated to English!" : "Transcription complete!");
       }
     } catch (error) {
       console.error('Transcription error:', error);
       toast.error("Failed to transcribe audio file. Please try again.");
     } finally {
       setIsTranscribing(false);
-      // Reset the input
       if (audioFileInputRef.current) {
         audioFileInputRef.current.value = '';
       }
@@ -240,59 +247,72 @@ export function TextInputBox({
               onPaste={handlePaste}
               placeholder={placeholder}
               disabled={isLoading || isTranscribing}
-              className="
+              dir={textDirection}
+              className={`
                 min-h-[60px] max-h-[200px] resize-none
                 bg-muted/50 border-none
                 placeholder:text-muted-foreground/50
                 focus-visible:ring-1 focus-visible:ring-primary/50
                 text-base
-                pr-24
-              "
+                ${speechInputEnabled && isPremium ? "pr-32" : "pr-4"}
+              `}
               rows={2}
             />
-            {/* Voice input buttons inside textarea */}
-            {speechInputEnabled && (
+            {/* Voice input buttons inside textarea - Premium only */}
+            {speechInputEnabled && isPremium && (
               <div className="absolute right-3 bottom-3 flex items-center gap-1">
                 {/* File upload button */}
                 <input
                   type="file"
                   ref={audioFileInputRef}
                   onChange={handleAudioFileSelect}
-                  accept="audio/*"
+                  accept="audio/*,.mp3,.wav,.m4a,.webm"
                   className="hidden"
                 />
                 <button
                   onClick={() => audioFileInputRef.current?.click()}
-                  disabled={isTranscribing || !canUseSpeech}
-                  className={`p-2 rounded-full transition-colors ${
-                    canUseSpeech 
-                      ? "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground" 
-                      : "bg-muted/50 text-muted-foreground/50 cursor-not-allowed"
-                  }`}
+                  disabled={isTranscribing}
+                  className="p-2 rounded-full transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
                   title="Upload audio file"
                 >
                   <Upload className="w-4 h-4" />
                 </button>
                 
-                {/* Mic button */}
+                {/* Transcribe in native language */}
                 <button
-                  onClick={handleVoiceClick}
-                  disabled={isTranscribing || (!canUseSpeech && !isRecording)}
+                  onClick={() => handleVoiceClick("transcribe")}
+                  disabled={isTranscribing}
                   className={`p-2 rounded-full transition-colors ${
-                    isRecording 
+                    isRecording && transcriptionMode === "transcribe"
                       ? "bg-red-500 text-white animate-pulse" 
-                      : canUseSpeech
-                        ? "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                        : "bg-muted/50 text-muted-foreground/50 cursor-not-allowed"
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
                   }`}
-                  title={isRecording ? "Stop recording" : "Start voice input"}
+                  title="Transcribe in selected language"
                 >
                   {isTranscribing ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isRecording ? (
+                  ) : isRecording && transcriptionMode === "transcribe" ? (
                     <MicOff className="w-4 h-4" />
                   ) : (
                     <Mic className="w-4 h-4" />
+                  )}
+                </button>
+
+                {/* Translate to English */}
+                <button
+                  onClick={() => handleVoiceClick("translate")}
+                  disabled={isTranscribing}
+                  className={`p-2 rounded-full transition-colors ${
+                    isRecording && transcriptionMode === "translate"
+                      ? "bg-green-500 text-white animate-pulse" 
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Translate to English"
+                >
+                  {isRecording && transcriptionMode === "translate" ? (
+                    <MicOff className="w-4 h-4" />
+                  ) : (
+                    <Languages className="w-4 h-4" />
                   )}
                 </button>
               </div>
@@ -314,12 +334,12 @@ export function TextInputBox({
         </div>
         <p className="text-xs text-muted-foreground mt-2 text-center">
           {isRecording 
-            ? "🎤 Recording... Click the mic to stop"
+            ? `🎤 Recording${transcriptionMode === "translate" ? " (→ English)" : ""}... Click to stop`
             : isTranscribing
             ? "Transcribing audio..."
             : hasPendingImage 
             ? "Press Enter to solve image • Add text for more context"
-            : `Press Enter to send • Shift+Enter for new line • Paste images with Ctrl+V${speechInputEnabled ? " • Use mic or upload audio" : ""}`
+            : `Press Enter to send • Shift+Enter for new line • Paste images with Ctrl+V${speechInputEnabled && isPremium ? " • 🎤 Transcribe • 🌐 Translate" : ""}`
           }
         </p>
       </div>

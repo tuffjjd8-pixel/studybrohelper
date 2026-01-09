@@ -1,8 +1,16 @@
 import { motion } from "framer-motion";
-import { Sparkles, Crown, Clock, Mic } from "lucide-react";
+import { Sparkles, Crown, Clock, Mic, Lock, Globe } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { WHISPER_LANGUAGES, WhisperLanguageCode } from "@/lib/whisperLanguages";
 
 interface SolveTogglesProps {
   animatedSteps: boolean;
@@ -12,8 +20,8 @@ interface SolveTogglesProps {
   maxAnimatedSteps: number;
   speechInput?: boolean;
   onSpeechInputChange?: (value: boolean) => void;
-  speechUsed?: number;
-  maxSpeech?: number;
+  speechLanguage?: WhisperLanguageCode;
+  onSpeechLanguageChange?: (value: WhisperLanguageCode) => void;
 }
 
 export function SolveToggles({
@@ -24,15 +32,12 @@ export function SolveToggles({
   maxAnimatedSteps,
   speechInput = false,
   onSpeechInputChange,
-  speechUsed = 0,
-  maxSpeech = 5,
+  speechLanguage = "auto",
+  onSpeechLanguageChange,
 }: SolveTogglesProps) {
   const animatedStepsRemaining = maxAnimatedSteps - animatedStepsUsed;
   const canAnimateSteps = animatedStepsRemaining > 0;
   const usagePercent = (animatedStepsUsed / maxAnimatedSteps) * 100;
-
-  const speechRemaining = isPremium ? Infinity : maxSpeech - speechUsed;
-  const canUseSpeech = isPremium || speechRemaining > 0;
 
   return (
     <motion.div
@@ -86,40 +91,82 @@ export function SolveToggles({
           />
         </div>
 
-        {/* Speech Input Toggle */}
+        {/* Speech Input Toggle - Premium Only */}
         {onSpeechInputChange && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${speechInput && canUseSpeech ? "bg-primary/10" : "bg-muted"}`}>
-                <Mic className={`w-4 h-4 ${speechInput && canUseSpeech ? "text-primary" : "text-muted-foreground"}`} />
-              </div>
-              <div>
-                <Label 
-                  htmlFor="speech-input" 
-                  className={`text-sm font-medium cursor-pointer ${!canUseSpeech && "text-muted-foreground"}`}
-                >
-                  Speech Input
-                </Label>
-                <p className="text-xs text-muted-foreground">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${isPremium && speechInput ? "bg-primary/10" : "bg-muted"}`}>
                   {isPremium ? (
-                    "Unlimited transcriptions"
-                  ) : canUseSpeech ? (
-                    <span>Speech uses left today: {speechRemaining}/{maxSpeech}</span>
+                    <Mic className={`w-4 h-4 ${speechInput ? "text-primary" : "text-muted-foreground"}`} />
                   ) : (
-                    <span className="flex items-center gap-1 text-orange-400">
-                      <Clock className="w-3 h-3" />
-                      Daily limit reached
-                    </span>
+                    <Lock className="w-4 h-4 text-muted-foreground" />
                   )}
-                </p>
+                </div>
+                <div>
+                  <Label 
+                    htmlFor="speech-input" 
+                    className={`text-sm font-medium cursor-pointer ${!isPremium && "text-muted-foreground"}`}
+                  >
+                    Speech Input
+                    {!isPremium && (
+                      <span className="ml-2 text-xs text-primary">Pro</span>
+                    )}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {isPremium ? (
+                      "Multilingual voice transcription"
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <Crown className="w-3 h-3" />
+                        Premium feature
+                      </span>
+                    )}
+                  </p>
+                </div>
               </div>
+              <Switch
+                id="speech-input"
+                checked={speechInput && isPremium}
+                onCheckedChange={onSpeechInputChange}
+                disabled={!isPremium}
+              />
             </div>
-            <Switch
-              id="speech-input"
-              checked={speechInput}
-              onCheckedChange={onSpeechInputChange}
-              disabled={!canUseSpeech}
-            />
+
+            {/* Language Dropdown - Only show when speech is enabled */}
+            {isPremium && speechInput && onSpeechLanguageChange && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="ml-11 space-y-2"
+              >
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-muted-foreground" />
+                  <Label className="text-xs text-muted-foreground">Speech Language</Label>
+                </div>
+                <Select
+                  value={speechLanguage}
+                  onValueChange={(value) => onSpeechLanguageChange(value as WhisperLanguageCode)}
+                >
+                  <SelectTrigger className="w-full h-9 text-sm">
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {WHISPER_LANGUAGES.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        <span className="flex items-center gap-2">
+                          <span>{lang.name}</span>
+                          {lang.nativeName !== lang.name && (
+                            <span className="text-muted-foreground text-xs">({lang.nativeName})</span>
+                          )}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </motion.div>
+            )}
           </div>
         )}
 
@@ -144,7 +191,7 @@ export function SolveToggles({
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <Crown className="w-3 h-3 inline mr-1" />
-              Upgrade to Pro for 16 animated steps/day + unlimited speech
+              Upgrade to Pro for 16 animated steps/day + multilingual speech input
             </p>
           </div>
         )}
