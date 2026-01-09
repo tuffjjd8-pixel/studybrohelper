@@ -19,7 +19,6 @@ import {
   Heart,
   Shield,
   Clock,
-  Volume2,
 } from "lucide-react";
 
 interface ComparisonItem {
@@ -32,7 +31,6 @@ const COMPARISON: ComparisonItem[] = [
   { feature: "Daily Solves", free: "Unlimited", premium: "Unlimited" },
   { feature: "Animated Steps", free: "5/day", premium: "16/day" },
   { feature: "Speech-to-Text", free: "5/day", premium: "Unlimited" },
-  { feature: "Text-to-Speech", free: "5/day", premium: "Unlimited" },
   { feature: "AI Model", free: "Standard", premium: "Advanced" },
   { feature: "Enhanced OCR", free: false, premium: true },
   { feature: "Priority Speed", free: false, premium: true },
@@ -46,7 +44,6 @@ const PREMIUM_BENEFITS = [
   { icon: Zap, title: "Priority Response", description: "Skip the queue" },
   { icon: Shield, title: "No Ads", description: "Distraction-free learning" },
   { icon: MessageSquare, title: "Latest AI Models", description: "Cutting-edge technology" },
-  { icon: Volume2, title: "Unlimited TTS", description: "Listen to solutions anytime" },
 ];
 
 const Premium = () => {

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sparkles, Crown, Clock, Mic, Volume2 } from "lucide-react";
+import { Sparkles, Crown, Clock, Mic } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -14,8 +14,6 @@ interface SolveTogglesProps {
   onSpeechInputChange?: (value: boolean) => void;
   speechUsed?: number;
   maxSpeech?: number;
-  ttsUsed?: number;
-  maxTts?: number;
 }
 
 export function SolveToggles({
@@ -28,8 +26,6 @@ export function SolveToggles({
   onSpeechInputChange,
   speechUsed = 0,
   maxSpeech = 5,
-  ttsUsed = 0,
-  maxTts = 5,
 }: SolveTogglesProps) {
   const animatedStepsRemaining = maxAnimatedSteps - animatedStepsUsed;
   const canAnimateSteps = animatedStepsRemaining > 0;
@@ -37,9 +33,6 @@ export function SolveToggles({
 
   const speechRemaining = isPremium ? Infinity : maxSpeech - speechUsed;
   const canUseSpeech = isPremium || speechRemaining > 0;
-  
-  const ttsRemaining = isPremium ? Infinity : maxTts - ttsUsed;
-  const canUseTts = isPremium || ttsRemaining > 0;
 
   return (
     <motion.div
@@ -130,33 +123,6 @@ export function SolveToggles({
           </div>
         )}
 
-        {/* Text-to-Speech Usage (for free users) */}
-        {!isPremium && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${canUseTts ? "bg-primary/10" : "bg-muted"}`}>
-                <Volume2 className={`w-4 h-4 ${canUseTts ? "text-primary" : "text-muted-foreground"}`} />
-              </div>
-              <div>
-                <Label className="text-sm font-medium">
-                  Text-to-Speech
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  {canUseTts ? (
-                    <span>{ttsUsed}/{maxTts} used today</span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-orange-400">
-                      <Clock className="w-3 h-3" />
-                      Daily limit reached
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-            <span className="text-xs text-muted-foreground">{ttsRemaining} left</span>
-          </div>
-        )}
-
         {/* Usage Progress Bar */}
         <div className="space-y-1">
           <Progress value={usagePercent} className="h-2" />
@@ -178,7 +144,7 @@ export function SolveToggles({
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <Crown className="w-3 h-3 inline mr-1" />
-              Upgrade to Pro for 16 animated steps/day + unlimited speech & TTS
+              Upgrade to Pro for 16 animated steps/day + unlimited speech
             </p>
           </div>
         )}
