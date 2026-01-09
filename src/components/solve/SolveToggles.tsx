@@ -10,8 +10,10 @@ interface SolveTogglesProps {
   isPremium: boolean;
   animatedStepsUsed: number;
   maxAnimatedSteps: number;
-  voiceInput?: boolean;
-  onVoiceInputChange?: (value: boolean) => void;
+  speechInput?: boolean;
+  onSpeechInputChange?: (value: boolean) => void;
+  speechUsed?: number;
+  maxSpeech?: number;
   ttsUsed?: number;
   maxTts?: number;
 }
@@ -22,8 +24,10 @@ export function SolveToggles({
   isPremium,
   animatedStepsUsed,
   maxAnimatedSteps,
-  voiceInput = false,
-  onVoiceInputChange,
+  speechInput = false,
+  onSpeechInputChange,
+  speechUsed = 0,
+  maxSpeech = 5,
   ttsUsed = 0,
   maxTts = 5,
 }: SolveTogglesProps) {
@@ -31,9 +35,11 @@ export function SolveToggles({
   const canAnimateSteps = animatedStepsRemaining > 0;
   const usagePercent = (animatedStepsUsed / maxAnimatedSteps) * 100;
 
+  const speechRemaining = isPremium ? Infinity : maxSpeech - speechUsed;
+  const canUseSpeech = isPremium || speechRemaining > 0;
+  
   const ttsRemaining = isPremium ? Infinity : maxTts - ttsUsed;
   const canUseTts = isPremium || ttsRemaining > 0;
-  const ttsUsagePercent = isPremium ? 0 : (ttsUsed / maxTts) * 100;
 
   return (
     <motion.div
@@ -87,29 +93,39 @@ export function SolveToggles({
           />
         </div>
 
-        {/* Voice Input Toggle */}
-        {onVoiceInputChange && (
+        {/* Speech Input Toggle */}
+        {onSpeechInputChange && (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${voiceInput ? "bg-primary/10" : "bg-muted"}`}>
-                <Mic className={`w-4 h-4 ${voiceInput ? "text-primary" : "text-muted-foreground"}`} />
+              <div className={`p-2 rounded-lg ${speechInput && canUseSpeech ? "bg-primary/10" : "bg-muted"}`}>
+                <Mic className={`w-4 h-4 ${speechInput && canUseSpeech ? "text-primary" : "text-muted-foreground"}`} />
               </div>
               <div>
                 <Label 
-                  htmlFor="voice-input" 
-                  className="text-sm font-medium cursor-pointer"
+                  htmlFor="speech-input" 
+                  className={`text-sm font-medium cursor-pointer ${!canUseSpeech && "text-muted-foreground"}`}
                 >
-                  Voice Input
+                  Speech Input
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Speak your questions
+                  {isPremium ? (
+                    "Unlimited transcriptions"
+                  ) : canUseSpeech ? (
+                    <span>Speech uses left today: {speechRemaining}/{maxSpeech}</span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-orange-400">
+                      <Clock className="w-3 h-3" />
+                      Daily limit reached
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
             <Switch
-              id="voice-input"
-              checked={voiceInput}
-              onCheckedChange={onVoiceInputChange}
+              id="speech-input"
+              checked={speechInput}
+              onCheckedChange={onSpeechInputChange}
+              disabled={!canUseSpeech}
             />
           </div>
         )}
@@ -162,7 +178,7 @@ export function SolveToggles({
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <Crown className="w-3 h-3 inline mr-1" />
-              Upgrade to Pro for 16 animated steps/day + unlimited TTS
+              Upgrade to Pro for 16 animated steps/day + unlimited speech & TTS
             </p>
           </div>
         )}

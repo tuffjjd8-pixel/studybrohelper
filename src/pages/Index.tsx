@@ -19,6 +19,7 @@ import { toast } from "sonner";
 // Tier limits
 const FREE_ANIMATED_STEPS_PER_DAY = 5;
 const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
+const FREE_SPEECH_PER_DAY = 5;
 
 interface SolutionData {
   subject: string;
@@ -51,7 +52,7 @@ const Index = () => {
   } | null>(null);
   
   // Guest usage state
-  const [guestUsage, setGuestUsage] = useState({ animatedSteps: 0, date: "" });
+  const [guestUsage, setGuestUsage] = useState({ animatedSteps: 0, speechUses: 0, date: "" });
   
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -59,11 +60,29 @@ const Index = () => {
   // Pending image state
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   
-  // Solve toggles
-  const [animatedSteps, setAnimatedSteps] = useState(true);
+  // Solve toggles - persist in localStorage
+  const [animatedSteps, setAnimatedSteps] = useState(() => {
+    const saved = localStorage.getItem("toggle_animated_steps");
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  
+  const [speechInput, setSpeechInput] = useState(() => {
+    const saved = localStorage.getItem("toggle_speech_input");
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+
+  // Persist toggles
+  useEffect(() => {
+    localStorage.setItem("toggle_animated_steps", JSON.stringify(animatedSteps));
+  }, [animatedSteps]);
+
+  useEffect(() => {
+    localStorage.setItem("toggle_speech_input", JSON.stringify(speechInput));
+  }, [speechInput]);
 
   const isPremium = profile?.is_premium || false;
   const maxAnimatedSteps = isPremium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
+  const maxSpeech = FREE_SPEECH_PER_DAY;
   
   // Check if usage needs reset (midnight local time)
   const currentLocalDate = getLocalDate();
@@ -73,18 +92,13 @@ const Index = () => {
     ? (needsReset ? 0 : (profile?.animated_steps_used_today || 0))
     : (needsReset ? 0 : guestUsage.animatedSteps);
 
+  const speechUsedToday = needsReset ? 0 : guestUsage.speechUses;
+  const canUseSpeech = isPremium || speechUsedToday < maxSpeech;
+
   // Load guest usage on mount
   useEffect(() => {
     if (!user) {
       loadGuestUsage();
-    }
-  }, [user]);
-
-  // Fetch recent solves and profile for logged-in users
-  useEffect(() => {
-    if (user) {
-      fetchRecentSolves();
-      fetchProfile();
     }
   }, [user]);
 
@@ -104,6 +118,7 @@ const Index = () => {
         const usage = JSON.parse(stored);
         setGuestUsage({
           animatedSteps: usage.animatedSteps || 0,
+          speechUses: usage.speechUses || 0,
           date: usage.date || ""
         });
       }
@@ -113,7 +128,19 @@ const Index = () => {
   };
 
   const resetGuestUsage = () => {
-    const newUsage = { animatedSteps: 0, date: currentLocalDate };
+    const newUsage = { animatedSteps: 0, speechUses: 0, date: currentLocalDate };
+    localStorage.setItem("guest_usage", JSON.stringify(newUsage));
+    setGuestUsage(newUsage);
+  };
+
+  const handleSpeechUsed = () => {
+    if (isPremium) return; // No tracking for premium
+    
+    const newUsage = {
+      ...guestUsage,
+      speechUses: guestUsage.speechUses + 1,
+      date: currentLocalDate
+    };
     localStorage.setItem("guest_usage", JSON.stringify(newUsage));
     setGuestUsage(newUsage);
   };
@@ -253,7 +280,8 @@ const Index = () => {
           // Update guest usage tracking
           const newUsage = {
             date: currentLocalDate,
-            animatedSteps: guestUsage.animatedSteps + (useAnimatedSteps && data.steps?.length > 0 ? 1 : 0)
+            animatedSteps: guestUsage.animatedSteps + (useAnimatedSteps && data.steps?.length > 0 ? 1 : 0),
+            speechUses: guestUsage.speechUses
           };
           localStorage.setItem("guest_usage", JSON.stringify(newUsage));
           setGuestUsage(newUsage);
@@ -386,6 +414,10 @@ const Index = () => {
                 isPremium={isPremium}
                 animatedStepsUsed={animatedStepsUsedToday}
                 maxAnimatedSteps={maxAnimatedSteps}
+                speechInput={speechInput}
+                onSpeechInputChange={setSpeechInput}
+                speechUsed={speechUsedToday}
+                maxSpeech={maxSpeech}
               />
 
               {/* Divider */}
@@ -405,6 +437,9 @@ const Index = () => {
                 isLoading={isLoading}
                 hasPendingImage={!!pendingImage}
                 placeholder={pendingImage ? "Add details or press Enter to solve..." : "Paste or type your homework question..."}
+                speechInputEnabled={speechInput}
+                onSpeechUsed={handleSpeechUsed}
+                canUseSpeech={canUseSpeech}
               />
 
               {/* Recent solves */}

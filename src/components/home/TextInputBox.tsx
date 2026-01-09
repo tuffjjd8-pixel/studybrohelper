@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Send, Sparkles, Mic, MicOff, Loader2 } from "lucide-react";
+import { Send, Sparkles, Mic, MicOff, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
@@ -14,7 +14,9 @@ interface TextInputBoxProps {
   isLoading?: boolean;
   hasPendingImage?: boolean;
   placeholder?: string;
-  voiceInputEnabled?: boolean;
+  speechInputEnabled?: boolean;
+  onSpeechUsed?: () => void;
+  canUseSpeech?: boolean;
 }
 
 export function TextInputBox({ 
@@ -24,13 +26,16 @@ export function TextInputBox({
   isLoading,
   hasPendingImage = false,
   placeholder = "Paste or type your homework question...",
-  voiceInputEnabled = false,
+  speechInputEnabled = false,
+  onSpeechUsed,
+  canUseSpeech = true,
 }: TextInputBoxProps) {
   const [text, setText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = () => {
     if (isLoading) return;
@@ -76,6 +81,11 @@ export function TextInputBox({
   };
 
   const startRecording = async () => {
+    if (!canUseSpeech) {
+      toast.error("Daily speech limit reached. Upgrade to Premium for unlimited.");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
@@ -96,6 +106,7 @@ export function TextInputBox({
 
       mediaRecorder.start();
       setIsRecording(true);
+      toast.info("🎤 Recording... Click again to stop");
     } catch (error) {
       console.error('Error accessing microphone:', error);
       toast.error("Could not access microphone. Please check permissions.");
@@ -132,6 +143,7 @@ export function TextInputBox({
       if (data?.text) {
         setText(prev => prev ? `${prev} ${data.text}` : data.text);
         toast.success("Transcription complete!");
+        onSpeechUsed?.();
       }
     } catch (error) {
       console.error('Transcription error:', error);
@@ -146,6 +158,66 @@ export function TextInputBox({
       stopRecording();
     } else {
       startRecording();
+    }
+  };
+
+  const handleAudioFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!canUseSpeech) {
+      toast.error("Daily speech limit reached. Upgrade to Premium for unlimited.");
+      return;
+    }
+
+    // Validate file type
+    const validTypes = ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/webm', 'audio/ogg', 'audio/m4a', 'audio/x-m4a'];
+    if (!validTypes.some(type => file.type.includes(type.split('/')[1]))) {
+      toast.error("Please upload an audio file (MP3, WAV, M4A, WebM)");
+      return;
+    }
+
+    // Check file size (max 25MB)
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Audio file too large. Maximum 25MB.");
+      return;
+    }
+
+    setIsTranscribing(true);
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(file);
+      const base64Audio = await base64Promise;
+
+      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        body: { audio: base64Audio }
+      });
+
+      if (error) throw error;
+
+      if (data?.text) {
+        setText(prev => prev ? `${prev} ${data.text}` : data.text);
+        toast.success("Transcription complete!");
+        onSpeechUsed?.();
+      }
+    } catch (error) {
+      console.error('Transcription error:', error);
+      toast.error("Failed to transcribe audio file. Please try again.");
+    } finally {
+      setIsTranscribing(false);
+      // Reset the input
+      if (audioFileInputRef.current) {
+        audioFileInputRef.current.value = '';
+      }
     }
   };
 
@@ -174,29 +246,56 @@ export function TextInputBox({
                 placeholder:text-muted-foreground/50
                 focus-visible:ring-1 focus-visible:ring-primary/50
                 text-base
+                pr-24
               "
               rows={2}
             />
-            {/* Voice input button inside textarea */}
-            {voiceInputEnabled && (
-              <button
-                onClick={handleVoiceClick}
-                disabled={isTranscribing}
-                className={`absolute right-3 bottom-3 p-2 rounded-full transition-colors ${
-                  isRecording 
-                    ? "bg-red-500 text-white animate-pulse" 
-                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                }`}
-                title={isRecording ? "Stop recording" : "Start voice input"}
-              >
-                {isTranscribing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : isRecording ? (
-                  <MicOff className="w-4 h-4" />
-                ) : (
-                  <Mic className="w-4 h-4" />
-                )}
-              </button>
+            {/* Voice input buttons inside textarea */}
+            {speechInputEnabled && (
+              <div className="absolute right-3 bottom-3 flex items-center gap-1">
+                {/* File upload button */}
+                <input
+                  type="file"
+                  ref={audioFileInputRef}
+                  onChange={handleAudioFileSelect}
+                  accept="audio/*"
+                  className="hidden"
+                />
+                <button
+                  onClick={() => audioFileInputRef.current?.click()}
+                  disabled={isTranscribing || !canUseSpeech}
+                  className={`p-2 rounded-full transition-colors ${
+                    canUseSpeech 
+                      ? "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground" 
+                      : "bg-muted/50 text-muted-foreground/50 cursor-not-allowed"
+                  }`}
+                  title="Upload audio file"
+                >
+                  <Upload className="w-4 h-4" />
+                </button>
+                
+                {/* Mic button */}
+                <button
+                  onClick={handleVoiceClick}
+                  disabled={isTranscribing || (!canUseSpeech && !isRecording)}
+                  className={`p-2 rounded-full transition-colors ${
+                    isRecording 
+                      ? "bg-red-500 text-white animate-pulse" 
+                      : canUseSpeech
+                        ? "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                        : "bg-muted/50 text-muted-foreground/50 cursor-not-allowed"
+                  }`}
+                  title={isRecording ? "Stop recording" : "Start voice input"}
+                >
+                  {isTranscribing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : isRecording ? (
+                    <MicOff className="w-4 h-4" />
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             )}
           </div>
           <Button
@@ -220,7 +319,7 @@ export function TextInputBox({
             ? "Transcribing audio..."
             : hasPendingImage 
             ? "Press Enter to solve image • Add text for more context"
-            : `Press Enter to send • Shift+Enter for new line • Paste images with Ctrl+V${voiceInputEnabled ? " • Click mic for voice" : ""}`
+            : `Press Enter to send • Shift+Enter for new line • Paste images with Ctrl+V${speechInputEnabled ? " • Use mic or upload audio" : ""}`
           }
         </p>
       </div>
