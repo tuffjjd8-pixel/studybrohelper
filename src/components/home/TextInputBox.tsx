@@ -1,14 +1,11 @@
 import { useState, useRef } from "react";
-import { Send, Sparkles, Mic, MicOff, Loader2, Upload, Globe, Languages } from "lucide-react";
+import { Send, Sparkles, Mic, MicOff, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import { fileToOptimizedDataUrl } from "@/lib/image";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { WhisperLanguageCode, isRTL } from "@/lib/whisperLanguages";
-
-type TranscriptionMode = "transcribe" | "translate";
 
 interface TextInputBoxProps {
   onSubmit: (text: string) => void;
@@ -18,7 +15,6 @@ interface TextInputBoxProps {
   hasPendingImage?: boolean;
   placeholder?: string;
   speechInputEnabled?: boolean;
-  speechLanguage?: WhisperLanguageCode;
   isPremium?: boolean;
 }
 
@@ -30,19 +26,14 @@ export function TextInputBox({
   hasPendingImage = false,
   placeholder = "Paste or type your homework question...",
   speechInputEnabled = false,
-  speechLanguage = "auto",
   isPremium = false,
 }: TextInputBoxProps) {
   const [text, setText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcriptionMode, setTranscriptionMode] = useState<TranscriptionMode>("transcribe");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Determine text direction based on language
-  const textDirection = isRTL(speechLanguage) && transcriptionMode === "transcribe" ? "rtl" : "ltr";
 
   const handleSubmit = () => {
     if (isLoading) return;
@@ -84,13 +75,11 @@ export function TextInputBox({
     }
   };
 
-  const startRecording = async (mode: TranscriptionMode) => {
+  const startRecording = async () => {
     if (!isPremium) {
-      toast.error("Speech input is a Premium feature. Upgrade to use it!");
+      toast.error("Speech input is a Premium feature.");
       return;
     }
-
-    setTranscriptionMode(mode);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -107,12 +96,12 @@ export function TextInputBox({
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
         stream.getTracks().forEach(track => track.stop());
-        await transcribeAudio(audioBlob, mode);
+        await transcribeAudio(audioBlob);
       };
 
       mediaRecorder.start();
       setIsRecording(true);
-      toast.info(`🎤 Recording (${mode === "translate" ? "→ English" : speechLanguage === "auto" ? "Auto-detect" : speechLanguage})... Click to stop`);
+      toast.info("🎤 Recording... Click again to stop");
     } catch (error) {
       console.error('Error accessing microphone:', error);
       toast.error("Could not access microphone. Please check permissions.");
@@ -126,7 +115,7 @@ export function TextInputBox({
     }
   };
 
-  const transcribeAudio = async (audioBlob: Blob, mode: TranscriptionMode) => {
+  const transcribeAudio = async (audioBlob: Blob) => {
     setIsTranscribing(true);
     try {
       const reader = new FileReader();
@@ -140,18 +129,14 @@ export function TextInputBox({
       const base64Audio = await base64Promise;
 
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body: { 
-          audio: base64Audio,
-          language: speechLanguage === "auto" ? undefined : speechLanguage,
-          mode: mode
-        }
+        body: { audio: base64Audio }
       });
 
       if (error) throw error;
 
       if (data?.text) {
         setText(prev => prev ? `${prev} ${data.text}` : data.text);
-        toast.success(mode === "translate" ? "Translated to English!" : "Transcription complete!");
+        toast.success("Transcription complete!");
       }
     } catch (error) {
       console.error('Transcription error:', error);
@@ -161,11 +146,11 @@ export function TextInputBox({
     }
   };
 
-  const handleVoiceClick = (mode: TranscriptionMode) => {
+  const handleVoiceClick = () => {
     if (isRecording) {
       stopRecording();
     } else {
-      startRecording(mode);
+      startRecording();
     }
   };
 
@@ -174,7 +159,7 @@ export function TextInputBox({
     if (!file) return;
 
     if (!isPremium) {
-      toast.error("Speech input is a Premium feature. Upgrade to use it!");
+      toast.error("Speech input is a Premium feature.");
       return;
     }
 
@@ -204,18 +189,14 @@ export function TextInputBox({
       const base64Audio = await base64Promise;
 
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body: { 
-          audio: base64Audio,
-          language: speechLanguage === "auto" ? undefined : speechLanguage,
-          mode: transcriptionMode
-        }
+        body: { audio: base64Audio }
       });
 
       if (error) throw error;
 
       if (data?.text) {
         setText(prev => prev ? `${prev} ${data.text}` : data.text);
-        toast.success(transcriptionMode === "translate" ? "Translated to English!" : "Transcription complete!");
+        toast.success("Transcription complete!");
       }
     } catch (error) {
       console.error('Transcription error:', error);
@@ -229,6 +210,7 @@ export function TextInputBox({
   };
 
   const canSubmit = text.trim() || hasPendingImage;
+  const showSpeechButtons = speechInputEnabled && isPremium;
 
   return (
     <motion.div
@@ -247,21 +229,19 @@ export function TextInputBox({
               onPaste={handlePaste}
               placeholder={placeholder}
               disabled={isLoading || isTranscribing}
-              dir={textDirection}
               className={`
                 min-h-[60px] max-h-[200px] resize-none
                 bg-muted/50 border-none
                 placeholder:text-muted-foreground/50
                 focus-visible:ring-1 focus-visible:ring-primary/50
                 text-base
-                ${speechInputEnabled && isPremium ? "pr-32" : "pr-4"}
+                ${showSpeechButtons ? "pr-24" : "pr-4"}
               `}
               rows={2}
             />
-            {/* Voice input buttons inside textarea - Premium only */}
-            {speechInputEnabled && isPremium && (
+            {/* Voice input buttons - Premium only */}
+            {showSpeechButtons && (
               <div className="absolute right-3 bottom-3 flex items-center gap-1">
-                {/* File upload button */}
                 <input
                   type="file"
                   ref={audioFileInputRef}
@@ -278,41 +258,22 @@ export function TextInputBox({
                   <Upload className="w-4 h-4" />
                 </button>
                 
-                {/* Transcribe in native language */}
                 <button
-                  onClick={() => handleVoiceClick("transcribe")}
+                  onClick={handleVoiceClick}
                   disabled={isTranscribing}
                   className={`p-2 rounded-full transition-colors ${
-                    isRecording && transcriptionMode === "transcribe"
+                    isRecording 
                       ? "bg-red-500 text-white animate-pulse" 
                       : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
                   }`}
-                  title="Transcribe in selected language"
+                  title={isRecording ? "Stop recording" : "Start voice input"}
                 >
                   {isTranscribing ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isRecording && transcriptionMode === "transcribe" ? (
+                  ) : isRecording ? (
                     <MicOff className="w-4 h-4" />
                   ) : (
                     <Mic className="w-4 h-4" />
-                  )}
-                </button>
-
-                {/* Translate to English */}
-                <button
-                  onClick={() => handleVoiceClick("translate")}
-                  disabled={isTranscribing}
-                  className={`p-2 rounded-full transition-colors ${
-                    isRecording && transcriptionMode === "translate"
-                      ? "bg-green-500 text-white animate-pulse" 
-                      : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                  }`}
-                  title="Translate to English"
-                >
-                  {isRecording && transcriptionMode === "translate" ? (
-                    <MicOff className="w-4 h-4" />
-                  ) : (
-                    <Languages className="w-4 h-4" />
                   )}
                 </button>
               </div>
@@ -334,12 +295,12 @@ export function TextInputBox({
         </div>
         <p className="text-xs text-muted-foreground mt-2 text-center">
           {isRecording 
-            ? `🎤 Recording${transcriptionMode === "translate" ? " (→ English)" : ""}... Click to stop`
+            ? "🎤 Recording... Click the mic to stop"
             : isTranscribing
             ? "Transcribing audio..."
             : hasPendingImage 
             ? "Press Enter to solve image • Add text for more context"
-            : `Press Enter to send • Shift+Enter for new line • Paste images with Ctrl+V${speechInputEnabled && isPremium ? " • 🎤 Transcribe • 🌐 Translate" : ""}`
+            : `Press Enter to send • Shift+Enter for new line • Paste images with Ctrl+V${showSpeechButtons ? " • Use mic for voice" : ""}`
           }
         </p>
       </div>
