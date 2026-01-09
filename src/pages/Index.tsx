@@ -99,6 +99,14 @@ const Index = () => {
     }
   }, [user]);
 
+  // Fetch profile for authenticated users
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+      fetchRecentSolves();
+    }
+  }, [user]);
+
   // Reset usage counters at midnight if needed
   useEffect(() => {
     if (user && profile && needsReset) {
