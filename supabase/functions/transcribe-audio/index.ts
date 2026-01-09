@@ -6,25 +6,55 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function transcribeWithGroq(audioBlob: Blob, apiKey: string): Promise<{ text: string }> {
+async function transcribeWithGroq(
+  audioBlob: Blob, 
+  apiKey: string,
+  language?: string,
+  mode: "transcribe" | "translate" = "transcribe"
+): Promise<{ text: string }> {
   const formData = new FormData();
   formData.append('file', audioBlob, 'audio.webm');
   formData.append('model', 'whisper-large-v3');
+  
+  // If translating, use the translation endpoint
+  // Otherwise use transcription with optional language hint
+  if (mode === "translate") {
+    // Translation always outputs English
+    const response = await fetch('https://api.groq.com/openai/v1/audio/translations', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
 
-  const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Groq API error: ${response.status} - ${errorText}`);
+    }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Groq API error: ${response.status} - ${errorText}`);
+    return await response.json();
+  } else {
+    // Transcription - optionally specify language
+    if (language) {
+      formData.append('language', language);
+    }
+    
+    const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Groq API error: ${response.status} - ${errorText}`);
+    }
+
+    return await response.json();
   }
-
-  return await response.json();
 }
 
 serve(async (req) => {
@@ -33,7 +63,7 @@ serve(async (req) => {
   }
 
   try {
-    const { audio } = await req.json();
+    const { audio, language, mode = "transcribe" } = await req.json();
     
     if (!audio) {
       throw new Error('No audio data provided');
@@ -57,14 +87,15 @@ serve(async (req) => {
       if (!primaryKey) {
         throw new Error('Primary API key not configured');
       }
-      result = await transcribeWithGroq(audioBlob, primaryKey);
+      console.log(`Transcribing with mode: ${mode}, language: ${language || 'auto'}`);
+      result = await transcribeWithGroq(audioBlob, primaryKey, language, mode);
     } catch (primaryError) {
       console.error('Primary GROQ key failed:', primaryError);
       
       // Try backup key
       if (backupKey) {
         console.log('Attempting with backup GROQ key...');
-        result = await transcribeWithGroq(audioBlob, backupKey);
+        result = await transcribeWithGroq(audioBlob, backupKey, language, mode);
       } else {
         throw primaryError;
       }
