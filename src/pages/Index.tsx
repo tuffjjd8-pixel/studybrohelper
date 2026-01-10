@@ -73,7 +73,7 @@ const Index = () => {
 
   const [speechLanguage, setSpeechLanguage] = useState(() => {
     const saved = localStorage.getItem("speech_language");
-    return saved !== null ? JSON.parse(saved) : "auto";
+    return saved ?? "auto";
   });
 
   // Persist toggles
@@ -86,7 +86,7 @@ const Index = () => {
   }, [speechInput]);
 
   useEffect(() => {
-    localStorage.setItem("speech_language", JSON.stringify(speechLanguage));
+    localStorage.setItem("speech_language", speechLanguage);
   }, [speechLanguage]);
 
   const isPremium = profile?.is_premium || false;
