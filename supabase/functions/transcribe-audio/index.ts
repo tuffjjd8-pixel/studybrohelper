@@ -30,13 +30,14 @@ async function transcribeWithGroq(
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`Groq translation error: ${response.status} - ${errorText}`);
       throw new Error(`Groq API error: ${response.status} - ${errorText}`);
     }
 
     return await response.json();
   } else {
-    // Transcription - optionally specify language
-    if (language) {
+    // Transcription - optionally specify language for better accuracy
+    if (language && language !== "auto") {
       formData.append('language', language);
     }
     
@@ -50,6 +51,7 @@ async function transcribeWithGroq(
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`Groq transcription error: ${response.status} - ${errorText}`);
       throw new Error(`Groq API error: ${response.status} - ${errorText}`);
     }
 
@@ -69,6 +71,8 @@ serve(async (req) => {
       throw new Error('No audio data provided');
     }
 
+    console.log(`Transcription request - mode: ${mode}, language: ${language || 'auto'}`);
+
     // Decode base64 to binary
     const binaryString = atob(audio);
     const bytes = new Uint8Array(binaryString.length);
@@ -83,23 +87,32 @@ serve(async (req) => {
     const backupKey = Deno.env.get('GROQ_API_KEY_BACKUP');
 
     let result;
+    let usedBackup = false;
+    
     try {
       if (!primaryKey) {
         throw new Error('Primary API key not configured');
       }
-      console.log(`Transcribing with mode: ${mode}, language: ${language || 'auto'}`);
       result = await transcribeWithGroq(audioBlob, primaryKey, language, mode);
     } catch (primaryError) {
       console.error('Primary GROQ key failed:', primaryError);
       
-      // Try backup key
+      // Try backup key for any error (rate limit, auth issues, etc.)
       if (backupKey) {
         console.log('Attempting with backup GROQ key...');
-        result = await transcribeWithGroq(audioBlob, backupKey, language, mode);
+        try {
+          result = await transcribeWithGroq(audioBlob, backupKey, language, mode);
+          usedBackup = true;
+        } catch (backupError) {
+          console.error('Backup GROQ key also failed:', backupError);
+          throw primaryError; // Throw original error if backup also fails
+        }
       } else {
         throw primaryError;
       }
     }
+
+    console.log(`Transcription successful${usedBackup ? ' (using backup key)' : ''}`);
 
     return new Response(
       JSON.stringify({ text: result.text }),

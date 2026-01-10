@@ -1,8 +1,17 @@
 import { motion } from "framer-motion";
-import { Sparkles, Crown, Clock, Mic } from "lucide-react";
+import { Sparkles, Crown, Clock, Mic, ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { WHISPER_LANGUAGES, getLanguageDisplayName } from "@/lib/whisperLanguages";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SolveTogglesProps {
   animatedSteps: boolean;
@@ -12,6 +21,8 @@ interface SolveTogglesProps {
   maxAnimatedSteps: number;
   speechInput?: boolean;
   onSpeechInputChange?: (value: boolean) => void;
+  speechLanguage?: string;
+  onSpeechLanguageChange?: (value: string) => void;
 }
 
 export function SolveToggles({
@@ -22,6 +33,8 @@ export function SolveToggles({
   maxAnimatedSteps,
   speechInput = false,
   onSpeechInputChange,
+  speechLanguage = "auto",
+  onSpeechLanguageChange,
 }: SolveTogglesProps) {
   const animatedStepsRemaining = maxAnimatedSteps - animatedStepsUsed;
   const canAnimateSteps = animatedStepsRemaining > 0;
@@ -81,29 +94,64 @@ export function SolveToggles({
 
         {/* Speech Input Toggle - Premium Only (Hidden from free users) */}
         {isPremium && onSpeechInputChange && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${speechInput ? "bg-primary/10" : "bg-muted"}`}>
-                <Mic className={`w-4 h-4 ${speechInput ? "text-primary" : "text-muted-foreground"}`} />
+          <>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${speechInput ? "bg-primary/10" : "bg-muted"}`}>
+                  <Mic className={`w-4 h-4 ${speechInput ? "text-primary" : "text-muted-foreground"}`} />
+                </div>
+                <div>
+                  <Label 
+                    htmlFor="speech-input" 
+                    className="text-sm font-medium cursor-pointer"
+                  >
+                    Speech Input
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Unlimited voice transcription
+                  </p>
+                </div>
               </div>
-              <div>
-                <Label 
-                  htmlFor="speech-input" 
-                  className="text-sm font-medium cursor-pointer"
-                >
-                  Speech Input
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Unlimited voice transcription
-                </p>
-              </div>
+              <Switch
+                id="speech-input"
+                checked={speechInput}
+                onCheckedChange={onSpeechInputChange}
+              />
             </div>
-            <Switch
-              id="speech-input"
-              checked={speechInput}
-              onCheckedChange={onSpeechInputChange}
-            />
-          </div>
+
+            {/* Language Dropdown - Only visible when Speech Input is ON */}
+            {speechInput && onSpeechLanguageChange && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="pl-11"
+              >
+                <Label className="text-xs text-muted-foreground mb-1.5 block">
+                  Speech Language
+                </Label>
+                <Select value={speechLanguage} onValueChange={onSpeechLanguageChange}>
+                  <SelectTrigger className="w-full h-9 text-sm">
+                    <SelectValue>
+                      {getLanguageDisplayName(speechLanguage)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <ScrollArea className="h-[300px]">
+                      {WHISPER_LANGUAGES.map((lang) => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          {lang.nativeName ? `${lang.name} (${lang.nativeName})` : lang.name}
+                        </SelectItem>
+                      ))}
+                    </ScrollArea>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Used for "Transcribe in My Language" mode
+                </p>
+              </motion.div>
+            )}
+          </>
         )}
 
         {/* Usage Progress Bar */}

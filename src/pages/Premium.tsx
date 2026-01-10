@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +31,7 @@ interface ComparisonItem {
 const COMPARISON: ComparisonItem[] = [
   { feature: "Daily Solves", free: "Unlimited", premium: "Unlimited" },
   { feature: "Animated Steps", free: "5/day", premium: "16/day" },
-  { feature: "Speech-to-Text", free: "5/day", premium: "Unlimited" },
+  { feature: "Speech-to-Text", free: false, premium: "Unlimited" },
   { feature: "AI Model", free: "Standard", premium: "Advanced" },
   { feature: "Enhanced OCR", free: false, premium: true },
   { feature: "Priority Speed", free: false, premium: true },
@@ -67,20 +68,50 @@ const Premium = () => {
   const currentPrice = isWeekendDiscount ? 4.99 : 5.99;
   const regularPrice = 5.99;
 
-  const handleUpgrade = async () => {
-    setIsUpgrading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    toast.success("🎉 Premium is already active for everyone!");
-    setIsUpgrading(false);
-    navigate(user ? "/profile" : "/settings");
+  // Activate premium for the user (beta mode - works for everyone)
+  const activatePremium = async () => {
+    if (user) {
+      // For logged in users, update database
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_premium: true })
+        .eq("user_id", user.id);
+      
+      if (error) {
+        console.error("Error activating premium:", error);
+        toast.error("Failed to activate premium. Please try again.");
+        return false;
+      }
+    }
+    // For guests, just use localStorage
+    localStorage.setItem("guest_premium_activated", "true");
+    return true;
   };
 
-  const handleStartTrial = () => {
+  const handleUpgrade = async () => {
+    setIsUpgrading(true);
+    
+    const success = await activatePremium();
+    
+    if (success) {
+      toast.success("🎉 Premium activated! Enjoy all features.");
+      navigate(user ? "/" : "/");
+    }
+    
+    setIsUpgrading(false);
+  };
+
+  const handleStartTrial = async () => {
     localStorage.setItem("premium_trial_used", "true");
     localStorage.setItem("premium_trial_start", new Date().toISOString());
     setHasUsedTrial(true);
-    toast.success("🎉 3-Day Free Trial Started! Enjoy premium features.");
-    navigate("/");
+    
+    const success = await activatePremium();
+    
+    if (success) {
+      toast.success("🎉 Premium activated! Enjoy all features.");
+      navigate("/");
+    }
   };
 
   return (
