@@ -71,6 +71,11 @@ const Index = () => {
     return saved !== null ? JSON.parse(saved) : false;
   });
 
+  const [speechLanguage, setSpeechLanguage] = useState(() => {
+    const saved = localStorage.getItem("speech_language");
+    return saved !== null ? JSON.parse(saved) : "auto";
+  });
+
   // Persist toggles
   useEffect(() => {
     localStorage.setItem("toggle_animated_steps", JSON.stringify(animatedSteps));
@@ -79,6 +84,10 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem("toggle_speech_input", JSON.stringify(speechInput));
   }, [speechInput]);
+
+  useEffect(() => {
+    localStorage.setItem("speech_language", JSON.stringify(speechLanguage));
+  }, [speechLanguage]);
 
   const isPremium = profile?.is_premium || false;
   const maxAnimatedSteps = isPremium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
@@ -421,6 +430,8 @@ const Index = () => {
                 maxAnimatedSteps={maxAnimatedSteps}
                 speechInput={speechInput}
                 onSpeechInputChange={setSpeechInput}
+                speechLanguage={speechLanguage}
+                onSpeechLanguageChange={setSpeechLanguage}
               />
 
               {/* Divider */}
@@ -442,6 +453,8 @@ const Index = () => {
                 placeholder={pendingImage ? "Add details or press Enter to solve..." : "Paste or type your homework question..."}
                 speechInputEnabled={speechInput}
                 isPremium={isPremium}
+                speechLanguage={speechLanguage}
+                onSpeechUsed={handleSpeechUsed}
               />
 
               {/* Recent solves */}
