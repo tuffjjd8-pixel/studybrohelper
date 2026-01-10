@@ -23,6 +23,7 @@ interface SolveTogglesProps {
   onSpeechInputChange?: (value: boolean) => void;
   speechLanguage?: string;
   onSpeechLanguageChange?: (value: string) => void;
+  isAuthenticated?: boolean; // Must be signed in for premium features
 }
 
 export function SolveToggles({
@@ -35,10 +36,14 @@ export function SolveToggles({
   onSpeechInputChange,
   speechLanguage = "auto",
   onSpeechLanguageChange,
+  isAuthenticated = false,
 }: SolveTogglesProps) {
   const animatedStepsRemaining = maxAnimatedSteps - animatedStepsUsed;
   const canAnimateSteps = animatedStepsRemaining > 0;
   const usagePercent = (animatedStepsUsed / maxAnimatedSteps) * 100;
+  
+  // Premium features require authentication - CRITICAL: never show to unsigned users
+  const canShowPremiumFeatures = isAuthenticated && isPremium;
 
   return (
     <motion.div
@@ -92,8 +97,8 @@ export function SolveToggles({
           />
         </div>
 
-        {/* Speech Input Toggle - Premium Only (Hidden from free users) */}
-        {isPremium && onSpeechInputChange && (
+        {/* Speech Input Toggle - Premium Only AND Authenticated Only */}
+        {canShowPremiumFeatures && onSpeechInputChange && (
           <>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -170,12 +175,21 @@ export function SolveToggles({
           </div>
         )}
 
-        {/* Upgrade hint for free users */}
-        {!isPremium && (
+        {/* Upgrade hint for free users - only show to authenticated users */}
+        {isAuthenticated && !isPremium && (
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <Crown className="w-3 h-3 inline mr-1" />
               Upgrade to Pro for 16 animated steps/day + speech input
+            </p>
+          </div>
+        )}
+
+        {/* Sign in hint for unauthenticated users */}
+        {!isAuthenticated && (
+          <div className="pt-2 border-t border-border/50">
+            <p className="text-xs text-muted-foreground text-center">
+              Sign in to access Premium features
             </p>
           </div>
         )}

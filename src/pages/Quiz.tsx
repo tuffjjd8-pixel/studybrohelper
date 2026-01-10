@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useNavigate } from "react-router-dom";
-import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -192,17 +191,23 @@ const Quiz = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header streak={0} totalSolves={0} />
+      {/* Clean header for Quiz - no streak/solved/Pro */}
+      <header className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/50">
+        <div className="flex items-center justify-between px-4 h-16">
+          <button
+            onClick={() => navigate(`/solve/${id}`)}
+            className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+          <h1 className="text-lg font-heading font-bold">Test Mode</h1>
+          <div className="w-16" /> {/* Spacer for centering */}
+        </div>
+      </header>
 
       <main className="pt-20 pb-24 px-4">
         <div className="max-w-lg mx-auto">
-          <button
-            onClick={() => navigate(`/solve/${id}`)}
-            className="text-sm text-muted-foreground hover:text-foreground mb-6 flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Solution
-          </button>
 
           {/* Settings Screen */}
           {showSettings && !generating && (

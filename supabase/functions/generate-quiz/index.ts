@@ -7,12 +7,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// ============================================================
-// MODEL CONFIGURATION
-// Change this to any Gemini model (e.g., "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash")
-// ============================================================
-const GEMINI_MODEL = "gemini-2.0-flash";
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -20,97 +14,148 @@ serve(async (req) => {
 
   try {
     const { subject, question, solution, difficulty = "medium", count = 4 } = await req.json();
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     console.log("Generating quiz:", { subject, difficulty, count });
 
-    const difficultyInstructions = {
-      easy: "Make questions simple and straightforward. Focus on basic recall and understanding.",
-      medium: "Balance between recall and application. Include some problem-solving.",
-      hard: "Make questions challenging. Include edge cases, multi-step reasoning, and deeper analysis."
+    const difficultyInstructions: Record<string, string> = {
+      easy: "Create SIMPLE questions that test basic recall and understanding. Focus on fundamental concepts.",
+      medium: "Create BALANCED questions mixing recall and application. Include some problem-solving.",
+      hard: "Create CHALLENGING questions with edge cases, multi-step reasoning, and deeper analysis."
     };
 
-    const systemPrompt = `You are a quiz generator. Create exactly ${count} multiple choice questions.
+    const systemPrompt = `You are a quiz generator for students. Your task is to create EXACTLY ${count} multiple choice questions.
+
+CRITICAL REQUIREMENTS:
+1. Generate EXACTLY ${count} questions - no more, no less
+2. Each question must be DIRECTLY related to the topic/solution provided
+3. Questions must test understanding of the specific content, NOT generic knowledge
+4. Each question needs exactly 4 answer options (A, B, C, D)
+5. Explanations should help the student understand WHY the answer is correct
 
 Difficulty: ${difficulty.toUpperCase()}
-${difficultyInstructions[difficulty as keyof typeof difficultyInstructions] || difficultyInstructions.medium}
+${difficultyInstructions[difficulty] || difficultyInstructions.medium}
 
-Return ONLY valid JSON:
+You MUST respond with ONLY valid JSON in this exact format:
 {
   "questions": [
     {
-      "question": "Question text?",
-      "options": ["A", "B", "C", "D"],
+      "question": "Clear question text related to the topic?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctIndex": 0,
-      "explanation": "Why this is correct"
+      "explanation": "Brief explanation of why this is correct"
     }
   ]
 }
 
-Test UNDERSTANDING, not memorization. Keep explanations brief.`;
+DO NOT include any text before or after the JSON. The questions array must have exactly ${count} items.`;
 
-    const userMessage = `Subject: ${subject || "general"}
-Problem: ${question || "Image-based problem"}
-Solution:
+    const userMessage = `Create a quiz about this topic:
+
+Subject: ${subject || "General"}
+
+Original Problem: ${question || "Image-based problem"}
+
+Solution/Content to test:
 ${solution}
 
-Generate exactly ${count} ${difficulty} quiz questions.`;
+Generate exactly ${count} ${difficulty} quiz questions that test understanding of THIS SPECIFIC solution and topic. Each question should relate directly to the concepts shown above.`;
 
+    // Use Lovable AI Gateway
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
         method: "POST",
         headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: userMessage }]
-            }
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage }
           ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2000,
-          }
+          temperature: 0.4, // Lower temperature for more consistent output
+          max_tokens: 4000,
         }),
       }
     );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Gemini API error:", errorText);
-      throw new Error(`Gemini API error: ${response.status}`);
+      console.error("Lovable AI error:", response.status, errorText);
+      
+      if (response.status === 429) {
+        throw new Error("Rate limited - please try again in a moment");
+      }
+      if (response.status === 402) {
+        throw new Error("API credits exhausted");
+      }
+      throw new Error(`AI API error: ${response.status}`);
     }
 
     const data = await response.json();
-    let content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const content = data.choices?.[0]?.message?.content || "";
 
+    console.log("Raw AI response:", content.substring(0, 500));
+
+    // Extract JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No valid JSON");
+    if (!jsonMatch) {
+      console.error("No valid JSON found in response");
+      throw new Error("Invalid response format");
+    }
 
     const quizData = JSON.parse(jsonMatch[0]);
 
-    return new Response(JSON.stringify(quizData), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Validate the response
+    if (!quizData.questions || !Array.isArray(quizData.questions)) {
+      throw new Error("Invalid quiz data structure");
+    }
+
+    // Ensure we have the right number of questions
+    if (quizData.questions.length < count) {
+      console.warn(`Only got ${quizData.questions.length} questions, expected ${count}`);
+    }
+
+    // Validate each question structure
+    const validQuestions = quizData.questions.filter((q: any) => 
+      q.question && 
+      Array.isArray(q.options) && 
+      q.options.length === 4 &&
+      typeof q.correctIndex === 'number' &&
+      q.correctIndex >= 0 &&
+      q.correctIndex <= 3 &&
+      q.explanation
+    );
+
+    if (validQuestions.length === 0) {
+      throw new Error("No valid questions generated");
+    }
+
+    console.log(`Generated ${validQuestions.length} valid questions`);
+
+    return new Response(
+      JSON.stringify({ questions: validQuestions }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error) {
-    console.error("Quiz error:", error);
+    console.error("Quiz generation error:", error);
+    
+    // Return a helpful error response with fallback question
     return new Response(
       JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
         questions: [{
-          question: "Did you understand the solution?",
-          options: ["Yes!", "Mostly", "Need practice", "Not really"],
+          question: "Quiz generation failed. Did you understand the solution?",
+          options: ["Yes, I understood it", "Mostly understood", "Need more practice", "Not really"],
           correctIndex: 0,
-          explanation: "Understanding is key to learning."
+          explanation: "Please try generating the quiz again."
         }]
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

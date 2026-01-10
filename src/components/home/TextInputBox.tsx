@@ -20,6 +20,7 @@ interface TextInputBoxProps {
   isPremium?: boolean;
   speechLanguage?: string;
   onSpeechUsed?: () => void;
+  isAuthenticated?: boolean;
 }
 
 export function TextInputBox({ 
@@ -33,6 +34,7 @@ export function TextInputBox({
   isPremium = false,
   speechLanguage = "auto",
   onSpeechUsed,
+  isAuthenticated = false,
 }: TextInputBoxProps) {
   const [text, setText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -84,6 +86,11 @@ export function TextInputBox({
   };
 
   const startRecording = async (mode: TranscriptionMode) => {
+    // CRITICAL: Premium features require authentication
+    if (!isAuthenticated) {
+      toast.error("Please sign in to use Premium features.");
+      return;
+    }
     if (!isPremium) {
       toast.error("Speech input is a Premium feature.");
       return;
@@ -188,6 +195,11 @@ export function TextInputBox({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // CRITICAL: Premium features require authentication
+    if (!isAuthenticated) {
+      toast.error("Please sign in to use Premium features.");
+      return;
+    }
     if (!isPremium) {
       toast.error("Speech input is a Premium feature.");
       return;
@@ -255,7 +267,8 @@ export function TextInputBox({
   };
 
   const canSubmit = text.trim() || hasPendingImage;
-  const showSpeechButtons = speechInputEnabled && isPremium;
+  // CRITICAL: Never show speech buttons to unsigned users
+  const showSpeechButtons = isAuthenticated && speechInputEnabled && isPremium;
 
   return (
     <motion.div

@@ -432,6 +432,7 @@ const Index = () => {
                 onSpeechInputChange={setSpeechInput}
                 speechLanguage={speechLanguage}
                 onSpeechLanguageChange={setSpeechLanguage}
+                isAuthenticated={!!user}
               />
 
               {/* Divider */}
@@ -455,6 +456,7 @@ const Index = () => {
                 isPremium={isPremium}
                 speechLanguage={speechLanguage}
                 onSpeechUsed={handleSpeechUsed}
+                isAuthenticated={!!user}
               />
 
               {/* Recent solves */}
