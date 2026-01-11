@@ -175,13 +175,8 @@ function sanitizeJsonString(str: string): string {
     str = objectMatch[0];
   }
   
-  // Fix common JSON issues
   // Remove trailing commas before ] or }
   str = str.replace(/,\s*([}\]])/g, '$1');
-  
-  // Fix LaTeX backslashes - escape single backslashes that aren't already escaped
-  // Match backslash NOT followed by another backslash, quote, n, r, t, b, f, u
-  str = str.replace(/\\(?![\\\"nrtbfu])/g, '\\\\');
   
   return str;
 }
