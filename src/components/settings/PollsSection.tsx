@@ -39,16 +39,9 @@ interface Poll {
   total_votes: number;
 }
 
-// Generate or get a persistent anonymous voter ID
-const getVoterId = (userId?: string) => {
-  if (userId) return userId;
-  
-  let anonId = localStorage.getItem("anon_voter_id");
-  if (!anonId) {
-    anonId = `anon_${Math.random().toString(36).substring(2, 15)}`;
-    localStorage.setItem("anon_voter_id", anonId);
-  }
-  return anonId;
+// Get voter ID - requires authenticated user
+const getVoterId = (userId?: string): string | null => {
+  return userId || null;
 };
 
 // Check if poll has expired
@@ -93,8 +86,6 @@ export function PollsSection() {
     is_public: true,
     timeLimit: "none" as "none" | "24h" | "3d" | "7d"
   });
-  
-  const voterId = getVoterId(user?.id);
 
   useEffect(() => {
     fetchPolls();
@@ -176,6 +167,12 @@ export function PollsSection() {
   };
 
   const handleVote = async (pollId: string, optionIndex: number) => {
+    // Require authentication to vote
+    if (!user?.id) {
+      toast.error("Please sign in to vote");
+      return;
+    }
+
     const poll = polls.find(p => p.id === pollId);
     if (!poll) return;
     
@@ -209,22 +206,12 @@ export function PollsSection() {
         votes: updatedOptions[optionIndex].votes + 1
       };
 
-      const { error: updateError } = await supabase
-        .from("polls")
-        .update({ 
-          options: updatedOptions,
-          total_votes: newTotalVotes
-        })
-        .eq("id", pollId);
-
-      if (updateError) throw updateError;
-
-      // Upsert the vote record
+      // Upsert the vote record first (with user's ID as voter_id)
       const { error: voteError } = await supabase
         .from("poll_votes")
         .upsert({
           poll_id: pollId,
-          voter_id: voterId,
+          voter_id: user.id,
           option_index: optionIndex
         }, {
           onConflict: 'poll_id,voter_id'
@@ -233,6 +220,15 @@ export function PollsSection() {
       if (voteError) {
         throw voteError;
       }
+
+      // Then update poll options (this may fail due to RLS but vote is already recorded)
+      await supabase
+        .from("polls")
+        .update({ 
+          options: updatedOptions,
+          total_votes: newTotalVotes
+        })
+        .eq("id", pollId);
 
       // Update local state
       setPolls(prev => prev.map(p => 
