@@ -32,10 +32,53 @@ function getQuestionCount(isPremium: boolean, isPatternMode: boolean): number {
   return isPremium ? 10 : 5;
 }
 
-// Pattern-based quiz generation prompt (Pro Feature)
+// Base system prompt for all quiz modes
+const BASE_SYSTEM_PROMPT = `You are the Quiz Engine for StudyBro.
+Your ONLY job is to generate quizzes in clean JSON.
+Never correct the user.
+Never add commentary.
+Never output anything except JSON.
+
+OUTPUT FORMAT (STRICT):
+[
+  {
+    "question": "...",
+    "options": ["...", "...", "...", "..."],
+    "answer": "A",
+    "explanation": "..."
+  }
+]
+
+ABSOLUTE RULES:
+- ONLY output JSON
+- NEVER output markdown
+- NEVER output text outside the JSON
+- NEVER change the number of questions
+- No backticks, no comments, no trailing commas, no extra fields
+- Double-escape backslashes in LaTeX: use \\\\ not \\
+
+EXPLANATION RULES:
+- Be short and student-friendly
+- Use LaTeX when helpful
+- Describe the logic or pattern
+- NEVER use generic filler like:
+  - "This is the correct answer based on the topic"
+  - "This follows the rules of mathematics"
+  - "The correct answer is A because it is correct"
+
+FAILURE HANDLING:
+- If input is unclear, make the best reasonable assumption
+- Still output valid JSON
+- Never refuse, never apologize, never output errors`;
+
+// Pattern Mode prompt (Pro Feature)
 function getPatternPrompt(patternExample: string, count: number) {
   return {
-    system: `You are generating pattern-based questions.
+    system: `${BASE_SYSTEM_PROMPT}
+
+PATTERN MODE RULES:
+You must generate EXACTLY ${count} questions.
+
 The user provides an example like "34 x 43 = 344334".
 This is NOT normal math. Do NOT correct the math.
 Do NOT assume the example is wrong.
@@ -46,77 +89,63 @@ YOUR JOB:
 2. Infer the pattern, even if the math looks "incorrect"
 3. Generate EXACTLY ${count} new questions following the SAME transformation
 4. Use LaTeX for all math expressions
-5. Return ONLY clean JSON
 
-EXAMPLES OF PATTERNS:
+PATTERN EXAMPLES:
 - "34 x 43 = 344334" → concatenate the two numbers
 - "2 + 3 = 10" → pattern might be a*b + a² or (a+b)*a
 - "5 - 2 = 15" → pattern might be a*b + a
 
 QUESTION FORMAT:
-- Use LaTeX: \\( 12 \\times 21 = ? \\)
+- Use LaTeX: \\\\( 12 \\\\times 21 = ? \\\\)
 - Apply the SAME transformation as the example
 
 OPTIONS FORMAT:
 - Provide 4 DISTINCT answer choices with ACTUAL VALUES
-- First option (A) should be the correct answer following the pattern
-- Other options should be plausible but incorrect
+- Options must NOT be placeholders like "A", "B", "C", "D"
+- Correct answer should follow the pattern
 
 EXPLANATION FORMAT:
 - Describe the PATTERN, not real math
-- Example: "The pattern concatenates the two numbers: 12 and 21 become 1221"
-- Use LaTeX if helpful
-- NO generic phrases
+- Example: "Pattern: concatenate the numbers. 12 and 21 → 1221"
 
-OUTPUT (JSON array only, no markdown):
-[{"question":"\\\\( 12 \\\\times 21 = ? \\\\)","options":["1221","252","33","123"],"answer":"A","explanation":"Pattern: concatenate the numbers. 12 and 21 → 1221"}]
-
-CRITICAL RULES:
+CRITICAL:
 - NEVER correct the example - it defines the pattern
 - NEVER replace the pattern with real arithmetic
-- If pattern is ambiguous, choose the most consistent interpretation
-- Double-escape backslashes in LaTeX: use \\\\ not \\
-- No trailing commas
-- No text before or after the JSON`,
+- If pattern is ambiguous, choose the most consistent interpretation`,
     user: `Example: ${patternExample}
 
 This defines the transformation pattern. Generate EXACTLY ${count} questions using the SAME pattern. Do NOT use normal math. Output ONLY the JSON array.`
   };
 }
 
-// Standard quiz generation prompt - auto-determines difficulty
+// Standard Mode prompt - auto-determines difficulty
 function getStandardPrompt(subject: string, question: string, solution: string, count: number) {
   return {
-    system: `You are generating a multiple-choice quiz for StudyBro.
-Generate EXACTLY ${count} questions. NEVER change this number.
-Return ONLY valid JSON array.
+    system: `${BASE_SYSTEM_PROMPT}
+
+STANDARD MODE RULES:
+You must generate EXACTLY ${count} questions.
+
+- Determine difficulty automatically based on topic complexity
+- Use LaTeX for all math expressions
+- Never mention difficulty in the question text
 
 QUESTION FORMAT:
-- Use LaTeX for math expressions: \\( \\frac{3}{4} \\) or \\( 2x + 5 = 13 \\)
+- Use LaTeX: \\\\( \\\\frac{3}{4} \\\\) or \\\\( 2x + 5 = 13 \\\\)
 - Questions must be clear and grade-appropriate
-- Auto-determine difficulty based on topic complexity
 
 OPTIONS FORMAT:
 - Provide 4 DISTINCT answer choices with ACTUAL VALUES
-- Do NOT use placeholder letters like "A", "B", "C", "D" as the option text
-- Each option must be a valid answer (e.g., "24", "\\( \\frac{5}{8} \\)", "True", "x = 5")
+- Options must NOT be placeholders like "A", "B", "C", "D"
+- Each option must be a valid answer (e.g., "24", "\\\\( \\\\frac{5}{8} \\\\)", "True", "x = 5")
 
 ANSWER FORMAT:
 - Specify the correct answer by letter: "A", "B", "C", or "D"
 
 EXPLANATION FORMAT:
 - Explain the logic or steps used to solve the question
-- Use LaTeX in explanations if needed
-- NO generic phrases like "This is correct based on the topic"
-- Keep it student-friendly
-
-OUTPUT (JSON array only, no markdown):
-[{"question":"What is 9 + 15?","options":["24","21","25","19"],"answer":"A","explanation":"9 + 15 = 24, so the answer is A."}]
-
-CRITICAL:
-- Double-escape backslashes in LaTeX: use \\\\ not \\
-- No trailing commas
-- No text before or after the JSON`,
+- Use LaTeX in explanations when needed
+- Keep it short and student-friendly`,
     user: `Subject: ${subject || "General"}
 Problem: ${question || "Study material"}
 Solution: ${solution}
