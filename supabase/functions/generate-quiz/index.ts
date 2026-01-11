@@ -25,19 +25,17 @@ async function callGroqAPI(apiKey: string, messages: any[], temperature: number,
 }
 
 // Determine question count based on tier
-function getQuestionCount(isPremium: boolean, isPatternMode: boolean): number {
-  if (isPatternMode) {
-    return isPremium ? 8 : 5;
-  }
+function getQuestionCount(isPremium: boolean): number {
   return isPremium ? 10 : 5;
 }
 
-// Base system prompt for all quiz modes
-const BASE_SYSTEM_PROMPT = `You are the Quiz Engine for StudyBro.
-Your ONLY job is to generate quizzes in clean JSON.
+// System prompt for quiz generation
+function getSystemPrompt(count: number): string {
+  return `You are the Quiz Engine for StudyBro.
+Your ONLY job is to generate multiple-choice quizzes in clean JSON.
 Never correct the user.
-Never add commentary.
 Never output anything except JSON.
+Never mention polls, patterns, or difficulty levels.
 
 OUTPUT FORMAT (STRICT):
 [
@@ -49,109 +47,57 @@ OUTPUT FORMAT (STRICT):
   }
 ]
 
+You must generate EXACTLY ${count} questions.
+
+RULES:
+- No markdown
+- No text before or after the JSON
+- No backticks
+- No comments
+- No trailing commas
+- No extra fields
+
+QUESTION RULES:
+- Use LaTeX for all math expressions
+- Each question must have 4 meaningful options
+- Options must NOT be placeholders like "A", "B", "C", "D"
+- Explanations must be short, clear, and use LaTeX when needed
+- Never mention difficulty in the question text
+- Never generate pattern-based questions
+- Never generate polls
+- If you cannot reliably handle numbers, fallback to word-based questions that still match the topic
+
+EXPLANATION RULES:
+- Be short and student-friendly
+- Use LaTeX when helpful
+- Describe the logic or reasoning
+- NEVER say generic filler like:
+  - "This is the correct answer based on the topic"
+  - "This follows the rules of mathematics"
+  - "The correct answer is A because it is correct"
+
 ABSOLUTE RULES:
 - ONLY output JSON
 - NEVER output markdown
 - NEVER output text outside the JSON
 - NEVER change the number of questions
-- No backticks, no comments, no trailing commas, no extra fields
-- Double-escape backslashes in LaTeX: use \\\\ not \\
-
-EXPLANATION RULES:
-- Be short and student-friendly
-- Use LaTeX when helpful
-- Describe the logic or pattern
-- NEVER use generic filler like:
-  - "This is the correct answer based on the topic"
-  - "This follows the rules of mathematics"
-  - "The correct answer is A because it is correct"
+- NEVER break JSON
 
 FAILURE HANDLING:
 - If input is unclear, make the best reasonable assumption
 - Still output valid JSON
+- Still generate EXACTLY ${count} questions
+- If numeric logic fails, fallback to word-based questions that still match the topic
 - Never refuse, never apologize, never output errors`;
-
-// Pattern Mode prompt (Pro Feature)
-function getPatternPrompt(patternExample: string, count: number) {
-  return {
-    system: `${BASE_SYSTEM_PROMPT}
-
-PATTERN MODE RULES:
-You must generate EXACTLY ${count} questions.
-
-The user provides an example like "34 x 43 = 344334".
-This is NOT normal math. Do NOT correct the math.
-Do NOT assume the example is wrong.
-Treat the example as a TRANSFORMATION RULE.
-
-YOUR JOB:
-1. Analyze the structure and transformation in the example
-2. Infer the pattern, even if the math looks "incorrect"
-3. Generate EXACTLY ${count} new questions following the SAME transformation
-4. Use LaTeX for all math expressions
-
-PATTERN EXAMPLES:
-- "34 x 43 = 344334" → concatenate the two numbers
-- "2 + 3 = 10" → pattern might be a*b + a² or (a+b)*a
-- "5 - 2 = 15" → pattern might be a*b + a
-
-QUESTION FORMAT:
-- Use LaTeX: \\\\( 12 \\\\times 21 = ? \\\\)
-- Apply the SAME transformation as the example
-
-OPTIONS FORMAT:
-- Provide 4 DISTINCT answer choices with ACTUAL VALUES
-- Options must NOT be placeholders like "A", "B", "C", "D"
-- Correct answer should follow the pattern
-
-EXPLANATION FORMAT:
-- Describe the PATTERN, not real math
-- Example: "Pattern: concatenate the numbers. 12 and 21 → 1221"
-
-CRITICAL:
-- NEVER correct the example - it defines the pattern
-- NEVER replace the pattern with real arithmetic
-- If pattern is ambiguous, choose the most consistent interpretation`,
-    user: `Example: ${patternExample}
-
-This defines the transformation pattern. Generate EXACTLY ${count} questions using the SAME pattern. Do NOT use normal math. Output ONLY the JSON array.`
-  };
 }
 
-// Standard Mode prompt - auto-determines difficulty
-function getStandardPrompt(subject: string, question: string, solution: string, count: number) {
-  return {
-    system: `${BASE_SYSTEM_PROMPT}
-
-STANDARD MODE RULES:
-You must generate EXACTLY ${count} questions.
-
-- Determine difficulty automatically based on topic complexity
-- Use LaTeX for all math expressions
-- Never mention difficulty in the question text
-
-QUESTION FORMAT:
-- Use LaTeX: \\\\( \\\\frac{3}{4} \\\\) or \\\\( 2x + 5 = 13 \\\\)
-- Questions must be clear and grade-appropriate
-
-OPTIONS FORMAT:
-- Provide 4 DISTINCT answer choices with ACTUAL VALUES
-- Options must NOT be placeholders like "A", "B", "C", "D"
-- Each option must be a valid answer (e.g., "24", "\\\\( \\\\frac{5}{8} \\\\)", "True", "x = 5")
-
-ANSWER FORMAT:
-- Specify the correct answer by letter: "A", "B", "C", or "D"
-
-EXPLANATION FORMAT:
-- Explain the logic or steps used to solve the question
-- Use LaTeX in explanations when needed
-- Keep it short and student-friendly`,
-    user: `Subject: ${subject || "General"}
+// Build user prompt
+function getUserPrompt(subject: string, question: string, solution: string, count: number): string {
+  return `Topic: ${subject || "General"}
 Problem: ${question || "Study material"}
 Solution: ${solution}
 
-Generate EXACTLY ${count} questions. Output ONLY the JSON array.`
-  };
+Generate EXACTLY ${count} multiple-choice questions based on this material. Output ONLY the JSON array.`;
 }
 
 // Calculate max tokens based on question count
@@ -224,8 +170,6 @@ serve(async (req) => {
       subject, 
       question, 
       solution, 
-      mode = "standard", 
-      patternExample,
       isPremium = false
     } = body;
     
@@ -236,24 +180,18 @@ serve(async (req) => {
       throw new Error("GROQ_API_KEY is not configured");
     }
 
-    const isPatternMode = mode === "pattern" && patternExample;
-    const questionCount = getQuestionCount(isPremium, isPatternMode);
+    const questionCount = getQuestionCount(isPremium);
     const maxTokens = getMaxTokens(questionCount);
     
     console.log("Generating quiz:", { 
-      mode: isPatternMode ? "pattern" : "standard",
       subject, 
       count: questionCount,
       isPremium
     });
 
-    const prompts = isPatternMode 
-      ? getPatternPrompt(patternExample, questionCount)
-      : getStandardPrompt(subject, question, solution, questionCount);
-
     const messages = [
-      { role: "system", content: prompts.system },
-      { role: "user", content: prompts.user }
+      { role: "system", content: getSystemPrompt(questionCount) },
+      { role: "user", content: getUserPrompt(subject, question, solution, questionCount) }
     ];
 
     let response = await callGroqAPI(GROQ_API_KEY, messages, 0.2, maxTokens);
