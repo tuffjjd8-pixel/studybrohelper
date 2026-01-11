@@ -5,7 +5,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Trophy, Zap, Brain, Flame, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Trophy, Brain, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,14 +24,7 @@ interface Solve {
   solution_markdown: string;
 }
 
-type Difficulty = "easy" | "medium" | "hard";
 type QuizMode = "standard" | "pattern";
-
-const difficultyConfig = {
-  easy: { icon: Zap, color: "text-green-500", bg: "bg-green-500/20", label: "Easy" },
-  medium: { icon: Brain, color: "text-yellow-500", bg: "bg-yellow-500/20", label: "Medium" },
-  hard: { icon: Flame, color: "text-red-500", bg: "bg-red-500/20", label: "Hard" },
-};
 
 const Quiz = () => {
   const { id } = useParams();
@@ -52,7 +45,6 @@ const Quiz = () => {
   // Test mode selection
   const [showSettings, setShowSettings] = useState(true);
   const [quizMode, setQuizMode] = useState<QuizMode>("standard");
-  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [patternExample, setPatternExample] = useState("");
 
   useEffect(() => {
@@ -141,10 +133,6 @@ const Quiz = () => {
         return;
       }
     }
-    if (quizMode === "standard" && !difficulty) {
-      toast.error("Please select a difficulty");
-      return;
-    }
     
     setShowSettings(false);
     setGenerating(true);
@@ -162,7 +150,6 @@ const Quiz = () => {
             subject: solve.subject,
             question: solve.question_text,
             solution: solve.solution_markdown,
-            difficulty,
             isPremium,
           };
 
@@ -219,7 +206,6 @@ const Quiz = () => {
     setIsComplete(false);
     setShowSettings(true);
     setQuizMode("standard");
-    setDifficulty(null);
     setPatternExample("");
     setQuestions([]);
   };
@@ -334,44 +320,7 @@ const Quiz = () => {
                   <p className="text-xs text-muted-foreground">
                     Tip: Enter a single example with numbers and the result. The AI will detect the pattern and generate similar questions.
                   </p>
-                </motion.div>
-              )}
-
-              {/* Difficulty Selection (only for standard mode) */}
-              {quizMode === "standard" && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Difficulty
-                  </h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    {(Object.keys(difficultyConfig) as Difficulty[]).map((level) => {
-                      const config = difficultyConfig[level];
-                      const Icon = config.icon;
-                      const isSelected = difficulty === level;
-                      
-                      return (
-                        <motion.button
-                          key={level}
-                          onClick={() => setDifficulty(level)}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className={`
-                            p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2
-                            ${isSelected 
-                              ? `${config.bg} border-current ${config.color}` 
-                              : "bg-card border-border hover:border-muted-foreground"
-                            }
-                          `}
-                        >
-                          <Icon className={`w-6 h-6 ${isSelected ? config.color : "text-muted-foreground"}`} />
-                          <span className={`text-sm font-medium ${isSelected ? config.color : ""}`}>
-                            {config.label}
-                          </span>
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                </div>
+              </motion.div>
               )}
 
               {/* Tier Info */}
@@ -382,8 +331,14 @@ const Quiz = () => {
                     {isPremium ? (quizMode === "pattern" ? "8" : "10") : "5"} questions
                   </span>
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {quizMode === "standard" 
+                    ? "Difficulty auto-determined based on topic"
+                    : "Pattern-based questions from your example"
+                  }
+                </p>
                 {!isPremium && (
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="text-xs text-primary mt-1">
                     Upgrade to Pro for more questions and Pattern Mode
                   </p>
                 )}
@@ -392,7 +347,7 @@ const Quiz = () => {
               {/* Start Button */}
               <Button
                 onClick={startQuiz}
-                disabled={(quizMode === "standard" && !difficulty) || (quizMode === "pattern" && (!patternExample.trim() || !isPremium))}
+                disabled={quizMode === "pattern" && (!patternExample.trim() || !isPremium)}
                 variant="neon"
                 size="lg"
                 className="w-full"
@@ -415,7 +370,7 @@ const Quiz = () => {
               <p className="text-muted-foreground text-sm">
                 {quizMode === "pattern" 
                   ? "Analyzing pattern and creating questions"
-                  : `Creating ${isPremium ? "10" : "5"} ${difficulty} questions for you`
+                  : `Creating ${isPremium ? "10" : "5"} questions for you`
                 }
               </p>
             </motion.div>

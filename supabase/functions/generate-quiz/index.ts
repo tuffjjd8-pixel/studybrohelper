@@ -65,8 +65,8 @@ Generate EXACTLY ${count} questions following this pattern. Output ONLY the JSON
   };
 }
 
-// Standard quiz generation prompt
-function getStandardPrompt(subject: string, question: string, solution: string, difficulty: string, count: number) {
+// Standard quiz generation prompt - auto-determines difficulty
+function getStandardPrompt(subject: string, question: string, solution: string, count: number) {
   return {
     system: `You are generating a quiz for StudyBro.
 Generate EXACTLY ${count} questions. NEVER change this number.
@@ -80,8 +80,10 @@ CRITICAL JSON RULES:
 - NO comments
 
 Standard Mode:
-- Generate ${count} ${difficulty} questions about the topic
+- Automatically determine difficulty based on topic complexity
+- Generate ${count} questions about the topic
 - Each question has 4 options with ONE correct answer
+- Match difficulty to the complexity of the provided solution
 
 Output format (return ONLY this array, nothing else):
 [{"question":"...","options":["A","B","C","D"],"answer":"A","explanation":"..."}]
@@ -94,7 +96,7 @@ Explanation rules:
 Problem: ${question || "Study material"}
 Solution: ${solution}
 
-Generate EXACTLY ${count} ${difficulty} questions. Output ONLY the JSON array.`
+Generate EXACTLY ${count} questions. Auto-determine difficulty based on topic complexity. Output ONLY the JSON array.`
   };
 }
 
@@ -173,7 +175,6 @@ serve(async (req) => {
       subject, 
       question, 
       solution, 
-      difficulty = "medium", 
       mode = "standard", 
       patternExample,
       isPremium = false
@@ -193,14 +194,13 @@ serve(async (req) => {
     console.log("Generating quiz:", { 
       mode: isPatternMode ? "pattern" : "standard",
       subject, 
-      difficulty: isPatternMode ? "N/A" : difficulty, 
       count: questionCount,
       isPremium
     });
 
     const prompts = isPatternMode 
       ? getPatternPrompt(patternExample, questionCount)
-      : getStandardPrompt(subject, question, solution, difficulty, questionCount);
+      : getStandardPrompt(subject, question, solution, questionCount);
 
     const messages = [
       { role: "system", content: prompts.system },
