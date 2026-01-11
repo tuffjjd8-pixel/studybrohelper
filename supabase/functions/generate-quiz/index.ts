@@ -35,42 +35,52 @@ function getQuestionCount(isPremium: boolean, isPatternMode: boolean): number {
 // Pattern-based quiz generation prompt (Pro Feature)
 function getPatternPrompt(patternExample: string, count: number) {
   return {
-    system: `You are generating a multiple-choice quiz for StudyBro.
-Generate EXACTLY ${count} questions. NEVER change this number.
-Return ONLY valid JSON array.
+    system: `You are generating pattern-based questions.
+The user provides an example like "34 x 43 = 344334".
+This is NOT normal math. Do NOT correct the math.
+Do NOT assume the example is wrong.
+Treat the example as a TRANSFORMATION RULE.
+
+YOUR JOB:
+1. Analyze the structure and transformation in the example
+2. Infer the pattern, even if the math looks "incorrect"
+3. Generate EXACTLY ${count} new questions following the SAME transformation
+4. Use LaTeX for all math expressions
+5. Return ONLY clean JSON
+
+EXAMPLES OF PATTERNS:
+- "34 x 43 = 344334" → concatenate the two numbers
+- "2 + 3 = 10" → pattern might be a*b + a² or (a+b)*a
+- "5 - 2 = 15" → pattern might be a*b + a
 
 QUESTION FORMAT:
-- Use LaTeX for math expressions: \\( \\frac{3}{4} \\) or \\( 2x + 5 = 13 \\)
-- Questions must be clear and grade-appropriate
+- Use LaTeX: \\( 12 \\times 21 = ? \\)
+- Apply the SAME transformation as the example
 
 OPTIONS FORMAT:
 - Provide 4 DISTINCT answer choices with ACTUAL VALUES
-- Do NOT use placeholder letters like "A", "B", "C", "D" as the option text
-- Each option must be a valid answer (e.g., "24", "\\( \\frac{5}{8} \\)", "True")
-
-ANSWER FORMAT:
-- Specify the correct answer by letter: "A", "B", "C", or "D"
+- First option (A) should be the correct answer following the pattern
+- Other options should be plausible but incorrect
 
 EXPLANATION FORMAT:
-- Show the pattern formula and calculation steps
-- Use LaTeX if needed
-- NO generic phrases like "This is the correct answer"
-
-Pattern Mode:
-- Analyze the given example
-- Detect the mathematical transformation or pattern
-- Generate ${count} similar questions following the same logic
+- Describe the PATTERN, not real math
+- Example: "The pattern concatenates the two numbers: 12 and 21 become 1221"
+- Use LaTeX if helpful
+- NO generic phrases
 
 OUTPUT (JSON array only, no markdown):
-[{"question":"What is 9 + 15?","options":["24","21","25","19"],"answer":"A","explanation":"9 + 15 = 24, so the answer is A."}]
+[{"question":"\\\\( 12 \\\\times 21 = ? \\\\)","options":["1221","252","33","123"],"answer":"A","explanation":"Pattern: concatenate the numbers. 12 and 21 → 1221"}]
 
-CRITICAL:
+CRITICAL RULES:
+- NEVER correct the example - it defines the pattern
+- NEVER replace the pattern with real arithmetic
+- If pattern is ambiguous, choose the most consistent interpretation
 - Double-escape backslashes in LaTeX: use \\\\ not \\
 - No trailing commas
 - No text before or after the JSON`,
     user: `Example: ${patternExample}
 
-Generate EXACTLY ${count} questions following this pattern. Output ONLY the JSON array.`
+This defines the transformation pattern. Generate EXACTLY ${count} questions using the SAME pattern. Do NOT use normal math. Output ONLY the JSON array.`
   };
 }
 
