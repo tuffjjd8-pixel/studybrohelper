@@ -16,11 +16,9 @@ import {
   Copy,
   Crown,
   Calendar,
-  Target,
   Camera,
-  Upload,
   Sparkles,
-  LineChart,
+  Mic,
 } from "lucide-react";
 
 interface Profile {
@@ -34,11 +32,14 @@ interface Profile {
   created_at: string;
   avatar_url: string | null;
   animated_steps_used_today: number;
-  graphs_used_today: number;
+  speech_clips_used: number;
+  last_speech_reset: string | null;
 }
 
-const FREE_GRAPHS_PER_DAY = 4;
-const PREMIUM_GRAPHS_PER_DAY = 15;
+// Speech clips reset every 72 hours
+const FREE_SPEECH_CLIPS = 3;
+const PREMIUM_SPEECH_CLIPS = 10;
+const SPEECH_RESET_HOURS = 72;
 const FREE_ANIMATED_STEPS_PER_DAY = 5;
 const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 
@@ -248,10 +249,31 @@ const Profile = () => {
     );
   }
 
-  const maxGraphs = profile?.is_premium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
+  const maxSpeechClips = profile?.is_premium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS;
   const maxAnimatedSteps = profile?.is_premium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
-  const graphsUsed = profile?.graphs_used_today || 0;
   const animatedStepsUsed = profile?.animated_steps_used_today || 0;
+  
+  // Calculate speech clips with 72h reset logic
+  const getSpeechClipsRemaining = () => {
+    if (!profile) return maxSpeechClips;
+    const lastReset = profile.last_speech_reset ? new Date(profile.last_speech_reset) : null;
+    if (!lastReset) return maxSpeechClips;
+    
+    const hoursSinceReset = (Date.now() - lastReset.getTime()) / (1000 * 60 * 60);
+    if (hoursSinceReset >= SPEECH_RESET_HOURS) {
+      return maxSpeechClips; // Reset happened
+    }
+    return Math.max(0, maxSpeechClips - (profile.speech_clips_used || 0));
+  };
+  
+  const speechClipsRemaining = getSpeechClipsRemaining();
+  const hoursUntilReset = () => {
+    if (!profile?.last_speech_reset) return 0;
+    const lastReset = new Date(profile.last_speech_reset);
+    const resetTime = new Date(lastReset.getTime() + SPEECH_RESET_HOURS * 60 * 60 * 1000);
+    const hours = Math.max(0, Math.ceil((resetTime.getTime() - Date.now()) / (1000 * 60 * 60)));
+    return hours;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -353,9 +375,12 @@ const Profile = () => {
                 transition={{ delay: 0.25 }}
                 className="p-4 bg-card rounded-xl border border-border text-center"
               >
-                <LineChart className="w-8 h-8 text-secondary mx-auto mb-2" />
-                <div className="text-2xl font-bold">{maxGraphs - graphsUsed}/{maxGraphs}</div>
-                <div className="text-xs text-muted-foreground">Graphs Remaining</div>
+                <Mic className="w-8 h-8 text-secondary mx-auto mb-2" />
+                <div className="text-2xl font-bold">{speechClipsRemaining}/{maxSpeechClips}</div>
+                <div className="text-xs text-muted-foreground">Speech Clips Left</div>
+                {speechClipsRemaining === 0 && (
+                  <div className="text-xs text-orange-500 mt-1">Resets in {hoursUntilReset()}h</div>
+                )}
               </motion.div>
             </div>
 
@@ -444,7 +469,7 @@ const Profile = () => {
                   Go Premium, Bro!
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  16 animated steps, 15 graphs/day, enhanced solving
+                  16 animated steps, 10 speech clips/72h, enhanced solving
                 </p>
                 <Button onClick={() => navigate("/premium")} className="w-full">
                   Upgrade for $5.99/month
