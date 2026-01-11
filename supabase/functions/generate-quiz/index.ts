@@ -35,30 +35,39 @@ function getQuestionCount(isPremium: boolean, isPatternMode: boolean): number {
 // Pattern-based quiz generation prompt (Pro Feature)
 function getPatternPrompt(patternExample: string, count: number) {
   return {
-    system: `You are generating a quiz for StudyBro.
+    system: `You are generating a multiple-choice quiz for StudyBro.
 Generate EXACTLY ${count} questions. NEVER change this number.
-Return ONLY valid JSON array. No markdown, no text before or after.
+Return ONLY valid JSON array.
 
-CRITICAL JSON RULES:
-- NO LaTeX or special characters like $ or backslashes
-- Use plain text only: "2 * 3" not "$2 \\cdot 3$"
-- Use "x" for multiplication, not special symbols
-- NO trailing commas
-- NO comments
+QUESTION FORMAT:
+- Use LaTeX for math expressions: \\( \\frac{3}{4} \\) or \\( 2x + 5 = 13 \\)
+- Questions must be clear and grade-appropriate
+
+OPTIONS FORMAT:
+- Provide 4 DISTINCT answer choices with ACTUAL VALUES
+- Do NOT use placeholder letters like "A", "B", "C", "D" as the option text
+- Each option must be a valid answer (e.g., "24", "\\( \\frac{5}{8} \\)", "True")
+
+ANSWER FORMAT:
+- Specify the correct answer by letter: "A", "B", "C", or "D"
+
+EXPLANATION FORMAT:
+- Show the pattern formula and calculation steps
+- Use LaTeX if needed
+- NO generic phrases like "This is the correct answer"
 
 Pattern Mode:
-- Analyze the example
-- Detect the transformation or pattern
+- Analyze the given example
+- Detect the mathematical transformation or pattern
 - Generate ${count} similar questions following the same logic
 
-Output format (return ONLY this array, nothing else):
-[{"question":"...","options":["A","B","C","D"],"answer":"A","explanation":"..."}]
+OUTPUT (JSON array only, no markdown):
+[{"question":"What is 9 + 15?","options":["24","21","25","19"],"answer":"A","explanation":"9 + 15 = 24, so the answer is A."}]
 
-Explanation rules:
-- Show the pattern formula and calculation
-- Example: "Pattern: a x b + a^2. So: 6 x 5 + 36 = 66"
-- NO generic phrases like "This is correct"
-- Keep it short`,
+CRITICAL:
+- Double-escape backslashes in LaTeX: use \\\\ not \\
+- No trailing commas
+- No text before or after the JSON`,
     user: `Example: ${patternExample}
 
 Generate EXACTLY ${count} questions following this pattern. Output ONLY the JSON array.`
@@ -68,44 +77,50 @@ Generate EXACTLY ${count} questions following this pattern. Output ONLY the JSON
 // Standard quiz generation prompt - auto-determines difficulty
 function getStandardPrompt(subject: string, question: string, solution: string, count: number) {
   return {
-    system: `You are generating a quiz for StudyBro.
+    system: `You are generating a multiple-choice quiz for StudyBro.
 Generate EXACTLY ${count} questions. NEVER change this number.
-Return ONLY valid JSON array. No markdown, no text before or after.
+Return ONLY valid JSON array.
 
-CRITICAL JSON RULES:
-- NO LaTeX or special characters like $ or backslashes
-- Use plain text only: "2 * 3" not "$2 \\cdot 3$"
-- Use "x" for multiplication, not special symbols
-- NO trailing commas
-- NO comments
+QUESTION FORMAT:
+- Use LaTeX for math expressions: \\( \\frac{3}{4} \\) or \\( 2x + 5 = 13 \\)
+- Questions must be clear and grade-appropriate
+- Auto-determine difficulty based on topic complexity
 
-Standard Mode:
-- Automatically determine difficulty based on topic complexity
-- Generate ${count} questions about the topic
-- Each question has 4 options with ONE correct answer
-- Match difficulty to the complexity of the provided solution
+OPTIONS FORMAT:
+- Provide 4 DISTINCT answer choices with ACTUAL VALUES
+- Do NOT use placeholder letters like "A", "B", "C", "D" as the option text
+- Each option must be a valid answer (e.g., "24", "\\( \\frac{5}{8} \\)", "True", "x = 5")
 
-Output format (return ONLY this array, nothing else):
-[{"question":"...","options":["A","B","C","D"],"answer":"A","explanation":"..."}]
+ANSWER FORMAT:
+- Specify the correct answer by letter: "A", "B", "C", or "D"
 
-Explanation rules:
-- Explain the logic or steps clearly
+EXPLANATION FORMAT:
+- Explain the logic or steps used to solve the question
+- Use LaTeX in explanations if needed
 - NO generic phrases like "This is correct based on the topic"
-- Keep it short and student-friendly`,
+- Keep it student-friendly
+
+OUTPUT (JSON array only, no markdown):
+[{"question":"What is 9 + 15?","options":["24","21","25","19"],"answer":"A","explanation":"9 + 15 = 24, so the answer is A."}]
+
+CRITICAL:
+- Double-escape backslashes in LaTeX: use \\\\ not \\
+- No trailing commas
+- No text before or after the JSON`,
     user: `Subject: ${subject || "General"}
 Problem: ${question || "Study material"}
 Solution: ${solution}
 
-Generate EXACTLY ${count} questions. Auto-determine difficulty based on topic complexity. Output ONLY the JSON array.`
+Generate EXACTLY ${count} questions. Output ONLY the JSON array.`
   };
 }
 
 // Calculate max tokens based on question count
 function getMaxTokens(count: number): number {
-  return Math.min(Math.max(count * 400, 600), 4500);
+  return Math.min(Math.max(count * 500, 800), 5000);
 }
 
-// Robust JSON sanitization
+// Robust JSON sanitization with LaTeX support
 function sanitizeJsonString(str: string): string {
   // Remove markdown code blocks
   str = str.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
@@ -125,9 +140,9 @@ function sanitizeJsonString(str: string): string {
   // Remove trailing commas before ] or }
   str = str.replace(/,\s*([}\]])/g, '$1');
   
-  // Escape unescaped backslashes in strings (but not already escaped ones)
-  // This handles LaTeX that slipped through
-  str = str.replace(/\\([^"\\nrtbfu])/g, '\\\\$1');
+  // Fix LaTeX backslashes - escape single backslashes that aren't already escaped
+  // Match backslash NOT followed by another backslash, quote, n, r, t, b, f, u
+  str = str.replace(/\\(?![\\\"nrtbfu])/g, '\\\\');
   
   return str;
 }
