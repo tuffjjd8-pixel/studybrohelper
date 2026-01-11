@@ -7,94 +7,95 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+async function callGroqAPI(apiKey: string, messages: any[], temperature: number) {
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama-3.1-8b-instant",
+      messages,
+      temperature,
+      max_tokens: 4000,
+    }),
+  });
+  return response;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { subject, question, solution, difficulty = "medium", count = 4 } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const { subject, question, solution, difficulty = "medium", count = 5 } = await req.json();
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    const GROQ_API_KEY_BACKUP = Deno.env.get("GROQ_API_KEY_BACKUP");
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY is not configured");
     }
 
-    console.log("Generating quiz:", { subject, difficulty, count });
+    const questionCount = count || 5;
+    console.log("Generating quiz with Llama 3.1 8B:", { subject, difficulty, count: questionCount });
 
-    const difficultyInstructions: Record<string, string> = {
-      easy: "Create SIMPLE questions that test basic recall and understanding. Focus on fundamental concepts.",
-      medium: "Create BALANCED questions mixing recall and application. Include some problem-solving.",
-      hard: "Create CHALLENGING questions with edge cases, multi-step reasoning, and deeper analysis."
-    };
+    const systemPrompt = `You are the Quiz Generator for StudyBro.
+Use these rules exactly:
 
-    const systemPrompt = `You are a quiz generator for students. Your task is to create EXACTLY ${count} multiple choice questions.
+1. Generate questions DIRECTLY related to the user's topic - no generic questions
+2. Each question must have EXACTLY 4 answer choices labeled A, B, C, D
+3. Only ONE answer is correct per question
+4. Keep questions clear, unique, and grade-appropriate
+5. Output ONLY valid JSON - no explanations, no extra text
 
-CRITICAL REQUIREMENTS:
-1. Generate EXACTLY ${count} questions - no more, no less
-2. Each question must be DIRECTLY related to the topic/solution provided
-3. Questions must test understanding of the specific content, NOT generic knowledge
-4. Each question needs exactly 4 answer options (A, B, C, D)
-5. Explanations should help the student understand WHY the answer is correct
+You MUST generate EXACTLY ${questionCount} questions.
 
-Difficulty: ${difficulty.toUpperCase()}
-${difficultyInstructions[difficulty] || difficultyInstructions.medium}
-
-You MUST respond with ONLY valid JSON in this exact format:
+Output format (JSON only):
 {
   "questions": [
     {
-      "question": "Clear question text related to the topic?",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "question": "Clear question about the specific topic?",
+      "options": ["A) First option", "B) Second option", "C) Third option", "D) Fourth option"],
       "correctIndex": 0,
-      "explanation": "Brief explanation of why this is correct"
+      "explanation": "Why this answer is correct"
     }
   ]
 }
 
-DO NOT include any text before or after the JSON. The questions array must have exactly ${count} items.`;
+CRITICAL: Generate exactly ${questionCount} questions. No more, no less.`;
 
-    const userMessage = `Create a quiz about this topic:
+    const userMessage = `Generate exactly ${questionCount} ${difficulty} quiz questions about this topic:
 
 Subject: ${subject || "General"}
+Problem: ${question || "Study material"}
 
-Original Problem: ${question || "Image-based problem"}
-
-Solution/Content to test:
+Content to test:
 ${solution}
 
-Generate exactly ${count} ${difficulty} quiz questions that test understanding of THIS SPECIFIC solution and topic. Each question should relate directly to the concepts shown above.`;
+Remember: Questions must be DIRECTLY about this specific content. Output ONLY valid JSON.`;
 
-    // Use Lovable AI Gateway
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage }
-          ],
-          temperature: 0.4, // Lower temperature for more consistent output
-          max_tokens: 4000,
-        }),
-      }
-    );
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage }
+    ];
+
+    // Try primary API key first
+    let response = await callGroqAPI(GROQ_API_KEY, messages, 0.3);
+
+    // Fallback to backup key if primary fails
+    if (!response.ok && GROQ_API_KEY_BACKUP) {
+      console.log("Primary Groq API failed, trying backup...");
+      response = await callGroqAPI(GROQ_API_KEY_BACKUP, messages, 0.3);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Lovable AI error:", response.status, errorText);
+      console.error("Groq API error:", response.status, errorText);
       
       if (response.status === 429) {
         throw new Error("Rate limited - please try again in a moment");
-      }
-      if (response.status === 402) {
-        throw new Error("API credits exhausted");
       }
       throw new Error(`AI API error: ${response.status}`);
     }
@@ -102,7 +103,7 @@ Generate exactly ${count} ${difficulty} quiz questions that test understanding o
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
 
-    console.log("Raw AI response:", content.substring(0, 500));
+    console.log("Raw Llama response:", content.substring(0, 500));
 
     // Extract JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -118,11 +119,6 @@ Generate exactly ${count} ${difficulty} quiz questions that test understanding o
       throw new Error("Invalid quiz data structure");
     }
 
-    // Ensure we have the right number of questions
-    if (quizData.questions.length < count) {
-      console.warn(`Only got ${quizData.questions.length} questions, expected ${count}`);
-    }
-
     // Validate each question structure
     const validQuestions = quizData.questions.filter((q: any) => 
       q.question && 
@@ -130,15 +126,17 @@ Generate exactly ${count} ${difficulty} quiz questions that test understanding o
       q.options.length === 4 &&
       typeof q.correctIndex === 'number' &&
       q.correctIndex >= 0 &&
-      q.correctIndex <= 3 &&
-      q.explanation
-    );
+      q.correctIndex <= 3
+    ).map((q: any) => ({
+      ...q,
+      explanation: q.explanation || "This is the correct answer based on the topic."
+    }));
 
     if (validQuestions.length === 0) {
       throw new Error("No valid questions generated");
     }
 
-    console.log(`Generated ${validQuestions.length} valid questions`);
+    console.log(`Generated ${validQuestions.length} valid questions (requested ${questionCount})`);
 
     return new Response(
       JSON.stringify({ questions: validQuestions }),
@@ -147,13 +145,12 @@ Generate exactly ${count} ${difficulty} quiz questions that test understanding o
   } catch (error) {
     console.error("Quiz generation error:", error);
     
-    // Return a helpful error response with fallback question
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Unknown error",
         questions: [{
           question: "Quiz generation failed. Did you understand the solution?",
-          options: ["Yes, I understood it", "Mostly understood", "Need more practice", "Not really"],
+          options: ["A) Yes, I understood it", "B) Mostly understood", "C) Need more practice", "D) Not really"],
           correctIndex: 0,
           explanation: "Please try generating the quiz again."
         }]
