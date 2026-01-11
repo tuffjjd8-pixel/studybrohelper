@@ -643,7 +643,7 @@ export function PollsSection() {
       {!isAdmin && user && (
         <div className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1">
           <Lock className="w-3 h-3" />
-          Only ApexWav can create and manage polls
+          Only ApexWave Studios can create and manage polls
         </div>
       )}
     </div>
