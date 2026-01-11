@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-async function callGroqAPI(apiKey: string, messages: any[], temperature: number) {
+async function callGroqAPI(apiKey: string, messages: any[], temperature: number, maxTokens: number) {
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -18,7 +18,7 @@ async function callGroqAPI(apiKey: string, messages: any[], temperature: number)
       model: "llama-3.1-8b-instant",
       messages,
       temperature,
-      max_tokens: 4000,
+      max_tokens: maxTokens,
     }),
   });
   return response;
@@ -27,95 +27,69 @@ async function callGroqAPI(apiKey: string, messages: any[], temperature: number)
 // Pattern-based quiz generation prompt
 function getPatternPrompt(patternExample: string, count: number) {
   return {
-    system: `You are the Pattern Quiz Generator for StudyBro.
+    system: `You are a Pattern Quiz Generator. Analyze the given example and generate EXACTLY ${count} similar question(s).
 
-When given a single example like "2 + 3 = 10", you must:
-1. Analyze the mathematical pattern or transformation
-2. Identify the formula (e.g., a·b + a² = result, or (a+b)·a = result)
-3. Generate ${count} NEW questions following the SAME pattern with different numbers
-4. Each question has EXACTLY 4 options (A, B, C, D) with ONE correct answer
+RULES:
+1. Detect the mathematical pattern from the example
+2. Generate EXACTLY ${count} question(s) - no more, no less
+3. Each question has 4 options (A, B, C, D) with ONE correct answer
+4. Use simple numbers to avoid calculation errors
 
-EXPLANATION RULES (CRITICAL):
-- NEVER say "This is the correct answer based on the topic"
-- Clearly explain the specific pattern/formula used
-- Show the calculation steps briefly
-- Use student-friendly language
-- Example: "The pattern is a·b + a². So: 6·5 + 6² = 30 + 36 = 66"
+OUTPUT FORMAT (JSON only, no markdown, no code blocks):
+{"questions":[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correctIndex":0,"explanation":"Pattern: formula. Calculation: steps = answer"}]}
 
-Output ONLY valid JSON:
-{
-  "pattern_detected": "Brief description of the pattern found",
-  "formula": "The mathematical formula (e.g., a·b + a²)",
-  "questions": [
-    {
-      "question": "What is the result of applying the pattern to X + Y?",
-      "options": ["A) 10", "B) 20", "C) 30", "D) 40"],
-      "correctIndex": 0,
-      "explanation": "Using the pattern a·b + a²: X·Y + X² = [calculation] = [answer]"
-    }
-  ]
-}
+EXPLANATION RULES:
+- Show the formula and calculation steps
+- Example: "Pattern: a*b + a^2. So: 6*5 + 36 = 66"
+- NEVER say "This is the correct answer"
+- Keep it short and clear`,
+    user: `Example: ${patternExample}
 
-CRITICAL: Generate EXACTLY ${count} questions. Vary the numbers to test understanding.`,
-    user: `Analyze this example and generate ${count} similar quiz questions:
-
-Example: ${patternExample}
-
-Steps:
-1. Find the pattern/formula that transforms the input to the output
-2. Generate ${count} new questions using different numbers but the SAME pattern
-3. Calculate the correct answer for each
-4. Create 3 plausible wrong options for each question
-5. Write clear explanations showing the calculation
-
-Output ONLY valid JSON.`
+Generate EXACTLY ${count} question(s) following this pattern. Output ONLY valid JSON.`
   };
 }
 
-// Standard difficulty-based quiz generation prompt
+// Standard quiz generation prompt
 function getStandardPrompt(subject: string, question: string, solution: string, difficulty: string, count: number) {
   return {
-    system: `You are the Quiz Generator for StudyBro.
-Use these rules exactly:
+    system: `You are a Quiz Generator. Generate EXACTLY ${count} question(s) about the given topic.
 
-1. Generate questions DIRECTLY related to the user's topic - no generic questions
-2. Each question must have EXACTLY 4 answer choices labeled A, B, C, D
-3. Only ONE answer is correct per question
-4. Keep questions clear, unique, and grade-appropriate
-5. Output ONLY valid JSON - no explanations, no extra text
+RULES:
+1. Questions must be directly about the provided content
+2. Each question has 4 options (A, B, C, D) with ONE correct answer
+3. Difficulty: ${difficulty}
+4. Generate EXACTLY ${count} question(s) - no more, no less
 
-EXPLANATION RULES (CRITICAL):
+OUTPUT FORMAT (JSON only, no markdown, no code blocks):
+{"questions":[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correctIndex":0,"explanation":"Brief explanation of why this is correct"}]}
+
+EXPLANATION RULES:
+- Explain the logic or steps used
 - NEVER say "This is the correct answer based on the topic"
-- Explain the logic or steps used to find the answer
-- Reference the formula or method applied
-- Use concise, student-friendly language
-- Show brief calculation if applicable
+- Keep it short and student-friendly`,
+    user: `Subject: ${subject || "General"}
+Problem: ${question || "Study material"}
+Solution: ${solution}
 
-You MUST generate EXACTLY ${count} questions.
-
-Output format (JSON only):
-{
-  "questions": [
-    {
-      "question": "Clear question about the specific topic?",
-      "options": ["A) First option", "B) Second option", "C) Third option", "D) Fourth option"],
-      "correctIndex": 0,
-      "explanation": "Clear step-by-step explanation of why this answer is correct"
-    }
-  ]
+Generate EXACTLY ${count} ${difficulty} question(s). Output ONLY valid JSON.`
+  };
 }
 
-CRITICAL: Generate exactly ${count} questions. No more, no less.`,
-    user: `Generate exactly ${count} ${difficulty} quiz questions about this topic:
+// Calculate appropriate max tokens based on question count
+function getMaxTokens(count: number): number {
+  // ~300 tokens per question, plus buffer
+  return Math.min(Math.max(count * 400, 500), 4000);
+}
 
-Subject: ${subject || "General"}
-Problem: ${question || "Study material"}
-
-Content to test:
-${solution}
-
-Remember: Questions must be DIRECTLY about this specific content. Output ONLY valid JSON.`
-  };
+// Sanitize JSON string before parsing
+function sanitizeJsonString(str: string): string {
+  // Remove any markdown code blocks
+  str = str.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
+  // Remove any leading/trailing whitespace
+  str = str.trim();
+  // Try to extract just the JSON object
+  const match = str.match(/\{[\s\S]*\}/);
+  return match ? match[0] : str;
 }
 
 serve(async (req) => {
@@ -124,7 +98,17 @@ serve(async (req) => {
   }
 
   try {
-    const { subject, question, solution, difficulty = "medium", count = 5, mode = "standard", patternExample } = await req.json();
+    const body = await req.json();
+    const { 
+      subject, 
+      question, 
+      solution, 
+      difficulty = "medium", 
+      count, // No default - will default to 1 if not specified
+      mode = "standard", 
+      patternExample 
+    } = body;
+    
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
     const GROQ_API_KEY_BACKUP = Deno.env.get("GROQ_API_KEY_BACKUP");
 
@@ -132,15 +116,18 @@ serve(async (req) => {
       throw new Error("GROQ_API_KEY is not configured");
     }
 
-    const questionCount = count || 5;
+    // Default to 1 question if not specified to save credits
+    const questionCount = typeof count === 'number' && count > 0 ? count : 1;
     const isPatternMode = mode === "pattern" && patternExample;
+    const maxTokens = getMaxTokens(questionCount);
     
     console.log("Generating quiz with Llama 3.1 8B:", { 
       mode: isPatternMode ? "pattern" : "standard",
       subject, 
       difficulty: isPatternMode ? "N/A" : difficulty, 
       count: questionCount,
-      patternExample: isPatternMode ? patternExample : undefined
+      maxTokens,
+      patternExample: isPatternMode ? patternExample.substring(0, 50) : undefined
     });
 
     // Get appropriate prompts based on mode
@@ -154,12 +141,12 @@ serve(async (req) => {
     ];
 
     // Try primary API key first
-    let response = await callGroqAPI(GROQ_API_KEY, messages, 0.3);
+    let response = await callGroqAPI(GROQ_API_KEY, messages, 0.2, maxTokens);
 
     // Fallback to backup key if primary fails
     if (!response.ok && GROQ_API_KEY_BACKUP) {
       console.log("Primary Groq API failed, trying backup...");
-      response = await callGroqAPI(GROQ_API_KEY_BACKUP, messages, 0.3);
+      response = await callGroqAPI(GROQ_API_KEY_BACKUP, messages, 0.2, maxTokens);
     }
 
     if (!response.ok) {
@@ -177,14 +164,16 @@ serve(async (req) => {
 
     console.log("Raw Llama response:", content.substring(0, 500));
 
-    // Extract JSON from response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error("No valid JSON found in response");
-      throw new Error("Invalid response format");
+    // Sanitize and parse JSON
+    const sanitizedJson = sanitizeJsonString(content);
+    
+    let quizData;
+    try {
+      quizData = JSON.parse(sanitizedJson);
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError, "Content:", sanitizedJson.substring(0, 200));
+      throw new Error("Failed to parse quiz response");
     }
-
-    const quizData = JSON.parse(jsonMatch[0]);
 
     // Validate the response
     if (!quizData.questions || !Array.isArray(quizData.questions)) {
@@ -201,7 +190,9 @@ serve(async (req) => {
       q.correctIndex <= 3
     ).map((q: any) => ({
       ...q,
-      explanation: q.explanation || "This is the correct answer based on the topic."
+      explanation: q.explanation && !q.explanation.toLowerCase().includes("this is the correct answer") 
+        ? q.explanation 
+        : "Review the solution steps to understand this concept."
     }));
 
     if (validQuestions.length === 0) {
@@ -211,7 +202,11 @@ serve(async (req) => {
     console.log(`Generated ${validQuestions.length} valid questions (requested ${questionCount})`);
 
     return new Response(
-      JSON.stringify({ questions: validQuestions }),
+      JSON.stringify({ 
+        questions: validQuestions,
+        pattern_detected: quizData.pattern_detected,
+        formula: quizData.formula
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
