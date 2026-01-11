@@ -5,9 +5,10 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Trophy, Zap, Brain, Flame } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Trophy, Zap, Brain, Flame, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Question {
   question: string;
@@ -24,6 +25,7 @@ interface Solve {
 }
 
 type Difficulty = "easy" | "medium" | "hard";
+type QuizMode = "standard" | "pattern";
 
 const difficultyConfig = {
   easy: { icon: Zap, color: "text-green-500", bg: "bg-green-500/20", label: "Easy" },
@@ -48,8 +50,10 @@ const Quiz = () => {
   
   // Test mode selection
   const [showSettings, setShowSettings] = useState(true);
+  const [quizMode, setQuizMode] = useState<QuizMode>("standard");
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [questionCount, setQuestionCount] = useState<number | null>(null);
+  const [patternExample, setPatternExample] = useState("");
 
   useEffect(() => {
     if (!authLoading) {
@@ -109,20 +113,40 @@ const Quiz = () => {
   };
 
   const startQuiz = async () => {
-    if (!solve || !difficulty || !questionCount) return;
+    if (!solve || !questionCount) return;
+    
+    // For pattern mode, require pattern example; for standard mode, require difficulty
+    if (quizMode === "pattern" && !patternExample.trim()) {
+      toast.error("Please enter a pattern example");
+      return;
+    }
+    if (quizMode === "standard" && !difficulty) {
+      toast.error("Please select a difficulty");
+      return;
+    }
     
     setShowSettings(false);
     setGenerating(true);
     
     try {
+      const body = quizMode === "pattern" 
+        ? {
+            mode: "pattern",
+            patternExample: patternExample.trim(),
+            count: questionCount,
+            subject: solve.subject,
+          }
+        : {
+            mode: "standard",
+            subject: solve.subject,
+            question: solve.question_text,
+            solution: solve.solution_markdown,
+            difficulty,
+            count: questionCount,
+          };
+
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
-        body: {
-          subject: solve.subject,
-          question: solve.question_text,
-          solution: solve.solution_markdown,
-          difficulty,
-          count: questionCount,
-        },
+        body,
       });
 
       if (error) throw error;
@@ -173,8 +197,10 @@ const Quiz = () => {
     setScore(0);
     setIsComplete(false);
     setShowSettings(true);
+    setQuizMode("standard");
     setDifficulty(null);
     setQuestionCount(null);
+    setPatternExample("");
     setQuestions([]);
   };
 
@@ -218,43 +244,109 @@ const Quiz = () => {
             >
               <div className="text-center">
                 <h2 className="text-2xl font-heading font-bold mb-2">Test Mode</h2>
-                <p className="text-muted-foreground">Choose your difficulty and number of questions</p>
+                <p className="text-muted-foreground">Choose your quiz mode and settings</p>
               </div>
 
-              {/* Difficulty Selection */}
+              {/* Mode Selection */}
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                  Difficulty
+                  Quiz Mode
                 </h3>
-                <div className="grid grid-cols-3 gap-3">
-                  {(Object.keys(difficultyConfig) as Difficulty[]).map((level) => {
-                    const config = difficultyConfig[level];
-                    const Icon = config.icon;
-                    const isSelected = difficulty === level;
-                    
-                    return (
-                      <motion.button
-                        key={level}
-                        onClick={() => setDifficulty(level)}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className={`
-                          p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2
-                          ${isSelected 
-                            ? `${config.bg} border-current ${config.color}` 
-                            : "bg-card border-border hover:border-muted-foreground"
-                          }
-                        `}
-                      >
-                        <Icon className={`w-6 h-6 ${isSelected ? config.color : "text-muted-foreground"}`} />
-                        <span className={`text-sm font-medium ${isSelected ? config.color : ""}`}>
-                          {config.label}
-                        </span>
-                      </motion.button>
-                    );
-                  })}
+                <div className="grid grid-cols-2 gap-3">
+                  <motion.button
+                    onClick={() => setQuizMode("standard")}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`
+                      p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2
+                      ${quizMode === "standard" 
+                        ? "bg-primary/20 border-primary text-primary" 
+                        : "bg-card border-border hover:border-muted-foreground"
+                      }
+                    `}
+                  >
+                    <Brain className={`w-6 h-6 ${quizMode === "standard" ? "text-primary" : "text-muted-foreground"}`} />
+                    <span className="text-sm font-medium">Standard</span>
+                    <span className="text-xs text-muted-foreground text-center">Based on solution</span>
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setQuizMode("pattern")}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`
+                      p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2
+                      ${quizMode === "pattern" 
+                        ? "bg-purple-500/20 border-purple-500 text-purple-500" 
+                        : "bg-card border-border hover:border-muted-foreground"
+                      }
+                    `}
+                  >
+                    <Sparkles className={`w-6 h-6 ${quizMode === "pattern" ? "text-purple-500" : "text-muted-foreground"}`} />
+                    <span className="text-sm font-medium">Pattern</span>
+                    <span className="text-xs text-muted-foreground text-center">From example</span>
+                  </motion.button>
                 </div>
               </div>
+
+              {/* Pattern Example Input (only for pattern mode) */}
+              {quizMode === "pattern" && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-3"
+                >
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                    Pattern Example
+                  </h3>
+                  <Textarea
+                    placeholder="Enter your pattern example, e.g., '2 + 3 = 10' or '8 × 4 = 96'"
+                    value={patternExample}
+                    onChange={(e) => setPatternExample(e.target.value)}
+                    className="min-h-[80px] resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Tip: Enter a single example with numbers and the result. The AI will detect the pattern and generate similar questions.
+                  </p>
+                </motion.div>
+              )}
+
+              {/* Difficulty Selection (only for standard mode) */}
+              {quizMode === "standard" && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                    Difficulty
+                  </h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(Object.keys(difficultyConfig) as Difficulty[]).map((level) => {
+                      const config = difficultyConfig[level];
+                      const Icon = config.icon;
+                      const isSelected = difficulty === level;
+                      
+                      return (
+                        <motion.button
+                          key={level}
+                          onClick={() => setDifficulty(level)}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className={`
+                            p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2
+                            ${isSelected 
+                              ? `${config.bg} border-current ${config.color}` 
+                              : "bg-card border-border hover:border-muted-foreground"
+                            }
+                          `}
+                        >
+                          <Icon className={`w-6 h-6 ${isSelected ? config.color : "text-muted-foreground"}`} />
+                          <span className={`text-sm font-medium ${isSelected ? config.color : ""}`}>
+                            {config.label}
+                          </span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Question Count Selection */}
               <div className="space-y-3">
@@ -289,12 +381,12 @@ const Quiz = () => {
               {/* Start Button */}
               <Button
                 onClick={startQuiz}
-                disabled={!difficulty || !questionCount}
+                disabled={!questionCount || (quizMode === "standard" && !difficulty) || (quizMode === "pattern" && !patternExample.trim())}
                 variant="neon"
                 size="lg"
                 className="w-full"
               >
-                Start Quiz
+                {quizMode === "pattern" ? "Generate Pattern Quiz" : "Start Quiz"}
               </Button>
             </motion.div>
           )}
@@ -310,7 +402,10 @@ const Quiz = () => {
               </div>
               <h3 className="text-lg font-medium mb-2">Generating Quiz...</h3>
               <p className="text-muted-foreground text-sm">
-                Creating {questionCount} {difficulty} question{questionCount !== 1 ? "s" : ""} for you
+                {quizMode === "pattern" 
+                  ? `Analyzing pattern and creating ${questionCount} question${questionCount !== 1 ? "s" : ""}`
+                  : `Creating ${questionCount} ${difficulty} question${questionCount !== 1 ? "s" : ""} for you`
+                }
               </p>
             </motion.div>
           )}

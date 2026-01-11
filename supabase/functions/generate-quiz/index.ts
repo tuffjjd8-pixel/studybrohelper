@@ -24,24 +24,58 @@ async function callGroqAPI(apiKey: string, messages: any[], temperature: number)
   return response;
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+// Pattern-based quiz generation prompt
+function getPatternPrompt(patternExample: string, count: number) {
+  return {
+    system: `You are the Pattern Quiz Generator for StudyBro.
 
-  try {
-    const { subject, question, solution, difficulty = "medium", count = 5 } = await req.json();
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    const GROQ_API_KEY_BACKUP = Deno.env.get("GROQ_API_KEY_BACKUP");
+When given a single example like "2 + 3 = 10", you must:
+1. Analyze the mathematical pattern or transformation
+2. Identify the formula (e.g., a·b + a² = result, or (a+b)·a = result)
+3. Generate ${count} NEW questions following the SAME pattern with different numbers
+4. Each question has EXACTLY 4 options (A, B, C, D) with ONE correct answer
 
-    if (!GROQ_API_KEY) {
-      throw new Error("GROQ_API_KEY is not configured");
+EXPLANATION RULES (CRITICAL):
+- NEVER say "This is the correct answer based on the topic"
+- Clearly explain the specific pattern/formula used
+- Show the calculation steps briefly
+- Use student-friendly language
+- Example: "The pattern is a·b + a². So: 6·5 + 6² = 30 + 36 = 66"
+
+Output ONLY valid JSON:
+{
+  "pattern_detected": "Brief description of the pattern found",
+  "formula": "The mathematical formula (e.g., a·b + a²)",
+  "questions": [
+    {
+      "question": "What is the result of applying the pattern to X + Y?",
+      "options": ["A) 10", "B) 20", "C) 30", "D) 40"],
+      "correctIndex": 0,
+      "explanation": "Using the pattern a·b + a²: X·Y + X² = [calculation] = [answer]"
     }
+  ]
+}
 
-    const questionCount = count || 5;
-    console.log("Generating quiz with Llama 3.1 8B:", { subject, difficulty, count: questionCount });
+CRITICAL: Generate EXACTLY ${count} questions. Vary the numbers to test understanding.`,
+    user: `Analyze this example and generate ${count} similar quiz questions:
 
-    const systemPrompt = `You are the Quiz Generator for StudyBro.
+Example: ${patternExample}
+
+Steps:
+1. Find the pattern/formula that transforms the input to the output
+2. Generate ${count} new questions using different numbers but the SAME pattern
+3. Calculate the correct answer for each
+4. Create 3 plausible wrong options for each question
+5. Write clear explanations showing the calculation
+
+Output ONLY valid JSON.`
+  };
+}
+
+// Standard difficulty-based quiz generation prompt
+function getStandardPrompt(subject: string, question: string, solution: string, difficulty: string, count: number) {
+  return {
+    system: `You are the Quiz Generator for StudyBro.
 Use these rules exactly:
 
 1. Generate questions DIRECTLY related to the user's topic - no generic questions
@@ -50,7 +84,14 @@ Use these rules exactly:
 4. Keep questions clear, unique, and grade-appropriate
 5. Output ONLY valid JSON - no explanations, no extra text
 
-You MUST generate EXACTLY ${questionCount} questions.
+EXPLANATION RULES (CRITICAL):
+- NEVER say "This is the correct answer based on the topic"
+- Explain the logic or steps used to find the answer
+- Reference the formula or method applied
+- Use concise, student-friendly language
+- Show brief calculation if applicable
+
+You MUST generate EXACTLY ${count} questions.
 
 Output format (JSON only):
 {
@@ -59,14 +100,13 @@ Output format (JSON only):
       "question": "Clear question about the specific topic?",
       "options": ["A) First option", "B) Second option", "C) Third option", "D) Fourth option"],
       "correctIndex": 0,
-      "explanation": "Why this answer is correct"
+      "explanation": "Clear step-by-step explanation of why this answer is correct"
     }
   ]
 }
 
-CRITICAL: Generate exactly ${questionCount} questions. No more, no less.`;
-
-    const userMessage = `Generate exactly ${questionCount} ${difficulty} quiz questions about this topic:
+CRITICAL: Generate exactly ${count} questions. No more, no less.`,
+    user: `Generate exactly ${count} ${difficulty} quiz questions about this topic:
 
 Subject: ${subject || "General"}
 Problem: ${question || "Study material"}
@@ -74,11 +114,43 @@ Problem: ${question || "Study material"}
 Content to test:
 ${solution}
 
-Remember: Questions must be DIRECTLY about this specific content. Output ONLY valid JSON.`;
+Remember: Questions must be DIRECTLY about this specific content. Output ONLY valid JSON.`
+  };
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { subject, question, solution, difficulty = "medium", count = 5, mode = "standard", patternExample } = await req.json();
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    const GROQ_API_KEY_BACKUP = Deno.env.get("GROQ_API_KEY_BACKUP");
+
+    if (!GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY is not configured");
+    }
+
+    const questionCount = count || 5;
+    const isPatternMode = mode === "pattern" && patternExample;
+    
+    console.log("Generating quiz with Llama 3.1 8B:", { 
+      mode: isPatternMode ? "pattern" : "standard",
+      subject, 
+      difficulty: isPatternMode ? "N/A" : difficulty, 
+      count: questionCount,
+      patternExample: isPatternMode ? patternExample : undefined
+    });
+
+    // Get appropriate prompts based on mode
+    const prompts = isPatternMode 
+      ? getPatternPrompt(patternExample, questionCount)
+      : getStandardPrompt(subject, question, solution, difficulty, questionCount);
 
     const messages = [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userMessage }
+      { role: "system", content: prompts.system },
+      { role: "user", content: prompts.user }
     ];
 
     // Try primary API key first
