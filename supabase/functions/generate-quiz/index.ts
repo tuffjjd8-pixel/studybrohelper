@@ -24,7 +24,17 @@ async function callGroqAPI(apiKey: string, messages: any[], temperature: number,
   return response;
 }
 
-// Pattern-based quiz generation prompt
+// Determine question count based on tier
+function getQuestionCount(isPremium: boolean, isPatternMode: boolean): number {
+  if (isPatternMode) {
+    // Pattern mode: Pro gets more pattern questions
+    return isPremium ? 8 : 5;
+  }
+  // Standard mode: Pro gets more questions
+  return isPremium ? 10 : 5;
+}
+
+// Pattern-based quiz generation prompt (Pro Feature)
 function getPatternPrompt(patternExample: string, count: number) {
   return {
     system: `You are a Pattern Quiz Generator. Analyze the given example and generate EXACTLY ${count} similar question(s).
@@ -34,6 +44,7 @@ RULES:
 2. Generate EXACTLY ${count} question(s) - no more, no less
 3. Each question has 4 options (A, B, C, D) with ONE correct answer
 4. Use simple numbers to avoid calculation errors
+5. Generate as many high-quality questions as possible
 
 OUTPUT FORMAT (JSON only, no markdown, no code blocks):
 {"questions":[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correctIndex":0,"explanation":"Pattern: formula. Calculation: steps = answer"}]}
@@ -52,13 +63,14 @@ Generate EXACTLY ${count} question(s) following this pattern. Output ONLY valid 
 // Standard quiz generation prompt
 function getStandardPrompt(subject: string, question: string, solution: string, difficulty: string, count: number) {
   return {
-    system: `You are a Quiz Generator. Generate EXACTLY ${count} question(s) about the given topic.
+    system: `You are a Quiz Generator. Generate EXACTLY ${count} high-quality question(s) about the given topic.
 
 RULES:
 1. Questions must be directly about the provided content
 2. Each question has 4 options (A, B, C, D) with ONE correct answer
 3. Difficulty: ${difficulty}
-4. Generate EXACTLY ${count} question(s) - no more, no less
+4. Generate EXACTLY ${count} question(s) - maximize quality
+5. Cover different aspects of the topic
 
 OUTPUT FORMAT (JSON only, no markdown, no code blocks):
 {"questions":[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correctIndex":0,"explanation":"Brief explanation of why this is correct"}]}
@@ -77,8 +89,8 @@ Generate EXACTLY ${count} ${difficulty} question(s). Output ONLY valid JSON.`
 
 // Calculate appropriate max tokens based on question count
 function getMaxTokens(count: number): number {
-  // ~300 tokens per question, plus buffer
-  return Math.min(Math.max(count * 400, 500), 4000);
+  // ~350 tokens per question, plus buffer for more detailed explanations
+  return Math.min(Math.max(count * 400, 600), 4500);
 }
 
 // Sanitize JSON string before parsing
@@ -104,9 +116,9 @@ serve(async (req) => {
       question, 
       solution, 
       difficulty = "medium", 
-      count, // No default - will default to 1 if not specified
       mode = "standard", 
-      patternExample 
+      patternExample,
+      isPremium = false // User's premium status
     } = body;
     
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
@@ -116,9 +128,10 @@ serve(async (req) => {
       throw new Error("GROQ_API_KEY is not configured");
     }
 
-    // Default to 1 question if not specified to save credits
-    const questionCount = typeof count === 'number' && count > 0 ? count : 1;
     const isPatternMode = mode === "pattern" && patternExample;
+    
+    // Auto-determine question count based on tier
+    const questionCount = getQuestionCount(isPremium, isPatternMode);
     const maxTokens = getMaxTokens(questionCount);
     
     console.log("Generating quiz with Llama 3.1 8B:", { 
@@ -127,6 +140,7 @@ serve(async (req) => {
       difficulty: isPatternMode ? "N/A" : difficulty, 
       count: questionCount,
       maxTokens,
+      isPremium,
       patternExample: isPatternMode ? patternExample.substring(0, 50) : undefined
     });
 
