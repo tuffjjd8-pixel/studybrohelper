@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
-import { TextInputBox } from "@/components/home/TextInputBox";
+import { FollowUpInput } from "@/components/chat/FollowUpInput";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -261,12 +261,12 @@ const SolveDetail = () => {
               </div>
             )}
 
-            {/* Homework-style input box */}
+            {/* Follow-up input box */}
             <div className="mt-8">
-              <TextInputBox
+              <FollowUpInput
                 onSubmit={handleFollowUp}
                 isLoading={isAsking}
-                placeholder="Paste or type your homework question..."
+                placeholder="Still confused? Ask me anything about this solution..."
               />
             </div>
           </motion.div>
