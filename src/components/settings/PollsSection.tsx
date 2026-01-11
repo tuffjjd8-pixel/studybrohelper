@@ -34,7 +34,6 @@ interface Poll {
   description: string | null;
   options: { text: string; votes: number }[];
   is_public: boolean;
-  created_by: string;
   created_at: string;
   ends_at: string | null;
   total_votes: number;
