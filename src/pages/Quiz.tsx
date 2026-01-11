@@ -47,23 +47,38 @@ const Quiz = () => {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   
   // Test mode selection
   const [showSettings, setShowSettings] = useState(true);
   const [quizMode, setQuizMode] = useState<QuizMode>("standard");
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
-  const [questionCount, setQuestionCount] = useState<number | null>(null);
   const [patternExample, setPatternExample] = useState("");
 
   useEffect(() => {
     if (!authLoading) {
       if (user && id) {
         fetchSolve();
+        fetchPremiumStatus();
       } else if (!user && id) {
         loadGuestSolve();
       }
     }
   }, [user, authLoading, id]);
+
+  const fetchPremiumStatus = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_premium")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setIsPremium(data?.is_premium ?? false);
+    } catch (error) {
+      console.error("Error fetching premium status:", error);
+    }
+  };
 
   const loadGuestSolve = () => {
     try {
@@ -113,12 +128,18 @@ const Quiz = () => {
   };
 
   const startQuiz = async () => {
-    if (!solve || !questionCount) return;
+    if (!solve) return;
     
-    // For pattern mode, require pattern example; for standard mode, require difficulty
-    if (quizMode === "pattern" && !patternExample.trim()) {
-      toast.error("Please enter a pattern example");
-      return;
+    // For pattern mode, require pattern example and Pro; for standard mode, require difficulty
+    if (quizMode === "pattern") {
+      if (!isPremium) {
+        toast.error("Pattern Mode is a Pro feature");
+        return;
+      }
+      if (!patternExample.trim()) {
+        toast.error("Please enter a pattern example");
+        return;
+      }
     }
     if (quizMode === "standard" && !difficulty) {
       toast.error("Please select a difficulty");
@@ -133,8 +154,8 @@ const Quiz = () => {
         ? {
             mode: "pattern",
             patternExample: patternExample.trim(),
-            count: questionCount,
             subject: solve.subject,
+            isPremium,
           }
         : {
             mode: "standard",
@@ -142,7 +163,7 @@ const Quiz = () => {
             question: solve.question_text,
             solution: solve.solution_markdown,
             difficulty,
-            count: questionCount,
+            isPremium,
           };
 
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
@@ -199,7 +220,6 @@ const Quiz = () => {
     setShowSettings(true);
     setQuizMode("standard");
     setDifficulty(null);
-    setQuestionCount(null);
     setPatternExample("");
     setQuestions([]);
   };
@@ -270,17 +290,23 @@ const Quiz = () => {
                     <span className="text-xs text-muted-foreground text-center">Based on solution</span>
                   </motion.button>
                   <motion.button
-                    onClick={() => setQuizMode("pattern")}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    onClick={() => isPremium && setQuizMode("pattern")}
+                    whileHover={{ scale: isPremium ? 1.02 : 1 }}
+                    whileTap={{ scale: isPremium ? 0.98 : 1 }}
                     className={`
-                      p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2
+                      p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 relative
+                      ${!isPremium ? "opacity-60 cursor-not-allowed" : ""}
                       ${quizMode === "pattern" 
                         ? "bg-purple-500/20 border-purple-500 text-purple-500" 
                         : "bg-card border-border hover:border-muted-foreground"
                       }
                     `}
                   >
+                    {!isPremium && (
+                      <span className="absolute -top-2 -right-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                        PRO
+                      </span>
+                    )}
                     <Sparkles className={`w-6 h-6 ${quizMode === "pattern" ? "text-purple-500" : "text-muted-foreground"}`} />
                     <span className="text-sm font-medium">Pattern</span>
                     <span className="text-xs text-muted-foreground text-center">From example</span>
@@ -348,40 +374,25 @@ const Quiz = () => {
                 </div>
               )}
 
-              {/* Question Count Selection */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                  Number of Questions
-                </h3>
-                <div className="grid grid-cols-5 gap-2">
-                  {[1, 2, 3, 5, 10].map((count) => {
-                    const isSelected = questionCount === count;
-                    
-                    return (
-                      <motion.button
-                        key={count}
-                        onClick={() => setQuestionCount(count)}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className={`
-                          p-3 rounded-xl border-2 transition-all text-center
-                          ${isSelected 
-                            ? "bg-primary/20 border-primary text-primary" 
-                            : "bg-card border-border hover:border-muted-foreground"
-                          }
-                        `}
-                      >
-                        <span className="text-lg font-bold">{count}</span>
-                      </motion.button>
-                    );
-                  })}
+              {/* Tier Info */}
+              <div className="p-4 rounded-xl bg-card border border-border">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Questions generated:</span>
+                  <span className="font-medium">
+                    {isPremium ? (quizMode === "pattern" ? "8" : "10") : "5"} questions
+                  </span>
                 </div>
+                {!isPremium && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Upgrade to Pro for more questions and Pattern Mode
+                  </p>
+                )}
               </div>
 
               {/* Start Button */}
               <Button
                 onClick={startQuiz}
-                disabled={!questionCount || (quizMode === "standard" && !difficulty) || (quizMode === "pattern" && !patternExample.trim())}
+                disabled={(quizMode === "standard" && !difficulty) || (quizMode === "pattern" && (!patternExample.trim() || !isPremium))}
                 variant="neon"
                 size="lg"
                 className="w-full"
@@ -403,8 +414,8 @@ const Quiz = () => {
               <h3 className="text-lg font-medium mb-2">Generating Quiz...</h3>
               <p className="text-muted-foreground text-sm">
                 {quizMode === "pattern" 
-                  ? `Analyzing pattern and creating ${questionCount} question${questionCount !== 1 ? "s" : ""}`
-                  : `Creating ${questionCount} ${difficulty} question${questionCount !== 1 ? "s" : ""} for you`
+                  ? "Analyzing pattern and creating questions"
+                  : `Creating ${isPremium ? "10" : "5"} ${difficulty} questions for you`
                 }
               </p>
             </motion.div>
