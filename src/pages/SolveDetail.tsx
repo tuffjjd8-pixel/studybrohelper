@@ -4,7 +4,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
-import { FollowUpInput } from "@/components/chat/FollowUpInput";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -211,64 +210,6 @@ const SolveDetail = () => {
               questionImage={solve.question_image_url || undefined}
             />
 
-            {/* Action buttons */}
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button
-                variant="outline"
-                onClick={() => navigate(`/quiz/${solve.id}`)}
-                className="flex-1 min-w-[140px]"
-              >
-                <BookOpen className="w-4 h-4 mr-2" />
-                Take Quiz
-              </Button>
-              <Button variant="outline" onClick={handleShare}>
-                <Share2 className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Chat messages */}
-            {messages.length > 0 && (
-              <div className="mt-8 space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 ${
-                      message.role === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    {message.role === "assistant" && (
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                        <Bot className="w-4 h-4 text-primary" />
-                      </div>
-                    )}
-                    <div
-                      className={`max-w-[80%] p-4 rounded-2xl ${
-                        message.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-card border border-border"
-                      }`}
-                    >
-                      {message.role === "assistant" ? (
-                        <div className="prose prose-sm prose-invert max-w-none">
-                          <ReactMarkdown>{message.content}</ReactMarkdown>
-                        </div>
-                      ) : (
-                        <p>{message.content}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Follow-up input box */}
-            <div className="mt-8">
-              <FollowUpInput
-                onSubmit={handleFollowUp}
-                isLoading={isAsking}
-                placeholder="Still confused? Ask me anything about this solution..."
-              />
-            </div>
           </motion.div>
         </div>
       </main>
