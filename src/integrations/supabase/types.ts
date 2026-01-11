@@ -132,8 +132,10 @@ export type Database = {
           id: string
           is_premium: boolean
           last_solve_date: string | null
+          last_speech_reset: string | null
           last_usage_date: string | null
           referral_code: string | null
+          speech_clips_used: number
           streak_count: number
           total_solves: number
           updated_at: string
@@ -149,8 +151,10 @@ export type Database = {
           id?: string
           is_premium?: boolean
           last_solve_date?: string | null
+          last_speech_reset?: string | null
           last_usage_date?: string | null
           referral_code?: string | null
+          speech_clips_used?: number
           streak_count?: number
           total_solves?: number
           updated_at?: string
@@ -166,8 +170,10 @@ export type Database = {
           id?: string
           is_premium?: boolean
           last_solve_date?: string | null
+          last_speech_reset?: string | null
           last_usage_date?: string | null
           referral_code?: string | null
+          speech_clips_used?: number
           streak_count?: number
           total_solves?: number
           updated_at?: string

@@ -19,8 +19,12 @@ interface TextInputBoxProps {
   speechInputEnabled?: boolean;
   isPremium?: boolean;
   speechLanguage?: string;
-  onSpeechUsed?: () => void;
+  onSpeechUsed?: () => Promise<void>;
   isAuthenticated?: boolean;
+  canUseSpeechClip?: boolean;
+  speechClipsRemaining?: number;
+  maxSpeechClips?: number;
+  hoursUntilReset?: number;
 }
 
 export function TextInputBox({ 
@@ -35,6 +39,10 @@ export function TextInputBox({
   speechLanguage = "auto",
   onSpeechUsed,
   isAuthenticated = false,
+  canUseSpeechClip = true,
+  speechClipsRemaining = 0,
+  maxSpeechClips = 3,
+  hoursUntilReset = 0,
 }: TextInputBoxProps) {
   const [text, setText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -93,6 +101,10 @@ export function TextInputBox({
     }
     if (!isPremium) {
       toast.error("Speech input is a Premium feature.");
+      return;
+    }
+    if (!canUseSpeechClip) {
+      toast.error(`You've used all your speech clips. Resets in ${hoursUntilReset}h.`);
       return;
     }
 
@@ -172,7 +184,7 @@ export function TextInputBox({
       if (data?.text) {
         setText(prev => prev ? `${prev} ${data.text}` : data.text);
         toast.success(mode === "translate" ? "Translated to English!" : "Transcription complete!");
-        onSpeechUsed?.();
+        await onSpeechUsed?.();
       }
     } catch (error) {
       console.error('Transcription error:', error);
@@ -202,6 +214,10 @@ export function TextInputBox({
     }
     if (!isPremium) {
       toast.error("Speech input is a Premium feature.");
+      return;
+    }
+    if (!canUseSpeechClip) {
+      toast.error(`You've used all your speech clips. Resets in ${hoursUntilReset}h.`);
       return;
     }
 
@@ -252,7 +268,7 @@ export function TextInputBox({
       if (data?.text) {
         setText(prev => prev ? `${prev} ${data.text}` : data.text);
         toast.success(mode === "translate" ? "Translated to English!" : "Transcription complete!");
-        onSpeechUsed?.();
+        await onSpeechUsed?.();
       }
     } catch (error) {
       console.error('Transcription error:', error);
@@ -280,81 +296,93 @@ export function TextInputBox({
       <div className="glass-card p-4 neon-border">
         {/* Speech mode buttons - above textarea when enabled */}
         {showSpeechButtons && (
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            {/* Transcribe in my language */}
-            <Button
-              type="button"
-              variant={isRecording && currentMode === "transcribe" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleVoiceClick("transcribe")}
-              disabled={isTranscribing || (isRecording && currentMode !== "transcribe")}
-              className="flex items-center gap-2"
-            >
-              {isRecording && currentMode === "transcribe" ? (
-                <>
-                  <MicOff className="w-4 h-4" />
-                  Stop Recording
-                </>
-              ) : isTranscribing && currentMode === "transcribe" ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Transcribing...
-                </>
-              ) : (
-                <>
-                  <Languages className="w-4 h-4" />
-                  Transcribe in My Language
-                </>
+          <div className="space-y-2 mb-3">
+            {/* Clips remaining indicator */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">
+                Speech Clips: {speechClipsRemaining}/{maxSpeechClips}
+              </span>
+              {!canUseSpeechClip && (
+                <span className="text-orange-500">Resets in {hoursUntilReset}h</span>
               )}
-            </Button>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Transcribe in my language */}
+              <Button
+                type="button"
+                variant={isRecording && currentMode === "transcribe" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleVoiceClick("transcribe")}
+                disabled={isTranscribing || (isRecording && currentMode !== "transcribe") || !canUseSpeechClip}
+                className="flex items-center gap-2"
+              >
+                {isRecording && currentMode === "transcribe" ? (
+                  <>
+                    <MicOff className="w-4 h-4" />
+                    Stop Recording
+                  </>
+                ) : isTranscribing && currentMode === "transcribe" ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Transcribing...
+                  </>
+                ) : (
+                  <>
+                    <Languages className="w-4 h-4" />
+                    Transcribe in My Language
+                  </>
+                )}
+              </Button>
 
-            {/* Translate to English */}
-            <Button
-              type="button"
-              variant={isRecording && currentMode === "translate" ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => handleVoiceClick("translate")}
-              disabled={isTranscribing || (isRecording && currentMode !== "translate")}
-              className="flex items-center gap-2"
-            >
-              {isRecording && currentMode === "translate" ? (
-                <>
-                  <MicOff className="w-4 h-4" />
-                  Stop Recording
-                </>
-              ) : isTranscribing && currentMode === "translate" ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Translating...
-                </>
-              ) : (
-                <>
-                  <Globe className="w-4 h-4" />
-                  Translate to English
-                </>
-              )}
-            </Button>
+              {/* Translate to English */}
+              <Button
+                type="button"
+                variant={isRecording && currentMode === "translate" ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => handleVoiceClick("translate")}
+                disabled={isTranscribing || (isRecording && currentMode !== "translate") || !canUseSpeechClip}
+                className="flex items-center gap-2"
+              >
+                {isRecording && currentMode === "translate" ? (
+                  <>
+                    <MicOff className="w-4 h-4" />
+                    Stop Recording
+                  </>
+                ) : isTranscribing && currentMode === "translate" ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Translating...
+                  </>
+                ) : (
+                  <>
+                    <Globe className="w-4 h-4" />
+                    Translate to English
+                  </>
+                )}
+              </Button>
 
-            {/* File upload */}
-            <input
-              type="file"
-              ref={audioFileInputRef}
-              onChange={(e) => handleAudioFileSelect(e, "transcribe")}
-              accept="audio/*,.mp3,.wav,.m4a,.webm"
-              className="hidden"
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => audioFileInputRef.current?.click()}
-              disabled={isTranscribing || isRecording}
-              className="flex items-center gap-2"
-              title="Upload audio file"
-            >
-              <Upload className="w-4 h-4" />
-              Upload Audio
-            </Button>
+              {/* File upload */}
+              <input
+                type="file"
+                ref={audioFileInputRef}
+                onChange={(e) => handleAudioFileSelect(e, "transcribe")}
+                accept="audio/*,.mp3,.wav,.m4a,.webm"
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => audioFileInputRef.current?.click()}
+                disabled={isTranscribing || isRecording || !canUseSpeechClip}
+                className="flex items-center gap-2"
+                title="Upload audio file"
+              >
+                <Upload className="w-4 h-4" />
+                Upload Audio
+              </Button>
+            </div>
           </div>
         )}
 

@@ -14,12 +14,12 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarTrigger } from "@/components/layout/SidebarTrigger";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSpeechClips } from "@/hooks/useSpeechClips";
 import { toast } from "sonner";
 
 // Tier limits
 const FREE_ANIMATED_STEPS_PER_DAY = 5;
 const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
-const FREE_SPEECH_PER_DAY = 5;
 
 interface SolutionData {
   subject: string;
@@ -90,6 +90,10 @@ const Index = () => {
   }, [speechLanguage]);
 
   const isPremium = profile?.is_premium || false;
+  
+  // Speech clips hook
+  const speechClips = useSpeechClips(user?.id, isPremium);
+  
   const maxAnimatedSteps = isPremium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
   
   // Check if usage needs reset (midnight local time)
@@ -147,16 +151,9 @@ const Index = () => {
     setGuestUsage(newUsage);
   };
 
-  const handleSpeechUsed = () => {
-    if (isPremium) return; // No tracking for premium
-    
-    const newUsage = {
-      ...guestUsage,
-      speechUses: guestUsage.speechUses + 1,
-      date: currentLocalDate
-    };
-    localStorage.setItem("guest_usage", JSON.stringify(newUsage));
-    setGuestUsage(newUsage);
+  const handleSpeechUsed = async () => {
+    if (!user) return; // Guest users can't use speech
+    await speechClips.useClip();
   };
 
   const fetchRecentSolves = async () => {
@@ -457,6 +454,10 @@ const Index = () => {
                 speechLanguage={speechLanguage}
                 onSpeechUsed={handleSpeechUsed}
                 isAuthenticated={!!user}
+                canUseSpeechClip={speechClips.canUseClip}
+                speechClipsRemaining={speechClips.clipsRemaining}
+                maxSpeechClips={speechClips.maxClips}
+                hoursUntilReset={speechClips.hoursUntilReset}
               />
 
               {/* Recent solves */}
