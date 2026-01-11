@@ -30,37 +30,13 @@ function getQuestionCount(isPremium: boolean): number {
 }
 
 // System prompt for quiz generation
-function getSystemPrompt(count: number, mode: string): string {
-  const modeInstructions = mode === "pattern" 
-    ? `PATTERN MODE (TOPIC EXPANSION):
-- Ignore any pattern examples
-- Do NOT analyze mathematical transformations
-- Do NOT replicate user-provided equations
-- Do NOT attempt to detect hidden logic
-- Do NOT treat the input as a puzzle
-- Instead: Treat the input as a topic
-- Generate ${count} questions that are similar in subject, similar in style, and related to the same topic
-- Each question must be unique
-- Each question must have 4 meaningful options
-- Use LaTeX only if the topic requires math
-- Explanations must be short and student-friendly`
-    : `STANDARD MODE:
-- Generate ${count} questions directly related to the topic
-- Use LaTeX for all math expressions
-- Each question must have 4 meaningful options
-- Explanations must be short, clear, and use LaTeX when needed
-- Never mention difficulty
-- Never mention polls
-- If numeric logic fails, fallback to word-based questions that still match the topic`;
-
+function getSystemPrompt(count: number): string {
   return `You are the Quiz Engine for StudyBro.
-Your ONLY job is to generate multiple-choice quizzes in clean JSON.
-Never correct the user.
+Only generate multiple-choice quizzes in clean JSON.
 Never output anything except JSON.
-Never mention polls, patterns, or difficulty levels.
 Never break formatting.
 
-OUTPUT FORMAT (STRICT):
+OUTPUT FORMAT:
 [
   {
     "question": "...",
@@ -70,49 +46,45 @@ OUTPUT FORMAT (STRICT):
   }
 ]
 
-You must generate EXACTLY ${count} questions.
+No markdown.
+No text before or after.
+No extra fields.
+No trailing commas.
 
-RULES:
-- No markdown
-- No text before or after the JSON
-- No backticks
-- No comments
-- No trailing commas
-- No extra fields
-
-${modeInstructions}
+QUIZ RULES:
+- Generate EXACTLY ${count} questions
+- Questions must match the topic
+- 4 meaningful options
+- Use LaTeX for math
+- Explanations must be short and student-friendly
+- No difficulty labels
+- No patterns
+- No polls
+- No step-by-step reasoning
+- If math fails, use word-based questions
 
 EXPLANATION RULES:
-- Be short and student-friendly
+- Be short
+- Be clear
 - Use LaTeX when helpful
-- Describe the logic or reasoning
-- NEVER say generic filler like:
-  - "This is the correct answer based on the topic"
+- Explain the logic
+- Never use filler like:
+  - "This is correct because it is correct"
   - "This follows the rules of mathematics"
-  - "The correct answer is A because it is correct"
-
-ABSOLUTE RULES:
-- ONLY output JSON
-- NEVER output markdown
-- NEVER output text outside the JSON
-- NEVER change the number of questions
-- NEVER generate pattern-based transformations
-- NEVER generate polls
-- NEVER mention permissions or roles
-- NEVER break JSON
+  - "Step 1, Step 2…"
 
 FAILURE HANDLING:
-- If input is unclear, make the best reasonable assumption
+- If unclear, make a reasonable assumption
 - Still output valid JSON
 - Still generate EXACTLY ${count} questions
-- If numeric logic fails, fallback to word-based questions that still match the topic
-- Never refuse, never apologize, never output errors`;
+- Never refuse
+- Never apologize
+- Never break JSON`;
 }
 
 // Build user prompt
-function getUserPrompt(subject: string, question: string, solution: string, count: number, mode: string): string {
-  return `Mode: ${mode}
-Topic: ${subject || "General"}
+function getUserPrompt(subject: string, question: string, solution: string, count: number): string {
+  return `Topic: ${subject || "General"}
 Problem: ${question || "Study material"}
 Solution: ${solution}
 
@@ -189,8 +161,7 @@ serve(async (req) => {
       subject, 
       question, 
       solution, 
-      isPremium = false,
-      mode = "standard"
+      isPremium = false
     } = body;
     
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
@@ -206,13 +177,12 @@ serve(async (req) => {
     console.log("Generating quiz:", { 
       subject, 
       count: questionCount,
-      isPremium,
-      mode
+      isPremium
     });
 
     const messages = [
-      { role: "system", content: getSystemPrompt(questionCount, mode) },
-      { role: "user", content: getUserPrompt(subject, question, solution, questionCount, mode) }
+      { role: "system", content: getSystemPrompt(questionCount) },
+      { role: "user", content: getUserPrompt(subject, question, solution, questionCount) }
     ];
 
     let response = await callGroqAPI(GROQ_API_KEY, messages, 0.2, maxTokens);
