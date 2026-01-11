@@ -76,6 +76,13 @@ export type Database = {
             referencedRelation: "polls"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "public_polls"
+            referencedColumns: ["id"]
+          },
         ]
       }
       polls: {
@@ -221,9 +228,46 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_polls: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          ends_at: string | null
+          id: string | null
+          is_public: boolean | null
+          options: Json | null
+          title: string | null
+          total_votes: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string | null
+          is_public?: boolean | null
+          options?: Json | null
+          title?: string | null
+          total_votes?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string | null
+          is_public?: boolean | null
+          options?: Json | null
+          title?: string | null
+          total_votes?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      get_poll_vote_counts: { Args: { poll_id_param: string }; Returns: Json }
+      get_user_vote: {
+        Args: { poll_id_param: string; voter_id_param: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
