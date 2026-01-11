@@ -144,8 +144,9 @@ export function PollsSection() {
 
   const fetchPolls = async () => {
     try {
+      // Use public_polls view to avoid exposing creator email addresses
       const { data, error } = await supabase
-        .from("polls")
+        .from("public_polls")
         .select("*")
         .eq("is_public", true)
         .order("created_at", { ascending: false });
@@ -155,7 +156,14 @@ export function PollsSection() {
       // Parse options from JSONB
       const parsedPolls = (data || []).map(poll => ({
         ...poll,
-        options: poll.options as { text: string; votes: number }[]
+        id: poll.id!,
+        title: poll.title!,
+        description: poll.description,
+        options: poll.options as { text: string; votes: number }[],
+        is_public: poll.is_public!,
+        created_at: poll.created_at!,
+        ends_at: poll.ends_at,
+        total_votes: poll.total_votes!
       }));
       
       setPolls(parsedPolls);
