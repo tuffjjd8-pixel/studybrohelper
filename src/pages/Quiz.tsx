@@ -286,7 +286,7 @@ const Quiz = () => {
               {/* Model Info */}
               <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                 <Zap className="w-3 h-3" />
-                <span>Powered by Groq llama-3.1-8b for stable, high-accuracy generation</span>
+                <span>Powered by Groq llama-3.1-70B for high-accuracy, stable generation</span>
               </div>
 
               {/* Start Button */}
