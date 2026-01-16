@@ -284,7 +284,7 @@ const Quiz = () => {
 
             {/* Model Info */}
             <p className="text-xs text-center text-muted-foreground mt-4">
-              Powered by Groq llama-3.1-70B for high-accuracy, stable question generation
+              Powered by Groq llama-3.3-70B for high-accuracy, stable question generation
             </p>
           </motion.div>
 
