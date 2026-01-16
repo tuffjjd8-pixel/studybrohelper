@@ -32,7 +32,7 @@ async function callGroqAPI(apiKey: string, messages: any[], temperature: number,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "llama-3.1-8b-instant",
+      model: "llama-3.1-8b",
       messages,
       temperature,
       max_tokens: maxTokens,
@@ -243,7 +243,7 @@ serve(async (req) => {
     const questionCount = getQuestionCount(isPremium);
     const maxTokens = getMaxTokens(questionCount);
     
-    console.log("Generating quiz with llama-3.1-8b-instant:", { 
+    console.log("Generating quiz with llama-3.1-8b:", { 
       subject, 
       count: questionCount,
       isPremium,
@@ -307,7 +307,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         questions: validQuestions,
-        model: "llama-3.1-8b-instant"
+        model: "llama-3.1-8b"
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
