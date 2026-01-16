@@ -5,10 +5,9 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Trophy, Brain, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Trophy, Brain } from "lucide-react";
 import { toast } from "sonner";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
-import { Textarea } from "@/components/ui/textarea";
 
 interface Question {
   question: string;
@@ -24,7 +23,7 @@ interface Solve {
   solution_markdown: string;
 }
 
-type QuizMode = "standard" | "pattern";
+
 
 const Quiz = () => {
   const { id } = useParams();
@@ -44,8 +43,6 @@ const Quiz = () => {
   
   // Test mode selection
   const [showSettings, setShowSettings] = useState(true);
-  const [quizMode, setQuizMode] = useState<QuizMode>("standard");
-  const [patternExample, setPatternExample] = useState("");
 
   useEffect(() => {
     if (!authLoading) {
@@ -122,39 +119,17 @@ const Quiz = () => {
   const startQuiz = async () => {
     if (!solve) return;
     
-    // For pattern mode, require pattern example and Pro; for standard mode, require difficulty
-    if (quizMode === "pattern") {
-      if (!isPremium) {
-        toast.error("Pattern Mode is a Pro feature");
-        return;
-      }
-      if (!patternExample.trim()) {
-        toast.error("Please enter a pattern example");
-        return;
-      }
-    }
-    
     setShowSettings(false);
     setGenerating(true);
     
     try {
-      const body = quizMode === "pattern" 
-        ? {
-            mode: "pattern",
-            patternExample: patternExample.trim(),
-            subject: solve.subject,
-            isPremium,
-          }
-        : {
-            mode: "standard",
-            subject: solve.subject,
-            question: solve.question_text,
-            solution: solve.solution_markdown,
-            isPremium,
-          };
-
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
-        body,
+        body: {
+          subject: solve.subject,
+          question: solve.question_text,
+          solution: solve.solution_markdown,
+          isPremium,
+        },
       });
 
       if (error) throw error;
@@ -205,8 +180,6 @@ const Quiz = () => {
     setScore(0);
     setIsComplete(false);
     setShowSettings(true);
-    setQuizMode("standard");
-    setPatternExample("");
     setQuestions([]);
   };
 
@@ -250,96 +223,25 @@ const Quiz = () => {
             >
               <div className="text-center">
                 <h2 className="text-2xl font-heading font-bold mb-2">Test Mode</h2>
-                <p className="text-muted-foreground">Choose your quiz mode and settings</p>
+                <p className="text-muted-foreground">Test your understanding of the solution</p>
               </div>
 
-              {/* Mode Selection */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                  Quiz Mode
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <motion.button
-                    onClick={() => setQuizMode("standard")}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={`
-                      p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2
-                      ${quizMode === "standard" 
-                        ? "bg-primary/20 border-primary text-primary" 
-                        : "bg-card border-border hover:border-muted-foreground"
-                      }
-                    `}
-                  >
-                    <Brain className={`w-6 h-6 ${quizMode === "standard" ? "text-primary" : "text-muted-foreground"}`} />
-                    <span className="text-sm font-medium">Standard</span>
-                    <span className="text-xs text-muted-foreground text-center">Based on solution</span>
-                  </motion.button>
-                  <motion.button
-                    onClick={() => isPremium && setQuizMode("pattern")}
-                    whileHover={{ scale: isPremium ? 1.02 : 1 }}
-                    whileTap={{ scale: isPremium ? 0.98 : 1 }}
-                    className={`
-                      p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 relative
-                      ${!isPremium ? "opacity-60 cursor-not-allowed" : ""}
-                      ${quizMode === "pattern" 
-                        ? "bg-purple-500/20 border-purple-500 text-purple-500" 
-                        : "bg-card border-border hover:border-muted-foreground"
-                      }
-                    `}
-                  >
-                    {!isPremium && (
-                      <span className="absolute -top-2 -right-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                        PRO
-                      </span>
-                    )}
-                    <Sparkles className={`w-6 h-6 ${quizMode === "pattern" ? "text-purple-500" : "text-muted-foreground"}`} />
-                    <span className="text-sm font-medium">Pattern</span>
-                    <span className="text-xs text-muted-foreground text-center">From example</span>
-                  </motion.button>
+              {/* Mode Info */}
+              <div className="p-6 rounded-xl bg-card border border-border text-center">
+                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
+                  <Brain className="w-6 h-6 text-primary" />
                 </div>
-              </div>
-
-              {/* Pattern Example Input (only for pattern mode) */}
-              {quizMode === "pattern" && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-3"
-                >
-                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Pattern Example
-                  </h3>
-                  <Textarea
-                    placeholder="Enter your pattern example, e.g., '2 + 3 = 10' or '8 × 4 = 96'"
-                    value={patternExample}
-                    onChange={(e) => setPatternExample(e.target.value)}
-                    className="min-h-[80px] resize-none"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Tip: Enter a single example with numbers and the result. The AI will detect the pattern and generate similar questions.
-                  </p>
-              </motion.div>
-              )}
-
-              {/* Tier Info */}
-              <div className="p-4 rounded-xl bg-card border border-border">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Questions generated:</span>
-                  <span className="font-medium">
-                    {isPremium ? (quizMode === "pattern" ? "8" : "10") : "5"} questions
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {quizMode === "standard" 
-                    ? "Difficulty auto-determined based on topic"
-                    : "Pattern-based questions from your example"
-                  }
+                <h3 className="font-medium mb-2">Solution-Based Quiz</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Questions generated based on the problem and solution you studied
                 </p>
+                <div className="flex items-center justify-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Questions:</span>
+                  <span className="font-medium">{isPremium ? "10" : "5"}</span>
+                </div>
                 {!isPremium && (
-                  <p className="text-xs text-primary mt-1">
-                    Upgrade to Pro for more questions and Pattern Mode
+                  <p className="text-xs text-primary mt-3">
+                    Upgrade to Pro for 10 questions per quiz
                   </p>
                 )}
               </div>
@@ -347,12 +249,11 @@ const Quiz = () => {
               {/* Start Button */}
               <Button
                 onClick={startQuiz}
-                disabled={quizMode === "pattern" && (!patternExample.trim() || !isPremium)}
                 variant="neon"
                 size="lg"
                 className="w-full"
               >
-                {quizMode === "pattern" ? "Generate Pattern Quiz" : "Start Quiz"}
+                Start Quiz
               </Button>
             </motion.div>
           )}
@@ -368,10 +269,7 @@ const Quiz = () => {
               </div>
               <h3 className="text-lg font-medium mb-2">Generating Quiz...</h3>
               <p className="text-muted-foreground text-sm">
-                {quizMode === "pattern" 
-                  ? "Analyzing pattern and creating questions"
-                  : `Creating ${isPremium ? "10" : "5"} questions for you`
-                }
+                Creating {isPremium ? "10" : "5"} questions for you
               </p>
             </motion.div>
           )}
