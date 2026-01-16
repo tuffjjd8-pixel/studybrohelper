@@ -5,9 +5,11 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Trophy, Brain } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Trophy, Brain, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
+
+const QUIZ_COOLDOWN_MS = 10000; // 10 seconds between quiz generations
 
 interface Question {
   question: string;
@@ -43,6 +45,8 @@ const Quiz = () => {
   
   // Test mode selection
   const [showSettings, setShowSettings] = useState(true);
+  const [lastQuizTime, setLastQuizTime] = useState<number>(0);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
   useEffect(() => {
     if (!authLoading) {
@@ -116,9 +120,29 @@ const Quiz = () => {
     }
   };
 
+  // Cooldown timer effect
+  useEffect(() => {
+    if (cooldownRemaining > 0) {
+      const timer = setTimeout(() => {
+        setCooldownRemaining(prev => Math.max(0, prev - 1));
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldownRemaining]);
+
   const startQuiz = async () => {
     if (!solve) return;
     
+    // Check cooldown
+    const now = Date.now();
+    if (now - lastQuizTime < QUIZ_COOLDOWN_MS) {
+      const remaining = Math.ceil((QUIZ_COOLDOWN_MS - (now - lastQuizTime)) / 1000);
+      setCooldownRemaining(remaining);
+      toast.error(`Please wait ${remaining} seconds before generating another quiz`);
+      return;
+    }
+    
+    setLastQuizTime(now);
     setShowSettings(false);
     setGenerating(true);
     
@@ -133,10 +157,23 @@ const Quiz = () => {
       });
 
       if (error) throw error;
+      
+      // Check for rate limit response
+      if (data.rateLimited) {
+        toast.error(data.error || "Please wait before generating another quiz");
+        setShowSettings(true);
+        return;
+      }
+      
+      // Check for error with fallback questions
+      if (data.error && data.questions) {
+        toast.error("Quiz generation failed. Please try again or check your internet connection.");
+      }
+      
       setQuestions(data.questions);
     } catch (error) {
       console.error("Error generating quiz:", error);
-      toast.error("Failed to generate quiz");
+      toast.error("Quiz generation failed. Please try again or check your internet connection.");
       // Fallback questions
       setQuestions([
         {
@@ -246,14 +283,21 @@ const Quiz = () => {
                 )}
               </div>
 
+              {/* Model Info */}
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <Zap className="w-3 h-3" />
+                <span>Powered by Groq llama-3.1-8b-instant for fast, multilingual generation</span>
+              </div>
+
               {/* Start Button */}
               <Button
                 onClick={startQuiz}
+                disabled={cooldownRemaining > 0}
                 variant="neon"
                 size="lg"
                 className="w-full"
               >
-                Start Quiz
+                {cooldownRemaining > 0 ? `Wait ${cooldownRemaining}s` : "Start Quiz"}
               </Button>
             </motion.div>
           )}
