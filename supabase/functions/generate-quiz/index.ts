@@ -1,11 +1,28 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+// Rate limiting: 10 seconds between quiz generations per user
+const RATE_LIMIT_SECONDS = 10;
+const rateLimitMap = new Map<string, number>();
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now();
+  const lastRequest = rateLimitMap.get(userId);
+  
+  if (lastRequest && now - lastRequest < RATE_LIMIT_SECONDS * 1000) {
+    return true;
+  }
+  
+  rateLimitMap.set(userId, now);
+  return false;
+}
 
 async function callGroqAPI(apiKey: string, messages: any[], temperature: number, maxTokens: number) {
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -54,11 +71,10 @@ No trailing commas.
 QUIZ RULES:
 - Generate EXACTLY ${count} questions
 - Questions must match the topic
-- 4 meaningful options
-- Use LaTeX for math
+- 4 meaningful options (never use placeholder letters like "A", "B", "C", "D" as option text)
+- Use LaTeX for math expressions
 - Explanations must be short and student-friendly
 - No difficulty labels
-- No patterns
 - No polls
 - No step-by-step reasoning
 - If math fails, use word-based questions
@@ -96,7 +112,7 @@ function getMaxTokens(count: number): number {
   return Math.min(Math.max(count * 500, 800), 5000);
 }
 
-// Robust JSON sanitization with LaTeX support
+// Robust JSON sanitization
 function sanitizeJsonString(str: string): string {
   // Remove markdown code blocks
   str = str.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
@@ -141,11 +157,32 @@ function normalizeQuestions(data: any): any[] {
       correctIndex = q.correctIndex;
     }
     
+    // Ensure options are meaningful (not just A, B, C, D)
+    let options = q.options || [];
+    if (options.length < 4) {
+      options = ["Option A", "Option B", "Option C", "Option D"];
+    }
+    
+    // Replace placeholder options
+    options = options.map((opt: string, idx: number) => {
+      if (typeof opt === 'string' && /^[A-D]\.?$/i.test(opt.trim())) {
+        return `Option ${String.fromCharCode(65 + idx)}`;
+      }
+      return opt;
+    });
+    
+    // Ensure explanation exists and is meaningful
+    let explanation = q.explanation || "Review the solution to understand this concept.";
+    if (explanation.toLowerCase().includes("this is the correct answer") ||
+        explanation.toLowerCase().includes("because it is correct")) {
+      explanation = "Review the solution steps to understand this concept.";
+    }
+    
     return {
       question: q.question || "Question",
-      options: q.options || ["A", "B", "C", "D"],
+      options,
       correctIndex,
-      explanation: q.explanation || "Review the solution."
+      explanation
     };
   });
 }
@@ -164,6 +201,38 @@ serve(async (req) => {
       isPremium = false
     } = body;
     
+    // Extract user ID from auth header for rate limiting
+    const authHeader = req.headers.get("authorization");
+    let userId = "anonymous";
+    
+    if (authHeader) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+          global: { headers: { Authorization: authHeader } }
+        });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) userId = user.id;
+      } catch (e) {
+        console.log("Could not extract user for rate limiting");
+      }
+    }
+    
+    // Check rate limit
+    if (isRateLimited(userId)) {
+      return new Response(
+        JSON.stringify({
+          error: "Please wait 10 seconds between quiz generations",
+          rateLimited: true
+        }),
+        { 
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
     const GROQ_API_KEY_BACKUP = Deno.env.get("GROQ_API_KEY_BACKUP");
 
@@ -174,10 +243,11 @@ serve(async (req) => {
     const questionCount = getQuestionCount(isPremium);
     const maxTokens = getMaxTokens(questionCount);
     
-    console.log("Generating quiz:", { 
+    console.log("Generating quiz with llama-3.1-8b-instant:", { 
       subject, 
       count: questionCount,
-      isPremium
+      isPremium,
+      userId: userId.substring(0, 8)
     });
 
     const messages = [
@@ -187,8 +257,9 @@ serve(async (req) => {
 
     let response = await callGroqAPI(GROQ_API_KEY, messages, 0.2, maxTokens);
 
+    // Retry with backup key if primary fails
     if (!response.ok && GROQ_API_KEY_BACKUP) {
-      console.log("Primary API failed, trying backup...");
+      console.log("Primary Groq API failed, trying backup...");
       response = await callGroqAPI(GROQ_API_KEY_BACKUP, messages, 0.2, maxTokens);
     }
 
@@ -196,15 +267,15 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error("Groq API error:", response.status, errorText);
       if (response.status === 429) {
-        throw new Error("Rate limited - please try again");
+        throw new Error("AI service rate limited. Please try again in a moment.");
       }
-      throw new Error(`AI API error: ${response.status}`);
+      throw new Error(`AI service error: ${response.status}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
 
-    console.log("Raw response:", content.substring(0, 300));
+    console.log("Raw response length:", content.length);
 
     const sanitizedJson = sanitizeJsonString(content);
     
@@ -213,48 +284,52 @@ serve(async (req) => {
       parsedData = JSON.parse(sanitizedJson);
     } catch (parseError) {
       console.error("JSON parse error:", parseError);
-      console.error("Sanitized content:", sanitizedJson.substring(0, 300));
-      throw new Error("Failed to parse quiz response");
+      console.error("Sanitized content preview:", sanitizedJson.substring(0, 200));
+      throw new Error("Failed to parse quiz response. Please try again.");
     }
 
     const validQuestions = normalizeQuestions(parsedData).filter((q: any) => 
       q.question && 
+      q.question.length > 5 &&
       Array.isArray(q.options) && 
       q.options.length >= 4 &&
       typeof q.correctIndex === 'number' &&
       q.correctIndex >= 0 &&
       q.correctIndex <= 3
-    ).map((q: any) => ({
-      ...q,
-      explanation: q.explanation && !q.explanation.toLowerCase().includes("this is the correct answer") 
-        ? q.explanation 
-        : "Review the solution steps to understand this concept."
-    }));
+    );
 
     if (validQuestions.length === 0) {
-      throw new Error("No valid questions generated");
+      throw new Error("No valid questions generated. Please try again.");
     }
 
-    console.log(`Generated ${validQuestions.length}/${questionCount} questions`);
+    console.log(`Generated ${validQuestions.length}/${questionCount} valid questions`);
 
     return new Response(
-      JSON.stringify({ questions: validQuestions }),
+      JSON.stringify({ 
+        questions: validQuestions,
+        model: "llama-3.1-8b-instant"
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Quiz generation error:", error);
     
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMessage,
         questions: [{
           question: "Quiz generation failed. Did you understand the solution?",
           options: ["Yes, I understood it", "Mostly understood", "Need more practice", "Not really"],
           correctIndex: 0,
-          explanation: "Please try generating the quiz again."
+          explanation: "Please try generating the quiz again or check your internet connection."
         }]
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { 
+        status: 200, // Return 200 with fallback question
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
   }
 });
