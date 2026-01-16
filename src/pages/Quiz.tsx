@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Sparkles, Loader2, ChevronDown, Check } from "lucide-react";
+import { Sparkles, Loader2, ChevronDown, Check, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,6 @@ interface Solve {
 interface QuizQuestion {
   question: string;
   options: string[];
-  answer: string;
 }
 
 const Quiz = () => {
@@ -48,6 +47,8 @@ const Quiz = () => {
   const [quizResult, setQuizResult] = useState<QuizQuestion[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+  const [currentQuestion, setCurrentQuestion] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -101,6 +102,8 @@ const Quiz = () => {
 
     setGenerating(true);
     setQuizResult(null);
+    setSelectedAnswers({});
+    setCurrentQuestion(0);
 
     try {
       const count = questionCount ? parseInt(questionCount) : 5;
@@ -130,6 +133,31 @@ const Quiz = () => {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleSelectOption = (questionIndex: number, option: string) => {
+    setSelectedAnswers((prev) => ({
+      ...prev,
+      [questionIndex]: option,
+    }));
+  };
+
+  const handleNextQuestion = () => {
+    if (quizResult && currentQuestion < quizResult.length - 1) {
+      setCurrentQuestion((prev) => prev + 1);
+    }
+  };
+
+  const handlePrevQuestion = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion((prev) => prev - 1);
+    }
+  };
+
+  const handleRestart = () => {
+    setQuizResult(null);
+    setSelectedAnswers({});
+    setCurrentQuestion(0);
   };
 
   const handleCountChange = (value: string) => {
@@ -288,18 +316,110 @@ const Quiz = () => {
             </p>
           </motion.div>
 
-          {/* Results Section - Clean JSON only */}
-          {quizResult && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-background rounded-lg p-4 overflow-x-auto"
-            >
-              <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
-                {JSON.stringify(quizResult, null, 2)}
-              </pre>
-            </motion.div>
-          )}
+          {/* Interactive Quiz UI */}
+          <AnimatePresence mode="wait">
+            {quizResult && quizResult.length > 0 && (
+              <motion.div
+                key="quiz-ui"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-6"
+              >
+                {/* Progress indicator */}
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>Question {currentQuestion + 1} of {quizResult.length}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRestart}
+                    className="gap-1"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    New Quiz
+                  </Button>
+                </div>
+
+                {/* Progress bar */}
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-primary"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${((currentQuestion + 1) / quizResult.length) * 100}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+
+                {/* Question Card */}
+                <motion.div
+                  key={currentQuestion}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="bg-card border border-border rounded-xl p-6"
+                >
+                  <h2 className="text-lg font-medium mb-6">
+                    {quizResult[currentQuestion].question}
+                  </h2>
+
+                  {/* Options */}
+                  <div className="space-y-3">
+                    {quizResult[currentQuestion].options.map((option, idx) => {
+                      const isSelected = selectedAnswers[currentQuestion] === option;
+                      return (
+                        <motion.button
+                          key={idx}
+                          onClick={() => handleSelectOption(currentQuestion, option)}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                          className={cn(
+                            "w-full text-left p-4 rounded-xl border transition-all",
+                            isSelected
+                              ? "bg-primary/10 border-primary text-foreground"
+                              : "bg-card border-border hover:border-primary/50 text-foreground"
+                          )}
+                        >
+                          <span className="font-medium">{option}</span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+
+                {/* Navigation */}
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handlePrevQuestion}
+                    disabled={currentQuestion === 0}
+                    className="flex-1"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    onClick={handleNextQuestion}
+                    disabled={currentQuestion === quizResult.length - 1}
+                    className="flex-1"
+                  >
+                    Next
+                  </Button>
+                </div>
+
+                {/* Completion message */}
+                {Object.keys(selectedAnswers).length === quizResult.length && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center p-4 bg-primary/10 rounded-xl"
+                  >
+                    <p className="text-primary font-medium">
+                      ✓ You've answered all {quizResult.length} questions!
+                    </p>
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Empty State */}
           {!quizResult && !generating && solves.length === 0 && (
