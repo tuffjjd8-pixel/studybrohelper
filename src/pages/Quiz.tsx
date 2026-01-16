@@ -5,7 +5,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Search, Sparkles, FileJson, Loader2, ChevronDown, Check } from "lucide-react";
+import { Sparkles, Loader2, ChevronDown, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -288,38 +288,16 @@ const Quiz = () => {
             </p>
           </motion.div>
 
-          {/* Results Section */}
+          {/* Results Section - Clean JSON only */}
           {quizResult && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card border border-border rounded-xl p-6"
+              className="bg-background rounded-lg p-4 overflow-x-auto"
             >
-              <div className="flex items-center gap-2 mb-4">
-                <FileJson className="w-5 h-5 text-primary" />
-                <h2 className="font-heading font-bold">Quiz Result</h2>
-                <span className="text-xs text-muted-foreground ml-auto">
-                  {quizResult.length} questions
-                </span>
-              </div>
-
-              <div className="bg-background rounded-lg p-4 overflow-x-auto">
-                <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
-                  {JSON.stringify(quizResult, null, 2)}
-                </pre>
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={() => {
-                  navigator.clipboard.writeText(JSON.stringify(quizResult, null, 2));
-                  toast.success("Copied to clipboard");
-                }}
-              >
-                Copy JSON
-              </Button>
+              <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
+                {JSON.stringify(quizResult, null, 2)}
+              </pre>
             </motion.div>
           )}
 

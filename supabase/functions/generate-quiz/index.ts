@@ -28,22 +28,18 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are a quiz generator. Generate exactly ${questionCount} multiple-choice questions based on the provided conversation/solution content.
+    const systemPrompt = `Generate exactly ${questionCount} multiple-choice questions based on the provided content.
 
 RULES:
 - Each question must have exactly 4 options labeled A, B, C, D
-- One correct answer per question
-- Questions should test understanding of the material
-- Return ONLY valid JSON, no explanations or markdown
+- Do NOT include answers
+- Return ONLY valid JSON array, no explanations, no markdown, no extra text
 - Subject context: ${subject || "general"}
 
-OUTPUT FORMAT (strict JSON array):
-[
-  {"question": "...", "options": ["A) ...", "B) ...", "C) ...", "D) ..."], "answer": "A"},
-  ...
-]
+OUTPUT FORMAT:
+[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."]}]
 
-Return ONLY the JSON array, nothing else.`;
+Return ONLY the JSON array.`;
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -103,11 +99,10 @@ Return ONLY the JSON array, nothing else.`;
         throw new Error("Response is not an array");
       }
 
-      // Ensure each question has required fields
+      // Ensure each question has required fields (no answer included)
       quiz = quiz.map((q: any, i: number) => ({
         question: q.question || `Question ${i + 1}`,
         options: Array.isArray(q.options) ? q.options.slice(0, 4) : ["A) Option A", "B) Option B", "C) Option C", "D) Option D"],
-        answer: q.answer || "A",
       }));
 
     } catch (parseError) {
