@@ -6,6 +6,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Check if text is readable (not mostly symbols/garbage)
+function isReadableText(text: string): boolean {
+  if (!text || text.length < 20) return false;
+  
+  // Count readable characters (letters, numbers, common punctuation, spaces)
+  const readableChars = text.match(/[A-Za-z0-9\s.,;:!?'"()\-]/g) || [];
+  const readableRatio = readableChars.length / text.length;
+  
+  // Count actual words (3+ letter sequences)
+  const words = text.match(/[A-Za-z]{3,}/g) || [];
+  
+  // Text is readable if >60% readable chars AND has at least 10 words
+  return readableRatio > 0.6 && words.length >= 10;
+}
+
 // Simple PDF text extraction from binary data
 function extractTextFromPDFBinary(pdfData: Uint8Array): string {
   const decoder = new TextDecoder('latin1');
@@ -29,7 +44,8 @@ function extractTextFromPDFBinary(pdfData: Uint8Array): string {
           .replace(/\\\(/g, '(')
           .replace(/\\\)/g, ')')
           .replace(/\\\\/g, '\\');
-        if (text.trim() && !/^[\x00-\x1F]+$/.test(text)) {
+        // Only keep text that has readable characters
+        if (text.trim() && /[A-Za-z]{2,}/.test(text)) {
           textParts.push(text);
         }
       }
@@ -43,7 +59,7 @@ function extractTextFromPDFBinary(pdfData: Uint8Array): string {
         if (innerMatches) {
           for (const inner of innerMatches) {
             const text = inner.slice(1, -1);
-            if (text.trim()) {
+            if (text.trim() && /[A-Za-z]{2,}/.test(text)) {
               textParts.push(text);
             }
           }
@@ -59,9 +75,9 @@ function extractTextFromPDFBinary(pdfData: Uint8Array): string {
     .trim();
   
   // If we couldn't extract much, try a simpler approach
-  if (result.length < 100) {
-    // Extract any readable ASCII text
-    const asciiText = pdfString.match(/[A-Za-z][A-Za-z0-9\s.,;:!?'"()-]{10,}/g);
+  if (!isReadableText(result)) {
+    // Extract any readable ASCII text sequences
+    const asciiText = pdfString.match(/[A-Za-z][A-Za-z0-9\s.,;:!?'"()-]{15,}/g);
     if (asciiText) {
       result = asciiText.join(' ');
     }
@@ -69,6 +85,12 @@ function extractTextFromPDFBinary(pdfData: Uint8Array): string {
   
   return result;
 }
+
+const FALLBACK_RESPONSE = `SUMMARY:
+- The PDF text could not be read.
+
+KEY POINTS:
+- Try uploading a clearer PDF.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -94,16 +116,11 @@ serve(async (req) => {
       }
     }
 
-    if (!extractedText || extractedText.trim().length < 50) {
+    // Check if text is empty, too short, or unreadable
+    if (!extractedText || extractedText.trim().length < 50 || !isReadableText(extractedText)) {
+      console.log(`PDF text unreadable or too short: ${extractedText.length} chars`);
       return new Response(
-        JSON.stringify({ 
-          summary: `SUMMARY:
-- The PDF text could not be fully extracted. The document may be scanned or image-based.
-
-KEY POINTS:
-- Try uploading a PDF with selectable text.
-- Scanned documents may not work well.`
-        }),
+        JSON.stringify({ summary: FALLBACK_RESPONSE }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
