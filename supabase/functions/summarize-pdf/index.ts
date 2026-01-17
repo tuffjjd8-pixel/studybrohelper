@@ -6,22 +6,103 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple PDF text extraction from binary data
+function extractTextFromPDFBinary(pdfData: Uint8Array): string {
+  const decoder = new TextDecoder('latin1');
+  const pdfString = decoder.decode(pdfData);
+  
+  // Extract text between stream markers
+  const streamRegex = /stream\s*([\s\S]*?)\s*endstream/g;
+  const textParts: string[] = [];
+  let match;
+  
+  while ((match = streamRegex.exec(pdfString)) !== null) {
+    const content = match[1];
+    // Try to extract readable text
+    const textMatches = content.match(/\(([^)]+)\)/g);
+    if (textMatches) {
+      for (const tm of textMatches) {
+        const text = tm.slice(1, -1)
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '')
+          .replace(/\\t/g, ' ')
+          .replace(/\\\(/g, '(')
+          .replace(/\\\)/g, ')')
+          .replace(/\\\\/g, '\\');
+        if (text.trim() && !/^[\x00-\x1F]+$/.test(text)) {
+          textParts.push(text);
+        }
+      }
+    }
+    
+    // Also try to extract text from TJ arrays
+    const tjMatches = content.match(/\[(.*?)\]\s*TJ/g);
+    if (tjMatches) {
+      for (const tj of tjMatches) {
+        const innerMatches = tj.match(/\(([^)]*)\)/g);
+        if (innerMatches) {
+          for (const inner of innerMatches) {
+            const text = inner.slice(1, -1);
+            if (text.trim()) {
+              textParts.push(text);
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Clean and join text
+  let result = textParts.join(' ')
+    .replace(/\s+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim();
+  
+  // If we couldn't extract much, try a simpler approach
+  if (result.length < 100) {
+    // Extract any readable ASCII text
+    const asciiText = pdfString.match(/[A-Za-z][A-Za-z0-9\s.,;:!?'"()-]{10,}/g);
+    if (asciiText) {
+      result = asciiText.join(' ');
+    }
+  }
+  
+  return result;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { pdfText, isPremium = false } = await req.json();
+    const { pdfBase64, pdfText, isPremium = false, fileName = 'document.pdf' } = await req.json();
 
-    if (!pdfText || pdfText.trim().length === 0) {
+    let extractedText = pdfText || '';
+    
+    // If we received base64 PDF data, extract text from it
+    if (pdfBase64 && !pdfText) {
+      try {
+        const binaryString = atob(pdfBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        extractedText = extractTextFromPDFBinary(bytes);
+      } catch (e) {
+        console.error('PDF extraction error:', e);
+      }
+    }
+
+    if (!extractedText || extractedText.trim().length < 50) {
       return new Response(
         JSON.stringify({ 
           summary: `SUMMARY:
-- The PDF text could not be read.
+- The PDF text could not be fully extracted. The document may be scanned or image-based.
 
 KEY POINTS:
-- Try uploading a clearer PDF.`
+- Try uploading a PDF with selectable text.
+- Scanned documents may not work well.`
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -94,9 +175,11 @@ NEVER DO THIS:
 
     // Truncate text if too long (keep under ~12k tokens worth)
     const maxChars = 40000;
-    const truncatedText = pdfText.length > maxChars 
-      ? pdfText.substring(0, maxChars) + "\n\n[Content truncated due to length]"
-      : pdfText;
+    const truncatedText = extractedText.length > maxChars 
+      ? extractedText.substring(0, maxChars) + "\n\n[Content truncated due to length]"
+      : extractedText;
+
+    console.log(`Processing PDF: ${fileName}, extracted ${extractedText.length} chars, isPremium: ${isPremium}`);
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -108,7 +191,7 @@ NEVER DO THIS:
         model: 'llama-3.3-70b-versatile',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Please summarize this PDF content:\n\n${truncatedText}` }
+          { role: 'user', content: `Please summarize this PDF content from "${fileName}":\n\n${truncatedText}` }
         ],
         temperature: 0.3,
         max_tokens: 2000,
