@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Upload, Loader2, Sparkles, AlertCircle, Crown } from "lucide-react";
+import { FileText, Upload, Loader2, Sparkles, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Header } from "@/components/layout/Header";
@@ -8,7 +8,6 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 
 interface Profile {
   is_premium: boolean;
@@ -18,16 +17,13 @@ interface Profile {
 
 export default function Summarize() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [extractedText, setExtractedText] = useState<string>("");
   const [summary, setSummary] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [extracting, setExtracting] = useState(false);
 
   // Fetch profile on mount
-  useState(() => {
+  useEffect(() => {
     if (user) {
       supabase
         .from("profiles")
@@ -38,7 +34,7 @@ export default function Summarize() {
           if (data) setProfile(data);
         });
     }
-  });
+  }, [user]);
 
   const isPremium = profile?.is_premium || false;
 
@@ -55,7 +51,6 @@ export default function Summarize() {
       }
       setFile(selectedFile);
       setSummary("");
-      setExtractedText("");
     }
   }, []);
 
@@ -73,32 +68,20 @@ export default function Summarize() {
       }
       setFile(droppedFile);
       setSummary("");
-      setExtractedText("");
     }
   }, []);
 
+  // Simple text extraction from PDF using basic parsing
   const extractTextFromPDF = async (pdfFile: File): Promise<string> => {
-    // Use PDF.js to extract text client-side
-    const pdfjsLib = await import("pdfjs-dist");
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-
+    // Convert file to base64 and send to edge function for parsing
     const arrayBuffer = await pdfFile.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    
-    let fullText = "";
-    const maxPages = 50; // Limit to first 50 pages
-    const numPages = Math.min(pdf.numPages, maxPages);
-
-    for (let i = 1; i <= numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(" ");
-      fullText += pageText + "\n\n";
-    }
-
-    return fullText.trim();
+    const base64 = btoa(
+      new Uint8Array(arrayBuffer).reduce(
+        (data, byte) => data + String.fromCharCode(byte),
+        ""
+      )
+    );
+    return base64;
   };
 
   const handleSummarize = async () => {
@@ -108,29 +91,17 @@ export default function Summarize() {
     }
 
     setLoading(true);
-    setExtracting(true);
     setSummary("");
 
     try {
-      // Step 1: Extract text from PDF
-      const text = await extractTextFromPDF(file);
-      setExtractedText(text);
-      setExtracting(false);
+      // Convert PDF to base64
+      const pdfBase64 = await extractTextFromPDF(file);
 
-      if (!text || text.length < 50) {
-        setSummary(`SUMMARY:
-- The PDF text could not be read or is too short.
-
-KEY POINTS:
-- Try uploading a clearer PDF with more text content.`);
-        setLoading(false);
-        return;
-      }
-
-      // Step 2: Send to edge function for summarization
+      // Send to edge function for extraction and summarization
       const { data, error } = await supabase.functions.invoke("summarize-pdf", {
         body: {
-          pdfText: text,
+          pdfBase64,
+          fileName: file.name,
           isPremium,
         },
       });
@@ -138,7 +109,7 @@ KEY POINTS:
       if (error) throw error;
 
       setSummary(data.summary || "Unable to generate summary.");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error summarizing PDF:", error);
       toast.error("Failed to summarize PDF. Please try again.");
       setSummary(`SUMMARY:
@@ -148,14 +119,12 @@ KEY POINTS:
 - Please try again with a different PDF.`);
     } finally {
       setLoading(false);
-      setExtracting(false);
     }
   };
 
   const handleClearFile = () => {
     setFile(null);
     setSummary("");
-    setExtractedText("");
   };
 
   return (
@@ -253,7 +222,7 @@ KEY POINTS:
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  {extracting ? "Extracting text..." : "Summarizing..."}
+                  Summarizing...
                 </>
               ) : (
                 <>
