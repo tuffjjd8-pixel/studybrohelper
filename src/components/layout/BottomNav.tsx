@@ -1,4 +1,4 @@
-import { Home, Clock, User, Sparkles, FileText } from "lucide-react";
+import { Home, Clock, User, Sparkles, FileText, BarChart3 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
 const navItems = [
@@ -6,6 +6,7 @@ const navItems = [
   { icon: Clock, label: "History", path: "/history" },
   { icon: Sparkles, label: "Quiz", path: "/quiz" },
   { icon: FileText, label: "Summarize", path: "/summarize" },
+  { icon: BarChart3, label: "Poll", path: "/polls" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
 
