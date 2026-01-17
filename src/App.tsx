@@ -14,6 +14,7 @@ import Chat from "./pages/Chat";
 import Quiz from "./pages/Quiz";
 import Settings from "./pages/Settings";
 import Polls from "./pages/Polls";
+import Summarize from "./pages/Summarize";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/quiz" element={<Quiz />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/polls" element={<Polls />} />
+            <Route path="/summarize" element={<Summarize />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
