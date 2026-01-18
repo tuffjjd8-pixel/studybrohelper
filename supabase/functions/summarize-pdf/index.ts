@@ -41,18 +41,32 @@ function getGroqApiKey(): string {
 }
 
 // Check if text is readable (not mostly symbols/garbage)
+// Only returns false when:
+// - text is null/undefined
+// - text is extremely short (< 20 chars after trimming)
+// - text is only whitespace/symbols (no actual letters)
 function isReadableText(text: string): boolean {
-  if (!text || text.length < 20) return false;
+  // Null/undefined check
+  if (text === null || text === undefined) return false;
   
-  // Count readable characters (letters, numbers, common punctuation, spaces)
-  const readableChars = text.match(/[A-Za-z0-9\s.,;:!?'"()\-]/g) || [];
-  const readableRatio = readableChars.length / text.length;
+  const trimmed = text.trim();
   
-  // Count actual words (3+ letter sequences)
-  const words = text.match(/[A-Za-z]{3,}/g) || [];
+  // Too short
+  if (trimmed.length < 20) return false;
   
-  // Text is readable if >60% readable chars AND has at least 10 words
-  return readableRatio > 0.6 && words.length >= 10;
+  // Check if it contains only whitespace or symbols (no letters at all)
+  const hasLetters = /[A-Za-z]/.test(trimmed);
+  if (!hasLetters) return false;
+  
+  // If we have at least some letters, consider it readable
+  // Count letter characters
+  const letterCount = (trimmed.match(/[A-Za-z]/g) || []).length;
+  
+  // If less than 5% of the text is letters, it's probably garbage
+  const letterRatio = letterCount / trimmed.length;
+  if (letterRatio < 0.05) return false;
+  
+  return true;
 }
 
 // Simple PDF text extraction from binary data
@@ -151,8 +165,10 @@ serve(async (req) => {
     }
 
     // Check if text is empty, too short, or unreadable
-    if (!extractedText || extractedText.trim().length < 50 || !isReadableText(extractedText)) {
-      console.log(`PDF text unreadable or too short: ${extractedText.length} chars`);
+    // Only trigger fallback when text is truly unreadable
+    const trimmedText = extractedText?.trim() || '';
+    if (!isReadableText(trimmedText)) {
+      console.log(`PDF text unreadable: length=${trimmedText.length}, original=${extractedText?.length || 0}`);
       return new Response(
         JSON.stringify({ summary: FALLBACK_RESPONSE }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
