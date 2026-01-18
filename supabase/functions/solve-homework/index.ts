@@ -9,12 +9,40 @@ const corsHeaders = {
 // ============================================================
 // MODEL CONFIGURATION
 // Vision model for images: "meta-llama/llama-4-scout-17b-16e-instruct" (Groq)
-// Text model for text-only: "llama-3.3-70b-versatile" (Groq) - Best quality
+// Text model for text-only: "llama-3.3-70b-versatile" (Groq) - Heavy reasoning
 // Graph model: LLaMA 3.3 70B via OpenRouter (free tier, structured JSON)
+// Primary API Key: GROQ_API_KEY (with backup fallback)
 // ============================================================
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const GROQ_TEXT_MODEL = "llama-3.3-70b-versatile";
 const OPENROUTER_GRAPH_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+
+// Get API key with fallback support
+function getGroqApiKey(): string {
+  const primaryKey = Deno.env.get("GROQ_API_KEY");
+  if (primaryKey) return primaryKey;
+  
+  // Fallback keys in order
+  const backupKeys = [
+    "GROQ_API_KEY_BACKUP",
+    "GROQ_API_KEY_1",
+    "GROQ_API_KEY_2",
+    "GROQ_API_KEY_3",
+    "GROQ_API_KEY_4",
+    "GROQ_API_KEY_5",
+    "GROQ_API_KEY_6",
+  ];
+  
+  for (const keyName of backupKeys) {
+    const key = Deno.env.get(keyName);
+    if (key) {
+      console.log(`Using fallback key: ${keyName}`);
+      return key;
+    }
+  }
+  
+  throw new Error("No GROQ API key configured");
+}
 
 // ============================================================
 // TIER LIMITS
@@ -241,10 +269,7 @@ async function callGroqText(
   isPremium: boolean,
   animatedSteps: boolean
 ): Promise<string> {
-  const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-  if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY is not configured");
-  }
+  const GROQ_API_KEY = getGroqApiKey();
 
   let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
@@ -296,10 +321,7 @@ async function callGroqVision(
   isPremium: boolean,
   animatedSteps: boolean
 ): Promise<string> {
-  const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-  if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY is not configured");
-  }
+  const GROQ_API_KEY = getGroqApiKey();
 
   let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   

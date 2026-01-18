@@ -5,6 +5,40 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ============================================================
+// MODEL CONFIGURATION
+// Quiz Generator uses llama-3.3-70b-versatile for heavy reasoning
+// Primary API Key: GROQ_API_KEY_1 (with fallback)
+// ============================================================
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+// Get API key with fallback support
+function getGroqApiKey(): string {
+  // Primary key for quiz generator
+  const primaryKey = Deno.env.get("GROQ_API_KEY_1");
+  if (primaryKey) return primaryKey;
+  
+  console.log("GROQ_API_KEY_1 not found, trying fallbacks...");
+  
+  // Fallback keys in order
+  const backupKeys = [
+    "GROQ_API_KEY",
+    "GROQ_API_KEY_BACKUP",
+    "GROQ_API_KEY_2",
+    "GROQ_API_KEY_3",
+  ];
+  
+  for (const keyName of backupKeys) {
+    const key = Deno.env.get(keyName);
+    if (key) {
+      console.log(`Using fallback key: ${keyName}`);
+      return key;
+    }
+  }
+  
+  throw new Error("No GROQ API key configured");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -20,8 +54,11 @@ serve(async (req) => {
       );
     }
 
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || Deno.env.get("GROQ_API_KEY_BACKUP");
-    if (!GROQ_API_KEY) {
+    let GROQ_API_KEY: string;
+    try {
+      GROQ_API_KEY = getGroqApiKey();
+    } catch (e) {
+      console.error("API key error:", e);
       return new Response(
         JSON.stringify({ error: "GROQ_API_KEY not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -62,6 +99,8 @@ OUTPUT FORMAT:
 
 Return ONLY the JSON array.`;
 
+    console.log(`Quiz generation request - model: ${GROQ_MODEL}, strictCountMode: ${strictCountMode}, questionCount: ${questionCount}`);
+
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -69,7 +108,7 @@ Return ONLY the JSON array.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: GROQ_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: conversationText },

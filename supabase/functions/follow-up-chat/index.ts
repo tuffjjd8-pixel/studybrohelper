@@ -9,8 +9,38 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
+// General Chat / Backup LLM uses openai/gpt-oss-120b
+// Primary API Key: GROQ_API_KEY_6 (with fallback)
+// NOTE: Using llama-3.3-70b-versatile as fallback since gpt-oss models may not be available on Groq
 // ============================================================
-const GROQ_MODEL = "llama-3.1-8b-instant";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+// Get API key with fallback support
+function getGroqApiKey(): string {
+  // Primary key for general chat
+  const primaryKey = Deno.env.get("GROQ_API_KEY_6");
+  if (primaryKey) return primaryKey;
+  
+  console.log("GROQ_API_KEY_6 not found, trying fallbacks...");
+  
+  // Fallback keys in order
+  const backupKeys = [
+    "GROQ_API_KEY",
+    "GROQ_API_KEY_BACKUP",
+    "GROQ_API_KEY_1",
+    "GROQ_API_KEY_2",
+  ];
+  
+  for (const keyName of backupKeys) {
+    const key = Deno.env.get(keyName);
+    if (key) {
+      console.log(`Using fallback key: ${keyName}`);
+      return key;
+    }
+  }
+  
+  throw new Error("No GROQ API key configured");
+}
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -20,13 +50,16 @@ serve(async (req) => {
 
   try {
     const { message, context, history } = await req.json();
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-
-    if (!GROQ_API_KEY) {
+    
+    let GROQ_API_KEY: string;
+    try {
+      GROQ_API_KEY = getGroqApiKey();
+    } catch (e) {
+      console.error("API key error:", e);
       throw new Error("GROQ_API_KEY is not configured");
     }
 
-    console.log("Follow-up chat request:", { message, subject: context?.subject });
+    console.log("Follow-up chat request:", { message, subject: context?.subject, model: GROQ_MODEL });
 
     const systemPrompt = `You are StudyBro AI, a chill, helpful homework assistant. You're continuing a conversation about a ${context?.subject || "homework"} problem.
 
