@@ -6,6 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============================================================
+// MODEL CONFIGURATION
+// Speech-to-Text uses whisper-large-v3-turbo
+// Primary API Key: GROQ_API_KEY_5 (with fallback)
+// ============================================================
+const WHISPER_MODEL = "whisper-large-v3-turbo";
+
 async function transcribeWithGroq(
   audioBlob: Blob, 
   apiKey: string,
@@ -14,7 +21,7 @@ async function transcribeWithGroq(
 ): Promise<{ text: string }> {
   const formData = new FormData();
   formData.append('file', audioBlob, 'audio.webm');
-  formData.append('model', 'whisper-large-v3');
+  formData.append('model', WHISPER_MODEL);
   
   // If translating, use the translation endpoint
   // Otherwise use transcription with optional language hint
@@ -82,37 +89,39 @@ serve(async (req) => {
     
     const audioBlob = new Blob([bytes.buffer], { type: 'audio/webm' });
 
-    // Try primary API key first
-    const primaryKey = Deno.env.get('GROQ_API_KEY');
-    const backupKey = Deno.env.get('GROQ_API_KEY_BACKUP');
+    // API keys in priority order for speech-to-text
+    const apiKeys = [
+      { name: 'GROQ_API_KEY_5', key: Deno.env.get('GROQ_API_KEY_5') },
+      { name: 'GROQ_API_KEY', key: Deno.env.get('GROQ_API_KEY') },
+      { name: 'GROQ_API_KEY_BACKUP', key: Deno.env.get('GROQ_API_KEY_BACKUP') },
+      { name: 'GROQ_API_KEY_6', key: Deno.env.get('GROQ_API_KEY_6') },
+    ].filter(k => k.key);
+
+    if (apiKeys.length === 0) {
+      throw new Error('No GROQ API key configured');
+    }
 
     let result;
-    let usedBackup = false;
+    let usedKey = '';
+    let lastError: Error | null = null;
     
-    try {
-      if (!primaryKey) {
-        throw new Error('Primary API key not configured');
-      }
-      result = await transcribeWithGroq(audioBlob, primaryKey, language, mode);
-    } catch (primaryError) {
-      console.error('Primary GROQ key failed:', primaryError);
-      
-      // Try backup key for any error (rate limit, auth issues, etc.)
-      if (backupKey) {
-        console.log('Attempting with backup GROQ key...');
-        try {
-          result = await transcribeWithGroq(audioBlob, backupKey, language, mode);
-          usedBackup = true;
-        } catch (backupError) {
-          console.error('Backup GROQ key also failed:', backupError);
-          throw primaryError; // Throw original error if backup also fails
-        }
-      } else {
-        throw primaryError;
+    for (const { name, key } of apiKeys) {
+      try {
+        console.log(`Trying transcription with ${name}...`);
+        result = await transcribeWithGroq(audioBlob, key!, language, mode);
+        usedKey = name;
+        break;
+      } catch (error) {
+        console.error(`${name} failed:`, error);
+        lastError = error instanceof Error ? error : new Error(String(error));
       }
     }
 
-    console.log(`Transcription successful${usedBackup ? ' (using backup key)' : ''}`);
+    if (!result) {
+      throw lastError || new Error('All API keys failed');
+    }
+
+    console.log(`Transcription successful using ${usedKey}, model: ${WHISPER_MODEL}`);
 
     return new Response(
       JSON.stringify({ text: result.text }),

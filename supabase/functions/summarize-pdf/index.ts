@@ -6,6 +6,41 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============================================================
+// MODEL CONFIGURATION
+// PDF Summarizer uses llama-3.3-70b-versatile for light reasoning/summarization
+// Primary API Key: GROQ_API_KEY_3 (with fallback)
+// NOTE: Using llama model since gpt-oss models may not be available on Groq
+// ============================================================
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+// Get API key with fallback support
+function getGroqApiKey(): string {
+  // Primary key for PDF summarizer
+  const primaryKey = Deno.env.get("GROQ_API_KEY_3");
+  if (primaryKey) return primaryKey;
+  
+  console.log("GROQ_API_KEY_3 not found, trying fallbacks...");
+  
+  // Fallback keys in order
+  const backupKeys = [
+    "GROQ_API_KEY",
+    "GROQ_API_KEY_BACKUP",
+    "GROQ_API_KEY_4",
+    "GROQ_API_KEY_5",
+  ];
+  
+  for (const keyName of backupKeys) {
+    const key = Deno.env.get(keyName);
+    if (key) {
+      console.log(`Using fallback key: ${keyName}`);
+      return key;
+    }
+  }
+  
+  throw new Error("No GROQ API key configured");
+}
+
 // Check if text is readable (not mostly symbols/garbage)
 function isReadableText(text: string): boolean {
   if (!text || text.length < 20) return false;
@@ -125,9 +160,11 @@ serve(async (req) => {
       );
     }
 
-    const groqApiKey = Deno.env.get('GROQ_API_KEY') || Deno.env.get('GROQ_API_KEY_BACKUP');
-    
-    if (!groqApiKey) {
+    let groqApiKey: string;
+    try {
+      groqApiKey = getGroqApiKey();
+    } catch (e) {
+      console.error("API key error:", e);
       throw new Error('GROQ_API_KEY not configured');
     }
 
@@ -196,7 +233,7 @@ NEVER DO THIS:
       ? extractedText.substring(0, maxChars) + "\n\n[Content truncated due to length]"
       : extractedText;
 
-    console.log(`Processing PDF: ${fileName}, extracted ${extractedText.length} chars, isPremium: ${isPremium}`);
+    console.log(`Processing PDF: ${fileName}, extracted ${extractedText.length} chars, isPremium: ${isPremium}, model: ${GROQ_MODEL}`);
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -205,7 +242,7 @@ NEVER DO THIS:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: GROQ_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Please summarize this PDF content from "${fileName}":\n\n${truncatedText}` }
