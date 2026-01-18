@@ -11,9 +11,8 @@ const corsHeaders = {
 // MODEL CONFIGURATION
 // General Chat / Backup LLM uses openai/gpt-oss-120b
 // Primary API Key: GROQ_API_KEY_6 (with fallback)
-// NOTE: Using llama-3.3-70b-versatile as fallback since gpt-oss models may not be available on Groq
 // ============================================================
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 
 // Get API key with fallback support
 function getGroqApiKey(): string {

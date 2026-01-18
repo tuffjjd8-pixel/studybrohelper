@@ -8,11 +8,10 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// PDF Summarizer uses llama-3.3-70b-versatile for light reasoning/summarization
+// PDF Summarizer uses openai/gpt-oss-20b for light reasoning/summarization
 // Primary API Key: GROQ_API_KEY_3 (with fallback)
-// NOTE: Using llama model since gpt-oss models may not be available on Groq
 // ============================================================
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-20b";
 
 // Get API key with fallback support
 function getGroqApiKey(): string {
