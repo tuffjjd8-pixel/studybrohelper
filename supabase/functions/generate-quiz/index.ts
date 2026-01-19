@@ -8,35 +8,98 @@ const corsHeaders = {
 // ============================================================
 // MODEL CONFIGURATION
 // Quiz Generator uses llama-3.3-70b-versatile for heavy reasoning
-// Primary API Key: GROQ_API_KEY_1 (with fallback)
+// Uses 7-key fallback rotation for high availability
 // ============================================================
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 
-// Get API key with fallback support
-function getGroqApiKey(): string {
-  // Primary key for quiz generator
-  const primaryKey = Deno.env.get("GROQ_API_KEY_1");
-  if (primaryKey) return primaryKey;
+// All available Groq API keys in priority order
+const API_KEY_NAMES = [
+  "GROQ_API_KEY",
+  "GROQ_API_KEY_1",
+  "GROQ_API_KEY_2",
+  "GROQ_API_KEY_3",
+  "GROQ_API_KEY_4",
+  "GROQ_API_KEY_5",
+  "GROQ_API_KEY_6",
+  "GROQ_API_KEY_BACKUP",
+];
+
+// Get all available API keys
+function getAvailableApiKeys(): Array<{ name: string; key: string }> {
+  const keys: Array<{ name: string; key: string }> = [];
   
-  console.log("GROQ_API_KEY_1 not found, trying fallbacks...");
-  
-  // Fallback keys in order
-  const backupKeys = [
-    "GROQ_API_KEY",
-    "GROQ_API_KEY_BACKUP",
-    "GROQ_API_KEY_2",
-    "GROQ_API_KEY_3",
-  ];
-  
-  for (const keyName of backupKeys) {
+  for (const keyName of API_KEY_NAMES) {
     const key = Deno.env.get(keyName);
     if (key) {
-      console.log(`Using fallback key: ${keyName}`);
-      return key;
+      keys.push({ name: keyName, key });
     }
   }
   
-  throw new Error("No GROQ API key configured");
+  if (keys.length === 0) {
+    throw new Error("No GROQ API key configured");
+  }
+  
+  return keys;
+}
+
+// Call Groq API with fallback key rotation
+async function callGroqWithFallback(systemPrompt: string, conversationText: string): Promise<string> {
+  const apiKeys = getAvailableApiKeys();
+  let lastError: Error | null = null;
+  
+  for (const { name, key } of apiKeys) {
+    try {
+      console.log(`Trying ${name} for quiz generation...`);
+      
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: conversationText },
+          ],
+          temperature: 0.3,
+          max_tokens: 4000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`${name} failed:`, response.status, errorText);
+        
+        // If rate limited, try next key
+        if (response.status === 429) {
+          lastError = new Error(`Rate limit exceeded on ${name}`);
+          continue;
+        }
+        
+        throw new Error(`Groq API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      
+      if (!content) {
+        throw new Error("No content from model");
+      }
+      
+      console.log(`Quiz generated successfully using ${name}`);
+      return content;
+      
+    } catch (error) {
+      console.error(`${name} error:`, error);
+      lastError = error instanceof Error ? error : new Error(String(error));
+      // Continue to next key
+    }
+  }
+  
+  // All keys failed
+  throw lastError || new Error("All API keys failed");
 }
 
 serve(async (req) => {
@@ -51,17 +114,6 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "conversationText is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    let GROQ_API_KEY: string;
-    try {
-      GROQ_API_KEY = getGroqApiKey();
-    } catch (e) {
-      console.error("API key error:", e);
-      return new Response(
-        JSON.stringify({ error: "GROQ_API_KEY not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -101,41 +153,8 @@ Return ONLY the JSON array.`;
 
     console.log(`Quiz generation request - model: ${GROQ_MODEL}, strictCountMode: ${strictCountMode}, questionCount: ${questionCount}`);
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: conversationText },
-        ],
-        temperature: 0.3,
-        max_tokens: 4000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Groq API error:", response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: "Quiz generation failed" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      return new Response(
-        JSON.stringify({ error: "No content from model" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Call Groq API with fallback rotation
+    const content = await callGroqWithFallback(systemPrompt, conversationText);
 
     // Parse the JSON response
     let quiz;

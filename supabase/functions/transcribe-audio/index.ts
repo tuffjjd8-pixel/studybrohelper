@@ -9,9 +9,39 @@ const corsHeaders = {
 // ============================================================
 // MODEL CONFIGURATION
 // Speech-to-Text uses whisper-large-v3-turbo
-// Primary API Key: GROQ_API_KEY_5 (with fallback)
+// Uses 7-key fallback rotation for high availability
 // ============================================================
 const WHISPER_MODEL = "whisper-large-v3-turbo";
+
+// All available Groq API keys in priority order
+const API_KEY_NAMES = [
+  "GROQ_API_KEY",
+  "GROQ_API_KEY_1",
+  "GROQ_API_KEY_2",
+  "GROQ_API_KEY_3",
+  "GROQ_API_KEY_4",
+  "GROQ_API_KEY_5",
+  "GROQ_API_KEY_6",
+  "GROQ_API_KEY_BACKUP",
+];
+
+// Get all available API keys
+function getAvailableApiKeys(): Array<{ name: string; key: string }> {
+  const keys: Array<{ name: string; key: string }> = [];
+  
+  for (const keyName of API_KEY_NAMES) {
+    const key = Deno.env.get(keyName);
+    if (key) {
+      keys.push({ name: keyName, key });
+    }
+  }
+  
+  if (keys.length === 0) {
+    throw new Error("No GROQ API key configured");
+  }
+  
+  return keys;
+}
 
 async function transcribeWithGroq(
   audioBlob: Blob, 
@@ -89,17 +119,8 @@ serve(async (req) => {
     
     const audioBlob = new Blob([bytes.buffer], { type: 'audio/webm' });
 
-    // API keys in priority order for speech-to-text
-    const apiKeys = [
-      { name: 'GROQ_API_KEY_5', key: Deno.env.get('GROQ_API_KEY_5') },
-      { name: 'GROQ_API_KEY', key: Deno.env.get('GROQ_API_KEY') },
-      { name: 'GROQ_API_KEY_BACKUP', key: Deno.env.get('GROQ_API_KEY_BACKUP') },
-      { name: 'GROQ_API_KEY_6', key: Deno.env.get('GROQ_API_KEY_6') },
-    ].filter(k => k.key);
-
-    if (apiKeys.length === 0) {
-      throw new Error('No GROQ API key configured');
-    }
+    // Get all available API keys for fallback rotation
+    const apiKeys = getAvailableApiKeys();
 
     let result;
     let usedKey = '';
@@ -108,7 +129,7 @@ serve(async (req) => {
     for (const { name, key } of apiKeys) {
       try {
         console.log(`Trying transcription with ${name}...`);
-        result = await transcribeWithGroq(audioBlob, key!, language, mode);
+        result = await transcribeWithGroq(audioBlob, key, language, mode);
         usedKey = name;
         break;
       } catch (error) {
