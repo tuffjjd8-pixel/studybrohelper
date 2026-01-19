@@ -242,11 +242,21 @@ NEVER DO THIS:
 - Never say "I don't know"
 - Never add information not in the PDF`;
 
-    // Truncate text if too long (keep under ~12k tokens worth)
-    const maxChars = 40000;
-    const truncatedText = extractedText.length > maxChars 
-      ? extractedText.substring(0, maxChars) + "\n\n[Content truncated due to length]"
-      : extractedText;
+    // Truncate text if too long
+    // openai/gpt-oss-20b has an 8k token limit, so we need to keep text reasonable
+    // ~4 chars per token average, system prompt is ~500 tokens, leaving ~6k tokens for content
+    // 6000 tokens * 4 chars = 24000 chars max for safe processing
+    const maxChars = 24000;
+    let truncatedText = extractedText;
+    
+    if (extractedText.length > maxChars) {
+      // For very long PDFs, take beginning and end to capture intro and conclusion
+      const halfMax = Math.floor(maxChars / 2);
+      const beginning = extractedText.substring(0, halfMax);
+      const ending = extractedText.substring(extractedText.length - halfMax);
+      truncatedText = beginning + "\n\n[... content truncated for length ...]\n\n" + ending;
+      console.log(`Text truncated from ${extractedText.length} to ${truncatedText.length} chars`);
+    }
 
     console.log(`Processing PDF: ${fileName}, extracted ${extractedText.length} chars, isPremium: ${isPremium}, model: ${GROQ_MODEL}`);
 
