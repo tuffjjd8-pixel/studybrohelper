@@ -8,37 +8,9 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// PDF Summarizer uses openai/gpt-oss-20b for light reasoning/summarization
-// Primary API Key: GROQ_API_KEY_3 (with fallback)
+// PDF Summarizer uses OpenRouter with LLaMA 3.3 70B Instruct (free tier)
 // ============================================================
-const GROQ_MODEL = "openai/gpt-oss-20b";
-
-// Get API key with fallback support
-function getGroqApiKey(): string {
-  // Primary key for PDF summarizer
-  const primaryKey = Deno.env.get("GROQ_API_KEY_3");
-  if (primaryKey) return primaryKey;
-  
-  console.log("GROQ_API_KEY_3 not found, trying fallbacks...");
-  
-  // Fallback keys in order
-  const backupKeys = [
-    "GROQ_API_KEY",
-    "GROQ_API_KEY_BACKUP",
-    "GROQ_API_KEY_4",
-    "GROQ_API_KEY_5",
-  ];
-  
-  for (const keyName of backupKeys) {
-    const key = Deno.env.get(keyName);
-    if (key) {
-      console.log(`Using fallback key: ${keyName}`);
-      return key;
-    }
-  }
-  
-  throw new Error("No GROQ API key configured");
-}
+const OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 // Check if text is readable (not mostly symbols/garbage)
 // Only returns false when:
@@ -175,12 +147,11 @@ serve(async (req) => {
       );
     }
 
-    let groqApiKey: string;
-    try {
-      groqApiKey = getGroqApiKey();
-    } catch (e) {
-      console.error("API key error:", e);
-      throw new Error('GROQ_API_KEY not configured');
+    // Get OpenRouter API key
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) {
+      console.error("OPENROUTER_API_KEY not configured");
+      throw new Error('OPENROUTER_API_KEY not configured');
     }
 
     const systemPrompt = `You are the PDF Summarizer for StudyBro.
@@ -243,10 +214,9 @@ NEVER DO THIS:
 - Never add information not in the PDF`;
 
     // Truncate text if too long
-    // openai/gpt-oss-20b has an 8k token limit, so we need to keep text reasonable
-    // ~4 chars per token average, system prompt is ~500 tokens, leaving ~6k tokens for content
-    // 6000 tokens * 4 chars = 24000 chars max for safe processing
-    const maxChars = 24000;
+    // LLaMA 3.3 70B has good context length, but keep reasonable for performance
+    // ~100k tokens available, using ~80k chars for content to be safe
+    const maxChars = 80000;
     let truncatedText = extractedText;
     
     if (extractedText.length > maxChars) {
@@ -258,33 +228,38 @@ NEVER DO THIS:
       console.log(`Text truncated from ${extractedText.length} to ${truncatedText.length} chars`);
     }
 
-    console.log(`Processing PDF: ${fileName}, extracted ${extractedText.length} chars, isPremium: ${isPremium}, model: ${GROQ_MODEL}`);
+    console.log(`Processing PDF: ${fileName}, extracted ${extractedText.length} chars, isPremium: ${isPremium}, model: ${OPENROUTER_MODEL}`);
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    // Call OpenRouter API
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${groqApiKey}`,
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://studybrohelper.lovable.app',
+        'X-Title': 'StudyBro PDF Summarizer',
       },
       body: JSON.stringify({
-        model: GROQ_MODEL,
+        model: OPENROUTER_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Please summarize this PDF content from "${fileName}":\n\n${truncatedText}` }
         ],
         temperature: 0.3,
-        max_tokens: 2000,
+        max_tokens: 4000,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('Groq API error:', errorData);
-      throw new Error(`Groq API error: ${response.status}`);
+      console.error('OpenRouter API error:', response.status, errorData);
+      throw new Error(`OpenRouter API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const summary = data.choices[0]?.message?.content || 'Unable to generate summary.';
+    const summary = data.choices?.[0]?.message?.content || 'Unable to generate summary.';
+
+    console.log(`PDF summary generated successfully using ${OPENROUTER_MODEL}`);
 
     return new Response(
       JSON.stringify({ summary }),
