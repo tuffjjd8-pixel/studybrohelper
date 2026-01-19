@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { conversationText, questionCount = 5, subject, strictCountMode = true } = await req.json();
+    const { conversationText, questionCount = 5, subject } = await req.json();
 
     if (!conversationText) {
       return new Response(
@@ -28,29 +28,9 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = strictCountMode 
-      ? `Generate EXACTLY ${questionCount} multiple-choice questions based on the provided content.
+    const systemPrompt = `Generate exactly ${questionCount} multiple-choice questions based on the provided content.
 
-STRICT COUNT MODE IS ON:
-- You MUST generate exactly ${questionCount} questions, no more, no less
-- If the conversation doesn't have enough information, expand using well-known, factual, widely accepted information related to the topic
-- Do NOT invent fake facts or hallucinate. Only use verifiable, commonly known information to expand
-- Each question must have exactly 4 options labeled A, B, C, D
-- Include the correct answer letter (A, B, C, or D)
-- Include a SHORT explanation (1-2 sentences max) for why the answer is correct
-- Return ONLY valid JSON array, no markdown, no extra text
-- Subject context: ${subject || "general"}
-
-OUTPUT FORMAT:
-[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"answer":"A","explanation":"Short explanation here."}]
-
-Return ONLY the JSON array.`
-      : `Generate multiple-choice questions based on the provided content.
-
-ADAPTIVE MODE (Strict Count OFF):
-- Target: ${questionCount} questions, but only if the content supports it
-- If the conversation is too short or limited, generate FEWER questions rather than making things up
-- Do NOT hallucinate or invent information. Only create questions from what's actually in the content
+RULES:
 - Each question must have exactly 4 options labeled A, B, C, D
 - Include the correct answer letter (A, B, C, or D)
 - Include a SHORT explanation (1-2 sentences max) for why the answer is correct

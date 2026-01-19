@@ -50,7 +50,6 @@ const Quiz = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSolve, setSelectedSolve] = useState<Solve | null>(null);
   const [questionCount, setQuestionCount] = useState<string>("");
-  const [strictCountMode, setStrictCountMode] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [quizResult, setQuizResult] = useState<QuizQuestion[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -146,7 +145,6 @@ const Quiz = () => {
           conversationText,
           questionCount: validCount,
           subject: selectedSolve.subject,
-          strictCountMode,
         },
       });
 
@@ -361,23 +359,6 @@ const Quiz = () => {
                 <p className="text-xs text-muted-foreground">
                   Leave empty for default (5 questions)
                 </p>
-              </div>
-
-              {/* Strict Count Mode Toggle */}
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg mb-6">
-                <div className="space-y-0.5">
-                  <Label htmlFor="strict-count" className="text-sm font-medium">Strict Count Mode</Label>
-                  <p className="text-xs text-muted-foreground">
-                    {strictCountMode 
-                      ? "Always generate the exact number of questions requested" 
-                      : "Generate only what the conversation supports"}
-                  </p>
-                </div>
-                <Switch
-                  id="strict-count"
-                  checked={strictCountMode}
-                  onCheckedChange={setStrictCountMode}
-                />
               </div>
 
               {/* Generate Button */}
