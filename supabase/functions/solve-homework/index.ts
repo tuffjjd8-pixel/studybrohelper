@@ -9,43 +9,12 @@ const corsHeaders = {
 // ============================================================
 // MODEL CONFIGURATION
 // Vision model for images: "meta-llama/llama-4-scout-17b-16e-instruct" (Groq)
-// Text model for text-only: "llama-3.3-70b-versatile" (Groq) - Heavy reasoning
+// Text model for text-only: "llama-3.3-70b-versatile" (Groq) - Best quality
 // Graph model: LLaMA 3.3 70B via OpenRouter (free tier, structured JSON)
-// Uses 7-key fallback rotation for high availability
 // ============================================================
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const GROQ_TEXT_MODEL = "llama-3.3-70b-versatile";
 const OPENROUTER_GRAPH_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
-
-// All available Groq API keys in priority order
-const API_KEY_NAMES = [
-  "GROQ_API_KEY",
-  "GROQ_API_KEY_1",
-  "GROQ_API_KEY_2",
-  "GROQ_API_KEY_3",
-  "GROQ_API_KEY_4",
-  "GROQ_API_KEY_5",
-  "GROQ_API_KEY_6",
-  "GROQ_API_KEY_BACKUP",
-];
-
-// Get all available API keys
-function getAvailableApiKeys(): Array<{ name: string; key: string }> {
-  const keys: Array<{ name: string; key: string }> = [];
-  
-  for (const keyName of API_KEY_NAMES) {
-    const key = Deno.env.get(keyName);
-    if (key) {
-      keys.push({ name: keyName, key });
-    }
-  }
-  
-  if (keys.length === 0) {
-    throw new Error("No GROQ API key configured");
-  }
-  
-  return keys;
-}
 
 // ============================================================
 // TIER LIMITS
@@ -266,13 +235,16 @@ async function callOpenRouterGraph(question: string): Promise<string> {
   return data.choices?.[0]?.message?.content || "{}";
 }
 
-// Call Groq API for text-only input with fallback rotation
+// Call Groq API for text-only input
 async function callGroqText(
   question: string, 
   isPremium: boolean,
   animatedSteps: boolean
 ): Promise<string> {
-  const apiKeys = getAvailableApiKeys();
+  const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+  if (!GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY is not configured");
+  }
 
   let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
@@ -284,61 +256,39 @@ async function callGroqText(
   
   console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
-  let lastError: Error | null = null;
-  
-  for (const { name, key } of apiKeys) {
-    try {
-      console.log(`Trying ${name} for text completion...`);
-      
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: GROQ_TEXT_MODEL,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: question }
-          ],
-          temperature: isPremium ? 0.5 : 0.7,
-          max_tokens: isPremium ? 8192 : 4096,
-        }),
-      });
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: GROQ_TEXT_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question }
+      ],
+      temperature: isPremium ? 0.5 : 0.7,
+      max_tokens: isPremium ? 8192 : 4096,
+    }),
+  });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`${name} failed:`, response.status, errorText);
-        
-        if (response.status === 429) {
-          lastError = new Error(`Rate limit exceeded on ${name}`);
-          continue;
-        }
-        
-        throw new Error(`Groq API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-      
-      if (!content) {
-        throw new Error("No response content");
-      }
-      
-      console.log(`Text completion successful using ${name}`);
-      return content;
-      
-    } catch (error) {
-      console.error(`${name} error:`, error);
-      lastError = error instanceof Error ? error : new Error(String(error));
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Groq Text API error:", response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error("Rate limit exceeded. Please try again in a moment.");
     }
+    
+    throw new Error(`Groq API error: ${response.status}`);
   }
-  
-  throw lastError || new Error("All API keys failed");
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
 }
 
-// Call Groq API for image input (Vision model) with fallback rotation
+// Call Groq API for image input (Vision model) - Enhanced OCR for premium
 async function callGroqVision(
   question: string, 
   imageBase64: string, 
@@ -346,7 +296,10 @@ async function callGroqVision(
   isPremium: boolean,
   animatedSteps: boolean
 ): Promise<string> {
-  const apiKeys = getAvailableApiKeys();
+  const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+  if (!GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY is not configured");
+  }
 
   let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
@@ -371,69 +324,47 @@ async function callGroqVision(
   
   console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
-  let lastError: Error | null = null;
-  
-  for (const { name, key } of apiKeys) {
-    try {
-      console.log(`Trying ${name} for vision completion...`);
-      
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: GROQ_VISION_MODEL,
-          messages: [
-            { role: "system", content: systemPrompt },
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: GROQ_VISION_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: textContent },
             {
-              role: "user",
-              content: [
-                { type: "text", text: textContent },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:${mimeType};base64,${imageBase64}`
-                  }
-                }
-              ]
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${imageBase64}`
+              }
             }
-          ],
-          temperature: isPremium ? 0.5 : 0.7,
-          max_tokens: isPremium ? 8192 : 4096,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`${name} failed:`, response.status, errorText);
-        
-        if (response.status === 429) {
-          lastError = new Error(`Rate limit exceeded on ${name}`);
-          continue;
+          ]
         }
-        
-        throw new Error(`Groq API error: ${response.status}`);
-      }
+      ],
+      temperature: isPremium ? 0.5 : 0.7,
+      max_tokens: isPremium ? 8192 : 4096,
+    }),
+  });
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-      
-      if (!content) {
-        throw new Error("No response content");
-      }
-      
-      console.log(`Vision completion successful using ${name}`);
-      return content;
-      
-    } catch (error) {
-      console.error(`${name} error:`, error);
-      lastError = error instanceof Error ? error : new Error(String(error));
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Groq Vision API error:", response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error("Rate limit exceeded. Please try again in a moment.");
     }
+    
+    throw new Error(`Groq API error: ${response.status}`);
   }
-  
-  throw lastError || new Error("All API keys failed");
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
 }
 
 // Parse structured steps from solution

@@ -9,100 +9,8 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// General Chat / Backup LLM uses openai/gpt-oss-120b
-// Uses 7-key fallback rotation for high availability
 // ============================================================
-const GROQ_MODEL = "openai/gpt-oss-120b";
-
-// All available Groq API keys in priority order
-const API_KEY_NAMES = [
-  "GROQ_API_KEY",
-  "GROQ_API_KEY_1",
-  "GROQ_API_KEY_2",
-  "GROQ_API_KEY_3",
-  "GROQ_API_KEY_4",
-  "GROQ_API_KEY_5",
-  "GROQ_API_KEY_6",
-  "GROQ_API_KEY_BACKUP",
-];
-
-// Get all available API keys
-function getAvailableApiKeys(): Array<{ name: string; key: string }> {
-  const keys: Array<{ name: string; key: string }> = [];
-  
-  for (const keyName of API_KEY_NAMES) {
-    const key = Deno.env.get(keyName);
-    if (key) {
-      keys.push({ name: keyName, key });
-    }
-  }
-  
-  if (keys.length === 0) {
-    throw new Error("No GROQ API key configured");
-  }
-  
-  return keys;
-}
-
-// Call Groq API with fallback key rotation
-async function callGroqWithFallback(messages: any[]): Promise<string> {
-  const apiKeys = getAvailableApiKeys();
-  let lastError: Error | null = null;
-  
-  for (const { name, key } of apiKeys) {
-    try {
-      console.log(`Trying ${name} for follow-up chat...`);
-      
-      const response = await fetch(
-        "https://api.groq.com/openai/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${key}`,
-          },
-          body: JSON.stringify({
-            model: GROQ_MODEL,
-            messages: messages,
-            temperature: 0.7,
-            max_tokens: 2000,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`${name} failed:`, response.status, errorText);
-        
-        // If rate limited, try next key
-        if (response.status === 429) {
-          lastError = new Error(`Rate limit exceeded on ${name}`);
-          continue;
-        }
-        
-        throw new Error(`Groq API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const aiResponse = data.choices?.[0]?.message?.content;
-      
-      if (!aiResponse) {
-        throw new Error("No response content from API");
-      }
-      
-      console.log(`Follow-up response generated successfully using ${name}`);
-      return aiResponse;
-      
-    } catch (error) {
-      console.error(`${name} error:`, error);
-      lastError = error instanceof Error ? error : new Error(String(error));
-      // Continue to next key
-    }
-  }
-  
-  // All keys failed
-  throw lastError || new Error("All API keys failed");
-}
+const GROQ_MODEL = "llama-3.1-8b-instant";
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -112,8 +20,13 @@ serve(async (req) => {
 
   try {
     const { message, context, history } = await req.json();
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 
-    console.log("Follow-up chat request:", { message, subject: context?.subject, model: GROQ_MODEL });
+    if (!GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY is not configured");
+    }
+
+    console.log("Follow-up chat request:", { message, subject: context?.subject });
 
     const systemPrompt = `You are StudyBro AI, a chill, helpful homework assistant. You're continuing a conversation about a ${context?.subject || "homework"} problem.
 
@@ -145,8 +58,34 @@ Now help with follow-up questions. Be friendly, clear, and educational. Use mark
       content: message
     });
 
-    // Call Groq API with fallback rotation
-    const aiResponse = await callGroqWithFallback(messages);
+    // Call Groq API
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 2000,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Groq API error:", errorText);
+      throw new Error(`Groq API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const aiResponse = data.choices?.[0]?.message?.content || "Sorry bro, I couldn't process that. Try again!";
+
+    console.log("Follow-up response generated successfully");
 
     return new Response(
       JSON.stringify({ response: aiResponse }),
