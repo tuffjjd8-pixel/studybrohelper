@@ -5,11 +5,10 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Sparkles, Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle } from "lucide-react";
+import { Sparkles, Loader2, ChevronDown, Check, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Command,
   CommandEmpty,
@@ -36,12 +35,6 @@ interface Solve {
 interface QuizQuestion {
   question: string;
   options: string[];
-  answer: string;
-  explanation: string;
-}
-
-interface Profile {
-  is_premium?: boolean;
 }
 
 const Quiz = () => {
@@ -56,32 +49,14 @@ const Quiz = () => {
   const [open, setOpen] = useState(false);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [submitted, setSubmitted] = useState(false);
-  const [reviewMode, setReviewMode] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchSolves();
-      fetchProfile();
     } else if (!authLoading) {
       loadGuestHistory();
     }
   }, [user, authLoading]);
-
-  const fetchProfile = async () => {
-    if (!user) return;
-    try {
-      const { data } = await supabase
-        .from("profiles")
-        .select("is_premium")
-        .eq("user_id", user.id)
-        .single();
-      setProfile(data);
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    }
-  };
 
   const loadGuestHistory = () => {
     try {
@@ -119,8 +94,6 @@ const Quiz = () => {
       solve.subject.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const isPremium = profile?.is_premium === true;
-
   const handleGenerate = async () => {
     if (!selectedSolve) {
       toast.error("Please select a conversation first");
@@ -131,8 +104,6 @@ const Quiz = () => {
     setQuizResult(null);
     setSelectedAnswers({});
     setCurrentQuestion(0);
-    setSubmitted(false);
-    setReviewMode(false);
 
     try {
       const count = questionCount ? parseInt(questionCount) : 5;
@@ -164,21 +135,7 @@ const Quiz = () => {
     }
   };
 
-  const getOptionLetter = (option: string): string => {
-    const match = option.match(/^([A-D])\)/);
-    return match ? match[1] : option.charAt(0).toUpperCase();
-  };
-
-  const isCorrectAnswer = (questionIndex: number, option: string): boolean => {
-    if (!quizResult) return false;
-    const correctLetter = quizResult[questionIndex].answer;
-    const selectedLetter = getOptionLetter(option);
-    return selectedLetter === correctLetter;
-  };
-
   const handleSelectOption = (questionIndex: number, option: string) => {
-    if (submitted) return; // No changes after submission
-    
     setSelectedAnswers((prev) => ({
       ...prev,
       [questionIndex]: option,
@@ -197,18 +154,10 @@ const Quiz = () => {
     }
   };
 
-  const handleSubmit = () => {
-    if (!quizResult) return;
-    setSubmitted(true);
-    toast.success("Quiz submitted!");
-  };
-
   const handleRestart = () => {
     setQuizResult(null);
     setSelectedAnswers({});
     setCurrentQuestion(0);
-    setSubmitted(false);
-    setReviewMode(false);
   };
 
   const handleCountChange = (value: string) => {
@@ -218,24 +167,6 @@ const Quiz = () => {
     }
   };
 
-  const calculateScore = (): { correct: number; total: number } => {
-    if (!quizResult) return { correct: 0, total: 0 };
-    
-    let correct = 0;
-    quizResult.forEach((q, idx) => {
-      const selectedOption = selectedAnswers[idx];
-      if (selectedOption && isCorrectAnswer(idx, selectedOption)) {
-        correct++;
-      }
-    });
-    
-    return { correct, total: quizResult.length };
-  };
-
-  const allQuestionsAnswered = quizResult 
-    ? Object.keys(selectedAnswers).length === quizResult.length 
-    : false;
-
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -243,8 +174,6 @@ const Quiz = () => {
       </div>
     );
   }
-
-  const score = calculateScore();
 
   return (
     <div className="min-h-screen bg-background">
@@ -266,175 +195,130 @@ const Quiz = () => {
             </p>
           </motion.div>
 
-          {/* Configuration Card - Hide when quiz is active */}
-          {!quizResult && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-card border border-border rounded-xl p-6 mb-6"
-            >
-              {/* Conversation Selector */}
-              <div className="space-y-2 mb-6">
-                <Label>Select a conversation</Label>
-                <Popover open={open} onOpenChange={setOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={open}
-                      className="w-full justify-between text-left font-normal h-auto min-h-11 py-2"
-                    >
-                      {selectedSolve ? (
-                        <span className="truncate">
-                          {selectedSolve.question_text || "Image question"} ({selectedSolve.subject})
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">Choose a solved problem...</span>
-                      )}
-                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                    <Command>
-                      <CommandInput 
-                        placeholder="Search conversations..." 
-                        value={searchQuery}
-                        onValueChange={setSearchQuery}
-                      />
-                      <CommandList>
-                        <CommandEmpty>
-                          {loading ? "Loading..." : "No conversations found."}
-                        </CommandEmpty>
-                        <CommandGroup>
-                          {filteredSolves.map((solve) => (
-                            <CommandItem
-                              key={solve.id}
-                              value={solve.id}
-                              onSelect={() => {
-                                setSelectedSolve(solve);
-                                setOpen(false);
-                                setSearchQuery("");
-                              }}
-                              className="cursor-pointer"
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedSolve?.id === solve.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="truncate text-sm">
-                                  {solve.question_text || "Image question"}
-                                </p>
-                                <p className="text-xs text-muted-foreground capitalize">
-                                  {solve.subject}
-                                </p>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
+          {/* Configuration Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-card border border-border rounded-xl p-6 mb-6"
+          >
+            {/* Conversation Selector */}
+            <div className="space-y-2 mb-6">
+              <Label>Select a conversation</Label>
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between text-left font-normal h-auto min-h-11 py-2"
+                  >
+                    {selectedSolve ? (
+                      <span className="truncate">
+                        {selectedSolve.question_text || "Image question"} ({selectedSolve.subject})
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Choose a solved problem...</span>
+                    )}
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search conversations..." 
+                      value={searchQuery}
+                      onValueChange={setSearchQuery}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {loading ? "Loading..." : "No conversations found."}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {filteredSolves.map((solve) => (
+                          <CommandItem
+                            key={solve.id}
+                            value={solve.id}
+                            onSelect={() => {
+                              setSelectedSolve(solve);
+                              setOpen(false);
+                              setSearchQuery("");
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedSolve?.id === solve.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="truncate text-sm">
+                                {solve.question_text || "Image question"}
+                              </p>
+                              <p className="text-xs text-muted-foreground capitalize">
+                                {solve.subject}
+                              </p>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
 
-              {/* Question Count Input */}
-              <div className="space-y-2 mb-6">
-                <Label htmlFor="questionCount">
-                  Number of questions <span className="text-muted-foreground">(optional, 1-20)</span>
-                </Label>
-                <Input
-                  id="questionCount"
-                  type="number"
-                  min={1}
-                  max={20}
-                  placeholder="5"
-                  value={questionCount}
-                  onChange={(e) => handleCountChange(e.target.value)}
-                  className="bg-background"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Leave empty for default (5 questions)
-                </p>
-              </div>
-
-              {/* Generate Button */}
-              <Button
-                onClick={handleGenerate}
-                disabled={!selectedSolve || generating}
-                className="w-full gap-2"
-                variant="neon"
-                size="lg"
-              >
-                {generating ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5" />
-                    Generate Quiz
-                  </>
-                )}
-              </Button>
-
-              {/* Model Info */}
-              <p className="text-xs text-center text-muted-foreground mt-4">
-                Powered by Groq llama-3.3-70B for high-accuracy, stable question generation
+            {/* Question Count Input */}
+            <div className="space-y-2 mb-6">
+              <Label htmlFor="questionCount">
+                Number of questions <span className="text-muted-foreground">(optional, 1-20)</span>
+              </Label>
+              <Input
+                id="questionCount"
+                type="number"
+                min={1}
+                max={20}
+                placeholder="5"
+                value={questionCount}
+                onChange={(e) => handleCountChange(e.target.value)}
+                className="bg-background"
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty for default (5 questions)
               </p>
-            </motion.div>
-          )}
+            </div>
 
-          {/* Score Card - Show after submission */}
-          <AnimatePresence>
-            {submitted && quizResult && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30 rounded-xl p-6 mb-6 text-center"
-              >
-                <Trophy className="w-12 h-12 text-primary mx-auto mb-3" />
-                <h2 className="text-2xl font-heading font-bold mb-2">
-                  {score.correct} out of {score.total} correct!
-                </h2>
-                <p className="text-muted-foreground mb-4">
-                  {score.correct === score.total 
-                    ? "Perfect score! 🎉" 
-                    : score.correct >= score.total / 2 
-                      ? "Good job! Keep practicing." 
-                      : "Keep studying and try again!"}
-                </p>
-                
-                {/* Review Mode Toggle - Premium only */}
-                <div className="flex items-center justify-center gap-3 p-3 bg-card/50 rounded-lg">
-                  {isPremium ? (
-                    <>
-                      <Eye className="w-4 h-4 text-muted-foreground" />
-                      <Label htmlFor="review-mode" className="text-sm">Review Mode</Label>
-                      <Switch
-                        id="review-mode"
-                        checked={reviewMode}
-                        onCheckedChange={setReviewMode}
-                      />
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Lock className="w-4 h-4" />
-                      <span className="text-sm">Review Mode (Premium only)</span>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+            {/* Generate Button */}
+            <Button
+              onClick={handleGenerate}
+              disabled={!selectedSolve || generating}
+              className="w-full gap-2"
+              variant="neon"
+              size="lg"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  Generate Quiz
+                </>
+              )}
+            </Button>
+
+            {/* Model Info */}
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              Powered by Groq llama-3.3-70B for high-accuracy, stable question generation
+            </p>
+          </motion.div>
 
           {/* Interactive Quiz UI */}
           <AnimatePresence mode="wait">
-            {quizResult && quizResult.length > 0 && !reviewMode && (
+            {quizResult && quizResult.length > 0 && (
               <motion.div
                 key="quiz-ui"
                 initial={{ opacity: 0, y: 20 }}
@@ -482,26 +366,17 @@ const Quiz = () => {
                   <div className="space-y-3">
                     {quizResult[currentQuestion].options.map((option, idx) => {
                       const isSelected = selectedAnswers[currentQuestion] === option;
-                      const isCorrect = isCorrectAnswer(currentQuestion, option);
-                      const showCorrectFeedback = isSelected && isCorrect && !submitted;
-                      
                       return (
                         <motion.button
                           key={idx}
                           onClick={() => handleSelectOption(currentQuestion, option)}
-                          disabled={submitted}
-                          whileHover={!submitted ? { scale: 1.01 } : {}}
-                          whileTap={!submitted ? { scale: 0.99 } : {}}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
                           className={cn(
                             "w-full text-left p-4 rounded-xl border transition-all",
-                            submitted && isCorrect
-                              ? "bg-green-500/10 border-green-500 text-foreground"
-                              : submitted && isSelected && !isCorrect
-                                ? "bg-destructive/10 border-destructive text-foreground"
-                                : isSelected
-                                  ? "bg-primary/10 border-primary text-foreground"
-                                  : "bg-card border-border hover:border-primary/50 text-foreground",
-                            submitted && "cursor-default"
+                            isSelected
+                              ? "bg-primary/10 border-primary text-foreground"
+                              : "bg-card border-border hover:border-primary/50 text-foreground"
                           )}
                         >
                           <span className="font-medium">{option}</span>
@@ -509,22 +384,6 @@ const Quiz = () => {
                       );
                     })}
                   </div>
-
-                  {/* Show explanation if user selected correct answer (during quiz) */}
-                  {selectedAnswers[currentQuestion] && 
-                   isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]) && 
-                   !submitted && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mt-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg"
-                    >
-                      <p className="text-sm text-green-400 flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-                        <span>{quizResult[currentQuestion].explanation}</span>
-                      </p>
-                    </motion.div>
-                  )}
                 </motion.div>
 
                 {/* Navigation */}
@@ -537,123 +396,27 @@ const Quiz = () => {
                   >
                     Previous
                   </Button>
-                  {currentQuestion === quizResult.length - 1 ? (
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={!allQuestionsAnswered || submitted}
-                      className="flex-1"
-                      variant="neon"
-                    >
-                      {submitted ? "Submitted ✓" : "Submit"}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={handleNextQuestion}
-                      className="flex-1"
-                    >
-                      Next
-                    </Button>
-                  )}
-                </div>
-
-                {/* Answered count */}
-                {!submitted && (
-                  <p className="text-center text-sm text-muted-foreground">
-                    {Object.keys(selectedAnswers).length} of {quizResult.length} questions answered
-                  </p>
-                )}
-              </motion.div>
-            )}
-
-            {/* Review Mode - Full review with all answers */}
-            {reviewMode && quizResult && (
-              <motion.div
-                key="review-mode"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="space-y-6"
-              >
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-heading font-bold flex items-center gap-2">
-                    <Eye className="w-5 h-5 text-primary" />
-                    Review Mode
-                  </h2>
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRestart}
-                    className="gap-1"
+                    onClick={handleNextQuestion}
+                    disabled={currentQuestion === quizResult.length - 1}
+                    className="flex-1"
                   >
-                    <RotateCcw className="w-4 h-4" />
-                    New Quiz
+                    Next
                   </Button>
                 </div>
 
-                {quizResult.map((q, idx) => {
-                  const userAnswer = selectedAnswers[idx];
-                  const isCorrect = userAnswer && isCorrectAnswer(idx, userAnswer);
-                  
-                  return (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="bg-card border border-border rounded-xl p-6"
-                    >
-                      <div className="flex items-start gap-3 mb-4">
-                        <span className="text-sm font-medium text-muted-foreground">
-                          Q{idx + 1}
-                        </span>
-                        {isCorrect ? (
-                          <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-destructive shrink-0" />
-                        )}
-                      </div>
-                      
-                      <h3 className="font-medium mb-4">{q.question}</h3>
-
-                      <div className="space-y-2 mb-4">
-                        {q.options.map((option, optIdx) => {
-                          const isCorrectOption = getOptionLetter(option) === q.answer;
-                          const isUserSelection = userAnswer === option;
-                          
-                          return (
-                            <div
-                              key={optIdx}
-                              className={cn(
-                                "p-3 rounded-lg border text-sm",
-                                isCorrectOption
-                                  ? "bg-green-500/10 border-green-500/50 text-foreground"
-                                  : isUserSelection
-                                    ? "bg-destructive/10 border-destructive/50 text-foreground"
-                                    : "bg-muted/30 border-border text-muted-foreground"
-                              )}
-                            >
-                              {option}
-                              {isCorrectOption && (
-                                <span className="ml-2 text-green-500 text-xs">✓ Correct</span>
-                              )}
-                              {isUserSelection && !isCorrectOption && (
-                                <span className="ml-2 text-destructive text-xs">Your answer</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Explanation */}
-                      <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                        <p className="text-sm text-muted-foreground">
-                          <span className="font-medium text-primary">Explanation:</span>{" "}
-                          {q.explanation}
-                        </p>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                {/* Completion message */}
+                {Object.keys(selectedAnswers).length === quizResult.length && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center p-4 bg-primary/10 rounded-xl"
+                  >
+                    <p className="text-primary font-medium">
+                      ✓ You've answered all {quizResult.length} questions!
+                    </p>
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
