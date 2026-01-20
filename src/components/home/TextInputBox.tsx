@@ -101,7 +101,7 @@ export function TextInputBox({
       return;
     }
     if (!isPremium) {
-      toast.error("Speech input is a Premium feature.");
+      toast.error("Speech to Text is a Premium feature.");
       return;
     }
     if (!canUseSpeechClip) {
@@ -214,7 +214,7 @@ export function TextInputBox({
       return;
     }
     if (!isPremium) {
-      toast.error("Speech input is a Premium feature.");
+      toast.error("Speech to Text is a Premium feature.");
       return;
     }
     if (!canUseSpeechClip) {

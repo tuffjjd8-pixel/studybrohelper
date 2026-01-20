@@ -111,10 +111,10 @@ export function SolveToggles({
                     htmlFor="speech-input" 
                     className="text-sm font-medium cursor-pointer"
                   >
-                    Speech Input
+                    Speech to Text
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Unlimited voice transcription
+                    Voice transcription (25/day)
                   </p>
                 </div>
               </div>
@@ -181,7 +181,7 @@ export function SolveToggles({
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <Crown className="w-3 h-3 inline mr-1" />
-              Upgrade to Pro for 16 animated steps/day + speech input
+              Upgrade to Pro for 16 animated steps/day + speech to text
             </p>
           </div>
         )}

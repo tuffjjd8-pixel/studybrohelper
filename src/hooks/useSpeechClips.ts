@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const FREE_SPEECH_CLIPS = 3;
-const PREMIUM_SPEECH_CLIPS = 10;
-const SPEECH_RESET_HOURS = 72;
+const PREMIUM_SPEECH_CLIPS = 25; // Generous daily limit for premium
+const SPEECH_RESET_HOURS = 24; // Daily reset for better UX
 
 interface SpeechClipStatus {
   clipsRemaining: number;
