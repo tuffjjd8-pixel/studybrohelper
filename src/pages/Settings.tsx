@@ -16,11 +16,11 @@ import {
   HelpCircle,
   LogIn,
   Crown,
-  Sparkles,
   LogOut,
   Clock,
   Mic
 } from "lucide-react";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
 
 const FREE_ANIMATED_STEPS_PER_DAY = 5;
@@ -204,7 +204,7 @@ const Settings = () => {
                 className="p-4 bg-card rounded-xl border border-border"
               >
                 <div className="flex items-center gap-3 mb-3">
-                  <Sparkles className="w-5 h-5 text-primary" />
+                  <AIBrainIcon size="md" glowIntensity="medium" />
                   <div className="flex-1">
                     <div className="flex justify-between mb-1">
                       <span className="text-sm font-medium">Animated Steps</span>

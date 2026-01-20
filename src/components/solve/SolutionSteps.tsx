@@ -3,7 +3,8 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
-import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send, Sparkles } from "lucide-react";
+import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send } from "lucide-react";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
@@ -274,7 +275,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             className="shrink-0"
           >
             {isAsking ? (
-              <Sparkles className="w-4 h-4 animate-pulse" />
+              <AIBrainIcon size="sm" animate glowIntensity="strong" />
             ) : (
               <Send className="w-4 h-4" />
             )}

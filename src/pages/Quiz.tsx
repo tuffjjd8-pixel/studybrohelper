@@ -5,7 +5,8 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Sparkles, Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle } from "lucide-react";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -260,7 +261,7 @@ const Quiz = () => {
             className="mb-8"
           >
             <h1 className="text-2xl font-heading font-bold mb-2 flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-primary" />
+              <AIBrainIcon size="lg" glowIntensity="medium" />
               Quiz Generator
             </h1>
             <p className="text-muted-foreground text-sm">
@@ -395,7 +396,7 @@ const Quiz = () => {
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5" />
+                    <AIBrainIcon size="md" glowIntensity="medium" />
                     Generate Quiz
                   </>
                 )}
