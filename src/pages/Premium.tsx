@@ -14,13 +14,14 @@ import {
   Zap,
   Target,
   MessageSquare,
-  Sparkles,
   ArrowLeft,
   Calculator,
   Heart,
   Shield,
   Clock,
+  Brain,
 } from "lucide-react";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 
 interface ComparisonItem {
   feature: string;
@@ -39,7 +40,7 @@ const COMPARISON: ComparisonItem[] = [
 ];
 
 const PREMIUM_BENEFITS = [
-  { icon: Sparkles, title: "16 Animated Steps/Day", description: "Detailed step-by-step breakdowns" },
+  { icon: Brain, title: "16 Animated Steps/Day", description: "Detailed step-by-step breakdowns" },
   { icon: Calculator, title: "Premium Calculator", description: "Advanced reasoning & logic" },
   { icon: Target, title: "Enhanced Image Solving", description: "Better OCR accuracy" },
   { icon: Zap, title: "Priority Response", description: "Skip the queue" },

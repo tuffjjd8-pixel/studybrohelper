@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { Send, Sparkles, Mic, MicOff, Loader2, Upload, Languages, Globe } from "lucide-react";
+import { Send, Mic, MicOff, Loader2, Upload, Languages, Globe } from "lucide-react";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
@@ -416,7 +417,7 @@ export function TextInputBox({
             className="shrink-0"
           >
             {isLoading ? (
-              <Sparkles className="w-5 h-5 animate-pulse" />
+              <AIBrainIcon size="md" animate glowIntensity="strong" />
             ) : (
               <Send className="w-5 h-5" />
             )}

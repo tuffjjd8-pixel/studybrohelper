@@ -1,9 +1,10 @@
 import { StreakCounter } from "@/components/gamification/StreakCounter";
 import { motion } from "framer-motion";
-import { Sparkles, Crown, LogIn } from "lucide-react";
+import { Crown, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 
 interface HeaderProps {
   streak: number;
@@ -28,10 +29,10 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
           <motion.div
-            whileHover={{ rotate: 10 }}
+            whileHover={{ rotate: 10, scale: 1.05 }}
             className="p-2 bg-primary/10 rounded-xl"
           >
-            <Sparkles className="w-6 h-6 text-primary" />
+            <AIBrainIcon size="lg" glowIntensity="strong" />
           </motion.div>
           <div>
             <h1 className="font-heading font-bold text-lg leading-none">

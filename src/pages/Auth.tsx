@@ -6,8 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Eye, EyeOff, Sparkles } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -108,7 +109,7 @@ const Auth = () => {
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 mb-4">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-primary-foreground" />
+                <AIBrainIcon size="lg" glowIntensity="strong" />
               </div>
             </div>
             <h1 className="text-2xl font-heading font-bold">

@@ -17,9 +17,9 @@ import {
   Crown,
   Calendar,
   Camera,
-  Sparkles,
   Mic,
 } from "lucide-react";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 
 interface Profile {
   id: string;
@@ -364,7 +364,7 @@ const Profile = () => {
                 transition={{ delay: 0.2 }}
                 className="p-4 bg-card rounded-xl border border-border text-center"
               >
-                <Sparkles className="w-8 h-8 text-primary mx-auto mb-2" />
+                <div className="mx-auto mb-2"><AIBrainIcon size="xl" glowIntensity="strong" /></div>
                 <div className="text-2xl font-bold">{animatedStepsUsed}/{maxAnimatedSteps}</div>
                 <div className="text-xs text-muted-foreground">Animated Steps Today</div>
               </motion.div>

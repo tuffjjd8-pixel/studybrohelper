@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { Sparkles, Crown, Clock, Mic, ChevronDown } from "lucide-react";
+import { Crown, Clock, Mic, ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -68,7 +69,7 @@ export function SolveToggles({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${canAnimateSteps ? "bg-primary/10" : "bg-muted"}`}>
-              <Sparkles className={`w-4 h-4 ${canAnimateSteps ? "text-primary" : "text-muted-foreground"}`} />
+              <AIBrainIcon size="sm" glowIntensity={canAnimateSteps ? "medium" : "subtle"} />
             </div>
             <div>
               <Label 
