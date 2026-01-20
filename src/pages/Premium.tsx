@@ -32,7 +32,7 @@ interface ComparisonItem {
 const COMPARISON: ComparisonItem[] = [
   { feature: "Daily Solves", free: "Unlimited", premium: "Unlimited" },
   { feature: "Animated Steps", free: "5/day", premium: "16/day" },
-  { feature: "Speech-to-Text", free: false, premium: "Unlimited" },
+  { feature: "Speech to Text", free: false, premium: "25/day" },
   { feature: "AI Model", free: "Standard", premium: "Advanced" },
   { feature: "Enhanced OCR", free: false, premium: true },
   { feature: "Priority Speed", free: false, premium: true },

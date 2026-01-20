@@ -139,17 +139,21 @@ For equations like "a + b = result" where the result is NOT standard addition:
 - Human-like explanations that are easy to follow
 - Keep everything clean, readable, and beautifully formatted`;
 
-// Prompt to generate structured animated steps
+// Prompt to generate structured animated steps - optimized for fewer steps without losing clarity
 function getAnimatedStepsPrompt(maxSteps: number): string {
   return `
 
-IMPORTANT: Structure your response as exactly ${maxSteps} numbered steps maximum.
-Each step should be self-contained and build on the previous.
+IMPORTANT: Structure your response efficiently using FEWER steps when possible.
+- Use ${maxSteps} steps as the MAXIMUM, not the target
+- Combine related concepts into single steps when it improves clarity
+- Simple problems: 2-3 steps. Medium: 4-6 steps. Complex only: up to ${maxSteps} steps
+- Each step should be self-contained and build on the previous
+
 Format each step as:
 **Step N: [Title]**
 [Content with LaTeX formatting]
 
-Keep each step focused on ONE key action or concept.`;
+Keep each step focused but don't artificially split simple operations.`;
 }
 
 // Prompt to generate graph data - optimized for Mistral Small 3.1 24B

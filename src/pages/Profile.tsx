@@ -36,10 +36,10 @@ interface Profile {
   last_speech_reset: string | null;
 }
 
-// Speech clips reset every 72 hours
+// Speech clips reset daily (24 hours)
 const FREE_SPEECH_CLIPS = 3;
-const PREMIUM_SPEECH_CLIPS = 10;
-const SPEECH_RESET_HOURS = 72;
+const PREMIUM_SPEECH_CLIPS = 25; // Generous daily limit for premium
+const SPEECH_RESET_HOURS = 24;
 const FREE_ANIMATED_STEPS_PER_DAY = 5;
 const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 
@@ -159,6 +159,9 @@ const Profile = () => {
       toast.success("Referral link copied!");
     }
   };
+
+  // Fixed referral link
+  const referralLink = "studybro.ai?ref=62b40f84";
 
   const handleSignOut = async () => {
     await signOut();
@@ -432,29 +435,31 @@ const Profile = () => {
             </motion.div>
 
             {/* Referral */}
-            {profile?.referral_code && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl border border-primary/20"
-              >
-                <h3 className="font-medium mb-2">Invite Friends</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Share your code and both get a free premium day!
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    readOnly
-                    value={`studybro.ai?ref=${profile.referral_code}`}
-                    className="bg-background text-sm"
-                  />
-                  <Button variant="outline" onClick={copyReferralCode}>
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
-              </motion.div>
-            )}
+            {/* Invite Friends - always show */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl border border-primary/20"
+            >
+              <h3 className="font-medium mb-2">Invite Friends</h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                Share your code and both get a free premium day!
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={referralLink}
+                  className="bg-background text-sm"
+                />
+                <Button variant="outline" onClick={() => {
+                  navigator.clipboard.writeText(`https://${referralLink}`);
+                  toast.success("Referral link copied!");
+                }}>
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </motion.div>
 
             {/* Premium upsell */}
             {!profile?.is_premium && (
@@ -469,7 +474,7 @@ const Profile = () => {
                   Go Premium, Bro!
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  16 animated steps, 10 speech clips/72h, enhanced solving
+                  16 animated steps, 25 speech clips/day, enhanced solving
                 </p>
                 <Button onClick={() => navigate("/premium")} className="w-full">
                   Upgrade for $5.99/month
