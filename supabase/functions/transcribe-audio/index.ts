@@ -82,37 +82,16 @@ serve(async (req) => {
     
     const audioBlob = new Blob([bytes.buffer], { type: 'audio/webm' });
 
-    // Try primary API key first
-    const primaryKey = Deno.env.get('GROQ_API_KEY');
-    const backupKey = Deno.env.get('GROQ_API_KEY_BACKUP');
+    // Use backup key for STT to preserve primary key for other services
+    const sttKey = Deno.env.get('GROQ_API_KEY_BACKUP');
 
-    let result;
-    let usedBackup = false;
-    
-    try {
-      if (!primaryKey) {
-        throw new Error('Primary API key not configured');
-      }
-      result = await transcribeWithGroq(audioBlob, primaryKey, language, mode);
-    } catch (primaryError) {
-      console.error('Primary GROQ key failed:', primaryError);
-      
-      // Try backup key for any error (rate limit, auth issues, etc.)
-      if (backupKey) {
-        console.log('Attempting with backup GROQ key...');
-        try {
-          result = await transcribeWithGroq(audioBlob, backupKey, language, mode);
-          usedBackup = true;
-        } catch (backupError) {
-          console.error('Backup GROQ key also failed:', backupError);
-          throw primaryError; // Throw original error if backup also fails
-        }
-      } else {
-        throw primaryError;
-      }
+    if (!sttKey) {
+      throw new Error('STT API key (GROQ_API_KEY_BACKUP) not configured');
     }
 
-    console.log(`Transcription successful${usedBackup ? ' (using backup key)' : ''}`);
+    const result = await transcribeWithGroq(audioBlob, sttKey, language, mode);
+
+    console.log('Transcription successful (using dedicated STT key)');
 
     return new Response(
       JSON.stringify({ text: result.text }),
