@@ -19,11 +19,16 @@ const buttonVariants = cva(
         cyan: "bg-secondary text-secondary-foreground shadow-cyan hover:shadow-[0_0_40px_hsl(var(--secondary)/0.5)]",
         glass: "bg-card/80 backdrop-blur-xl text-foreground hover:bg-card/90 border border-border/50",
         hero: "bg-primary text-primary-foreground text-lg font-bold shadow-neon hover:shadow-[0_0_50px_hsl(var(--primary)/0.6)] hover:scale-105",
+        // Premium neon green button - Gauth-style with glowing border
+        neonGreen: "relative bg-background text-primary font-bold border-2 border-primary shadow-[0_0_20px_hsl(var(--primary)/0.4),inset_0_0_20px_hsl(var(--primary)/0.1)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.6),inset_0_0_25px_hsl(var(--primary)/0.15)] hover:border-primary/90 hover:bg-primary/5",
+        // Filled neon green button variant
+        neonGreenFilled: "bg-primary text-primary-foreground font-bold border-2 border-primary shadow-[0_0_25px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.7)] hover:bg-primary/90",
       },
       size: {
         default: "h-11 px-5 py-2",
         sm: "h-9 rounded-lg px-3 text-xs",
         lg: "h-12 rounded-xl px-8 text-base",
+        xl: "h-14 rounded-2xl px-10 text-lg",
         icon: "h-11 w-11",
         "icon-lg": "h-14 w-14",
         "icon-xl": "h-20 w-20 rounded-full",
