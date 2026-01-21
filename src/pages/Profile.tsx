@@ -155,13 +155,16 @@ const Profile = () => {
 
   const copyReferralCode = () => {
     if (profile?.referral_code) {
-      navigator.clipboard.writeText(`https://studybro.ai?ref=${profile.referral_code}`);
+      const fullLink = `https://studybrohelper.lovable.app/?ref=${profile.referral_code}`;
+      navigator.clipboard.writeText(fullLink);
       toast.success("Referral link copied!");
     }
   };
 
-  // Fixed referral link
-  const referralLink = "studybro.ai?ref=62b40f84";
+  // Dynamic referral link based on user's unique code
+  const referralLink = profile?.referral_code 
+    ? `studybrohelper.lovable.app/?ref=${profile.referral_code}` 
+    : "studybrohelper.lovable.app";
 
   const handleSignOut = async () => {
     await signOut();
@@ -434,31 +437,43 @@ const Profile = () => {
               </div>
             </motion.div>
 
-            {/* Referral */}
             {/* Invite Friends - always show */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl border border-primary/20"
+              className="p-5 bg-gradient-to-br from-primary/5 via-background to-secondary/5 rounded-2xl border-2 border-primary/30 shadow-[0_0_30px_hsl(var(--primary)/0.15)]"
             >
-              <h3 className="font-medium mb-2">Invite Friends</h3>
-              <p className="text-sm text-muted-foreground mb-3">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Copy className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="font-heading font-bold text-lg">Invite Friends</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
                 Share your code and both get a free premium day!
               </p>
               <div className="flex gap-2">
                 <Input
                   readOnly
                   value={referralLink}
-                  className="bg-background text-sm"
+                  className="bg-background/80 text-sm font-mono border-primary/20"
                 />
-                <Button variant="outline" onClick={() => {
-                  navigator.clipboard.writeText(`https://${referralLink}`);
-                  toast.success("Referral link copied!");
-                }}>
-                  <Copy className="w-4 h-4" />
+                <Button 
+                  variant="neonGreen" 
+                  size="lg"
+                  onClick={copyReferralCode}
+                  className="min-w-[100px]"
+                >
+                  <Copy className="w-4 h-4 mr-1" />
+                  Copy
                 </Button>
               </div>
+              {profile?.referral_code && (
+                <p className="text-xs text-muted-foreground mt-3 text-center">
+                  Your unique code: <span className="text-primary font-mono font-semibold">{profile.referral_code}</span>
+                </p>
+              )}
             </motion.div>
 
             {/* Premium upsell */}
