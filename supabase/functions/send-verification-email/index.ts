@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
     const resend = new Resend(resendApiKey);
     
     const { error: emailError } = await resend.emails.send({
-      from: "StudyBro <onboarding@resend.dev>",
+      from: "StudyBro <noreply@studybro.trade>",
       to: [email],
       subject: "Verify your StudyBro account",
       html: `
