@@ -46,6 +46,36 @@ export type Database = {
           },
         ]
       }
+      email_verification_codes: {
+        Row: {
+          code: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          used?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       poll_votes: {
         Row: {
           created_at: string
@@ -128,6 +158,7 @@ export type Database = {
           created_at: string
           daily_solves_used: number
           display_name: string | null
+          email_verified: boolean
           graphs_used_today: number | null
           id: string
           is_premium: boolean
@@ -151,6 +182,7 @@ export type Database = {
           created_at?: string
           daily_solves_used?: number
           display_name?: string | null
+          email_verified?: boolean
           graphs_used_today?: number | null
           id?: string
           is_premium?: boolean
@@ -174,6 +206,7 @@ export type Database = {
           created_at?: string
           daily_solves_used?: number
           display_name?: string | null
+          email_verified?: boolean
           graphs_used_today?: number | null
           id?: string
           is_premium?: boolean
