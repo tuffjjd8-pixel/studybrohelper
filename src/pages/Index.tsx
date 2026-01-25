@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useSearchParams } from "react-router-dom";
 
 import { CameraButton } from "@/components/home/CameraButton";
 import { TextInputBox } from "@/components/home/TextInputBox";
@@ -38,6 +39,15 @@ const getLocalDate = (): string => {
 
 const Index = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  
+  // Capture referral code from URL and store it
+  useEffect(() => {
+    const refCode = searchParams.get("ref");
+    if (refCode) {
+      localStorage.setItem("pending_referral_code", refCode);
+    }
+  }, [searchParams]);
   const [isLoading, setIsLoading] = useState(false);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -267,6 +277,15 @@ const Index = () => {
             .from("profiles")
             .update(updates)
             .eq("user_id", user.id);
+
+          // Check if this is the user's first solve and complete referral if applicable
+          if ((profile?.total_solves || 0) === 0) {
+            try {
+              await supabase.rpc("complete_referral", { referred_id: user.id });
+            } catch (e) {
+              console.error("Referral completion failed:", e);
+            }
+          }
             
           fetchRecentSolves();
           fetchProfile();

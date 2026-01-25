@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, displayName?: string, referralCode?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -38,19 +38,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, displayName?: string) => {
+  const signUp = async (email: string, password: string, displayName?: string, referralCode?: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
         data: {
           display_name: displayName || email.split("@")[0],
+          referral_code: referralCode || undefined,
         },
       },
     });
+
+    // If signup successful and we have a referral code, create the referral record
+    if (!error && data?.user && referralCode) {
+      try {
+        // Find the referrer by their referral code
+        const { data: referrerProfile } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("referral_code", referralCode)
+          .single();
+
+        if (referrerProfile) {
+          // Create the referral record
+          await supabase.from("referrals").insert({
+            referrer_id: referrerProfile.user_id,
+            referred_user_id: data.user.id,
+            referral_code: referralCode,
+            status: "pending",
+          });
+
+          // Update the new user's profile with referred_by
+          await supabase
+            .from("profiles")
+            .update({ referred_by: referrerProfile.user_id })
+            .eq("user_id", data.user.id);
+        }
+      } catch (e) {
+        console.error("Failed to create referral record:", e);
+      }
+    }
+
     return { error };
   };
 

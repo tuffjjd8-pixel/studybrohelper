@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ const authSchema = z.object({
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, signUp, signIn } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
@@ -26,6 +27,16 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  
+  // Get referral code from URL or localStorage
+  const [referralCode] = useState(() => {
+    const urlRef = searchParams.get("ref");
+    if (urlRef) {
+      localStorage.setItem("pending_referral_code", urlRef);
+      return urlRef;
+    }
+    return localStorage.getItem("pending_referral_code") || "";
+  });
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
@@ -76,7 +87,7 @@ const Auth = () => {
           navigate("/");
         }
       } else {
-        const { error } = await signUp(email, password, displayName);
+        const { error } = await signUp(email, password, displayName, referralCode);
         if (error) {
           if (error.message.includes("already registered")) {
             toast.error("This email is already registered. Try logging in!");
@@ -84,6 +95,8 @@ const Auth = () => {
             toast.error(error.message);
           }
         } else {
+          // Clear the pending referral code after successful signup
+          localStorage.removeItem("pending_referral_code");
           toast.success("Account created! Let's crush some homework! 💪");
           navigate("/");
         }

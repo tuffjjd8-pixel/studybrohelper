@@ -134,9 +134,13 @@ export type Database = {
           last_solve_date: string | null
           last_speech_reset: string | null
           last_usage_date: string | null
+          premium_until: string | null
           referral_code: string | null
+          referred_by: string | null
+          renewal_date: string | null
           speech_clips_used: number
           streak_count: number
+          subscription_id: string | null
           total_solves: number
           updated_at: string
           user_id: string
@@ -153,9 +157,13 @@ export type Database = {
           last_solve_date?: string | null
           last_speech_reset?: string | null
           last_usage_date?: string | null
+          premium_until?: string | null
           referral_code?: string | null
+          referred_by?: string | null
+          renewal_date?: string | null
           speech_clips_used?: number
           streak_count?: number
+          subscription_id?: string | null
           total_solves?: number
           updated_at?: string
           user_id: string
@@ -172,12 +180,43 @@ export type Database = {
           last_solve_date?: string | null
           last_speech_reset?: string | null
           last_usage_date?: string | null
+          premium_until?: string | null
           referral_code?: string | null
+          referred_by?: string | null
+          renewal_date?: string | null
           speech_clips_used?: number
           streak_count?: number
+          subscription_id?: string | null
           total_solves?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          referred_user_id: string
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referred_user_id: string
+          referrer_id: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referred_user_id?: string
+          referrer_id?: string
+          status?: string
         }
         Relationships: []
       }
@@ -269,6 +308,7 @@ export type Database = {
       }
     }
     Functions: {
+      complete_referral: { Args: { referred_id: string }; Returns: undefined }
       get_poll_vote_counts: { Args: { poll_id_param: string }; Returns: Json }
       get_user_vote: {
         Args: { poll_id_param: string; voter_id_param: string }
