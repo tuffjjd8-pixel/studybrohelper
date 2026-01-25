@@ -18,8 +18,7 @@ import {
   Crown,
   LogOut,
   Clock,
-  Mic,
-  Key
+  Mic
 } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
@@ -115,7 +114,6 @@ const Settings = () => {
   };
 
   const settingsItems = [
-    { icon: Key, label: "Google OAuth Keys", description: "Configure Google OAuth credentials", route: "/settings/google-oauth" },
     { icon: Bell, label: "Notifications", description: "Manage notification preferences" },
     { icon: Moon, label: "Appearance", description: "Dark mode, theme settings" },
     { icon: Shield, label: "Privacy", description: "Data and privacy settings" },
@@ -304,7 +302,6 @@ const Settings = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 + index * 0.05 }}
-                  onClick={() => item.route && navigate(item.route)}
                   className="w-full p-4 bg-card rounded-xl border border-border flex items-center gap-4 hover:bg-card/80 transition-colors text-left"
                 >
                   <div className="p-2 bg-primary/10 rounded-lg">
