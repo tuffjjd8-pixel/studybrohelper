@@ -13,6 +13,7 @@ import SolveDetail from "./pages/SolveDetail";
 import Chat from "./pages/Chat";
 import Quiz from "./pages/Quiz";
 import Settings from "./pages/Settings";
+import GoogleOAuthKeys from "./pages/GoogleOAuthKeys";
 import Polls from "./pages/Polls";
 import NotFound from "./pages/NotFound";
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/chat/:id" element={<Chat />} />
             <Route path="/quiz" element={<Quiz />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/settings/google-oauth" element={<GoogleOAuthKeys />} />
             <Route path="/polls" element={<Polls />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
