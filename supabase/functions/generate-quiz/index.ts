@@ -1,9 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Tier limits
+const FREE_MAX_QUESTIONS = 10;
+const PREMIUM_MAX_QUESTIONS = 20;
+const FREE_DAILY_QUIZZES = 7;
+const PREMIUM_DAILY_QUIZZES = 13;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -11,13 +18,92 @@ serve(async (req) => {
   }
 
   try {
-    const { conversationText, questionCount = 5, subject, strictCountMode = true } = await req.json();
+    const { conversationText, questionCount = 5, subject, strictCountMode = false } = await req.json();
 
     if (!conversationText) {
       return new Response(
         JSON.stringify({ error: "conversationText is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Initialize Supabase client with auth header
+    const authHeader = req.headers.get('Authorization');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    let isPremium = false;
+    let userId: string | null = null;
+    let quizzesUsedToday = 0;
+
+    // Check user authentication and premium status
+    if (authHeader?.startsWith('Bearer ')) {
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+
+      const token = authHeader.replace('Bearer ', '');
+      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+      
+      if (!claimsError && claimsData?.claims) {
+        userId = claimsData.claims.sub as string;
+        
+        // Fetch user profile
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_premium, quizzes_used_today, last_quiz_reset")
+          .eq("user_id", userId)
+          .single();
+
+        if (profile) {
+          isPremium = profile.is_premium === true;
+          
+          // Check if we need to reset the daily counter
+          const lastReset = profile.last_quiz_reset ? new Date(profile.last_quiz_reset) : null;
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          
+          if (!lastReset || lastReset < today) {
+            // Reset counter for new day
+            await supabase
+              .from("profiles")
+              .update({ quizzes_used_today: 0, last_quiz_reset: now.toISOString() })
+              .eq("user_id", userId);
+            quizzesUsedToday = 0;
+          } else {
+            quizzesUsedToday = profile.quizzes_used_today || 0;
+          }
+        }
+      }
+    }
+
+    // Determine limits based on tier
+    const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
+    const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
+
+    // Check daily limit
+    if (quizzesUsedToday >= dailyLimit) {
+      return new Response(
+        JSON.stringify({ 
+          error: "daily_limit_reached",
+          message: "Daily quiz limit reached. Try again tomorrow or upgrade for more.",
+          quizzesUsed: quizzesUsedToday,
+          dailyLimit
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Enforce strict count mode - only available for premium
+    const effectiveStrictMode = isPremium ? strictCountMode : false;
+    if (!isPremium && strictCountMode) {
+      console.log("Free user attempted strict count mode - defaulting to auto count");
+    }
+
+    // Enforce question count limits
+    let validCount = Math.min(Math.max(questionCount, 1), maxQuestions);
+    if (questionCount > maxQuestions && !isPremium) {
+      console.log(`Free user requested ${questionCount} questions, capping at ${maxQuestions}`);
     }
 
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || Deno.env.get("GROQ_API_KEY_BACKUP");
@@ -28,11 +114,11 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = strictCountMode 
-      ? `Generate EXACTLY ${questionCount} multiple-choice questions based on the provided content.
+    const systemPrompt = effectiveStrictMode 
+      ? `Generate EXACTLY ${validCount} multiple-choice questions based on the provided content.
 
 STRICT COUNT MODE IS ON:
-- You MUST generate exactly ${questionCount} questions, no more, no less
+- You MUST generate exactly ${validCount} questions, no more, no less
 - If the conversation doesn't have enough information, expand using well-known, factual, widely accepted information related to the topic
 - Do NOT invent fake facts or hallucinate. Only use verifiable, commonly known information to expand
 - Each question must have exactly 4 options labeled A, B, C, D
@@ -48,7 +134,7 @@ Return ONLY the JSON array.`
       : `Generate multiple-choice questions based on the provided content.
 
 ADAPTIVE MODE (Strict Count OFF):
-- Target: ${questionCount} questions, but only if the content supports it
+- Target: ${validCount} questions, but only if the content supports it
 - If the conversation is too short or limited, generate FEWER questions rather than making things up
 - Do NOT hallucinate or invent information. Only create questions from what's actually in the content
 - Each question must have exactly 4 options labeled A, B, C, D
@@ -136,8 +222,25 @@ Return ONLY the JSON array.`;
       );
     }
 
+    // Increment quiz usage counter if authenticated
+    if (userId && authHeader) {
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      
+      await supabase
+        .from("profiles")
+        .update({ quizzes_used_today: quizzesUsedToday + 1 })
+        .eq("user_id", userId);
+    }
+
     return new Response(
-      JSON.stringify({ quiz }),
+      JSON.stringify({ 
+        quiz,
+        quizzesUsed: quizzesUsedToday + 1,
+        dailyLimit,
+        isPremium
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
