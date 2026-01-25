@@ -137,10 +137,8 @@ export type Database = {
           premium_until: string | null
           referral_code: string | null
           referred_by: string | null
-          renewal_date: string | null
           speech_clips_used: number
           streak_count: number
-          subscription_id: string | null
           total_solves: number
           updated_at: string
           user_id: string
@@ -160,10 +158,8 @@ export type Database = {
           premium_until?: string | null
           referral_code?: string | null
           referred_by?: string | null
-          renewal_date?: string | null
           speech_clips_used?: number
           streak_count?: number
-          subscription_id?: string | null
           total_solves?: number
           updated_at?: string
           user_id: string
@@ -183,10 +179,8 @@ export type Database = {
           premium_until?: string | null
           referral_code?: string | null
           referred_by?: string | null
-          renewal_date?: string | null
           speech_clips_used?: number
           streak_count?: number
-          subscription_id?: string | null
           total_solves?: number
           updated_at?: string
           user_id?: string

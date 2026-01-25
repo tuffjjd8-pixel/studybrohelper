@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
@@ -18,54 +18,16 @@ import {
   Calculator,
   Heart,
   Shield,
+  Clock,
   Brain,
-  Loader2,
 } from "lucide-react";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 
 interface ComparisonItem {
   feature: string;
   free: string | boolean;
   premium: string | boolean;
 }
-
-type PlanType = "monthly" | "weekend" | "yearly";
-
-interface PlanOption {
-  id: PlanType;
-  name: string;
-  price: number;
-  period: string;
-  description: string;
-  badge?: string;
-  savings?: string;
-}
-
-const PLANS: PlanOption[] = [
-  {
-    id: "monthly",
-    name: "Monthly",
-    price: 5.99,
-    period: "/month",
-    description: "Full premium access",
-  },
-  {
-    id: "weekend",
-    name: "Weekend Special",
-    price: 4.99,
-    period: "/month",
-    description: "Limited time offer",
-    badge: "🎉 SAVE $1",
-  },
-  {
-    id: "yearly",
-    name: "Yearly",
-    price: 40,
-    period: "/year",
-    description: "Best value",
-    badge: "BEST VALUE",
-    savings: "Save $31.88/year",
-  },
-];
 
 const COMPARISON: ComparisonItem[] = [
   { feature: "Daily Solves", free: "Unlimited", premium: "Unlimited" },
@@ -89,50 +51,67 @@ const PREMIUM_BENEFITS = [
 const Premium = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [hasUsedTrial, setHasUsedTrial] = useState(false);
 
-  // Check if it's Friday (5) or Saturday (6) for weekend discount visibility
+  // Check if user has used trial
+  useEffect(() => {
+    const trialUsed = localStorage.getItem("premium_trial_used");
+    setHasUsedTrial(!!trialUsed);
+  }, []);
+
+  // Check if it's Friday (5) or Saturday (6) for weekend discount
   const isWeekendDiscount = useMemo(() => {
     const today = new Date().getDay();
     return today === 5 || today === 6;
   }, []);
 
-  const handleCheckout = async () => {
-    if (!selectedPlan) {
-      toast.error("Please select a plan");
-      return;
-    }
+  const currentPrice = isWeekendDiscount ? 4.99 : 5.99;
+  const regularPrice = 5.99;
 
-    if (!user) {
-      toast.error("Please sign in to continue");
-      navigate("/auth");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke("createCheckoutSession", {
-        body: { userId: user.id, plan: selectedPlan },
-      });
-
+  // Activate premium for the user (beta mode - works for everyone)
+  const activatePremium = async () => {
+    if (user) {
+      // For logged in users, update database
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_premium: true })
+        .eq("user_id", user.id);
+      
       if (error) {
-        console.error("Checkout error:", error);
-        toast.error("Failed to create checkout session. Please try again.");
-        return;
+        console.error("Error activating premium:", error);
+        toast.error("Failed to activate premium. Please try again.");
+        return false;
       }
+    }
+    // For guests, just use localStorage
+    localStorage.setItem("guest_premium_activated", "true");
+    return true;
+  };
 
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        toast.error("No checkout URL received. Please try again.");
-      }
-    } catch (err) {
-      console.error("Checkout exception:", err);
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setIsLoading(false);
+  const handleUpgrade = async () => {
+    setIsUpgrading(true);
+    
+    const success = await activatePremium();
+    
+    if (success) {
+      toast.success("🎉 Premium activated! Enjoy all features.");
+      navigate(user ? "/" : "/");
+    }
+    
+    setIsUpgrading(false);
+  };
+
+  const handleStartTrial = async () => {
+    localStorage.setItem("premium_trial_used", "true");
+    localStorage.setItem("premium_trial_start", new Date().toISOString());
+    setHasUsedTrial(true);
+    
+    const success = await activatePremium();
+    
+    if (success) {
+      toast.success("🎉 Premium activated! Enjoy all features.");
+      navigate("/");
     }
   };
 
@@ -140,7 +119,7 @@ const Premium = () => {
     <div className="min-h-screen bg-background">
       <Header streak={0} totalSolves={0} isPremium={false} />
 
-      <main className="pt-20 pb-32 px-4">
+      <main className="pt-20 pb-24 px-4">
         <div className="max-w-lg mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -174,69 +153,76 @@ const Premium = () => {
               </p>
             </div>
 
-            {/* Plan Selection */}
-            <div className="space-y-3">
-              <h2 className="font-semibold text-lg text-center">Choose Your Plan</h2>
-              <div className="space-y-3">
-                {PLANS.map((plan) => {
-                  const isSelected = selectedPlan === plan.id;
-                  const isWeekendPlan = plan.id === "weekend";
-                  
-                  return (
-                    <motion.button
-                      key={plan.id}
-                      onClick={() => setSelectedPlan(plan.id)}
-                      whileTap={{ scale: 0.98 }}
-                      className={`w-full p-4 rounded-2xl border-2 transition-all relative overflow-hidden text-left ${
-                        isSelected
-                          ? "border-primary bg-primary/10 shadow-lg"
-                          : "border-border bg-card hover:border-muted-foreground/50"
-                      } ${isWeekendPlan && !isWeekendDiscount ? "opacity-60" : ""}`}
-                      disabled={isWeekendPlan && !isWeekendDiscount}
-                    >
-                      {/* Badge */}
-                      {plan.badge && (
-                        <div className={`absolute top-3 right-3 px-2 py-0.5 text-xs font-bold rounded-full ${
-                          plan.id === "yearly" 
-                            ? "bg-primary text-primary-foreground" 
-                            : "bg-secondary text-secondary-foreground animate-pulse"
-                        }`}>
-                          {plan.badge}
-                        </div>
-                      )}
+            {/* Free Trial CTA */}
+            {!hasUsedTrial && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-4 rounded-2xl border-2 border-secondary bg-secondary/10 text-center"
+              >
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Clock className="w-5 h-5 text-secondary" />
+                  <span className="font-bold text-lg">Try 3-Day Free Trial</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Experience all premium features for free. No credit card required.
+                </p>
+                <Button 
+                  onClick={handleStartTrial}
+                  variant="secondary"
+                  className="w-full"
+                >
+                  Start Free Trial
+                </Button>
+              </motion.div>
+            )}
 
-                      <div className="flex items-center gap-3">
-                        {/* Selection indicator */}
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                          isSelected 
-                            ? "border-primary bg-primary" 
-                            : "border-muted-foreground"
-                        }`}>
-                          {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
-                        </div>
-
-                        <div className="flex-1">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-bold">${plan.price.toFixed(2)}</span>
-                            <span className="text-muted-foreground text-sm">{plan.period}</span>
-                          </div>
-                          <div className="font-medium">{plan.name}</div>
-                          <div className="text-xs text-muted-foreground">{plan.description}</div>
-                          {plan.savings && (
-                            <div className="text-xs text-primary font-medium mt-1">{plan.savings}</div>
-                          )}
-                          {isWeekendPlan && !isWeekendDiscount && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              Available Fri-Sat only
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </motion.button>
-                  );
-                })}
+            {/* Pricing Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              className="p-6 rounded-2xl border-2 border-primary bg-primary/5 relative overflow-hidden"
+            >
+              {isWeekendDiscount && (
+                <div className="absolute top-3 right-3 px-3 py-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full animate-pulse">
+                  🎉 WEEKEND DEAL!
+                </div>
+              )}
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <span className="text-4xl font-bold">${currentPrice.toFixed(2)}</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+                {isWeekendDiscount ? (
+                  <p className="text-sm text-muted-foreground">
+                    <span className="line-through">${regularPrice.toFixed(2)}</span>
+                    <span className="text-secondary font-medium ml-2">
+                      Save $1.00 this weekend!
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Cancel anytime. No questions asked.
+                  </p>
+                )}
               </div>
-            </div>
+            </motion.div>
+
+            {/* Weekend Deal Button (always visible, only active on weekends) */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.15 }}
+            >
+              <Button
+                disabled={!isWeekendDiscount}
+                variant="outline"
+                className={`w-full ${isWeekendDiscount ? "border-secondary text-secondary hover:bg-secondary/10" : "opacity-50 cursor-not-allowed"}`}
+              >
+                {isWeekendDiscount ? "🎉 $4.99/weekend deal - Active!" : "$4.99/weekend deal (Fri-Sat only)"}
+              </Button>
+            </motion.div>
 
             {/* Gauth-style Comparison Table */}
             <div className="space-y-3">
@@ -315,38 +301,35 @@ const Premium = () => {
                 Your subscription helps us build better learning tools
               </p>
             </div>
+
+            {/* CTA */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="sticky bottom-24 bg-background/95 backdrop-blur-sm pt-4 pb-2"
+            >
+              <Button
+                onClick={handleUpgrade}
+                disabled={isUpgrading}
+                className="w-full h-14 text-lg font-bold gap-2"
+              >
+                {isUpgrading ? (
+                  "Processing..."
+                ) : (
+                  <>
+                    <Crown className="w-5 h-5" />
+                    Upgrade Now - ${currentPrice.toFixed(2)}/mo
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Cancel anytime. No questions asked.
+              </p>
+            </motion.div>
           </motion.div>
         </div>
       </main>
-
-      {/* Sticky CTA */}
-      <div className="fixed bottom-20 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border">
-        <div className="max-w-lg mx-auto">
-          <Button
-            onClick={handleCheckout}
-            disabled={!selectedPlan || isLoading}
-            className="w-full h-14 text-lg font-bold gap-2"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Creating checkout...
-              </>
-            ) : (
-              <>
-                <Crown className="w-5 h-5" />
-                {selectedPlan 
-                  ? `Continue - $${PLANS.find(p => p.id === selectedPlan)?.price.toFixed(2)}${PLANS.find(p => p.id === selectedPlan)?.period}`
-                  : "Select a plan to continue"
-                }
-              </>
-            )}
-          </Button>
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            Cancel anytime. No questions asked.
-          </p>
-        </div>
-      </div>
 
       <BottomNav />
     </div>
