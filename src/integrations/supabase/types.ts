@@ -162,10 +162,12 @@ export type Database = {
           graphs_used_today: number | null
           id: string
           is_premium: boolean
+          last_quiz_reset: string | null
           last_solve_date: string | null
           last_speech_reset: string | null
           last_usage_date: string | null
           premium_until: string | null
+          quizzes_used_today: number | null
           referral_code: string | null
           referred_by: string | null
           renewal_date: string | null
@@ -186,10 +188,12 @@ export type Database = {
           graphs_used_today?: number | null
           id?: string
           is_premium?: boolean
+          last_quiz_reset?: string | null
           last_solve_date?: string | null
           last_speech_reset?: string | null
           last_usage_date?: string | null
           premium_until?: string | null
+          quizzes_used_today?: number | null
           referral_code?: string | null
           referred_by?: string | null
           renewal_date?: string | null
@@ -210,10 +214,12 @@ export type Database = {
           graphs_used_today?: number | null
           id?: string
           is_premium?: boolean
+          last_quiz_reset?: string | null
           last_solve_date?: string | null
           last_speech_reset?: string | null
           last_usage_date?: string | null
           premium_until?: string | null
+          quizzes_used_today?: number | null
           referral_code?: string | null
           referred_by?: string | null
           renewal_date?: string | null

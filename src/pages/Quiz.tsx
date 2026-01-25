@@ -5,12 +5,14 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle, Crown, AlertCircle } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
+import { Link } from "react-router-dom";
 import {
   Command,
   CommandEmpty,
@@ -43,7 +45,15 @@ interface QuizQuestion {
 
 interface Profile {
   is_premium?: boolean;
+  quizzes_used_today?: number;
+  last_quiz_reset?: string;
 }
+
+// Tier constants
+const FREE_MAX_QUESTIONS = 10;
+const PREMIUM_MAX_QUESTIONS = 20;
+const FREE_DAILY_QUIZZES = 7;
+const PREMIUM_DAILY_QUIZZES = 13;
 
 const Quiz = () => {
   const { user, loading: authLoading } = useAuth();
@@ -51,7 +61,7 @@ const Quiz = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSolve, setSelectedSolve] = useState<Solve | null>(null);
   const [questionCount, setQuestionCount] = useState<string>("");
-  const [strictCountMode, setStrictCountMode] = useState(true);
+  const [strictCountMode, setStrictCountMode] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [quizResult, setQuizResult] = useState<QuizQuestion[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,6 +71,7 @@ const Quiz = () => {
   const [submitted, setSubmitted] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [quizzesUsedToday, setQuizzesUsedToday] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -76,10 +87,24 @@ const Quiz = () => {
     try {
       const { data } = await supabase
         .from("profiles")
-        .select("is_premium")
+        .select("is_premium, quizzes_used_today, last_quiz_reset")
         .eq("user_id", user.id)
         .single();
-      setProfile(data);
+      
+      if (data) {
+        // Check if we need to reset the daily counter
+        const lastReset = data.last_quiz_reset ? new Date(data.last_quiz_reset) : null;
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        if (!lastReset || lastReset < today) {
+          setQuizzesUsedToday(0);
+        } else {
+          setQuizzesUsedToday(data.quizzes_used_today || 0);
+        }
+        
+        setProfile(data);
+      }
     } catch (error) {
       console.error("Error fetching profile:", error);
     }
@@ -122,10 +147,34 @@ const Quiz = () => {
   );
 
   const isPremium = profile?.is_premium === true;
+  const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
+  const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
+  const quizzesRemaining = dailyLimit - quizzesUsedToday;
+  const canGenerateQuiz = quizzesRemaining > 0;
+  const usagePercent = (quizzesUsedToday / dailyLimit) * 100;
 
   const handleGenerate = async () => {
     if (!selectedSolve) {
       toast.error("Please select a conversation first");
+      return;
+    }
+
+    // Check daily limit
+    if (!canGenerateQuiz) {
+      toast.error("Daily quiz limit reached. Try again tomorrow or upgrade for more.");
+      return;
+    }
+
+    // Validate question count
+    const count = questionCount ? parseInt(questionCount) : 5;
+    if (count > maxQuestions && !isPremium) {
+      toast.error(`Upgrade to Premium to unlock quizzes with more than ${FREE_MAX_QUESTIONS} questions`);
+      return;
+    }
+
+    // Validate strict count mode
+    if (strictCountMode && !isPremium) {
+      toast.error("Strict Count Mode is a Premium feature");
       return;
     }
 
@@ -137,8 +186,7 @@ const Quiz = () => {
     setReviewMode(false);
 
     try {
-      const count = questionCount ? parseInt(questionCount) : 5;
-      const validCount = Math.min(Math.max(count, 1), 20);
+      const validCount = Math.min(Math.max(count, 1), maxQuestions);
 
       const conversationText = `Question: ${selectedSolve.question_text || "Image-based question"}\n\nSolution: ${selectedSolve.solution_markdown}`;
 
@@ -147,14 +195,20 @@ const Quiz = () => {
           conversationText,
           questionCount: validCount,
           subject: selectedSolve.subject,
-          strictCountMode,
+          strictCountMode: isPremium ? strictCountMode : false,
         },
       });
 
       if (error) throw error;
 
+      if (data?.error === "daily_limit_reached") {
+        toast.error(data.message || "Daily quiz limit reached");
+        return;
+      }
+
       if (data?.quiz) {
         setQuizResult(data.quiz);
+        setQuizzesUsedToday(data.quizzesUsed || quizzesUsedToday + 1);
         toast.success(`Generated ${data.quiz.length} questions`);
       } else {
         throw new Error("Invalid response from quiz generator");
@@ -216,7 +270,7 @@ const Quiz = () => {
 
   const handleCountChange = (value: string) => {
     const num = parseInt(value);
-    if (value === "" || (num >= 1 && num <= 20)) {
+    if (value === "" || (num >= 1 && num <= maxQuestions)) {
       setQuestionCount(value);
     }
   };
@@ -267,6 +321,38 @@ const Quiz = () => {
             <p className="text-muted-foreground text-sm">
               Generate quiz questions from your solved problems
             </p>
+          </motion.div>
+
+          {/* Usage Counter Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="bg-card border border-border rounded-xl p-4 mb-6"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Quizzes Remaining</span>
+              <span className="text-sm text-muted-foreground">
+                {quizzesUsedToday}/{dailyLimit} used today
+              </span>
+            </div>
+            <Progress value={usagePercent} className="h-2 mb-2" />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{quizzesRemaining} remaining</span>
+              <span>Resets at midnight</span>
+            </div>
+            
+            {!canGenerateQuiz && (
+              <div className="mt-3 p-3 bg-destructive/10 border border-destructive/30 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-destructive" />
+                <span className="text-sm text-destructive">
+                  Daily limit reached. 
+                  {!isPremium && (
+                    <Link to="/premium" className="ml-1 underline">Upgrade for more</Link>
+                  )}
+                </span>
+              </div>
+            )}
           </motion.div>
 
           {/* Configuration Card - Hide when quiz is active */}
@@ -347,13 +433,13 @@ const Quiz = () => {
               {/* Question Count Input */}
               <div className="space-y-2 mb-6">
                 <Label htmlFor="questionCount">
-                  Number of questions <span className="text-muted-foreground">(optional, 1-20)</span>
+                  Number of questions <span className="text-muted-foreground">(1-{maxQuestions})</span>
                 </Label>
                 <Input
                   id="questionCount"
                   type="number"
                   min={1}
-                  max={20}
+                  max={maxQuestions}
                   placeholder="5"
                   value={questionCount}
                   onChange={(e) => handleCountChange(e.target.value)}
@@ -361,30 +447,68 @@ const Quiz = () => {
                 />
                 <p className="text-xs text-muted-foreground">
                   Leave empty for default (5 questions)
+                  {!isPremium && (
+                    <span className="block mt-1">
+                      <Crown className="w-3 h-3 inline mr-1" />
+                      Upgrade to Premium for up to {PREMIUM_MAX_QUESTIONS} questions
+                    </span>
+                  )}
                 </p>
               </div>
 
               {/* Strict Count Mode Toggle */}
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg mb-6">
+              <div className={cn(
+                "flex items-center justify-between p-4 rounded-lg mb-6",
+                isPremium ? "bg-muted/30" : "bg-muted/10 border border-dashed border-border"
+              )}>
                 <div className="space-y-0.5">
-                  <Label htmlFor="strict-count" className="text-sm font-medium">Strict Count Mode</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="strict-count" className="text-sm font-medium">
+                      Strict Count Mode
+                    </Label>
+                    {!isPremium && (
+                      <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Crown className="w-3 h-3" /> Premium
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    {strictCountMode 
-                      ? "Always generate the exact number of questions requested" 
-                      : "Generate only what the conversation supports"}
+                    {isPremium 
+                      ? (strictCountMode 
+                          ? "Always generate the exact number of questions requested" 
+                          : "Generate only what the conversation supports")
+                      : "Force exact question count (Premium only)"
+                    }
                   </p>
                 </div>
                 <Switch
                   id="strict-count"
-                  checked={strictCountMode}
-                  onCheckedChange={setStrictCountMode}
+                  checked={isPremium ? strictCountMode : false}
+                  onCheckedChange={(checked) => {
+                    if (!isPremium) {
+                      toast.error("Strict Count Mode is a Premium feature");
+                      return;
+                    }
+                    setStrictCountMode(checked);
+                  }}
+                  disabled={!isPremium}
                 />
               </div>
+
+              {/* Premium Upsell */}
+              {!isPremium && (
+                <Link to="/premium" className="block mb-6">
+                  <div className="flex items-center justify-center gap-2 p-3 bg-primary/10 border border-primary/30 rounded-xl text-sm hover:bg-primary/20 transition-colors">
+                    <Crown className="w-4 h-4 text-primary" />
+                    <span>Upgrade for more questions & Strict Count Mode</span>
+                  </div>
+                </Link>
+              )}
 
               {/* Generate Button */}
               <Button
                 onClick={handleGenerate}
-                disabled={!selectedSolve || generating}
+                disabled={!selectedSolve || generating || !canGenerateQuiz}
                 className="w-full gap-2"
                 variant="neon"
                 size="lg"
