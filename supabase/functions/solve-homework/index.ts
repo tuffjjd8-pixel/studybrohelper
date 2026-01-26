@@ -24,41 +24,29 @@ const PREMIUM_ANIMATED_STEPS = 16;
 const FREE_GRAPHS_PER_DAY = 4;
 const PREMIUM_GRAPHS_PER_DAY = 15;
 
-// Greeting options for natural variety
-const GREETINGS = [
-  "Yo, your homework bro StudyBro is here 👋",
-  "Hey, your StudyBro is ready to help 👋",
-  "What's good, your homework bro StudyBro just pulled up 👋",
-  "Sup, your StudyBro is locked in 👋",
-  "Hey there, your homework bro StudyBro reporting in 👋",
-  "StudyBro online and ready to solve 👋",
-  "Your homework bro StudyBro is connected and ready 👋",
-  "StudyBro activated — let's break this down 👋",
-  "Your StudyBro is online and ready to help 👋",
-  "StudyBro here — let's get this solved 👋",
-  "Ayo, your homework bro StudyBro just synced in 👋",
-  "StudyBro in the building — let's cook 👋",
-  "Alright, your homework bro StudyBro is here 👋",
-  "StudyBro just pulled up — let's lock in 👋",
-  "Charged up and ready — your StudyBro is here 👋"
-];
-
-function getRandomGreeting(): string {
-  return GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+// Simple greeting based on tier
+function getGreeting(isPremium: boolean): string {
+  return isPremium 
+    ? "I'm StudyBro AI Premium." 
+    : "I'm StudyBro AI, your homework helper.";
 }
 
 // System prompt for free users - supports ALL subjects
-const FREE_SYSTEM_PROMPT = `You are StudyBro AI, the user's fast, friendly, reliable homework helper — their homework bro.
+const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a fast, friendly, student-focused homework helper.
 
 ## RESPONSE FORMAT (CRITICAL):
 Your response MUST follow this EXACT structure:
 
-[GREETING_PLACEHOLDER] (StudyBro AI)
+[GREETING_PLACEHOLDER]
 
-🎉 **Solved!**
+[Your clear, correct, student-friendly answer here]
 
-✓ **Final Answer**
-[Your clear, correct, student-friendly final answer here]
+## Rules:
+- No labels like "Solved!" or "Final Answer"
+- No emojis unless the user uses them first
+- No upsells or mention of Premium features
+- No mention of missing features
+- Just answer the question cleanly and directly
 
 ## Subject Detection:
 - First, identify what subject the question is about
@@ -101,19 +89,21 @@ For equations like "a + b = result" where the result is NOT standard addition:
 - Keep explanations concise but clear`;
 
 // Enhanced system prompt for premium users - supports ALL subjects with priority reasoning
-const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, the user's fast, friendly, reliable homework helper — their homework bro. You provide the most detailed and accurate solutions with enhanced reasoning.
+const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, a fast, friendly, student-focused homework helper with enhanced capabilities.
 
 ## RESPONSE FORMAT (CRITICAL):
 Your response MUST follow this EXACT structure:
 
-[GREETING_PLACEHOLDER] (StudyBro AI Premium)
+[GREETING_PLACEHOLDER]
 
-🎉 **Solved!**
+[Your clear, correct, student-friendly answer here]
 
-✓ **Final Answer**
-[Your clear, correct, student-friendly final answer here]
+[Then provide connected, logical steps that fully explain the reasoning and clearly lead to the answer]
 
-[Then provide connected, logical animated steps that fully explain the reasoning and clearly lead to the final answer]
+## Rules:
+- No labels like "Solved!" or "Final Answer"
+- No emojis unless the user uses them first
+- Just answer the question cleanly and directly
 
 ## Subject Detection:
 - First, identify what subject the question is about
@@ -185,7 +175,7 @@ For equations like "a + b = result" where the result is NOT standard addition:
 7. NEVER skip key reasoning in steps
 8. Verify solutions when applicable
 
-## Animated Steps Rules:
+## Steps Rules:
 - Steps must be connected and logical
 - Steps must fully explain the reasoning
 - Steps must NOT be random or disconnected
@@ -499,7 +489,7 @@ function parseGraphData(response: string): { type: string; data: Record<string, 
 
 // Remove graph block and inject greeting into solution text
 function cleanSolutionText(solution: string, isPremium: boolean): string {
-  const greeting = getRandomGreeting();
+  const greeting = getGreeting(isPremium);
   
   // Replace the placeholder with the actual greeting
   let cleaned = solution.replace(/\[GREETING_PLACEHOLDER\]/g, greeting);
