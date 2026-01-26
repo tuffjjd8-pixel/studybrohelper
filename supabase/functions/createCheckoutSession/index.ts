@@ -1,4 +1,5 @@
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,39 +38,73 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get Stripe secret key
-    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
+    // Get Supabase client to read stripe mode setting
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Read stripe mode from app_settings
+    const { data: settingData } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "stripe_mode")
+      .single();
+
+    const stripeMode = settingData?.value || "live";
+    const isTestMode = stripeMode === "test";
+
+    console.log(`Stripe mode: ${stripeMode}, isTestMode: ${isTestMode}`);
+
+    // Get Stripe secret key based on mode
+    const stripeSecretKey = isTestMode 
+      ? Deno.env.get("STRIPE_SECRET_KEY_TEST")
+      : Deno.env.get("STRIPE_SECRET_KEY_LIVE");
+
     if (!stripeSecretKey) {
-      console.error("STRIPE_SECRET_KEY not configured");
+      console.error(`STRIPE_SECRET_KEY_${isTestMode ? 'TEST' : 'LIVE'} not configured`);
       return new Response(
         JSON.stringify({ error: "Stripe is not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get the correct price ID based on plan
+    // Get the correct price ID based on plan and mode
     let priceId: string | undefined;
-    switch (plan) {
-      case "monthly":
-        priceId = Deno.env.get("STRIPE_PRICE_ID_MONTHLY_NORMAL");
-        break;
-      case "weekend":
-        priceId = Deno.env.get("STRIPE_PRICE_ID_MONTHLY_WEEKEND");
-        break;
-      case "yearly":
-        priceId = Deno.env.get("STRIPE_PRICE_ID_YEARLY");
-        break;
+    if (isTestMode) {
+      switch (plan) {
+        case "monthly":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_MONTHLY_NORMAL_TEST");
+          break;
+        case "weekend":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_MONTHLY_WEEKEND_TEST");
+          break;
+        case "yearly":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_YEARLY_TEST");
+          break;
+      }
+    } else {
+      switch (plan) {
+        case "monthly":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_MONTHLY_NORMAL");
+          break;
+        case "weekend":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_MONTHLY_WEEKEND");
+          break;
+        case "yearly":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_YEARLY");
+          break;
+      }
     }
 
     if (!priceId) {
-      console.error(`Price ID not configured for plan: ${plan}`);
+      console.error(`Price ID not configured for plan: ${plan} in ${stripeMode} mode`);
       return new Response(
         JSON.stringify({ error: `Price not configured for ${plan} plan` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Creating checkout session for user ${userId}, plan: ${plan}, priceId: ${priceId}`);
+    console.log(`Creating checkout session for user ${userId}, plan: ${plan}, priceId: ${priceId}, mode: ${stripeMode}`);
 
     // Initialize Stripe
     const stripe = new Stripe(stripeSecretKey, {
