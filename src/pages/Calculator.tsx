@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock, Calculator as CalcIcon, Crown, Sparkles, Delete } from "lucide-react";
+import { Calculator as CalcIcon, Crown, Sparkles, Delete } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface Profile {
@@ -228,7 +228,7 @@ const Calculator = () => {
     );
   }
 
-  // Show sign-in prompt for unauthenticated users
+  // Show sign-in prompt for unauthenticated users - friendly message
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background">
@@ -241,14 +241,14 @@ const Calculator = () => {
               className="space-y-6"
             >
               <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto">
-                <Lock className="w-10 h-10 text-muted-foreground" />
+                <CalcIcon className="w-10 h-10 text-muted-foreground" />
               </div>
-              <h1 className="text-2xl font-heading font-bold">Sign In Required</h1>
+              <h1 className="text-2xl font-heading font-bold">Calculator</h1>
               <p className="text-muted-foreground">
-                Please sign in to access the Calculator feature.
+                Sign in to use History, Quizzes, and Polls.
               </p>
               <Link to="/auth">
-                <Button size="lg" className="gap-2">
+                <Button size="lg" variant="outline">
                   Sign In
                 </Button>
               </Link>

@@ -95,9 +95,9 @@ export function TextInputBox({
   };
 
   const startRecording = async (mode: TranscriptionMode) => {
-    // CRITICAL: Premium features require authentication
+    // Speech to text requires authentication
     if (!isAuthenticated) {
-      toast.error("Please sign in to use Premium features.");
+      toast.error("Sign in to use Speech to Text.");
       return;
     }
     if (!isPremium) {
@@ -208,9 +208,9 @@ export function TextInputBox({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // CRITICAL: Premium features require authentication
+    // Speech to text requires authentication
     if (!isAuthenticated) {
-      toast.error("Please sign in to use Premium features.");
+      toast.error("Sign in to use Speech to Text.");
       return;
     }
     if (!isPremium) {
