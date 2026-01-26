@@ -100,6 +100,54 @@ export type Database = {
         }
         Relationships: []
       }
+      poll_analytics: {
+        Row: {
+          conversion_target: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          option_index: number | null
+          poll_id: string
+          user_id: string | null
+        }
+        Insert: {
+          conversion_target?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          option_index?: number | null
+          poll_id: string
+          user_id?: string | null
+        }
+        Update: {
+          conversion_target?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          option_index?: number | null
+          poll_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_analytics_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_analytics_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "public_polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poll_votes: {
         Row: {
           created_at: string
@@ -150,6 +198,7 @@ export type Database = {
           options: Json
           title: string
           total_votes: number
+          views_count: number
         }
         Insert: {
           created_at?: string
@@ -161,6 +210,7 @@ export type Database = {
           options?: Json
           title: string
           total_votes?: number
+          views_count?: number
         }
         Update: {
           created_at?: string
@@ -172,6 +222,7 @@ export type Database = {
           options?: Json
           title?: string
           total_votes?: number
+          views_count?: number
         }
         Relationships: []
       }
@@ -372,6 +423,7 @@ export type Database = {
     }
     Functions: {
       complete_referral: { Args: { referred_id: string }; Returns: undefined }
+      get_poll_analytics: { Args: { poll_id_param: string }; Returns: Json }
       get_poll_vote_counts: { Args: { poll_id_param: string }; Returns: Json }
       get_user_vote: {
         Args: { poll_id_param: string; voter_id_param: string }

@@ -37,6 +37,17 @@ interface Poll {
   created_at: string;
   ends_at: string | null;
   total_votes: number;
+  views_count?: number;
+}
+
+interface PollAnalytics {
+  poll_id: string;
+  total_views: number;
+  total_votes: number;
+  total_conversions: number;
+  vote_distribution: Record<string, number>;
+  conversion_targets: Record<string, number>;
+  unique_voters: number;
 }
 
 // Get voter ID - requires authenticated user
@@ -76,6 +87,7 @@ export function PollsSection() {
   const [votedPolls, setVotedPolls] = useState<Record<string, number>>({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
+  const [pollAnalytics, setPollAnalytics] = useState<Record<string, PollAnalytics>>({});
   
   // Admin state
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -86,6 +98,65 @@ export function PollsSection() {
     is_public: true,
     timeLimit: "none" as "none" | "24h" | "3d" | "7d"
   });
+
+  // Track poll view for analytics
+  const trackPollView = async (pollId: string) => {
+    if (!user?.id) return;
+    try {
+      await supabase.from("poll_analytics").insert({
+        poll_id: pollId,
+        event_type: "view",
+        user_id: user.id
+      });
+    } catch (error) {
+      console.error("Error tracking poll view:", error);
+    }
+  };
+
+  // Track poll vote for analytics
+  const trackPollVote = async (pollId: string, optionIndex: number) => {
+    if (!user?.id) return;
+    try {
+      await supabase.from("poll_analytics").insert({
+        poll_id: pollId,
+        event_type: "vote",
+        user_id: user.id,
+        option_index: optionIndex
+      });
+    } catch (error) {
+      console.error("Error tracking poll vote:", error);
+    }
+  };
+
+  // Track conversion (when user clicks a feature after voting)
+  const trackConversion = async (pollId: string, target: string) => {
+    if (!user?.id) return;
+    try {
+      await supabase.from("poll_analytics").insert({
+        poll_id: pollId,
+        event_type: "conversion",
+        user_id: user.id,
+        conversion_target: target
+      });
+    } catch (error) {
+      console.error("Error tracking conversion:", error);
+    }
+  };
+
+  // Fetch analytics for admin
+  const fetchPollAnalytics = async (pollId: string) => {
+    if (!isAdmin) return;
+    try {
+      const { data, error } = await supabase.rpc('get_poll_analytics', {
+        poll_id_param: pollId
+      });
+      if (!error && data) {
+        setPollAnalytics(prev => ({ ...prev, [pollId]: data as unknown as PollAnalytics }));
+      }
+    } catch (error) {
+      console.error("Error fetching poll analytics:", error);
+    }
+  };
 
   useEffect(() => {
     fetchPolls();
@@ -195,6 +266,11 @@ export function PollsSection() {
         
         const totalVotes = updatedOptions.reduce((sum, opt) => sum + opt.votes, 0);
         
+        // Track view for analytics
+        if (user?.id && poll.id) {
+          trackPollView(poll.id);
+        }
+        
         return {
           ...poll,
           id: poll.id!,
@@ -209,6 +285,11 @@ export function PollsSection() {
       }));
       
       setPolls(parsedPolls);
+      
+      // Fetch analytics for admin
+      if (isAdmin) {
+        parsedPolls.forEach(poll => fetchPollAnalytics(poll.id));
+      }
     } catch (error) {
       console.error("Error fetching polls:", error);
     } finally {
@@ -257,6 +338,9 @@ export function PollsSection() {
       if (voteError) {
         throw voteError;
       }
+
+      // Track vote in analytics
+      await trackPollVote(pollId, optionIndex);
 
       // Fetch updated vote counts from database using RPC function
       const { data: voteCounts, error: countsError } = await supabase.rpc('get_poll_vote_counts', {
@@ -613,6 +697,26 @@ export function PollsSection() {
                     )}
                   </div>
                 </div>
+
+                {/* Admin Analytics Display */}
+                {isAdmin && pollAnalytics[poll.id] && (
+                  <div className="mb-3 p-2 bg-primary/5 rounded-lg border border-primary/20">
+                    <div className="text-xs text-muted-foreground grid grid-cols-3 gap-2">
+                      <div className="text-center">
+                        <div className="font-medium text-primary">{pollAnalytics[poll.id].total_views}</div>
+                        <div>Views</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-primary">{pollAnalytics[poll.id].unique_voters}</div>
+                        <div>Unique Voters</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-primary">{pollAnalytics[poll.id].total_conversions}</div>
+                        <div>Conversions</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Expired badge for non-admin */}
                 {expired && !isAdmin && (
