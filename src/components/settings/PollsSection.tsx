@@ -89,8 +89,16 @@ export function PollsSection() {
 
   useEffect(() => {
     fetchPolls();
-    loadVotedPolls();
   }, []);
+
+  // Load user votes from database when user changes
+  useEffect(() => {
+    if (user?.id) {
+      loadUserVotes();
+    } else {
+      setVotedPolls({});
+    }
+  }, [user?.id, polls]);
 
   // Check admin status via edge function (server-side validation)
   useEffect(() => {
@@ -130,16 +138,29 @@ export function PollsSection() {
     checkAdminStatus();
   }, [user]);
 
-  const loadVotedPolls = () => {
-    const stored = localStorage.getItem("voted_polls");
-    if (stored) {
-      setVotedPolls(JSON.parse(stored));
+  // Load user's votes from database (server-side source of truth)
+  const loadUserVotes = async () => {
+    if (!user?.id || polls.length === 0) return;
+    
+    try {
+      const votes: Record<string, number> = {};
+      
+      // Fetch user's votes for all polls using the database function
+      for (const poll of polls) {
+        const { data, error } = await supabase.rpc('get_user_vote', {
+          poll_id_param: poll.id,
+          voter_id_param: user.id
+        });
+        
+        if (!error && data !== null) {
+          votes[poll.id] = data;
+        }
+      }
+      
+      setVotedPolls(votes);
+    } catch (error) {
+      console.error("Error loading user votes:", error);
     }
-  };
-
-  const saveVotedPolls = (votes: Record<string, number>) => {
-    localStorage.setItem("voted_polls", JSON.stringify(votes));
-    setVotedPolls(votes);
   };
 
   const fetchPolls = async () => {
@@ -153,17 +174,38 @@ export function PollsSection() {
 
       if (error) throw error;
       
-      // Parse options from JSONB
-      const parsedPolls = (data || []).map(poll => ({
-        ...poll,
-        id: poll.id!,
-        title: poll.title!,
-        description: poll.description,
-        options: poll.options as { text: string; votes: number }[],
-        is_public: poll.is_public!,
-        created_at: poll.created_at!,
-        ends_at: poll.ends_at,
-        total_votes: poll.total_votes!
+      // Parse options and fetch actual vote counts from database
+      const parsedPolls = await Promise.all((data || []).map(async poll => {
+        const options = poll.options as { text: string; votes: number }[];
+        
+        // Fetch actual vote counts from poll_votes table
+        const { data: voteCounts } = await supabase.rpc('get_poll_vote_counts', {
+          poll_id_param: poll.id
+        });
+        
+        // Update options with real vote counts
+        const updatedOptions = options.map((opt, idx) => {
+          const countEntry = (voteCounts as { option_index: number; count: number }[] || [])
+            .find(c => c.option_index === idx);
+          return {
+            ...opt,
+            votes: countEntry?.count || 0
+          };
+        });
+        
+        const totalVotes = updatedOptions.reduce((sum, opt) => sum + opt.votes, 0);
+        
+        return {
+          ...poll,
+          id: poll.id!,
+          title: poll.title!,
+          description: poll.description,
+          options: updatedOptions,
+          is_public: poll.is_public!,
+          created_at: poll.created_at!,
+          ends_at: poll.ends_at,
+          total_votes: totalVotes
+        };
       }));
       
       setPolls(parsedPolls);
@@ -177,12 +219,15 @@ export function PollsSection() {
   const handleVote = async (pollId: string, optionIndex: number) => {
     // Require authentication to vote
     if (!user?.id) {
-      toast.error("Please sign in to vote");
+      toast.error("Sign in to use History, Quizzes, and Polls.");
       return;
     }
 
     const poll = polls.find(p => p.id === pollId);
-    if (!poll) return;
+    if (!poll) {
+      toast.error("Poll not found");
+      return;
+    }
     
     // Check if expired
     if (isPollExpired(poll.ends_at)) {
@@ -190,31 +235,15 @@ export function PollsSection() {
       return;
     }
     
+    // Check if already voted (prevent double voting)
     const previousVote = votedPolls[pollId];
-    const isChangingVote = previousVote !== undefined;
+    if (previousVote !== undefined && previousVote === optionIndex) {
+      // Same option - no change needed
+      return;
+    }
 
     try {
-      let updatedOptions = [...poll.options];
-      let newTotalVotes = poll.total_votes;
-      
-      if (isChangingVote) {
-        // Decrease old option vote count
-        updatedOptions[previousVote] = {
-          ...updatedOptions[previousVote],
-          votes: Math.max(0, updatedOptions[previousVote].votes - 1)
-        };
-      } else {
-        // New vote, increase total
-        newTotalVotes += 1;
-      }
-      
-      // Increase new option vote count
-      updatedOptions[optionIndex] = {
-        ...updatedOptions[optionIndex],
-        votes: updatedOptions[optionIndex].votes + 1
-      };
-
-      // Upsert the vote record first (with user's ID as voter_id)
+      // Insert vote into poll_votes table (server handles uniqueness)
       const { error: voteError } = await supabase
         .from("poll_votes")
         .upsert({
@@ -229,24 +258,38 @@ export function PollsSection() {
         throw voteError;
       }
 
-      // Then update poll options (this may fail due to RLS but vote is already recorded)
-      await supabase
-        .from("polls")
-        .update({ 
-          options: updatedOptions,
-          total_votes: newTotalVotes
-        })
-        .eq("id", pollId);
+      // Fetch updated vote counts from database using RPC function
+      const { data: voteCounts, error: countsError } = await supabase.rpc('get_poll_vote_counts', {
+        poll_id_param: pollId
+      });
 
-      // Update local state
+      if (countsError) {
+        console.error("Error fetching vote counts:", countsError);
+      }
+
+      // Calculate new totals and update local state
+      const updatedOptions = poll.options.map((opt, idx) => {
+        const countEntry = (voteCounts as { option_index: number; count: number }[] || [])
+          .find(c => c.option_index === idx);
+        return {
+          ...opt,
+          votes: countEntry?.count || 0
+        };
+      });
+
+      const newTotalVotes = updatedOptions.reduce((sum, opt) => sum + opt.votes, 0);
+
+      // Update local state immediately for responsive UI
       setPolls(prev => prev.map(p => 
         p.id === pollId 
           ? { ...p, options: updatedOptions, total_votes: newTotalVotes }
           : p
       ));
 
-      saveVotedPolls({ ...votedPolls, [pollId]: optionIndex });
-      toast.success(isChangingVote ? "Vote changed!" : "Vote recorded!");
+      // Update voted polls state
+      setVotedPolls(prev => ({ ...prev, [pollId]: optionIndex }));
+      
+      toast.success(previousVote !== undefined ? "Vote changed!" : "Vote recorded!");
     } catch (error) {
       console.error("Vote error:", error);
       toast.error("Failed to record vote");
