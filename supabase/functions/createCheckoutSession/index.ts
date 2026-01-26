@@ -120,8 +120,8 @@ Deno.serve(async (req) => {
           quantity: 1,
         },
       ],
-      success_url: "https://studybro.ai/premium/success?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: "https://studybro.ai/premium/cancel",
+      success_url: "https://studybrohelper.lovable.app/premium/success?session_id={CHECKOUT_SESSION_ID}",
+      cancel_url: "https://studybrohelper.lovable.app/premium/cancel",
       client_reference_id: userId,
     });
 
