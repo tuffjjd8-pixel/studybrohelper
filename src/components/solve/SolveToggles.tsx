@@ -186,11 +186,11 @@ export function SolveToggles({
           </div>
         )}
 
-        {/* Sign in hint for unauthenticated users */}
+        {/* Sign in hint for unauthenticated users - friendly, non-salesy */}
         {!isAuthenticated && (
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
-              Sign in to access Premium features
+              Sign in to use History, Quizzes, and Polls.
             </p>
           </div>
         )}
