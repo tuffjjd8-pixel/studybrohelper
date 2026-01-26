@@ -18,8 +18,10 @@ import {
   Calendar,
   Camera,
   Mic,
+  Settings,
 } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
+import { AdminSettings } from "@/components/profile/AdminSettings";
 
 interface Profile {
   id: string;
@@ -497,11 +499,30 @@ const Profile = () => {
               </motion.div>
             )}
 
-            {/* Sign out */}
+            {/* Admin Settings - only visible to admin */}
+            <AdminSettings userEmail={user?.email} />
+
+            {/* Settings button for all users */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
+            >
+              <Button
+                variant="outline"
+                onClick={() => navigate("/settings")}
+                className="w-full"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+            </motion.div>
+
+            {/* Sign out */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55 }}
             >
               <Button
                 variant="outline"
