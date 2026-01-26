@@ -106,13 +106,8 @@ serve(async (req) => {
       console.log(`Free user requested ${questionCount} questions, capping at ${maxQuestions}`);
     }
 
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || Deno.env.get("GROQ_API_KEY_BACKUP");
-    if (!GROQ_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "GROQ_API_KEY not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Import key rotation
+    const { callGroqWithRotation } = await import("../_shared/groq-key-manager.ts");
 
     const systemPrompt = effectiveStrictMode 
       ? `Generate EXACTLY ${validCount} multiple-choice questions based on the provided content.
@@ -148,13 +143,9 @@ OUTPUT FORMAT:
 
 Return ONLY the JSON array.`;
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const response = await callGroqWithRotation(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
         model: "llama-3.3-70b-versatile",
         messages: [
           { role: "system", content: systemPrompt },
@@ -162,8 +153,8 @@ Return ONLY the JSON array.`;
         ],
         temperature: 0.3,
         max_tokens: 4000,
-      }),
-    });
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();

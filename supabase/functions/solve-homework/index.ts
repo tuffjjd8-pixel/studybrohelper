@@ -286,17 +286,21 @@ async function callOpenRouterGraph(question: string): Promise<string> {
   return data.choices?.[0]?.message?.content || "{}";
 }
 
-// Call Groq API for text-only input
+// Import key rotation utilities
+import { 
+  getActiveKey, 
+  markKeyUsed, 
+  markKeyRateLimited, 
+  markKeyFailed,
+  callGroqWithRotation 
+} from "../_shared/groq-key-manager.ts";
+
+// Call Groq API for text-only input with key rotation
 async function callGroqText(
   question: string, 
   isPremium: boolean,
   animatedSteps: boolean
 ): Promise<string> {
-  const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-  if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY is not configured");
-  }
-
   let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
   // Add animated steps instruction
@@ -307,13 +311,9 @@ async function callGroqText(
   
   console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
+  const response = await callGroqWithRotation(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
       model: GROQ_TEXT_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
@@ -321,25 +321,14 @@ async function callGroqText(
       ],
       temperature: isPremium ? 0.5 : 0.7,
       max_tokens: isPremium ? 8192 : 4096,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Groq Text API error:", response.status, errorText);
-    
-    if (response.status === 429) {
-      throw new Error("Rate limit exceeded. Please try again in a moment.");
     }
-    
-    throw new Error(`Groq API error: ${response.status}`);
-  }
+  );
 
   const data = await response.json();
   return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
 }
 
-// Call Groq API for image input (Vision model) - Enhanced OCR for premium
+// Call Groq API for image input (Vision model) - Enhanced OCR for premium with key rotation
 async function callGroqVision(
   question: string, 
   imageBase64: string, 
@@ -347,11 +336,6 @@ async function callGroqVision(
   isPremium: boolean,
   animatedSteps: boolean
 ): Promise<string> {
-  const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-  if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY is not configured");
-  }
-
   let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
   // Premium gets enhanced OCR instructions
@@ -375,13 +359,9 @@ async function callGroqVision(
   
   console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
+  const response = await callGroqWithRotation(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
       model: GROQ_VISION_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
@@ -400,19 +380,8 @@ async function callGroqVision(
       ],
       temperature: isPremium ? 0.5 : 0.7,
       max_tokens: isPremium ? 8192 : 4096,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Groq Vision API error:", response.status, errorText);
-    
-    if (response.status === 429) {
-      throw new Error("Rate limit exceeded. Please try again in a moment.");
     }
-    
-    throw new Error(`Groq API error: ${response.status}`);
-  }
+  );
 
   const data = await response.json();
   return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";

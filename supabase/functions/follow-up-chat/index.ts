@@ -20,11 +20,9 @@ serve(async (req) => {
 
   try {
     const { message, context, history } = await req.json();
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-
-    if (!GROQ_API_KEY) {
-      throw new Error("GROQ_API_KEY is not configured");
-    }
+    
+    // Import key rotation
+    const { callGroqWithRotation } = await import("../_shared/groq-key-manager.ts");
 
     console.log("Follow-up chat request:", { message, subject: context?.subject });
 
@@ -38,7 +36,7 @@ ${context?.solution || "No previous solution"}
 Now help with follow-up questions. Be friendly, clear, and educational. Use markdown for formatting and LaTeX for math (wrap inline math in $...$ and display math in $$...$$). If they ask for a different method, provide one. If they don't understand, explain differently.`;
 
     // Build messages array for Groq
-    const messages: any[] = [
+    const messages: { role: string; content: string }[] = [
       { role: "system", content: systemPrompt }
     ];
 
@@ -58,29 +56,16 @@ Now help with follow-up questions. Be friendly, clear, and educational. Use mark
       content: message
     });
 
-    // Call Groq API
-    const response = await fetch(
+    // Call Groq API with key rotation
+    const response = await callGroqWithRotation(
       "https://api.groq.com/openai/v1/chat/completions",
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${GROQ_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages: messages,
-          temperature: 0.7,
-          max_tokens: 2000,
-        }),
+        model: GROQ_MODEL,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 2000,
       }
     );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Groq API error:", errorText);
-      throw new Error(`Groq API error: ${response.status}`);
-    }
 
     const data = await response.json();
     const aiResponse = data.choices?.[0]?.message?.content || "Sorry bro, I couldn't process that. Try again!";
