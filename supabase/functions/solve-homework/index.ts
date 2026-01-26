@@ -24,8 +24,41 @@ const PREMIUM_ANIMATED_STEPS = 16;
 const FREE_GRAPHS_PER_DAY = 4;
 const PREMIUM_GRAPHS_PER_DAY = 15;
 
+// Greeting options for natural variety
+const GREETINGS = [
+  "Yo, your homework bro StudyBro is here 👋",
+  "Hey, your StudyBro is ready to help 👋",
+  "What's good, your homework bro StudyBro just pulled up 👋",
+  "Sup, your StudyBro is locked in 👋",
+  "Hey there, your homework bro StudyBro reporting in 👋",
+  "StudyBro online and ready to solve 👋",
+  "Your homework bro StudyBro is connected and ready 👋",
+  "StudyBro activated — let's break this down 👋",
+  "Your StudyBro is online and ready to help 👋",
+  "StudyBro here — let's get this solved 👋",
+  "Ayo, your homework bro StudyBro just synced in 👋",
+  "StudyBro in the building — let's cook 👋",
+  "Alright, your homework bro StudyBro is here 👋",
+  "StudyBro just pulled up — let's lock in 👋",
+  "Charged up and ready — your StudyBro is here 👋"
+];
+
+function getRandomGreeting(): string {
+  return GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+}
+
 // System prompt for free users - supports ALL subjects
-const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a friendly tutor who helps students with ALL subjects — math, science, history, literature, coding, languages, and more.
+const FREE_SYSTEM_PROMPT = `You are StudyBro AI, the user's fast, friendly, reliable homework helper — their homework bro.
+
+## RESPONSE FORMAT (CRITICAL):
+Your response MUST follow this EXACT structure:
+
+[GREETING_PLACEHOLDER] (StudyBro AI)
+
+🎉 **Solved!**
+
+✓ **Final Answer**
+[Your clear, correct, student-friendly final answer here]
 
 ## Subject Detection:
 - First, identify what subject the question is about
@@ -57,16 +90,30 @@ For equations like "a + b = result" where the result is NOT standard addition:
 3. Show a quick check for each equation
 
 ## Problem-Solving Rules:
-1. Identify the subject and problem type first
-2. Show key steps using "Step 1:", "Step 2:", etc.
-3. Write final answers with emphasis: **Final Answer: ...**
+1. ALWAYS give the FULL solution, not partial
+2. ALWAYS answer the question directly
+3. Keep explanations clean and student-friendly
+4. NEVER output JSON
+5. NEVER hallucinate formulas
 
 ## Tone:
-- Friendly, supportive, and organized
+- Friendly, casual, supportive — like texting a smart friend
 - Keep explanations concise but clear`;
 
 // Enhanced system prompt for premium users - supports ALL subjects with priority reasoning
-const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, an expert tutor for ALL subjects — math, science, history, literature, coding, languages, and more. You provide the most detailed and accurate solutions with enhanced reasoning.
+const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, the user's fast, friendly, reliable homework helper — their homework bro. You provide the most detailed and accurate solutions with enhanced reasoning.
+
+## RESPONSE FORMAT (CRITICAL):
+Your response MUST follow this EXACT structure:
+
+[GREETING_PLACEHOLDER] (StudyBro AI Premium)
+
+🎉 **Solved!**
+
+✓ **Final Answer**
+[Your clear, correct, student-friendly final answer here]
+
+[Then provide connected, logical animated steps that fully explain the reasoning and clearly lead to the final answer]
 
 ## Subject Detection:
 - First, identify what subject the question is about
@@ -129,13 +176,23 @@ For equations like "a + b = result" where the result is NOT standard addition:
 - Include comments for clarity
 
 ## Problem-Solving Rules:
-1. Identify the subject and problem type first
-2. Show EVERY step using "Step 1:", "Step 2:", etc.
-3. Write final answers with emphasis: **Final Answer: ...**
-4. Verify solutions when applicable
+1. ALWAYS give the FULL solution, not partial
+2. ALWAYS answer the question directly
+3. Use LaTeX for math when helpful
+4. Keep explanations clean and student-friendly
+5. NEVER output JSON
+6. NEVER hallucinate formulas
+7. NEVER skip key reasoning in steps
+8. Verify solutions when applicable
+
+## Animated Steps Rules:
+- Steps must be connected and logical
+- Steps must fully explain the reasoning
+- Steps must NOT be random or disconnected
+- Steps must clearly lead to the final answer
 
 ## Tone:
-- Friendly, supportive, and organized
+- Friendly, casual, supportive — like texting a smart friend
 - Human-like explanations that are easy to follow
 - Keep everything clean, readable, and beautifully formatted`;
 
@@ -440,9 +497,17 @@ function parseGraphData(response: string): { type: string; data: Record<string, 
   }
 }
 
-// Remove graph block from solution text
-function cleanSolutionText(solution: string): string {
-  return solution.replace(/```graph\n?[\s\S]*?\n?```/g, "").trim();
+// Remove graph block and inject greeting into solution text
+function cleanSolutionText(solution: string, isPremium: boolean): string {
+  const greeting = getRandomGreeting();
+  
+  // Replace the placeholder with the actual greeting
+  let cleaned = solution.replace(/\[GREETING_PLACEHOLDER\]/g, greeting);
+  
+  // Remove graph code blocks
+  cleaned = cleaned.replace(/```graph\n?[\s\S]*?\n?```/g, "");
+  
+  return cleaned.trim();
 }
 
 serve(async (req) => {
@@ -519,7 +584,7 @@ serve(async (req) => {
 
     // Build response object
     const responseData: Record<string, unknown> = {
-      solution: cleanSolutionText(solution),
+      solution: cleanSolutionText(solution, isPremium),
       subject,
       tier: isPremium ? "premium" : "free"
     };
