@@ -148,24 +148,69 @@ export type Database = {
           },
         ]
       }
+      poll_views: {
+        Row: {
+          device_id: string | null
+          first_viewed_at: string
+          id: string
+          poll_id: string
+          user_id: string | null
+        }
+        Insert: {
+          device_id?: string | null
+          first_viewed_at?: string
+          id?: string
+          poll_id: string
+          user_id?: string | null
+        }
+        Update: {
+          device_id?: string | null
+          first_viewed_at?: string
+          id?: string
+          poll_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_views_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_views_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "public_polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poll_votes: {
         Row: {
           created_at: string
+          device_id: string | null
           id: string
+          is_premium: boolean | null
           option_index: number
           poll_id: string
           voter_id: string
         }
         Insert: {
           created_at?: string
+          device_id?: string | null
           id?: string
+          is_premium?: boolean | null
           option_index: number
           poll_id: string
           voter_id: string
         }
         Update: {
           created_at?: string
+          device_id?: string | null
           id?: string
+          is_premium?: boolean | null
           option_index?: number
           poll_id?: string
           voter_id?: string
@@ -422,6 +467,14 @@ export type Database = {
       }
     }
     Functions: {
+      check_vote_exists: {
+        Args: {
+          device_id_param: string
+          poll_id_param: string
+          voter_id_param: string
+        }
+        Returns: boolean
+      }
       complete_referral: { Args: { referred_id: string }; Returns: undefined }
       get_poll_analytics: { Args: { poll_id_param: string }; Returns: Json }
       get_poll_vote_counts: { Args: { poll_id_param: string }; Returns: Json }
@@ -437,6 +490,14 @@ export type Database = {
         Returns: boolean
       }
       is_poll_admin: { Args: { _user_id: string }; Returns: boolean }
+      record_poll_view: {
+        Args: {
+          device_id_param: string
+          poll_id_param: string
+          user_id_param: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
