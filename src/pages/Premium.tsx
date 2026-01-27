@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { motion } from "framer-motion";
+import { useState, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -94,12 +94,37 @@ const Premium = () => {
   const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSelectingPlan, setIsSelectingPlan] = useState(false);
 
   // Check if it's Friday (5) or Saturday (6) for weekend discount visibility
   const isWeekendDiscount = useMemo(() => {
     const today = new Date().getDay();
     return today === 5 || today === 6;
   }, []);
+
+  // Lock/unlock scroll based on overlay state
+  useEffect(() => {
+    if (isSelectingPlan) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isSelectingPlan]);
+
+  const handleSelectPlanClick = () => {
+    if (!selectedPlan) {
+      toast.error("Please select a plan first");
+      return;
+    }
+    setIsSelectingPlan(true);
+  };
+
+  const handleCancelOverlay = () => {
+    setIsSelectingPlan(false);
+  };
 
   const handleCheckout = async () => {
     if (!selectedPlan) {
@@ -326,30 +351,86 @@ const Premium = () => {
       <div className="fixed bottom-20 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border">
         <div className="max-w-lg mx-auto">
           <Button
-            onClick={handleCheckout}
-            disabled={!selectedPlan || isLoading}
+            onClick={handleSelectPlanClick}
+            disabled={!selectedPlan}
             className="w-full h-14 text-lg font-bold gap-2"
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Creating checkout...
-              </>
-            ) : (
-              <>
-                <Crown className="w-5 h-5" />
-                {selectedPlan 
-                  ? `Continue - $${PLANS.find(p => p.id === selectedPlan)?.price.toFixed(2)}${PLANS.find(p => p.id === selectedPlan)?.period}`
-                  : "Select a plan to continue"
-                }
-              </>
-            )}
+            <Crown className="w-5 h-5" />
+            {selectedPlan 
+              ? `Select Plan - $${PLANS.find(p => p.id === selectedPlan)?.price.toFixed(2)}${PLANS.find(p => p.id === selectedPlan)?.period}`
+              : "Select a plan to continue"
+            }
           </Button>
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            Cancel anytime. No questions asked.
-          </p>
         </div>
       </div>
+
+      {/* Confirmation Overlay */}
+      <AnimatePresence>
+        {isSelectingPlan && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 space-y-6"
+            >
+              {/* Crown Icon */}
+              <div className="flex justify-center">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary via-secondary to-primary flex items-center justify-center">
+                  <Crown className="w-8 h-8 text-primary-foreground" />
+                </div>
+              </div>
+
+              {/* Plan Summary */}
+              <div className="text-center space-y-2">
+                <h2 className="text-xl font-bold">Confirm Your Plan</h2>
+                <p className="text-muted-foreground">
+                  {PLANS.find(p => p.id === selectedPlan)?.name} - ${PLANS.find(p => p.id === selectedPlan)?.price.toFixed(2)}{PLANS.find(p => p.id === selectedPlan)?.period}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-3">
+                <Button
+                  onClick={handleCheckout}
+                  disabled={isLoading}
+                  className="w-full h-12 text-base font-bold gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Creating checkout...
+                    </>
+                  ) : (
+                    <>
+                      <Crown className="w-5 h-5" />
+                      Continue to Checkout
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleCancelOverlay}
+                  disabled={isLoading}
+                  className="w-full h-12 text-base"
+                >
+                  Go Back
+                </Button>
+              </div>
+
+              {/* Cancel anytime message */}
+              <p className="text-xs text-muted-foreground text-center">
+                Cancel anytime. No questions asked.
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <BottomNav />
     </div>
