@@ -815,36 +815,49 @@ export function PollsSection() {
                   </div>
                 </div>
 
-                {/* Admin Analytics Display - Clean single render */}
+                {/* Admin Analytics Display - Always show for admin with zeros if no data */}
                 {isAdmin && (
-                  <div className="mb-3 p-2 bg-primary/5 rounded-lg border border-primary/20 space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Unique Views</span>
-                      <span className="font-medium text-primary">{pollAnalytics[poll.id]?.unique_views ?? 0}</span>
+                  <div className="mb-3 p-2 bg-primary/5 rounded-lg border border-primary/20 space-y-2">
+                    <div className="text-xs text-muted-foreground grid grid-cols-3 gap-2">
+                      <div className="text-center">
+                        <div className="font-medium text-primary">
+                          {pollAnalytics[poll.id]?.unique_views ?? 0}
+                        </div>
+                        <div>Unique Views</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-primary">
+                          {pollAnalytics[poll.id]?.unique_voters ?? 0}
+                        </div>
+                        <div>Unique Voters</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-primary">
+                          {pollAnalytics[poll.id]?.total_conversions ?? 0}
+                        </div>
+                        <div>Conversions</div>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Unique Voters</span>
-                      <span className="font-medium text-primary">{pollAnalytics[poll.id]?.unique_voters ?? 0}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Premium Votes</span>
-                      <span className="font-medium text-green-500">{pollAnalytics[poll.id]?.premium_votes ?? 0}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Free Votes</span>
-                      <span className="font-medium">{pollAnalytics[poll.id]?.free_votes ?? 0}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Engagement Rate (%)</span>
-                      <span className="font-medium text-blue-500">{pollAnalytics[poll.id]?.engagement_rate ?? 0}%</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Vote Distribution</span>
-                      <span className="font-medium text-primary">{JSON.stringify(pollAnalytics[poll.id]?.vote_distribution ?? {})}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Conversions</span>
-                      <span className="font-medium text-primary">{pollAnalytics[poll.id]?.total_conversions ?? 0}</span>
+                    {/* Premium vs Free vote breakdown + Engagement Rate */}
+                    <div className="text-xs text-muted-foreground grid grid-cols-3 gap-2 pt-1 border-t border-primary/10">
+                      <div className="text-center">
+                        <div className="font-medium text-green-500">
+                          {pollAnalytics[poll.id]?.premium_votes ?? 0}
+                        </div>
+                        <div>Premium</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-muted-foreground">
+                          {pollAnalytics[poll.id]?.free_votes ?? 0}
+                        </div>
+                        <div>Free</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-blue-500">
+                          {pollAnalytics[poll.id]?.engagement_rate ?? 0}%
+                        </div>
+                        <div>Engagement</div>
+                      </div>
                     </div>
                   </div>
                 )}
