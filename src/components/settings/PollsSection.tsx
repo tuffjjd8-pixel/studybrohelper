@@ -143,24 +143,55 @@ export function PollsSection() {
     }
   };
 
-  // Fetch analytics for admin
+  // Fetch analytics for admin - always returns data (zeros if none)
   const fetchPollAnalytics = async (pollId: string) => {
     if (!isAdmin) return;
     try {
       const { data, error } = await supabase.rpc('get_poll_analytics', {
         poll_id_param: pollId
       });
+      
+      // Always set analytics, use defaults if null/error
+      const defaultAnalytics: PollAnalytics = {
+        poll_id: pollId,
+        total_views: 0,
+        total_votes: 0,
+        total_conversions: 0,
+        vote_distribution: {},
+        conversion_targets: {},
+        unique_voters: 0
+      };
+      
       if (!error && data) {
-        setPollAnalytics(prev => ({ ...prev, [pollId]: data as unknown as PollAnalytics }));
+        setPollAnalytics(prev => ({ 
+          ...prev, 
+          [pollId]: { ...defaultAnalytics, ...data as unknown as PollAnalytics }
+        }));
+      } else {
+        // Set zeros if no data
+        setPollAnalytics(prev => ({ ...prev, [pollId]: defaultAnalytics }));
       }
     } catch (error) {
       console.error("Error fetching poll analytics:", error);
+      // Still show zeros on error
+      setPollAnalytics(prev => ({ 
+        ...prev, 
+        [pollId]: {
+          poll_id: pollId,
+          total_views: 0,
+          total_votes: 0,
+          total_conversions: 0,
+          vote_distribution: {},
+          conversion_targets: {},
+          unique_voters: 0
+        }
+      }));
     }
   };
 
   useEffect(() => {
     fetchPolls();
-  }, []);
+  }, [isAdmin]);
 
   // Load user votes from database when user changes
   useEffect(() => {
@@ -698,20 +729,26 @@ export function PollsSection() {
                   </div>
                 </div>
 
-                {/* Admin Analytics Display */}
-                {isAdmin && pollAnalytics[poll.id] && (
+                {/* Admin Analytics Display - Always show for admin with zeros if no data */}
+                {isAdmin && (
                   <div className="mb-3 p-2 bg-primary/5 rounded-lg border border-primary/20">
                     <div className="text-xs text-muted-foreground grid grid-cols-3 gap-2">
                       <div className="text-center">
-                        <div className="font-medium text-primary">{pollAnalytics[poll.id].total_views}</div>
+                        <div className="font-medium text-primary">
+                          {pollAnalytics[poll.id]?.total_views ?? 0}
+                        </div>
                         <div>Views</div>
                       </div>
                       <div className="text-center">
-                        <div className="font-medium text-primary">{pollAnalytics[poll.id].unique_voters}</div>
+                        <div className="font-medium text-primary">
+                          {pollAnalytics[poll.id]?.unique_voters ?? 0}
+                        </div>
                         <div>Unique Voters</div>
                       </div>
                       <div className="text-center">
-                        <div className="font-medium text-primary">{pollAnalytics[poll.id].total_conversions}</div>
+                        <div className="font-medium text-primary">
+                          {pollAnalytics[poll.id]?.total_conversions ?? 0}
+                        </div>
                         <div>Conversions</div>
                       </div>
                     </div>
