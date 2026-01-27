@@ -51,6 +51,7 @@ interface PollAnalytics {
   unique_voters: number;
   premium_votes: number;
   free_votes: number;
+  engagement_rate: number;
 }
 
 // Generate or retrieve persistent device ID
@@ -199,7 +200,8 @@ export function PollsSection() {
         conversion_targets: {},
         unique_voters: 0,
         premium_votes: 0,
-        free_votes: 0
+        free_votes: 0,
+        engagement_rate: 0
       };
       
       if (!error && data) {
@@ -226,7 +228,8 @@ export function PollsSection() {
           conversion_targets: {},
           unique_voters: 0,
           premium_votes: 0,
-          free_votes: 0
+          free_votes: 0,
+          engagement_rate: 0
         }
       }));
     }
@@ -835,19 +838,25 @@ export function PollsSection() {
                         <div>Conversions</div>
                       </div>
                     </div>
-                    {/* Premium vs Free vote breakdown */}
-                    <div className="text-xs text-muted-foreground grid grid-cols-2 gap-2 pt-1 border-t border-primary/10">
+                    {/* Premium vs Free vote breakdown + Engagement Rate */}
+                    <div className="text-xs text-muted-foreground grid grid-cols-3 gap-2 pt-1 border-t border-primary/10">
                       <div className="text-center">
                         <div className="font-medium text-green-500">
                           {pollAnalytics[poll.id]?.premium_votes ?? 0}
                         </div>
-                        <div>Premium Votes</div>
+                        <div>Premium</div>
                       </div>
                       <div className="text-center">
                         <div className="font-medium text-muted-foreground">
                           {pollAnalytics[poll.id]?.free_votes ?? 0}
                         </div>
-                        <div>Free Votes</div>
+                        <div>Free</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-blue-500">
+                          {pollAnalytics[poll.id]?.engagement_rate ?? 0}%
+                        </div>
+                        <div>Engagement</div>
                       </div>
                     </div>
                   </div>
