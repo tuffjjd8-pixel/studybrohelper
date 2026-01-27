@@ -1,18 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle, Crown, AlertCircle } from "lucide-react";
+import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle, Crown, AlertCircle, Calculator } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Command,
   CommandEmpty,
@@ -27,6 +27,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { isSolveRequest } from "@/lib/intentRouting";
 
 interface Solve {
   id: string;
@@ -56,6 +57,7 @@ const FREE_DAILY_QUIZZES = 7;
 const PREMIUM_DAILY_QUIZZES = 13;
 
 const Quiz = () => {
+  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [solves, setSolves] = useState<Solve[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +74,11 @@ const Quiz = () => {
   const [reviewMode, setReviewMode] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizzesUsedToday, setQuizzesUsedToday] = useState(0);
+
+  // Detect if user is typing equation-related content
+  const showSolveRedirect = useMemo(() => {
+    return isSolveRequest(searchQuery);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (user) {
@@ -392,6 +399,33 @@ const Quiz = () => {
                         onValueChange={setSearchQuery}
                       />
                       <CommandList>
+                        {/* Show redirect message when user types equation-related terms */}
+                        {showSolveRedirect && (
+                          <div className="p-3 border-b border-border bg-primary/5">
+                            <div className="flex items-start gap-2">
+                              <Calculator className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-primary">
+                                  Looking to solve equations?
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  Use Solve Homework for equations and calculations.
+                                </p>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="mt-2 h-7 text-xs"
+                                  onClick={() => {
+                                    setOpen(false);
+                                    navigate("/");
+                                  }}
+                                >
+                                  Go to Solve Homework
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                         <CommandEmpty>
                           {loading ? "Loading..." : "No conversations found."}
                         </CommandEmpty>
