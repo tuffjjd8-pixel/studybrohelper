@@ -43,12 +43,26 @@ interface Poll {
 interface PollAnalytics {
   poll_id: string;
   total_views: number;
+  unique_views: number;
   total_votes: number;
   total_conversions: number;
   vote_distribution: Record<string, number>;
   conversion_targets: Record<string, number>;
   unique_voters: number;
+  premium_votes: number;
+  free_votes: number;
 }
+
+// Generate or retrieve persistent device ID
+const getDeviceId = (): string => {
+  const DEVICE_ID_KEY = "studybro_device_id";
+  let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+  if (!deviceId) {
+    deviceId = crypto.randomUUID();
+    localStorage.setItem(DEVICE_ID_KEY, deviceId);
+  }
+  return deviceId;
+};
 
 // Get voter ID - requires authenticated user
 const getVoterId = (userId?: string): string | null => {
@@ -88,6 +102,8 @@ export function PollsSection() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [pollAnalytics, setPollAnalytics] = useState<Record<string, PollAnalytics>>({});
+  const [userIsPremium, setUserIsPremium] = useState(false);
+  const [deviceId] = useState(() => getDeviceId());
   
   // Admin state
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -98,15 +114,36 @@ export function PollsSection() {
     is_public: true,
     timeLimit: "none" as "none" | "24h" | "3d" | "7d"
   });
+  
+  // Fetch user premium status
+  useEffect(() => {
+    const fetchPremiumStatus = async () => {
+      if (!user?.id) {
+        setUserIsPremium(false);
+        return;
+      }
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("is_premium")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        setUserIsPremium(data?.is_premium ?? false);
+      } catch {
+        setUserIsPremium(false);
+      }
+    };
+    fetchPremiumStatus();
+  }, [user?.id]);
 
-  // Track poll view for analytics
+  // Track unique poll view using poll_views table
   const trackPollView = async (pollId: string) => {
-    if (!user?.id) return;
     try {
-      await supabase.from("poll_analytics").insert({
-        poll_id: pollId,
-        event_type: "view",
-        user_id: user.id
+      // Use the RPC function to record unique view
+      await supabase.rpc('record_poll_view', {
+        poll_id_param: pollId,
+        user_id_param: user?.id || null,
+        device_id_param: deviceId
       });
     } catch (error) {
       console.error("Error tracking poll view:", error);
@@ -155,11 +192,14 @@ export function PollsSection() {
       const defaultAnalytics: PollAnalytics = {
         poll_id: pollId,
         total_views: 0,
+        unique_views: 0,
         total_votes: 0,
         total_conversions: 0,
         vote_distribution: {},
         conversion_targets: {},
-        unique_voters: 0
+        unique_voters: 0,
+        premium_votes: 0,
+        free_votes: 0
       };
       
       if (!error && data) {
@@ -179,11 +219,14 @@ export function PollsSection() {
         [pollId]: {
           poll_id: pollId,
           total_views: 0,
+          unique_views: 0,
           total_votes: 0,
           total_conversions: 0,
           vote_distribution: {},
           conversion_targets: {},
-          unique_voters: 0
+          unique_voters: 0,
+          premium_votes: 0,
+          free_votes: 0
         }
       }));
     }
@@ -193,14 +236,10 @@ export function PollsSection() {
     fetchPolls();
   }, [isAdmin]);
 
-  // Load user votes from database when user changes
+  // Load user votes from database when user or polls change
   useEffect(() => {
-    if (user?.id) {
-      loadUserVotes();
-    } else {
-      setVotedPolls({});
-    }
-  }, [user?.id, polls]);
+    loadUserVotes();
+  }, [user?.id, polls, deviceId]);
 
   // Check admin status via edge function (server-side validation)
   useEffect(() => {
@@ -241,21 +280,40 @@ export function PollsSection() {
   }, [user]);
 
   // Load user's votes from database (server-side source of truth)
+  // Also checks device-based votes for additional security
   const loadUserVotes = async () => {
-    if (!user?.id || polls.length === 0) return;
+    if (polls.length === 0) return;
     
     try {
       const votes: Record<string, number> = {};
       
-      // Fetch user's votes for all polls using the database function
+      // Fetch votes for all polls - check both user_id and device_id
       for (const poll of polls) {
-        const { data, error } = await supabase.rpc('get_user_vote', {
+        // First check by user ID if logged in
+        if (user?.id) {
+          const { data, error } = await supabase.rpc('get_user_vote', {
+            poll_id_param: poll.id,
+            voter_id_param: user.id
+          });
+          
+          if (!error && data !== null) {
+            votes[poll.id] = data;
+            continue;
+          }
+        }
+        
+        // Also check by device_id using check_vote_exists
+        const { data: exists } = await supabase.rpc('check_vote_exists', {
           poll_id_param: poll.id,
-          voter_id_param: user.id
+          voter_id_param: user?.id || '',
+          device_id_param: deviceId
         });
         
-        if (!error && data !== null) {
-          votes[poll.id] = data;
+        // If device has voted, we need to fetch what option was chosen
+        // For now, just mark as voted (will show results view)
+        if (exists) {
+          // Device has voted but we don't know which option
+          // This is a fallback - user should be logged in to vote
         }
       }
       
@@ -355,18 +413,38 @@ export function PollsSection() {
     }
 
     try {
-      // Insert vote into poll_votes table (server handles uniqueness)
+      // Check if user or device already voted using RPC
+      const { data: alreadyVoted } = await supabase.rpc('check_vote_exists', {
+        poll_id_param: pollId,
+        voter_id_param: user.id,
+        device_id_param: deviceId
+      });
+
+      if (alreadyVoted && previousVote === undefined) {
+        // Device has already voted on a different account
+        toast.error("This device has already voted on this poll");
+        return;
+      }
+
+      // Insert or update vote with device_id and premium status
       const { error: voteError } = await supabase
         .from("poll_votes")
         .upsert({
           poll_id: pollId,
           voter_id: user.id,
-          option_index: optionIndex
+          device_id: deviceId,
+          option_index: optionIndex,
+          is_premium: userIsPremium
         }, {
           onConflict: 'poll_id,voter_id'
         });
 
       if (voteError) {
+        // Check if it's a device duplicate constraint violation
+        if (voteError.code === '23505' && voteError.message?.includes('device')) {
+          toast.error("This device has already voted on this poll");
+          return;
+        }
         throw voteError;
       }
 
@@ -403,6 +481,11 @@ export function PollsSection() {
 
       // Update voted polls state
       setVotedPolls(prev => ({ ...prev, [pollId]: optionIndex }));
+      
+      // Refresh analytics for admin
+      if (isAdmin) {
+        fetchPollAnalytics(pollId);
+      }
       
       toast.success(previousVote !== undefined ? "Vote changed!" : "Vote recorded!");
     } catch (error) {
@@ -731,13 +814,13 @@ export function PollsSection() {
 
                 {/* Admin Analytics Display - Always show for admin with zeros if no data */}
                 {isAdmin && (
-                  <div className="mb-3 p-2 bg-primary/5 rounded-lg border border-primary/20">
+                  <div className="mb-3 p-2 bg-primary/5 rounded-lg border border-primary/20 space-y-2">
                     <div className="text-xs text-muted-foreground grid grid-cols-3 gap-2">
                       <div className="text-center">
                         <div className="font-medium text-primary">
-                          {pollAnalytics[poll.id]?.total_views ?? 0}
+                          {pollAnalytics[poll.id]?.unique_views ?? 0}
                         </div>
-                        <div>Views</div>
+                        <div>Unique Views</div>
                       </div>
                       <div className="text-center">
                         <div className="font-medium text-primary">
@@ -750,6 +833,21 @@ export function PollsSection() {
                           {pollAnalytics[poll.id]?.total_conversions ?? 0}
                         </div>
                         <div>Conversions</div>
+                      </div>
+                    </div>
+                    {/* Premium vs Free vote breakdown */}
+                    <div className="text-xs text-muted-foreground grid grid-cols-2 gap-2 pt-1 border-t border-primary/10">
+                      <div className="text-center">
+                        <div className="font-medium text-green-500">
+                          {pollAnalytics[poll.id]?.premium_votes ?? 0}
+                        </div>
+                        <div>Premium Votes</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-muted-foreground">
+                          {pollAnalytics[poll.id]?.free_votes ?? 0}
+                        </div>
+                        <div>Free Votes</div>
                       </div>
                     </div>
                   </div>
