@@ -109,39 +109,26 @@ serve(async (req) => {
     // Import key rotation
     const { callGroqWithRotation } = await import("../_shared/groq-key-manager.ts");
 
-    const systemPrompt = effectiveStrictMode 
-      ? `Generate EXACTLY ${validCount} multiple-choice questions based on the provided content.
+    const systemPrompt = `You are a quiz generator. Your ONLY job is to produce clean, valid JSON quizzes.
 
-STRICT COUNT MODE IS ON:
-- You MUST generate exactly ${validCount} questions, no more, no less
-- If the conversation doesn't have enough information, expand using well-known, factual, widely accepted information related to the topic
-- Do NOT invent fake facts or hallucinate. Only use verifiable, commonly known information to expand
-- Each question must have exactly 4 options labeled A, B, C, D
-- Include the correct answer letter (A, B, C, or D)
-- Include a SHORT explanation (1-2 sentences max) for why the answer is correct
-- Return ONLY valid JSON array, no markdown, no extra text
-- Subject context: ${subject || "general"}
+STRICT RULES:
+1. Generate EXACTLY ${validCount} multiple-choice questions based on the provided content.
+2. Questions may include math symbols (λ, Δx, hf, etc.) ONLY if they render cleanly. If a symbol cannot be rendered correctly, replace it with word form (lambda, delta x, h f). NEVER output broken LaTeX or half-rendered math.
+3. Difficulty context: ${subject || "general"}
+4. Include ONLY short explanations (1-2 sentences max). NO step-by-step solutions.
+5. Return ONLY the JSON object. NO extra text before or after.
+6. NO markdown formatting.
+7. NO LaTeX formatting ($, \\, ^, _, {}).
+8. All fields MUST be present. No missing keys. No null values.
+9. The JSON MUST be valid and parseable on the first try.
+${effectiveStrictMode ? `10. STRICT COUNT MODE: You MUST generate exactly ${validCount} questions. If the content is limited, expand using well-known, factual information related to the topic. Do NOT invent fake facts.` : `10. ADAPTIVE MODE: Target ${validCount} questions, but generate FEWER if content is too limited. Do NOT hallucinate.`}
 
-OUTPUT FORMAT:
-[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"answer":"A","explanation":"Short explanation here."}]
+REQUIRED JSON STRUCTURE (return EXACTLY this format):
+{"questions":[{"question":"string","options":["A) option","B) option","C) option","D) option"],"correctOptionIndex":0,"explanation":"short explanation"}]}
 
-Return ONLY the JSON array.`
-      : `Generate multiple-choice questions based on the provided content.
-
-ADAPTIVE MODE (Strict Count OFF):
-- Target: ${validCount} questions, but only if the content supports it
-- If the conversation is too short or limited, generate FEWER questions rather than making things up
-- Do NOT hallucinate or invent information. Only create questions from what's actually in the content
-- Each question must have exactly 4 options labeled A, B, C, D
-- Include the correct answer letter (A, B, C, or D)
-- Include a SHORT explanation (1-2 sentences max) for why the answer is correct
-- Return ONLY valid JSON array, no markdown, no extra text
-- Subject context: ${subject || "general"}
-
-OUTPUT FORMAT:
-[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"answer":"A","explanation":"Short explanation here."}]
-
-Return ONLY the JSON array.`;
+- correctOptionIndex is 0 for A, 1 for B, 2 for C, 3 for D
+- options must have exactly 4 items with A), B), C), D) prefixes
+- Return ONLY the JSON object, nothing else.`;
 
     const response = await callGroqWithRotation(
       "https://api.groq.com/openai/v1/chat/completions",
@@ -190,20 +177,30 @@ Return ONLY the JSON array.`;
       }
       cleanContent = cleanContent.trim();
 
-      quiz = JSON.parse(cleanContent);
+      const parsed = JSON.parse(cleanContent);
 
-      // Validate structure
-      if (!Array.isArray(quiz)) {
-        throw new Error("Response is not an array");
+      // Handle both old array format and new object format
+      const questionsArray = Array.isArray(parsed) ? parsed : (parsed.questions || []);
+      
+      if (!Array.isArray(questionsArray) || questionsArray.length === 0) {
+        throw new Error("No questions found in response");
       }
 
-      // Ensure each question has required fields
-      quiz = quiz.map((q: any, i: number) => ({
-        question: q.question || `Question ${i + 1}`,
-        options: Array.isArray(q.options) ? q.options.slice(0, 4) : ["A) Option A", "B) Option B", "C) Option C", "D) Option D"],
-        answer: q.answer || "A",
-        explanation: q.explanation || "This is the correct answer based on the material.",
-      }));
+      // Ensure each question has required fields and normalize format
+      quiz = questionsArray.map((q: any, i: number) => {
+        // Convert correctOptionIndex to answer letter if present
+        let answer = q.answer;
+        if (typeof q.correctOptionIndex === 'number') {
+          answer = ['A', 'B', 'C', 'D'][q.correctOptionIndex] || 'A';
+        }
+        
+        return {
+          question: q.question || `Question ${i + 1}`,
+          options: Array.isArray(q.options) ? q.options.slice(0, 4) : ["A) Option A", "B) Option B", "C) Option C", "D) Option D"],
+          answer: answer || "A",
+          explanation: q.explanation || "This is the correct answer based on the material.",
+        };
+      });
 
     } catch (parseError) {
       console.error("JSON parse error:", parseError, "Content:", content);
