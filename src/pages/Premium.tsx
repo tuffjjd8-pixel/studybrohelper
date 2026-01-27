@@ -347,22 +347,28 @@ const Premium = () => {
         </div>
       </main>
 
-      {/* Sticky CTA */}
-      <div className="fixed bottom-20 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border">
-        <div className="max-w-lg mx-auto">
-          <Button
-            onClick={handleSelectPlanClick}
-            disabled={!selectedPlan}
-            className="w-full h-14 text-lg font-bold gap-2"
+      {/* Sticky CTA - only visible after selecting a plan */}
+      <AnimatePresence>
+        {selectedPlan && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="fixed bottom-20 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border"
           >
-            <Crown className="w-5 h-5" />
-            {selectedPlan 
-              ? `Select Plan - $${PLANS.find(p => p.id === selectedPlan)?.price.toFixed(2)}${PLANS.find(p => p.id === selectedPlan)?.period}`
-              : "Select a plan to continue"
-            }
-          </Button>
-        </div>
-      </div>
+            <div className="max-w-lg mx-auto">
+              <Button
+                onClick={handleSelectPlanClick}
+                className="w-full h-14 text-lg font-bold gap-2"
+              >
+                <Crown className="w-5 h-5" />
+                Select Plan - ${PLANS.find(p => p.id === selectedPlan)?.price.toFixed(2)}{PLANS.find(p => p.id === selectedPlan)?.period}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Confirmation Overlay */}
       <AnimatePresence>
