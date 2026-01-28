@@ -40,7 +40,7 @@ interface Profile {
 
 // Speech clips reset daily (24 hours)
 const FREE_SPEECH_CLIPS = 3;
-const PREMIUM_SPEECH_CLIPS = 25; // Generous daily limit for premium
+const PREMIUM_SPEECH_CLIPS = 15; // Daily limit for premium
 const SPEECH_RESET_HOURS = 24;
 const FREE_ANIMATED_STEPS_PER_DAY = 5;
 const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
