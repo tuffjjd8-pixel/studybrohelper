@@ -1,72 +1,81 @@
-import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
 
-interface CameraButtonProps {
-  onImageCapture?: (imageData: string) => void;
-  isLoading?: boolean;
-  onClick?: () => void;
+import { cn } from "@/lib/utils";
+
+// ------------------------------------------------------------
+// BUTTON VARIANTS (includes neonGreen + neonGreenFilled + icon-xl)
+// ------------------------------------------------------------
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground hover:bg-primary/90 shadow-button hover:shadow-neon",
+        destructive:
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline:
+          "border border-border bg-transparent hover:bg-muted hover:text-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-muted hover:text-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+
+        // Neon glow border (unfilled)
+        neonGreen:
+          "relative bg-background text-primary font-bold border-2 border-primary shadow-[0_0_20px_hsl(var(--primary)/0.4),inset_0_0_20px_hsl(var(--primary)/0.1)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.6),inset_0_0_25px_hsl(var(--primary)/0.15)] hover:border-primary/90 hover:bg-primary/5",
+
+        // Filled neon green (THIS IS THE ONE YOUR CIRCLE USES)
+        neonGreenFilled:
+          "bg-primary text-primary-foreground font-bold border-2 border-primary shadow-[0_0_25px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.7)] hover:bg-primary/90",
+      },
+
+      size: {
+        default: "h-11 px-5 py-2 rounded-xl",
+        sm: "h-9 px-3 text-xs rounded-lg",
+        lg: "h-12 px-8 text-base rounded-xl",
+        xl: "h-14 px-10 text-lg rounded-2xl",
+
+        // Icon sizes
+        icon: "h-11 w-11 rounded-full",
+        "icon-lg": "h-14 w-14 rounded-full",
+
+        // THE PERFECT CIRCLE YOU WANT
+        "icon-xl": "h-20 w-20 rounded-full",
+      },
+    },
+
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+
+// ------------------------------------------------------------
+// BUTTON COMPONENT
+// ------------------------------------------------------------
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
 }
 
-export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
-  const handleClick = () => {
-    if (isLoading) return;
-    onClick?.();
-  };
-
-  return (
-    <motion.div
-      className="relative"
-      initial={{ scale: 0.9, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.5, type: "spring" }}
-    >
-      {/* Outer glow */}
-      <div 
-        className="absolute inset-0 rounded-full blur-2xl"
-        style={{
-          background: "hsl(var(--primary) / 0.25)",
-          transform: "scale(1.5)",
-        }}
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
       />
+    );
+  }
+);
 
-      {/* Pulsing ring animation */}
-      {!isLoading && (
-        <>
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            style={{ border: "2px solid hsl(var(--primary) / 0.3)" }}
-            initial={{ scale: 1, opacity: 0.5 }}
-            animate={{ scale: 1.4, opacity: 0 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
-          />
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            style={{ border: "2px solid hsl(var(--primary) / 0.2)" }}
-            initial={{ scale: 1, opacity: 0.3 }}
-            animate={{ scale: 1.8, opacity: 0 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.5 }}
-          />
-        </>
-      )}
+Button.displayName = "Button";
 
-      {/* Main button - using Button component with neonGreenFilled variant */}
-      <Button
-        onClick={handleClick}
-        disabled={isLoading}
-        variant="neonGreenFilled"
-        size="icon-xl"
-        className="relative z-10 font-heading font-bold text-sm leading-tight"
-      >
-        {isLoading ? (
-          <span className="flex flex-col items-center gap-1">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-xs">Solving...</span>
-          </span>
-        ) : (
-          <span className="text-center px-1">Snap<br />Homework</span>
-        )}
-      </Button>
-    </motion.div>
-  );
-}
+export { Button, buttonVariants };
