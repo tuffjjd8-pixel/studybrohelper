@@ -972,7 +972,7 @@ export function PollsSection() {
                       </div>
                       <div className="text-center">
                         <div className="font-medium text-blue-500">
-                          {pollAnalytics[poll.id]?.engagement_rate ?? 0}%
+                          {Math.min(100, pollAnalytics[poll.id]?.engagement_rate ?? 0)}%
                         </div>
                         <div>Engagement</div>
                       </div>
