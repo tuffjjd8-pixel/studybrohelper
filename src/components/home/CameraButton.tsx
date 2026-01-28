@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Camera, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CameraButtonProps {
@@ -59,12 +59,9 @@ export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
         className="relative z-10 font-heading font-bold text-sm leading-tight"
       >
         {isLoading ? (
-          <span className="flex flex-col items-center gap-1">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-xs">Solving...</span>
-          </span>
+          <Loader2 className="w-6 h-6 animate-spin" />
         ) : (
-          <span className="text-center px-1">Snap<br />Homework</span>
+          <Camera className="w-8 h-8" />
         )}
       </Button>
     </motion.div>
