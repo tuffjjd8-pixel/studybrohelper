@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle, Crown, AlertCircle, Calculator } from "lucide-react";
+import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle, Crown, AlertCircle, Calculator, RefreshCw } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { isSolveRequest } from "@/lib/intentRouting";
+import { QuizLoadingShimmer } from "@/components/quiz/QuizLoadingShimmer";
 
 interface Solve {
   id: string;
@@ -65,6 +66,8 @@ const Quiz = () => {
   const [questionCount, setQuestionCount] = useState<string>("");
   const [strictCountMode, setStrictCountMode] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [showShimmer, setShowShimmer] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [quizResult, setQuizResult] = useState<QuizQuestion[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -74,6 +77,7 @@ const Quiz = () => {
   const [reviewMode, setReviewMode] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizzesUsedToday, setQuizzesUsedToday] = useState(0);
+  const shimmerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Detect if user is typing equation-related content
   const showSolveRedirect = useMemo(() => {
@@ -186,11 +190,17 @@ const Quiz = () => {
     }
 
     setGenerating(true);
+    setGenerationError(null);
     setQuizResult(null);
     setSelectedAnswers({});
     setCurrentQuestion(0);
     setSubmitted(false);
     setReviewMode(false);
+
+    // Show shimmer after 1.5 seconds if still generating
+    shimmerTimeoutRef.current = setTimeout(() => {
+      setShowShimmer(true);
+    }, 1500);
 
     try {
       const validCount = Math.min(Math.max(count, 1), maxQuestions);
@@ -213,20 +223,55 @@ const Quiz = () => {
         return;
       }
 
-      if (data?.quiz) {
-        setQuizResult(data.quiz);
+      if (data?.error === "generation_failed" && data?.retryable) {
+        setGenerationError(data.message || "Quiz generation failed. Please try again.");
+        toast.error("Quiz generation failed. Tap retry to try again.");
+        return;
+      }
+
+      if (data?.quiz && Array.isArray(data.quiz) && data.quiz.length > 0) {
+        // Validate quiz structure
+        const validQuiz = data.quiz.filter((q: QuizQuestion) => 
+          q.question && 
+          Array.isArray(q.options) && 
+          q.options.length === 4 &&
+          q.answer &&
+          ['A', 'B', 'C', 'D'].includes(q.answer.toUpperCase())
+        );
+
+        if (validQuiz.length === 0) {
+          throw new Error("Generated quiz has invalid structure");
+        }
+
+        setQuizResult(validQuiz);
         setQuizzesUsedToday(data.quizzesUsed || quizzesUsedToday + 1);
-        toast.success(`Generated ${data.quiz.length} questions`);
+        toast.success(`Generated ${validQuiz.length} questions`);
       } else {
         throw new Error("Invalid response from quiz generator");
       }
     } catch (error) {
       console.error("Quiz generation error:", error);
-      toast.error("Failed to generate quiz");
+      setGenerationError("Quiz generation failed. Please try again.");
+      toast.error("Failed to generate quiz. Tap retry to try again.");
     } finally {
+      // Clear shimmer timeout and hide shimmer
+      if (shimmerTimeoutRef.current) {
+        clearTimeout(shimmerTimeoutRef.current);
+        shimmerTimeoutRef.current = null;
+      }
+      setShowShimmer(false);
       setGenerating(false);
     }
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (shimmerTimeoutRef.current) {
+        clearTimeout(shimmerTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const getOptionLetter = (option: string): string => {
     const match = option.match(/^([A-D])\)/);
@@ -539,9 +584,36 @@ const Quiz = () => {
                 </Link>
               )}
 
+              {/* Generation Error with Retry */}
+              {generationError && !generating && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-xl"
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm text-destructive font-medium mb-2">
+                        {generationError}
+                      </p>
+                      <Button
+                        onClick={() => handleGenerate()}
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
               {/* Generate Button */}
               <Button
-                onClick={handleGenerate}
+                onClick={() => handleGenerate()}
                 disabled={!selectedSolve || generating || !canGenerateQuiz}
                 className="w-full gap-2"
                 variant="neon"
@@ -565,6 +637,11 @@ const Quiz = () => {
                 Powered by Groq llama-3.3-70B for high-accuracy, stable question generation
               </p>
             </motion.div>
+          )}
+
+          {/* Loading Shimmer - Show when generating takes > 1.5s */}
+          {showShimmer && generating && !quizResult && (
+            <QuizLoadingShimmer />
           )}
 
           {/* Score Card - Show after submission */}

@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // Tier limits
@@ -11,6 +11,167 @@ const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 7;
 const PREMIUM_DAILY_QUIZZES = 13;
+
+// Fallback models in order of preference
+const FALLBACK_MODELS = [
+  "llama-3.3-70b-versatile",
+  "llama-3.1-70b-versatile",
+  "llama-3.1-8b-instant",
+];
+
+// Sanitize and validate quiz output
+function sanitizeQuizOutput(questions: any[]): any[] {
+  return questions.map((q, i) => {
+    // Ensure options is an array with exactly 4 items
+    let options = Array.isArray(q.options) ? q.options : [];
+    
+    // Ensure each option has proper A/B/C/D prefix
+    const prefixes = ['A)', 'B)', 'C)', 'D)'];
+    options = options.slice(0, 4).map((opt: string, idx: number) => {
+      if (typeof opt !== 'string') opt = String(opt || `Option ${prefixes[idx]}`);
+      // If option doesn't start with letter prefix, add it
+      if (!opt.match(/^[A-D]\)/)) {
+        return `${prefixes[idx]} ${opt.replace(/^[A-D]\)\s*/, '')}`;
+      }
+      return opt;
+    });
+    
+    // Pad with placeholder options if less than 4
+    while (options.length < 4) {
+      options.push(`${prefixes[options.length]} [No option provided]`);
+    }
+
+    // Convert correctOptionIndex to answer letter
+    let answer = q.answer;
+    if (typeof q.correctOptionIndex === 'number') {
+      answer = ['A', 'B', 'C', 'D'][q.correctOptionIndex] || 'A';
+    } else if (typeof answer !== 'string' || !['A', 'B', 'C', 'D'].includes(answer.toUpperCase())) {
+      answer = 'A'; // Default to A if invalid
+    } else {
+      answer = answer.toUpperCase();
+    }
+
+    return {
+      question: typeof q.question === 'string' && q.question.trim() 
+        ? q.question.trim() 
+        : `Question ${i + 1}`,
+      options,
+      answer,
+      explanation: typeof q.explanation === 'string' && q.explanation.trim()
+        ? q.explanation.trim()
+        : "This is the correct answer based on the material.",
+    };
+  }).filter(q => q.question && q.options.length === 4);
+}
+
+// Parse JSON with multiple fallback strategies
+function parseQuizJSON(content: string): any {
+  let cleanContent = content.trim();
+  
+  // Strategy 1: Remove markdown code blocks
+  if (cleanContent.startsWith("```json")) {
+    cleanContent = cleanContent.slice(7);
+  } else if (cleanContent.startsWith("```")) {
+    cleanContent = cleanContent.slice(3);
+  }
+  if (cleanContent.endsWith("```")) {
+    cleanContent = cleanContent.slice(0, -3);
+  }
+  cleanContent = cleanContent.trim();
+
+  // Strategy 2: Try direct parse
+  try {
+    return JSON.parse(cleanContent);
+  } catch (e) {
+    console.log("Direct parse failed, trying fallbacks...");
+  }
+
+  // Strategy 3: Find JSON object pattern
+  const jsonObjectMatch = cleanContent.match(/\{[\s\S]*\}/);
+  if (jsonObjectMatch) {
+    try {
+      return JSON.parse(jsonObjectMatch[0]);
+    } catch (e) {
+      console.log("Object pattern parse failed");
+    }
+  }
+
+  // Strategy 4: Find JSON array pattern
+  const jsonArrayMatch = cleanContent.match(/\[[\s\S]*\]/);
+  if (jsonArrayMatch) {
+    try {
+      const arr = JSON.parse(jsonArrayMatch[0]);
+      return { questions: arr };
+    } catch (e) {
+      console.log("Array pattern parse failed");
+    }
+  }
+
+  // Strategy 5: Fix common JSON issues
+  let fixedContent = cleanContent
+    .replace(/,\s*}/g, '}')  // Remove trailing commas in objects
+    .replace(/,\s*\]/g, ']') // Remove trailing commas in arrays
+    .replace(/'/g, '"')       // Replace single quotes with double
+    .replace(/(\w+):/g, '"$1":'); // Add quotes to unquoted keys
+  
+  try {
+    return JSON.parse(fixedContent);
+  } catch (e) {
+    console.log("Fixed content parse failed");
+  }
+
+  throw new Error("Unable to parse quiz JSON after all strategies");
+}
+
+// Call Groq with model fallback
+async function callGroqWithFallback(
+  prompt: string,
+  systemPrompt: string,
+  keyManager: any
+): Promise<{ data: any; model: string }> {
+  let lastError: Error | null = null;
+
+  for (const model of FALLBACK_MODELS) {
+    try {
+      console.log(`Attempting quiz generation with model: ${model}`);
+      
+      const response = await keyManager.callGroqWithRotation(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 4000,
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Model ${model} failed:`, response.status, errorText);
+        lastError = new Error(`Model ${model} failed: ${response.status}`);
+        continue;
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        lastError = new Error(`Model ${model} returned no content`);
+        continue;
+      }
+
+      return { data: content, model };
+    } catch (error) {
+      console.error(`Error with model ${model}:`, error);
+      lastError = error as Error;
+    }
+  }
+
+  throw lastError || new Error("All models failed");
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -121,7 +282,9 @@ STRICT RULES:
 7. NO LaTeX formatting ($, \\, ^, _, {}).
 8. All fields MUST be present. No missing keys. No null values.
 9. The JSON MUST be valid and parseable on the first try.
-${effectiveStrictMode ? `10. STRICT COUNT MODE: You MUST generate exactly ${validCount} questions. If the content is limited, expand using well-known, factual information related to the topic. Do NOT invent fake facts.` : `10. ADAPTIVE MODE: Target ${validCount} questions, but generate FEWER if content is too limited. Do NOT hallucinate.`}
+10. Each question MUST have EXACTLY 4 options labeled A), B), C), D).
+11. correctOptionIndex MUST be 0, 1, 2, or 3 (corresponding to A, B, C, D).
+${effectiveStrictMode ? `12. STRICT COUNT MODE: You MUST generate exactly ${validCount} questions. If the content is limited, expand using well-known, factual information related to the topic. Do NOT invent fake facts.` : `12. ADAPTIVE MODE: Target ${validCount} questions, but generate FEWER if content is too limited. Do NOT hallucinate.`}
 
 REQUIRED JSON STRUCTURE (return EXACTLY this format):
 {"questions":[{"question":"string","options":["A) option","B) option","C) option","D) option"],"correctOptionIndex":0,"explanation":"short explanation"}]}
@@ -130,54 +293,20 @@ REQUIRED JSON STRUCTURE (return EXACTLY this format):
 - options must have exactly 4 items with A), B), C), D) prefixes
 - Return ONLY the JSON object, nothing else.`;
 
-    const response = await callGroqWithRotation(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: conversationText },
-        ],
-        temperature: 0.3,
-        max_tokens: 4000,
-      }
+    // Use fallback-enabled call
+    const keyManager = { callGroqWithRotation };
+    const { data: content, model: usedModel } = await callGroqWithFallback(
+      conversationText,
+      systemPrompt,
+      keyManager
     );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Groq API error:", response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: "Quiz generation failed" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    console.log(`Quiz generated successfully using model: ${usedModel}`);
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      return new Response(
-        JSON.stringify({ error: "No content from model" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Parse the JSON response
+    // Parse the JSON response with fallback strategies
     let quiz;
     try {
-      // Clean the response - remove markdown code blocks if present
-      let cleanContent = content.trim();
-      if (cleanContent.startsWith("```json")) {
-        cleanContent = cleanContent.slice(7);
-      } else if (cleanContent.startsWith("```")) {
-        cleanContent = cleanContent.slice(3);
-      }
-      if (cleanContent.endsWith("```")) {
-        cleanContent = cleanContent.slice(0, -3);
-      }
-      cleanContent = cleanContent.trim();
-
-      const parsed = JSON.parse(cleanContent);
+      const parsed = parseQuizJSON(content);
 
       // Handle both old array format and new object format
       const questionsArray = Array.isArray(parsed) ? parsed : (parsed.questions || []);
@@ -186,26 +315,21 @@ REQUIRED JSON STRUCTURE (return EXACTLY this format):
         throw new Error("No questions found in response");
       }
 
-      // Ensure each question has required fields and normalize format
-      quiz = questionsArray.map((q: any, i: number) => {
-        // Convert correctOptionIndex to answer letter if present
-        let answer = q.answer;
-        if (typeof q.correctOptionIndex === 'number') {
-          answer = ['A', 'B', 'C', 'D'][q.correctOptionIndex] || 'A';
-        }
-        
-        return {
-          question: q.question || `Question ${i + 1}`,
-          options: Array.isArray(q.options) ? q.options.slice(0, 4) : ["A) Option A", "B) Option B", "C) Option C", "D) Option D"],
-          answer: answer || "A",
-          explanation: q.explanation || "This is the correct answer based on the material.",
-        };
-      });
+      // Sanitize and validate the quiz output
+      quiz = sanitizeQuizOutput(questionsArray);
+
+      if (quiz.length === 0) {
+        throw new Error("No valid questions after sanitization");
+      }
 
     } catch (parseError) {
       console.error("JSON parse error:", parseError, "Content:", content);
       return new Response(
-        JSON.stringify({ error: "Failed to parse quiz response" }),
+        JSON.stringify({ 
+          error: "generation_failed",
+          message: "Quiz generation failed. Please try again.",
+          retryable: true
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -227,7 +351,8 @@ REQUIRED JSON STRUCTURE (return EXACTLY this format):
         quiz,
         quizzesUsed: quizzesUsedToday + 1,
         dailyLimit,
-        isPremium
+        isPremium,
+        model: usedModel
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -235,7 +360,11 @@ REQUIRED JSON STRUCTURE (return EXACTLY this format):
   } catch (error) {
     console.error("Quiz generation error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ 
+        error: "generation_failed",
+        message: error instanceof Error ? error.message : "Quiz generation failed. Please try again.",
+        retryable: true
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
