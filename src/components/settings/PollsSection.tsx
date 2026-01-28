@@ -17,7 +17,8 @@ import {
   EyeOff,
   Lock,
   Clock,
-  RefreshCw
+  RefreshCw,
+  AlertCircle
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -27,17 +28,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PollImageUpload } from "@/components/polls/PollImageUpload";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+
+interface PollOption {
+  text: string;
+  votes: number;
+  imageUrl?: string | null;
+}
 
 interface Poll {
   id: string;
   title: string;
   description: string | null;
-  options: { text: string; votes: number }[];
+  options: PollOption[];
   is_public: boolean;
   created_at: string;
   ends_at: string | null;
   total_votes: number;
   views_count?: number;
+  image_url?: string | null;
 }
 
 interface PollAnalytics {
@@ -95,6 +105,11 @@ const getTimeRemaining = (endsAt: string | null): string | null => {
   return `${diffMins}m left`;
 };
 
+interface NewPollOption {
+  text: string;
+  imageUrl: string | null;
+}
+
 export function PollsSection() {
   const { user } = useAuth();
   const [polls, setPolls] = useState<Poll[]>([]);
@@ -105,15 +120,24 @@ export function PollsSection() {
   const [pollAnalytics, setPollAnalytics] = useState<Record<string, PollAnalytics>>({});
   const [userIsPremium, setUserIsPremium] = useState(false);
   const [deviceId] = useState(() => getDeviceId());
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   
   // Admin state
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newPoll, setNewPoll] = useState({
+  const [newPoll, setNewPoll] = useState<{
+    title: string;
+    description: string;
+    options: NewPollOption[];
+    is_public: boolean;
+    timeLimit: "none" | "24h" | "3d" | "7d";
+    imageUrl: string | null;
+  }>({
     title: "",
     description: "",
-    options: ["", ""],
+    options: [{ text: "", imageUrl: null }, { text: "", imageUrl: null }],
     is_public: true,
-    timeLimit: "none" as "none" | "24h" | "3d" | "7d"
+    timeLimit: "none",
+    imageUrl: null
   });
   
   // Fetch user premium status
@@ -163,21 +187,6 @@ export function PollsSection() {
       });
     } catch (error) {
       console.error("Error tracking poll vote:", error);
-    }
-  };
-
-  // Track conversion (when user clicks a feature after voting)
-  const trackConversion = async (pollId: string, target: string) => {
-    if (!user?.id) return;
-    try {
-      await supabase.from("poll_analytics").insert({
-        poll_id: pollId,
-        event_type: "conversion",
-        user_id: user.id,
-        conversion_target: target
-      });
-    } catch (error) {
-      console.error("Error tracking conversion:", error);
     }
   };
 
@@ -328,18 +337,33 @@ export function PollsSection() {
 
   const fetchPolls = async () => {
     try {
-      // Use public_polls view to avoid exposing creator email addresses
-      const { data, error } = await supabase
-        .from("public_polls")
-        .select("*")
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
+      let data;
+      let error;
+
+      if (isAdmin) {
+        // Admin sees ALL polls (including hidden ones) from the polls table
+        const result = await supabase
+          .from("polls")
+          .select("id, title, description, options, is_public, created_at, ends_at, total_votes, views_count, image_url")
+          .order("created_at", { ascending: false });
+        data = result.data;
+        error = result.error;
+      } else {
+        // Non-admins see only public polls from public_polls view
+        const result = await supabase
+          .from("public_polls")
+          .select("*")
+          .eq("is_public", true)
+          .order("created_at", { ascending: false });
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) throw error;
       
       // Parse options and fetch actual vote counts from database
       const parsedPolls = await Promise.all((data || []).map(async poll => {
-        const options = poll.options as { text: string; votes: number }[];
+        const options = poll.options as unknown as PollOption[];
         
         // Fetch actual vote counts from poll_votes table
         const { data: voteCounts } = await supabase.rpc('get_poll_vote_counts', {
@@ -372,7 +396,8 @@ export function PollsSection() {
           is_public: poll.is_public!,
           created_at: poll.created_at!,
           ends_at: poll.ends_at,
-          total_votes: totalVotes
+          total_votes: totalVotes,
+          image_url: (poll as unknown as { image_url?: string | null }).image_url || null
         };
       }));
       
@@ -519,15 +544,19 @@ export function PollsSection() {
       return;
     }
 
-    if (!newPoll.title.trim() || newPoll.options.filter(o => o.trim()).length < 2) {
+    if (!newPoll.title.trim() || newPoll.options.filter(o => o.text.trim()).length < 2) {
       toast.error("Please provide a title and at least 2 options");
       return;
     }
 
     try {
       const options = newPoll.options
-        .filter(o => o.trim())
-        .map(text => ({ text: text.trim(), votes: 0 }));
+        .filter(o => o.text.trim())
+        .map(opt => ({ 
+          text: opt.text.trim(), 
+          votes: 0,
+          imageUrl: opt.imageUrl || null
+        }));
 
       const { error } = await supabase
         .from("polls")
@@ -537,13 +566,21 @@ export function PollsSection() {
           options,
           is_public: newPoll.is_public,
           created_by: user?.email || "admin",
-          ends_at: getEndsAt(newPoll.timeLimit)
+          ends_at: getEndsAt(newPoll.timeLimit),
+          image_url: newPoll.imageUrl || null
         });
 
       if (error) throw error;
 
       toast.success("Poll created!");
-      setNewPoll({ title: "", description: "", options: ["", ""], is_public: true, timeLimit: "none" });
+      setNewPoll({ 
+        title: "", 
+        description: "", 
+        options: [{ text: "", imageUrl: null }, { text: "", imageUrl: null }], 
+        is_public: true, 
+        timeLimit: "none",
+        imageUrl: null
+      });
       setShowCreateForm(false);
       fetchPolls();
     } catch (error) {
@@ -587,11 +624,12 @@ export function PollsSection() {
 
       if (error) throw error;
 
-      if (!isPublic) {
-        setPolls(prev => prev.filter(p => p.id !== pollId));
-      }
+      // Update local state without removing the poll - admin can see all polls
+      setPolls(prev => prev.map(p => 
+        p.id === pollId ? { ...p, is_public: isPublic } : p
+      ));
+      
       toast.success(isPublic ? "Poll made public" : "Poll hidden");
-      fetchPolls();
     } catch (error) {
       toast.error("Failed to update poll visibility");
     }
@@ -599,7 +637,10 @@ export function PollsSection() {
 
   const addOption = () => {
     if (newPoll.options.length < 6) {
-      setNewPoll(prev => ({ ...prev, options: [...prev.options, ""] }));
+      setNewPoll(prev => ({ 
+        ...prev, 
+        options: [...prev.options, { text: "", imageUrl: null }] 
+      }));
     }
   };
 
@@ -612,11 +653,26 @@ export function PollsSection() {
     }
   };
 
-  const updateOption = (index: number, value: string) => {
+  const updateOptionText = (index: number, value: string) => {
     setNewPoll(prev => ({
       ...prev,
-      options: prev.options.map((opt, i) => i === index ? value : opt)
+      options: prev.options.map((opt, i) => 
+        i === index ? { ...opt, text: value } : opt
+      )
     }));
+  };
+
+  const updateOptionImage = (index: number, imageUrl: string | null) => {
+    setNewPoll(prev => ({
+      ...prev,
+      options: prev.options.map((opt, i) => 
+        i === index ? { ...opt, imageUrl } : opt
+      )
+    }));
+  };
+
+  const handleMainImageError = (pollId: string) => {
+    setImageErrors(prev => ({ ...prev, [pollId]: true }));
   };
 
   if (loading) {
@@ -660,85 +716,125 @@ export function PollsSection() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-4 bg-card rounded-xl border border-primary/30 space-y-4">
-              <Input
-                placeholder="Poll title..."
-                value={newPoll.title}
-                onChange={(e) => setNewPoll(prev => ({ ...prev, title: e.target.value }))}
-              />
-              <Textarea
-                placeholder="Description (optional)..."
-                value={newPoll.description}
-                onChange={(e) => setNewPoll(prev => ({ ...prev, description: e.target.value }))}
-                rows={2}
+            <div className="p-4 sm:p-5 bg-card rounded-xl border border-primary/30 space-y-4">
+              {/* Poll Title */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Poll Title</label>
+                <Input
+                  placeholder="What do you want to ask?"
+                  value={newPoll.title}
+                  onChange={(e) => setNewPoll(prev => ({ ...prev, title: e.target.value }))}
+                  className="h-10"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Description (optional)</label>
+                <Textarea
+                  placeholder="Add more context..."
+                  value={newPoll.description}
+                  onChange={(e) => setNewPoll(prev => ({ ...prev, description: e.target.value }))}
+                  rows={2}
+                  className="resize-none"
+                />
+              </div>
+
+              {/* Main Poll Image */}
+              <PollImageUpload
+                imageUrl={newPoll.imageUrl}
+                onImageChange={(url) => setNewPoll(prev => ({ ...prev, imageUrl: url }))}
+                label="Poll Image (optional)"
               />
               
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Options</label>
+              {/* Options */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-medium text-muted-foreground">Options</label>
                 {newPoll.options.map((opt, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      placeholder={`Option ${index + 1}`}
-                      value={opt}
-                      onChange={(e) => updateOption(index, e.target.value)}
-                    />
-                    {newPoll.options.length > 2 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeOption(index)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
+                  <div key={index} className="p-3 bg-muted/20 rounded-lg space-y-2 border border-border/50">
+                    <div className="flex gap-2 items-center">
+                      <span className="text-xs text-muted-foreground w-5 shrink-0">{index + 1}.</span>
+                      <Input
+                        placeholder={`Option ${index + 1}`}
+                        value={opt.text}
+                        onChange={(e) => updateOptionText(index, e.target.value)}
+                        className="flex-1 h-9"
+                      />
+                      {newPoll.options.length > 2 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() => removeOption(index)}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="pl-5">
+                      <PollImageUpload
+                        imageUrl={opt.imageUrl}
+                        onImageChange={(url) => updateOptionImage(index, url)}
+                        label="Option image (optional)"
+                        aspectRatio={16 / 9}
+                      />
+                    </div>
                   </div>
                 ))}
                 {newPoll.options.length < 6 && (
-                  <Button variant="ghost" size="sm" onClick={addOption}>
-                    <Plus className="w-4 h-4 mr-1" /> Add option
+                  <Button variant="ghost" size="sm" onClick={addOption} className="h-8 text-xs">
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Add option
                   </Button>
                 )}
               </div>
 
-              {/* Time Limit Selector */}
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> Time Limit
-                </label>
-                <Select
-                  value={newPoll.timeLimit}
-                  onValueChange={(value: "none" | "24h" | "3d" | "7d") => 
-                    setNewPoll(prev => ({ ...prev, timeLimit: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select time limit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No limit</SelectItem>
-                    <SelectItem value="24h">24 hours</SelectItem>
-                    <SelectItem value="3d">3 days</SelectItem>
-                    <SelectItem value="7d">7 days</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Duration & Visibility Row */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Duration Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> Duration
+                  </label>
+                  <Select
+                    value={newPoll.timeLimit}
+                    onValueChange={(value: "none" | "24h" | "3d" | "7d") => 
+                      setNewPoll(prev => ({ ...prev, timeLimit: value }))
+                    }
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No limit</SelectItem>
+                      <SelectItem value="24h">24 hours</SelectItem>
+                      <SelectItem value="3d">3 days</SelectItem>
+                      <SelectItem value="7d">7 days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Visibility Toggle */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Visibility</label>
+                  <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background">
+                    <Switch
+                      checked={newPoll.is_public}
+                      onCheckedChange={(checked) => 
+                        setNewPoll(prev => ({ ...prev, is_public: checked }))
+                      }
+                      className="scale-90"
+                    />
+                    <span className="text-sm">
+                      {newPoll.is_public ? "Public" : "Private"}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={newPoll.is_public}
-                    onCheckedChange={(checked) => 
-                      setNewPoll(prev => ({ ...prev, is_public: checked }))
-                    }
-                  />
-                  <span className="text-sm">
-                    {newPoll.is_public ? "Public" : "Private"}
-                  </span>
-                </div>
-                <Button onClick={handleCreatePoll}>
-                  <Check className="w-4 h-4 mr-1" /> Create Poll
-                </Button>
-              </div>
+              {/* Create Button */}
+              <Button onClick={handleCreatePoll} className="w-full h-10">
+                <Check className="w-4 h-4 mr-1.5" /> Create Poll
+              </Button>
             </div>
           </motion.div>
         )}
@@ -757,6 +853,7 @@ export function PollsSection() {
             const votedOption = votedPolls[poll.id];
             const expired = isPollExpired(poll.ends_at);
             const timeRemaining = getTimeRemaining(poll.ends_at);
+            const mainImageError = imageErrors[poll.id];
             
             return (
               <motion.div
@@ -766,6 +863,27 @@ export function PollsSection() {
                 transition={{ delay: index * 0.1 }}
                 className={`p-4 bg-card rounded-xl border ${expired ? "border-muted opacity-75" : "border-border"}`}
               >
+                {/* Poll Main Image */}
+                {poll.image_url && (
+                  <div className="mb-4 -mx-4 -mt-4">
+                    {mainImageError ? (
+                      <div className="w-full h-32 bg-muted flex items-center justify-center text-muted-foreground rounded-t-xl">
+                        <AlertCircle className="w-5 h-5 mr-2" />
+                        <span className="text-sm">Image unavailable</span>
+                      </div>
+                    ) : (
+                      <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-t-xl">
+                        <img 
+                          src={poll.image_url} 
+                          alt={poll.title}
+                          className="w-full h-full object-cover"
+                          onError={() => handleMainImageError(poll.id)}
+                        />
+                      </AspectRatio>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h4 className="font-medium">{poll.title}</h4>
@@ -854,7 +972,7 @@ export function PollsSection() {
                       </div>
                       <div className="text-center">
                         <div className="font-medium text-blue-500">
-                          {pollAnalytics[poll.id]?.engagement_rate ?? 0}%
+                          {Math.min(100, pollAnalytics[poll.id]?.engagement_rate ?? 0)}%
                         </div>
                         <div>Engagement</div>
                       </div>
@@ -877,6 +995,8 @@ export function PollsSection() {
                       ? Math.round((option.votes / poll.total_votes) * 100)
                       : 0;
                     const isSelected = votedOption === optIndex;
+                    const optionImageErrorKey = `${poll.id}-opt-${optIndex}`;
+                    const optionImageError = imageErrors[optionImageErrorKey];
 
                     return (
                       <button
@@ -905,18 +1025,41 @@ export function PollsSection() {
                             }`}
                           />
                         )}
-                        <div className="relative flex items-center justify-between">
-                          <span className={`flex items-center gap-2 ${isSelected ? "font-medium" : ""}`}>
-                            {option.text}
-                            {isSelected && hasVoted && !expired && (
-                              <RefreshCw className="w-3 h-3 text-primary" />
-                            )}
-                          </span>
-                          {(hasVoted || expired) && (
-                            <span className="text-sm text-muted-foreground">
-                              {percentage}% ({option.votes})
-                            </span>
+                        <div className="relative">
+                          {/* Option Image */}
+                          {option.imageUrl && (
+                            <div className="mb-2">
+                              {optionImageError ? (
+                                <div className="w-full h-16 bg-muted/50 rounded flex items-center justify-center text-muted-foreground">
+                                  <AlertCircle className="w-4 h-4 mr-1" />
+                                  <span className="text-xs">Image unavailable</span>
+                                </div>
+                              ) : (
+                                <img 
+                                  src={option.imageUrl} 
+                                  alt={option.text}
+                                  className="w-full h-20 object-cover rounded"
+                                  onError={() => setImageErrors(prev => ({ 
+                                    ...prev, 
+                                    [optionImageErrorKey]: true 
+                                  }))}
+                                />
+                              )}
+                            </div>
                           )}
+                          <div className="flex items-center justify-between">
+                            <span className={`flex items-center gap-2 ${isSelected ? "font-medium" : ""}`}>
+                              {option.text}
+                              {isSelected && hasVoted && !expired && (
+                                <RefreshCw className="w-3 h-3 text-primary" />
+                              )}
+                            </span>
+                            {(hasVoted || expired) && (
+                              <span className="text-sm text-muted-foreground">
+                                {percentage}% ({option.votes})
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </button>
                     );
