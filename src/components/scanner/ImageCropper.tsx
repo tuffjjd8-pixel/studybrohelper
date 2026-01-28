@@ -1,8 +1,8 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
-import { Check, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Check, RotateCcw, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface ImageCropperProps {
@@ -11,14 +11,18 @@ interface ImageCropperProps {
   onCancel: () => void;
 }
 
-function createInitialCrop(mediaWidth: number, mediaHeight: number): Crop {
+function centerAspectCrop(
+  mediaWidth: number,
+  mediaHeight: number,
+  aspect: number
+) {
   return centerCrop(
     makeAspectCrop(
       {
         unit: "%",
-        width: 85,
+        width: 90,
       },
-      4 / 3,
+      aspect,
       mediaWidth,
       mediaHeight
     ),
@@ -30,213 +34,85 @@ function createInitialCrop(mediaWidth: number, mediaHeight: number): Crop {
 export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCropperProps) {
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
-  const [zoom, setZoom] = useState(1);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Initialize crop when image loads
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { width, height, naturalWidth, naturalHeight } = e.currentTarget;
-    
-    // Ensure image has valid dimensions
-    if (width > 0 && height > 0 && naturalWidth > 0 && naturalHeight > 0) {
-      const initialCrop = createInitialCrop(width, height);
-      setCrop(initialCrop);
-      
-      // Immediately set completedCrop for button to work
-      const pixelCrop: PixelCrop = {
-        unit: "px",
-        x: (initialCrop.x / 100) * width,
-        y: (initialCrop.y / 100) * height,
-        width: (initialCrop.width / 100) * width,
-        height: (initialCrop.height / 100) * height,
-      };
-      setCompletedCrop(pixelCrop);
-      setImageLoaded(true);
-    }
+    const { width, height } = e.currentTarget;
+    setCrop(centerAspectCrop(width, height, 16 / 9));
   }, []);
 
-  // Reset crop to default
+  const getCroppedImg = useCallback(async () => {
+    if (!completedCrop || !imgRef.current) return;
+
+    const image = imgRef.current;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+
+    canvas.width = completedCrop.width * scaleX;
+    canvas.height = completedCrop.height * scaleY;
+
+    ctx.drawImage(
+      image,
+      completedCrop.x * scaleX,
+      completedCrop.y * scaleY,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    const base64 = canvas.toDataURL("image/webp", 0.9);
+    onCropComplete(base64);
+  }, [completedCrop, onCropComplete]);
+
   const resetCrop = useCallback(() => {
     if (imgRef.current) {
       const { width, height } = imgRef.current;
-      if (width > 0 && height > 0) {
-        const initialCrop = createInitialCrop(width, height);
-        setCrop(initialCrop);
-        setZoom(1);
-      }
+      setCrop(centerAspectCrop(width, height, 16 / 9));
     }
   }, []);
-
-  // Generate cropped image
-  const getCroppedImg = useCallback(async () => {
-    if (!completedCrop || !imgRef.current || isProcessing) return;
-    
-    const image = imgRef.current;
-    
-    // Verify image is ready
-    if (image.naturalWidth === 0 || image.naturalHeight === 0) {
-      console.error("Image not ready for cropping");
-      return;
-    }
-    
-    setIsProcessing(true);
-    
-    try {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas context failed");
-
-      const scaleX = image.naturalWidth / image.width;
-      const scaleY = image.naturalHeight / image.height;
-
-      // Apply zoom to crop dimensions
-      const cropX = completedCrop.x * scaleX;
-      const cropY = completedCrop.y * scaleY;
-      const cropWidth = completedCrop.width * scaleX;
-      const cropHeight = completedCrop.height * scaleY;
-
-      // Set canvas size (max 2048 for performance)
-      const maxDim = 2048;
-      const scale = Math.min(1, maxDim / Math.max(cropWidth, cropHeight));
-      
-      canvas.width = cropWidth * scale;
-      canvas.height = cropHeight * scale;
-
-      // High quality settings
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-
-      ctx.drawImage(
-        image,
-        cropX,
-        cropY,
-        cropWidth,
-        cropHeight,
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      );
-
-      // Convert to blob for better memory management
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (b) => (b ? resolve(b) : reject(new Error("Blob creation failed"))),
-          "image/webp",
-          0.92
-        );
-      });
-
-      // Create object URL
-      const objectUrl = URL.createObjectURL(blob);
-      
-      // Convert to data URL for consistency
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        URL.revokeObjectURL(objectUrl);
-        onCropComplete(reader.result as string);
-      };
-      reader.readAsDataURL(blob);
-      
-    } catch (error) {
-      console.error("Crop error:", error);
-      setIsProcessing(false);
-    }
-  }, [completedCrop, isProcessing, onCropComplete]);
-
-  // Zoom controls
-  const handleZoomIn = () => setZoom((z) => Math.min(z + 0.25, 3));
-  const handleZoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.5));
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="flex flex-col items-center gap-4 w-full max-w-2xl mx-auto"
+      className="flex flex-col items-center gap-4 w-full"
     >
-      {/* Instructions */}
-      <div className="text-sm text-muted-foreground text-center">
-        Drag corners to adjust • Pinch to zoom
+      <div className="text-sm text-muted-foreground mb-2">
+        Drag corners to adjust crop area
       </div>
 
-      {/* Crop container with neon border */}
-      <div 
-        ref={containerRef}
-        className="relative w-full overflow-hidden rounded-2xl"
-        style={{
-          boxShadow: "0 0 30px hsl(var(--primary) / 0.2), inset 0 0 1px hsl(var(--primary) / 0.3)",
-          border: "2px solid hsl(var(--primary) / 0.4)",
-        }}
-      >
+      <div className="relative max-w-full overflow-hidden rounded-xl border-2 border-primary/30 bg-black/20">
         <ReactCrop
           crop={crop}
           onChange={(c) => setCrop(c)}
           onComplete={(c) => setCompletedCrop(c)}
-          className="max-h-[55vh]"
-          style={{
-            "--ReactCrop-crop-border": "2px solid hsl(82 100% 67%)",
-          } as React.CSSProperties}
+          className="max-h-[50vh]"
         >
           <img
             ref={imgRef}
             src={imageSrc}
             alt="Crop preview"
             onLoad={onImageLoad}
-            className="max-h-[55vh] w-full object-contain bg-black/50"
-            style={{
-              transform: `scale(${zoom})`,
-              transformOrigin: "center",
-              transition: "transform 0.2s ease",
-            }}
+            className="max-h-[50vh] object-contain"
             crossOrigin="anonymous"
           />
         </ReactCrop>
-        
-        {/* Loading overlay */}
-        {!imageLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-            <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-          </div>
-        )}
       </div>
 
-      {/* Zoom controls */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleZoomOut}
-          disabled={zoom <= 0.5}
-          className="w-9 h-9 rounded-full"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </Button>
-        <span className="text-xs text-muted-foreground w-12 text-center">
-          {Math.round(zoom * 100)}%
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleZoomIn}
-          disabled={zoom >= 3}
-          className="w-9 h-9 rounded-full"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </Button>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex gap-3 mt-2">
+      <div className="flex gap-3 mt-4">
         <Button
           variant="outline"
           size="sm"
           onClick={onCancel}
-          disabled={isProcessing}
-          className="gap-2 rounded-xl"
+          className="gap-2"
         >
           <X className="w-4 h-4" />
           Cancel
@@ -245,25 +121,19 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
           variant="outline"
           size="sm"
           onClick={resetCrop}
-          disabled={isProcessing}
-          className="gap-2 rounded-xl"
+          className="gap-2"
         >
           <RotateCcw className="w-4 h-4" />
           Reset
         </Button>
         <Button
-          variant="default"
+          variant="hero"
           size="sm"
           onClick={getCroppedImg}
-          disabled={!completedCrop || isProcessing}
-          className="gap-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-button"
+          className="gap-2"
         >
-          {isProcessing ? (
-            <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-          ) : (
-            <Check className="w-4 h-4" />
-          )}
-          {isProcessing ? "Processing..." : "Scan"}
+          <Check className="w-4 h-4" />
+          Crop & Scan
         </Button>
       </div>
     </motion.div>
