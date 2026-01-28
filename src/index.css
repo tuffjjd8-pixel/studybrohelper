@@ -19,8 +19,8 @@
     --popover: 240 8% 8%;
     --popover-foreground: 0 0% 95%;
 
-    /* Electric Lime - Primary Brand Color */
-    --primary: 82 100% 67%;
+    /* Neon Electric Green - Primary Brand Color */
+    --primary: 111 100% 54%;
     --primary-foreground: 240 10% 4%;
 
     /* Cyan Blue - Secondary Accent */
@@ -38,36 +38,36 @@
 
     --border: 240 6% 20%;
     --input: 240 6% 20%;
-    --ring: 82 100% 67%;
+    --ring: 111 100% 54%;
 
     --radius: 1rem;
 
     /* Custom StudyBro tokens */
-    --neon-glow: 82 100% 67%;
+    --neon-glow: 111 100% 54%;
     --cyan-glow: 187 100% 42%;
     --surface-elevated: 240 8% 12%;
     --surface-overlay: 240 10% 6%;
     
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(82 100% 67%) 0%, hsl(100 80% 50%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(111 100% 54%) 0%, hsl(120 100% 45%) 100%);
     --gradient-secondary: linear-gradient(135deg, hsl(187 100% 42%) 0%, hsl(200 100% 50%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(240 8% 10%) 0%, hsl(240 8% 6%) 100%);
     --gradient-hero: linear-gradient(180deg, hsl(240 10% 6%) 0%, hsl(240 10% 3%) 100%);
     
     /* Shadows */
-    --shadow-neon: 0 0 30px hsl(82 100% 67% / 0.3), 0 0 60px hsl(82 100% 67% / 0.1);
+    --shadow-neon: 0 0 30px hsl(111 100% 54% / 0.3), 0 0 60px hsl(111 100% 54% / 0.1);
     --shadow-cyan: 0 0 30px hsl(187 100% 42% / 0.3), 0 0 60px hsl(187 100% 42% / 0.1);
     --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.4);
-    --shadow-button: 0 4px 20px hsl(82 100% 67% / 0.25);
+    --shadow-button: 0 4px 20px hsl(111 100% 54% / 0.25);
 
     --sidebar-background: 240 8% 6%;
     --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 82 100% 67%;
+    --sidebar-primary: 111 100% 54%;
     --sidebar-primary-foreground: 240 10% 4%;
     --sidebar-accent: 240 6% 15%;
     --sidebar-accent-foreground: 0 0% 95%;
     --sidebar-border: 240 6% 20%;
-    --sidebar-ring: 82 100% 67%;
+    --sidebar-ring: 111 100% 54%;
   }
 
   .light {
@@ -80,7 +80,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 4%;
 
-    --primary: 82 100% 40%;
+    --primary: 111 100% 35%;
     --primary-foreground: 0 0% 98%;
 
     --secondary: 187 80% 35%;
@@ -97,7 +97,7 @@
 
     --border: 240 6% 85%;
     --input: 240 6% 85%;
-    --ring: 82 100% 40%;
+    --ring: 111 100% 35%;
   }
 }
 
