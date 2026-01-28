@@ -9,9 +9,9 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// Use llama-3.1-70b-versatile for ALL text/reasoning tasks
+// Use llama-3.3-70b-versatile for ALL text/reasoning tasks
 // ============================================================
-const GROQ_MODEL = "llama-3.1-70b-versatile";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 serve(async (req) => {
   // Handle CORS preflight
