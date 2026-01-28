@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
+import { BadgesButton } from "@/components/profile/BadgesButton";
+import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
 
 interface Profile {
   id: string;
@@ -36,6 +38,8 @@ interface Profile {
   animated_steps_used_today: number;
   speech_clips_used: number;
   last_speech_reset: string | null;
+  premium_until: string | null;
+  subscription_id: string | null;
 }
 
 // Speech clips reset daily (24 hours)
@@ -67,7 +71,7 @@ const Profile = () => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, display_name, streak_count, total_solves, is_premium, daily_solves_used, referral_code, created_at, avatar_url, animated_steps_used_today, speech_clips_used, last_speech_reset, premium_until, subscription_id")
         .eq("user_id", user?.id)
         .maybeSingle();
 
@@ -439,11 +443,14 @@ const Profile = () => {
               </div>
             </motion.div>
 
+            {/* Badges Button */}
+            <BadgesButton />
+
             {/* Invite Friends - always show */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              transition={{ delay: 0.35 }}
               className="p-5 bg-gradient-to-br from-primary/5 via-background to-secondary/5 rounded-2xl border-2 border-primary/30 shadow-[0_0_30px_hsl(var(--primary)/0.15)]"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -483,7 +490,7 @@ const Profile = () => {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.45 }}
+                transition={{ delay: 0.4 }}
                 className="p-6 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl border border-primary/30 text-center"
               >
                 <Crown className="w-10 h-10 text-primary mx-auto mb-3" />
@@ -491,13 +498,20 @@ const Profile = () => {
                   Go Premium, Bro!
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  16 animated steps, 25 speech clips/day, enhanced solving
+                  16 animated steps, 15 speech clips/day, enhanced solving
                 </p>
                 <Button onClick={() => navigate("/premium")} className="w-full">
                   Upgrade for $5.99/month
                 </Button>
               </motion.div>
             )}
+
+            {/* Subscription management buttons for premium users */}
+            <SubscriptionButtons 
+              isPremium={profile?.is_premium || false}
+              premiumSince={profile?.premium_until ? new Date(new Date(profile.premium_until).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() : null}
+              subscriptionId={profile?.subscription_id}
+            />
 
             {/* Admin Settings - only visible to admin */}
             <AdminSettings userEmail={user?.email} />
