@@ -114,7 +114,7 @@ export function SolveToggles({
                     Speech to Text
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Voice transcription (25/day)
+                    Voice transcription (15/day)
                   </p>
                 </div>
               </div>

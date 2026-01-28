@@ -70,7 +70,7 @@ const PLANS: PlanOption[] = [
 const COMPARISON: ComparisonItem[] = [
   { feature: "Daily Solves", free: "Unlimited", premium: "Unlimited" },
   { feature: "Animated Steps", free: "5/day", premium: "16/day" },
-  { feature: "Speech to Text", free: false, premium: "25/day" },
+  { feature: "Speech to Text", free: false, premium: "15/day" },
   { feature: "AI Model", free: "Standard", premium: "Advanced" },
   { feature: "Enhanced OCR", free: false, premium: true },
   { feature: "Priority Speed", free: false, premium: true },
@@ -78,6 +78,7 @@ const COMPARISON: ComparisonItem[] = [
   { feature: "Quiz Generator", free: "7/day (max 10 Qs)", premium: "13/day (max 20 Qs)" },
   { feature: "Strict Count Mode", free: false, premium: true },
   { feature: "Calculator", free: "Basic", premium: "Scientific" },
+  { feature: "Full Quiz Review", free: false, premium: true },
 ];
 
 const PREMIUM_BENEFITS = [
