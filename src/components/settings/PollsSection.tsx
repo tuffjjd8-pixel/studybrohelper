@@ -700,18 +700,29 @@ export function PollsSection() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-4 bg-card rounded-xl border border-primary/30 space-y-4">
-              <Input
-                placeholder="Poll title..."
-                value={newPoll.title}
-                onChange={(e) => setNewPoll(prev => ({ ...prev, title: e.target.value }))}
-              />
-              <Textarea
-                placeholder="Description (optional)..."
-                value={newPoll.description}
-                onChange={(e) => setNewPoll(prev => ({ ...prev, description: e.target.value }))}
-                rows={2}
-              />
+            <div className="p-4 sm:p-5 bg-card rounded-xl border border-primary/30 space-y-4">
+              {/* Poll Title */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Poll Title</label>
+                <Input
+                  placeholder="What do you want to ask?"
+                  value={newPoll.title}
+                  onChange={(e) => setNewPoll(prev => ({ ...prev, title: e.target.value }))}
+                  className="h-10"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Description (optional)</label>
+                <Textarea
+                  placeholder="Add more context..."
+                  value={newPoll.description}
+                  onChange={(e) => setNewPoll(prev => ({ ...prev, description: e.target.value }))}
+                  rows={2}
+                  className="resize-none"
+                />
+              </div>
 
               {/* Main Poll Image */}
               <PollImageUpload
@@ -720,80 +731,94 @@ export function PollsSection() {
                 label="Poll Image (optional)"
               />
               
-              <div className="space-y-3">
-                <label className="text-sm text-muted-foreground">Options</label>
+              {/* Options */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-medium text-muted-foreground">Options</label>
                 {newPoll.options.map((opt, index) => (
-                  <div key={index} className="p-3 bg-muted/30 rounded-lg space-y-2 border border-border">
-                    <div className="flex gap-2">
+                  <div key={index} className="p-3 bg-muted/20 rounded-lg space-y-2 border border-border/50">
+                    <div className="flex gap-2 items-center">
+                      <span className="text-xs text-muted-foreground w-5 shrink-0">{index + 1}.</span>
                       <Input
                         placeholder={`Option ${index + 1}`}
                         value={opt.text}
                         onChange={(e) => updateOptionText(index, e.target.value)}
+                        className="flex-1 h-9"
                       />
                       {newPoll.options.length > 2 && (
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 shrink-0"
                           onClick={() => removeOption(index)}
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-3.5 h-3.5" />
                         </Button>
                       )}
                     </div>
-                    <PollImageUpload
-                      imageUrl={opt.imageUrl}
-                      onImageChange={(url) => updateOptionImage(index, url)}
-                      label={`Option ${index + 1} Image (optional)`}
-                      aspectRatio={1}
-                    />
+                    <div className="pl-5">
+                      <PollImageUpload
+                        imageUrl={opt.imageUrl}
+                        onImageChange={(url) => updateOptionImage(index, url)}
+                        label="Option image (optional)"
+                        aspectRatio={16 / 9}
+                      />
+                    </div>
                   </div>
                 ))}
                 {newPoll.options.length < 6 && (
-                  <Button variant="ghost" size="sm" onClick={addOption}>
-                    <Plus className="w-4 h-4 mr-1" /> Add option
+                  <Button variant="ghost" size="sm" onClick={addOption} className="h-8 text-xs">
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Add option
                   </Button>
                 )}
               </div>
 
-              {/* Time Limit Selector */}
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> Time Limit
-                </label>
-                <Select
-                  value={newPoll.timeLimit}
-                  onValueChange={(value: "none" | "24h" | "3d" | "7d") => 
-                    setNewPoll(prev => ({ ...prev, timeLimit: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select time limit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No limit</SelectItem>
-                    <SelectItem value="24h">24 hours</SelectItem>
-                    <SelectItem value="3d">3 days</SelectItem>
-                    <SelectItem value="7d">7 days</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Duration & Visibility Row */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Duration Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> Duration
+                  </label>
+                  <Select
+                    value={newPoll.timeLimit}
+                    onValueChange={(value: "none" | "24h" | "3d" | "7d") => 
+                      setNewPoll(prev => ({ ...prev, timeLimit: value }))
+                    }
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No limit</SelectItem>
+                      <SelectItem value="24h">24 hours</SelectItem>
+                      <SelectItem value="3d">3 days</SelectItem>
+                      <SelectItem value="7d">7 days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Visibility Toggle */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Visibility</label>
+                  <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background">
+                    <Switch
+                      checked={newPoll.is_public}
+                      onCheckedChange={(checked) => 
+                        setNewPoll(prev => ({ ...prev, is_public: checked }))
+                      }
+                      className="scale-90"
+                    />
+                    <span className="text-sm">
+                      {newPoll.is_public ? "Public" : "Private"}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={newPoll.is_public}
-                    onCheckedChange={(checked) => 
-                      setNewPoll(prev => ({ ...prev, is_public: checked }))
-                    }
-                  />
-                  <span className="text-sm">
-                    {newPoll.is_public ? "Public" : "Private"}
-                  </span>
-                </div>
-                <Button onClick={handleCreatePoll}>
-                  <Check className="w-4 h-4 mr-1" /> Create Poll
-                </Button>
-              </div>
+              {/* Create Button */}
+              <Button onClick={handleCreatePoll} className="w-full h-10">
+                <Check className="w-4 h-4 mr-1.5" /> Create Poll
+              </Button>
             </div>
           </motion.div>
         )}
