@@ -3,17 +3,11 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CameraButtonProps {
-  onImageCapture?: (imageData: string) => void;
   isLoading?: boolean;
-  onClick?: () => void;
+  onClick: () => void; // this triggers your scanner overlay
 }
 
 export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
-  const handleClick = () => {
-    if (isLoading) return;
-    onClick?.();
-  };
-
   return (
     <motion.div
       className="relative"
@@ -21,8 +15,8 @@ export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.5, type: "spring" }}
     >
-      {/* Outer glow */}
-      <div 
+      {/* Outer neon glow */}
+      <div
         className="absolute inset-0 rounded-full blur-2xl"
         style={{
           background: "hsl(var(--primary) / 0.25)",
@@ -30,7 +24,7 @@ export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
         }}
       />
 
-      {/* Pulsing ring animation */}
+      {/* Pulsing rings (Gauth style) */}
       {!isLoading && (
         <>
           <motion.div
@@ -45,18 +39,23 @@ export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
             style={{ border: "2px solid hsl(var(--primary) / 0.2)" }}
             initial={{ scale: 1, opacity: 0.3 }}
             animate={{ scale: 1.8, opacity: 0 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.5 }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeOut",
+              delay: 0.5,
+            }}
           />
         </>
       )}
 
-      {/* Main button - using Button component with neonGreenFilled variant */}
+      {/* MAIN BUTTON — perfect circle, neon green, Gauth style */}
       <Button
-        onClick={handleClick}
+        onClick={onClick}
         disabled={isLoading}
         variant="neonGreenFilled"
         size="icon-xl"
-        className="relative z-10 font-heading font-bold text-sm leading-tight"
+        className="relative z-10 font-heading font-bold text-sm leading-tight text-black"
       >
         {isLoading ? (
           <span className="flex flex-col items-center gap-1">
@@ -64,7 +63,11 @@ export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
             <span className="text-xs">Solving...</span>
           </span>
         ) : (
-          <span className="text-center px-1">Snap<br />Homework</span>
+          <span className="text-center px-1">
+            Snap
+            <br />
+            Homework
+          </span>
         )}
       </Button>
     </motion.div>
