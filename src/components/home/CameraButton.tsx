@@ -1,19 +1,17 @@
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface CameraButtonProps {
   onImageCapture?: (imageData: string) => void;
   isLoading?: boolean;
+  onClick?: () => void;
 }
 
-export function CameraButton({ isLoading }: CameraButtonProps) {
-  const navigate = useNavigate();
-
+export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
   const handleClick = () => {
     if (isLoading) return;
-    // Always navigate to the web scanner page - never open native camera
-    navigate("/scanner");
+    onClick?.();
   };
 
   return (
@@ -52,26 +50,23 @@ export function CameraButton({ isLoading }: CameraButtonProps) {
         </>
       )}
 
-      {/* Main button - CIRCULAR, TEXT ONLY, NO CAMERA ICON */}
-      <motion.button
+      {/* Main button - using Button component with neonGreenFilled variant */}
+      <Button
         onClick={handleClick}
         disabled={isLoading}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        className="relative z-10 w-36 h-36 md:w-40 md:h-40 rounded-full font-heading font-bold text-base md:text-lg text-primary-foreground bg-primary disabled:opacity-70 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-center leading-tight"
-        style={{
-          boxShadow: "0 0 50px hsl(var(--primary) / 0.5), 0 0 100px hsl(var(--primary) / 0.3), 0 4px 20px hsl(var(--primary) / 0.4)",
-        }}
+        variant="neonGreenFilled"
+        size="icon-xl"
+        className="relative z-10 font-heading font-bold text-sm leading-tight"
       >
         {isLoading ? (
-          <span className="flex flex-col items-center gap-2">
-            <Loader2 className="w-6 h-6 animate-spin" />
-            <span>Solving...</span>
+          <span className="flex flex-col items-center gap-1">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-xs">Solving...</span>
           </span>
         ) : (
-          <span className="px-2">Snap<br />Homework</span>
+          <span className="text-center px-1">Snap<br />Homework</span>
         )}
-      </motion.button>
+      </Button>
     </motion.div>
   );
 }
