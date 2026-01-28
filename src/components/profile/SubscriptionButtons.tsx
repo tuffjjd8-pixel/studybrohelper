@@ -35,10 +35,13 @@ export const SubscriptionButtons = ({
     return hoursSincePurchase < 24;
   };
 
+  const getPortalUrl = () => {
+    // Use environment variable for Stripe Billing Portal URL
+    return import.meta.env.VITE_STRIPE_PORTAL_URL || 'https://billing.stripe.com/p/login/test_14k28O8CI5SDbgQ3cc';
+  };
+
   const handleManageSubscription = () => {
-    // Open Stripe customer portal
-    const portalUrl = `https://billing.stripe.com/p/login/test_14k28O8CI5SDbgQ3cc`;
-    window.open(portalUrl, '_blank');
+    window.location.href = getPortalUrl();
   };
 
   const handleCancelSubscription = () => {
@@ -46,9 +49,7 @@ export const SubscriptionButtons = ({
       setShowCancelRestrictionModal(true);
       return;
     }
-    // Open Stripe customer portal for cancellation
-    const portalUrl = `https://billing.stripe.com/p/login/test_14k28O8CI5SDbgQ3cc`;
-    window.open(portalUrl, '_blank');
+    window.location.href = getPortalUrl();
   };
 
   if (!isPremium || !subscriptionId) {
