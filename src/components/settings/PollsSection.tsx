@@ -340,8 +340,8 @@ export function PollsSection() {
       let data;
       let error;
 
+      // Admin sees ALL polls (public and hidden), users see only public
       if (isAdmin) {
-        // Admin sees ALL polls (including hidden ones) from the polls table
         const result = await supabase
           .from("polls")
           .select("id, title, description, options, is_public, created_at, ends_at, total_votes, views_count, image_url")
@@ -349,7 +349,7 @@ export function PollsSection() {
         data = result.data;
         error = result.error;
       } else {
-        // Non-admins see only public polls from public_polls view
+        // Use public_polls view for non-admins to avoid exposing creator email
         const result = await supabase
           .from("public_polls")
           .select("*")
@@ -382,8 +382,8 @@ export function PollsSection() {
         
         const totalVotes = updatedOptions.reduce((sum, opt) => sum + opt.votes, 0);
         
-        // Track view for analytics
-        if (user?.id && poll.id) {
+        // Track view for analytics (only for public polls)
+        if (user?.id && poll.id && poll.is_public) {
           trackPollView(poll.id);
         }
         
@@ -610,26 +610,36 @@ export function PollsSection() {
     }
   };
 
-  const handleToggleVisibility = async (pollId: string, isPublic: boolean) => {
+  const handleToggleVisibility = async (pollId: string) => {
     if (!isAdmin) {
       toast.error("You do not have permission to manage polls");
       return;
     }
 
+    // Find the poll to get its current visibility
+    const poll = polls.find(p => p.id === pollId);
+    if (!poll) {
+      toast.error("Poll not found");
+      return;
+    }
+
+    // Toggle: if currently public, make hidden; if hidden, make public
+    const newVisibility = !poll.is_public;
+
     try {
       const { error } = await supabase
         .from("polls")
-        .update({ is_public: isPublic })
+        .update({ is_public: newVisibility })
         .eq("id", pollId);
 
       if (error) throw error;
 
-      // Update local state without removing the poll - admin can see all polls
+      // Update local state immediately (admin always sees all polls)
       setPolls(prev => prev.map(p => 
-        p.id === pollId ? { ...p, is_public: isPublic } : p
+        p.id === pollId ? { ...p, is_public: newVisibility } : p
       ));
       
-      toast.success(isPublic ? "Poll made public" : "Poll hidden");
+      toast.success(newVisibility ? "Poll is now visible to users" : "Poll is now hidden from users");
     } catch (error) {
       toast.error("Failed to update poll visibility");
     }
@@ -912,12 +922,13 @@ export function PollsSection() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleToggleVisibility(poll.id, !poll.is_public)}
+                          onClick={() => handleToggleVisibility(poll.id)}
+                          title={poll.is_public ? "Hide from users" : "Show to users"}
                         >
                           {poll.is_public ? (
                             <Eye className="w-4 h-4" />
                           ) : (
-                            <EyeOff className="w-4 h-4" />
+                            <EyeOff className="w-4 h-4 text-muted-foreground" />
                           )}
                         </Button>
                         <Button
@@ -972,7 +983,7 @@ export function PollsSection() {
                       </div>
                       <div className="text-center">
                         <div className="font-medium text-blue-500">
-                          {Math.min(100, pollAnalytics[poll.id]?.engagement_rate ?? 0)}%
+                          {pollAnalytics[poll.id]?.engagement_rate ?? 0}%
                         </div>
                         <div>Engagement</div>
                       </div>
