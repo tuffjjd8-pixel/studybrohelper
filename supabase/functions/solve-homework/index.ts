@@ -8,11 +8,11 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// Text model: "llama-3.1-70b-versatile" - Primary for ALL text/reasoning tasks
+// Text model: "llama-3.3-70b-versatile" - Primary for ALL text/reasoning tasks
 // Vision model: "meta-llama/llama-4-scout-17b-16e-instruct" - For image processing
 // Graph model: LLaMA 3.3 70B via OpenRouter (free tier, structured JSON)
 // ============================================================
-const GROQ_TEXT_MODEL = "llama-3.1-70b-versatile";
+const GROQ_TEXT_MODEL = "llama-3.3-70b-versatile";
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const OPENROUTER_GRAPH_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
