@@ -239,7 +239,6 @@ export type Database = {
           description: string | null
           ends_at: string | null
           id: string
-          image_url: string | null
           is_public: boolean
           options: Json
           title: string
@@ -252,7 +251,6 @@ export type Database = {
           description?: string | null
           ends_at?: string | null
           id?: string
-          image_url?: string | null
           is_public?: boolean
           options?: Json
           title: string
@@ -265,7 +263,6 @@ export type Database = {
           description?: string | null
           ends_at?: string | null
           id?: string
-          image_url?: string | null
           is_public?: boolean
           options?: Json
           title?: string
@@ -441,7 +438,6 @@ export type Database = {
           description: string | null
           ends_at: string | null
           id: string | null
-          image_url: string | null
           is_public: boolean | null
           options: Json | null
           title: string | null
@@ -452,7 +448,6 @@ export type Database = {
           description?: string | null
           ends_at?: string | null
           id?: string | null
-          image_url?: string | null
           is_public?: boolean | null
           options?: Json | null
           title?: string | null
@@ -463,7 +458,6 @@ export type Database = {
           description?: string | null
           ends_at?: string | null
           id?: string | null
-          image_url?: string | null
           is_public?: boolean | null
           options?: Json | null
           title?: string | null
