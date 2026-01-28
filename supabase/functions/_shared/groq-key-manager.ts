@@ -23,16 +23,17 @@ interface KeySwitchLog {
 const keyUsage: Map<string, KeyUsage> = new Map();
 const switchLog: KeySwitchLog[] = [];
 
-// All available Groq API key environment variable names
+// All available Groq API key environment variable names (0-7 primary, BACKUP as final fallback)
 const GROQ_KEY_NAMES = [
-  "GROQ_API_KEY",
+  "GROQ_API_KEY_0",
   "GROQ_API_KEY_1",
   "GROQ_API_KEY_2",
   "GROQ_API_KEY_3",
   "GROQ_API_KEY_4",
   "GROQ_API_KEY_5",
   "GROQ_API_KEY_6",
-  "GROQ_API_KEY_BACKUP",
+  "GROQ_API_KEY_7",
+  "GROQ_API_KEY_BACKUP", // Final fallback
 ];
 
 // Constants
@@ -40,16 +41,21 @@ const RATE_LIMIT_COOLDOWN_MS = 60 * 1000; // 1 minute cooldown after rate limit
 const FAIL_COUNT_THRESHOLD = 3;
 const FAIL_WINDOW_MS = 60 * 60 * 1000; // 1 hour window for fail count
 
-// Get all available keys from environment
-function getAvailableKeys(): string[] {
-  const keys: string[] = [];
+// Get all available keys from environment with their names for logging
+function getAvailableKeysWithNames(): Array<{ name: string; key: string }> {
+  const keys: Array<{ name: string; key: string }> = [];
   for (const keyName of GROQ_KEY_NAMES) {
     const key = Deno.env.get(keyName);
     if (key && key.trim()) {
-      keys.push(key);
+      keys.push({ name: keyName, key });
     }
   }
   return keys;
+}
+
+// Get all available keys from environment
+function getAvailableKeys(): string[] {
+  return getAvailableKeysWithNames().map(k => k.key);
 }
 
 // Initialize usage tracking for a key if not exists
@@ -96,9 +102,11 @@ function isKeyUsable(key: string): boolean {
 
 // Get the best available key (least recently used that's usable)
 export function getActiveKey(): string | null {
-  const keys = getAvailableKeys();
+  const keysWithNames = getAvailableKeysWithNames();
+  const keys = keysWithNames.map(k => k.key);
   
   if (keys.length === 0) {
+    console.error("[GroqKeyManager] No API keys configured!");
     return null;
   }
 
@@ -122,7 +130,8 @@ export function getActiveKey(): string | null {
       }
     }
     
-    console.log("[GroqKeyManager] All keys limited, falling back to oldest:", getMaskedKey(oldestKey));
+    const keyName = keysWithNames.find(k => k.key === oldestKey)?.name || "unknown";
+    console.log(`[GroqKeyManager] All keys limited, falling back to oldest: ${keyName} (${getMaskedKey(oldestKey)})`);
     return oldestKey;
   }
 
@@ -134,7 +143,8 @@ export function getActiveKey(): string | null {
   });
 
   const selectedKey = usableKeys[0];
-  console.log("[GroqKeyManager] Selected key:", getMaskedKey(selectedKey), "from", usableKeys.length, "usable keys");
+  const keyName = keysWithNames.find(k => k.key === selectedKey)?.name || "unknown";
+  console.log(`[GroqKeyManager] Selected key: ${keyName} (${getMaskedKey(selectedKey)}) from ${usableKeys.length}/${keys.length} usable keys`);
   
   return selectedKey;
 }
@@ -221,22 +231,31 @@ export function getKeyManagerStatus(): {
   };
 }
 
-// Helper to call Groq with automatic key rotation
+// Helper to call Groq with automatic key rotation (uses all keys before giving up)
 export async function callGroqWithRotation(
   endpoint: string,
   body: Record<string, unknown>,
-  maxRetries: number = 3
+  maxRetries: number = 9 // Try all 9 keys (0-7 + backup)
 ): Promise<Response> {
   let lastError: Error | null = null;
+  const keysWithNames = getAvailableKeysWithNames();
+  const totalKeys = keysWithNames.length;
   
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+  console.log(`[GroqKeyManager] Starting request with ${totalKeys} available keys`);
+  
+  for (let attempt = 0; attempt < Math.min(maxRetries, totalKeys); attempt++) {
     const apiKey = getActiveKey();
     
     if (!apiKey) {
+      console.error("[GroqKeyManager] No usable API keys available");
       throw new Error("All Groq keys are currently rate-limited. Please try again shortly.");
     }
     
+    const keyName = keysWithNames.find(k => k.key === apiKey)?.name || "unknown";
+    
     try {
+      console.log(`[GroqKeyManager] Attempt ${attempt + 1}/${totalKeys} using ${keyName}`);
+      
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -247,39 +266,64 @@ export async function callGroqWithRotation(
       });
       
       if (response.ok) {
+        console.log(`[GroqKeyManager] Success with ${keyName}`);
         markKeyUsed(apiKey);
         return response;
       }
       
       if (response.status === 429) {
+        console.log(`[GroqKeyManager] Rate limit hit on ${keyName}, rotating to next key...`);
         markKeyRateLimited(apiKey);
-        console.log(`[GroqKeyManager] Rate limit hit on attempt ${attempt + 1}, rotating...`);
         continue; // Try next key
       }
       
-      // Other error - mark as failed but don't immediately retry
+      if (response.status === 401 || response.status === 403) {
+        console.log(`[GroqKeyManager] Auth error on ${keyName}: ${response.status}, rotating...`);
+        markKeyFailed(apiKey, `Auth error ${response.status}`);
+        continue; // Try next key for auth errors too
+      }
+      
+      // Other error - mark as failed and try next key
       const errorText = await response.text();
+      console.error(`[GroqKeyManager] Error on ${keyName}: HTTP ${response.status} - ${errorText.substring(0, 200)}`);
       markKeyFailed(apiKey, `HTTP ${response.status}`);
       lastError = new Error(`Groq API error: ${response.status} - ${errorText}`);
-      
-      // For non-429 errors, don't retry with different key
-      throw lastError;
+      continue; // Try next key for other errors
       
     } catch (error) {
-      if (error instanceof Error && error.message.includes("Rate limit")) {
-        continue; // Already handled above
-      }
       lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`[GroqKeyManager] Network/timeout error on ${keyName}:`, lastError.message);
       markKeyFailed(apiKey, lastError.message);
-      
-      // Network errors - might be worth retrying
-      if (attempt < maxRetries - 1) {
-        console.log(`[GroqKeyManager] Network error on attempt ${attempt + 1}, retrying...`);
-        continue;
-      }
-      throw lastError;
+      continue; // Try next key for network errors
     }
   }
   
+  // All keys failed
+  const backupKey = Deno.env.get("GROQ_API_KEY_BACKUP");
+  if (backupKey) {
+    console.log("[GroqKeyManager] All primary keys failed, trying BACKUP as final fallback...");
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${backupKey}`,
+        },
+        body: JSON.stringify(body),
+      });
+      
+      if (response.ok) {
+        console.log("[GroqKeyManager] BACKUP key succeeded");
+        return response;
+      }
+      
+      const errorText = await response.text();
+      console.error(`[GroqKeyManager] BACKUP key also failed: ${response.status} - ${errorText.substring(0, 200)}`);
+    } catch (error) {
+      console.error("[GroqKeyManager] BACKUP key network error:", error);
+    }
+  }
+  
+  console.error("[GroqKeyManager] All keys exhausted, request failed");
   throw lastError || new Error("All Groq keys are currently rate-limited. Please try again shortly.");
 }

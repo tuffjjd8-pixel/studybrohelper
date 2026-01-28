@@ -12,11 +12,10 @@ const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 7;
 const PREMIUM_DAILY_QUIZZES = 13;
 
-// Fallback models in order of preference
+// Fallback models in order of preference (NO instant models)
 const FALLBACK_MODELS = [
-  "llama-3.3-70b-versatile",
-  "llama-3.1-70b-versatile",
-  "llama-3.1-8b-instant",
+  "llama-3.1-70b-versatile", // Primary model for all text/reasoning
+  "llama-3.3-70b-versatile", // Fallback
 ];
 
 // Sanitize and validate quiz output
