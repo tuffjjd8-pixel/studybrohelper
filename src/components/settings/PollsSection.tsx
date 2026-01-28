@@ -337,12 +337,27 @@ export function PollsSection() {
 
   const fetchPolls = async () => {
     try {
-      // Use public_polls view to avoid exposing creator email addresses
-      const { data, error } = await supabase
-        .from("public_polls")
-        .select("*")
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
+      let data;
+      let error;
+
+      if (isAdmin) {
+        // Admin sees ALL polls (including hidden ones) from the polls table
+        const result = await supabase
+          .from("polls")
+          .select("id, title, description, options, is_public, created_at, ends_at, total_votes, views_count, image_url")
+          .order("created_at", { ascending: false });
+        data = result.data;
+        error = result.error;
+      } else {
+        // Non-admins see only public polls from public_polls view
+        const result = await supabase
+          .from("public_polls")
+          .select("*")
+          .eq("is_public", true)
+          .order("created_at", { ascending: false });
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) throw error;
       
@@ -609,11 +624,12 @@ export function PollsSection() {
 
       if (error) throw error;
 
-      if (!isPublic) {
-        setPolls(prev => prev.filter(p => p.id !== pollId));
-      }
+      // Update local state without removing the poll - admin can see all polls
+      setPolls(prev => prev.map(p => 
+        p.id === pollId ? { ...p, is_public: isPublic } : p
+      ));
+      
       toast.success(isPublic ? "Poll made public" : "Poll hidden");
-      fetchPolls();
     } catch (error) {
       toast.error("Failed to update poll visibility");
     }
