@@ -18,7 +18,6 @@ import Quiz from "./pages/Quiz";
 import Calculator from "./pages/Calculator";
 import Settings from "./pages/Settings";
 import Polls from "./pages/Polls";
-import Scanner from "./pages/Scanner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,7 +44,6 @@ const App = () => (
             <Route path="/calculator" element={<Calculator />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/polls" element={<Polls />} />
-            <Route path="/scanner" element={<Scanner />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
