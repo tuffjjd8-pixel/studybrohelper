@@ -1,21 +1,24 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Scan, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { ScannerDropZone } from "@/components/scanner/ScannerDropZone";
+import { CustomCamera } from "@/components/scanner/CustomCamera";
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { SolutionDisplay } from "@/components/scanner/SolutionDisplay";
+import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
 import { Button } from "@/components/ui/button";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-type ScannerState = "idle" | "cropping" | "scanning" | "solved";
+type ScannerState = "idle" | "camera" | "cropping" | "scanning" | "solved";
+type LoadingStage = "extracting" | "classifying" | "solving";
 
 interface SolutionData {
   subject: string;
@@ -29,29 +32,58 @@ const Scanner = () => {
   const { user } = useAuth();
   
   const [state, setState] = useState<ScannerState>("idle");
+  const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  const handleImageSelect = (imageData: string) => {
+  const handleOpenCamera = useCallback(() => {
+    setState("camera");
+  }, []);
+
+  const handleCameraCapture = useCallback((imageData: string) => {
     setSelectedImage(imageData);
     setState("cropping");
-  };
+  }, []);
 
-  const handleCropComplete = async (croppedData: string) => {
+  const handleCameraClose = useCallback(() => {
+    setState("idle");
+  }, []);
+
+  const handleImageSelect = useCallback((imageData: string) => {
+    setSelectedImage(imageData);
+    setState("cropping");
+  }, []);
+
+  const handleCropComplete = useCallback(async (croppedData: string) => {
     setCroppedImage(croppedData);
     setState("scanning");
     await solveProblem(croppedData);
-  };
+  }, []);
 
-  const handleCropCancel = () => {
+  const handleCropCancel = useCallback(() => {
+    // Clean up blob URL if needed
+    if (selectedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(selectedImage);
+    }
     setSelectedImage(null);
     setState("idle");
-  };
+  }, [selectedImage]);
 
   const solveProblem = async (imageData: string) => {
     try {
+      // Stage 1: Extracting
+      setLoadingStage("extracting");
+      await new Promise((r) => setTimeout(r, 500));
+      
+      // Stage 2: Classifying
+      setLoadingStage("classifying");
+      await new Promise((r) => setTimeout(r, 300));
+      
+      // Stage 3: Solving
+      setLoadingStage("solving");
+      
       const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: { 
           question: "", 
@@ -64,11 +96,10 @@ const Scanner = () => {
 
       if (error) throw error;
 
-      // Extract question from solution (first line typically)
       const extractedQuestion = data.question || data.extractedText || "Image-based question";
 
       setSolution({
-        subject: data.subject || "other",
+        subject: data.subject || "general",
         question: extractedQuestion,
         solution: data.solution,
         image: imageData,
@@ -78,9 +109,9 @@ const Scanner = () => {
       if (user) {
         await supabase.from("solves").insert({
           user_id: user.id,
-          subject: data.subject || "other",
+          subject: data.subject || "general",
           question_text: extractedQuestion,
-          question_image_url: imageData,
+          question_image_url: imageData.substring(0, 500), // Truncate for storage
           solution_markdown: data.solution,
         });
       }
@@ -96,22 +127,38 @@ const Scanner = () => {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
+    // Clean up blob URLs
+    if (selectedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(selectedImage);
+    }
+    if (croppedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(croppedImage);
+    }
     setState("idle");
     setSelectedImage(null);
     setCroppedImage(null);
     setSolution(null);
-  };
-
-  const handleScanAnother = () => {
-    handleReset();
-  };
+  }, [selectedImage, croppedImage]);
 
   return (
     <div className="min-h-screen bg-background">
       <Header streak={0} totalSolves={0} />
 
-      <main className="pt-20 pb-32 px-4">
+      {/* Custom Camera Modal */}
+      <CustomCamera
+        isOpen={state === "camera"}
+        onCapture={handleCameraCapture}
+        onClose={handleCameraClose}
+      />
+
+      <main 
+        className="pt-20 pb-32 px-4"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 5rem)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8rem)",
+        }}
+      >
         <div className="max-w-4xl mx-auto">
           {/* Page Header */}
           <motion.div
@@ -121,12 +168,15 @@ const Scanner = () => {
           >
             <button
               onClick={() => navigate("/")}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              className="p-2 rounded-xl hover:bg-muted transition-colors"
             >
               <ArrowLeft className="w-5 h-5 text-muted-foreground" />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+            <div className="flex items-center gap-3">
+              <div 
+                className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center"
+                style={{ boxShadow: "0 0 20px hsl(var(--primary) / 0.3)" }}
+              >
                 <AIBrainIcon className="w-6 h-6" />
               </div>
               <div>
@@ -147,11 +197,12 @@ const Scanner = () => {
                 className="flex flex-col items-center gap-8"
               >
                 {/* Hero Section */}
-                <div className="text-center space-y-2">
+                <div className="text-center space-y-3">
                   <motion.div
                     initial={{ scale: 0.9 }}
                     animate={{ scale: 1 }}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-4"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30"
+                    style={{ boxShadow: "0 0 15px hsl(var(--primary) / 0.2)" }}
                   >
                     <Sparkles className="w-4 h-4 text-primary" />
                     <span className="text-sm text-primary font-medium">
@@ -168,7 +219,28 @@ const Scanner = () => {
                 </div>
 
                 {/* Drop Zone */}
-                <ScannerDropZone onImageSelect={handleImageSelect} />
+                <ScannerDropZone 
+                  onImageSelect={handleImageSelect} 
+                  onOpenCamera={handleOpenCamera}
+                />
+
+                {/* Large Scan Button */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <Button
+                    onClick={handleOpenCamera}
+                    className="gap-3 px-10 py-7 text-lg font-heading font-bold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90"
+                    style={{
+                      boxShadow: "0 0 40px hsl(var(--primary) / 0.4), 0 4px 20px hsl(var(--primary) / 0.3)",
+                    }}
+                  >
+                    <AIBrainIcon className="w-6 h-6" />
+                    Scan Homework
+                  </Button>
+                </motion.div>
               </motion.div>
             )}
 
@@ -180,7 +252,7 @@ const Scanner = () => {
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center"
               >
-                <h2 className="text-lg font-medium mb-4">Crop Your Image</h2>
+                <h2 className="text-lg font-heading font-semibold mb-4">Crop Your Image</h2>
                 <ImageCropper
                   imageSrc={selectedImage}
                   onCropComplete={handleCropComplete}
@@ -195,31 +267,11 @@ const Scanner = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex flex-col items-center gap-6 py-16"
               >
-                {croppedImage && (
-                  <motion.img
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    src={croppedImage}
-                    alt="Scanning"
-                    className="max-h-48 rounded-xl border-2 border-primary/30 object-contain"
-                  />
-                )}
-                <div className="flex flex-col items-center gap-3">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  >
-                    <Loader2 className="w-10 h-10 text-primary" />
-                  </motion.div>
-                  <div className="text-center">
-                    <p className="font-medium text-foreground">Analyzing homework...</p>
-                    <p className="text-sm text-muted-foreground">
-                      Extracting text & solving problem
-                    </p>
-                  </div>
-                </div>
+                <ScannerLoadingState 
+                  image={croppedImage || undefined}
+                  stage={loadingStage}
+                />
               </motion.div>
             )}
 
@@ -238,14 +290,15 @@ const Scanner = () => {
                   questionImage={solution.image}
                 />
 
-                <div className="flex justify-center">
+                <div className="flex justify-center pt-4">
                   <Button
-                    variant="hero"
-                    size="lg"
-                    onClick={handleScanAnother}
-                    className="gap-2"
+                    onClick={handleReset}
+                    className="gap-3 px-8 py-6 text-base font-heading font-bold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90"
+                    style={{
+                      boxShadow: "0 0 30px hsl(var(--primary) / 0.3), 0 4px 15px hsl(var(--primary) / 0.25)",
+                    }}
                   >
-                    <Scan className="w-5 h-5" />
+                    <AIBrainIcon className="w-5 h-5" />
                     Scan Another
                   </Button>
                 </div>
@@ -254,25 +307,6 @@ const Scanner = () => {
           </AnimatePresence>
         </div>
       </main>
-
-      {/* Large Scan Button (only visible when idle) */}
-      {state === "idle" && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-24 left-0 right-0 px-4 flex justify-center"
-        >
-          <Button
-            variant="hero"
-            size="lg"
-            className="gap-2 px-8 py-6 text-lg font-bold shadow-lg shadow-primary/30"
-            onClick={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()}
-          >
-            <Scan className="w-6 h-6" />
-            Scan Homework
-          </Button>
-        </motion.div>
-      )}
 
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
