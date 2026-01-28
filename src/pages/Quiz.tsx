@@ -287,6 +287,8 @@ const Quiz = () => {
 
   const handleSelectOption = (questionIndex: number, option: string) => {
     if (submitted) return; // No changes after submission
+    // Disable changes after first selection (one answer per question)
+    if (selectedAnswers[questionIndex] !== undefined) return;
     
     setSelectedAnswers((prev) => ({
       ...prev,
@@ -664,23 +666,34 @@ const Quiz = () => {
                       : "Keep studying and try again!"}
                 </p>
                 
-                {/* Review Mode Toggle - Premium only */}
-                <div className="flex items-center justify-center gap-3 p-3 bg-card/50 rounded-lg">
-                  {isPremium ? (
-                    <>
-                      <Eye className="w-4 h-4 text-muted-foreground" />
-                      <Label htmlFor="review-mode" className="text-sm">Review Mode</Label>
-                      <Switch
-                        id="review-mode"
-                        checked={reviewMode}
-                        onCheckedChange={setReviewMode}
-                      />
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Lock className="w-4 h-4" />
-                      <span className="text-sm">Review Mode (Premium only)</span>
-                    </div>
+                {/* Review Mode Toggle - Premium unlocks full review with correct answers */}
+                <div className="flex flex-col items-center gap-3">
+                  <div className="flex items-center justify-center gap-3 p-3 bg-card/50 rounded-lg w-full">
+                    {isPremium ? (
+                      <>
+                        <Eye className="w-4 h-4 text-primary" />
+                        <Label htmlFor="review-mode" className="text-sm font-medium">Full Review Mode</Label>
+                        <Switch
+                          id="review-mode"
+                          checked={reviewMode}
+                          onCheckedChange={setReviewMode}
+                        />
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setReviewMode(true)}
+                        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span className="text-sm">View Summary</span>
+                      </button>
+                    )}
+                  </div>
+                  {!isPremium && (
+                    <p className="text-xs text-muted-foreground">
+                      <Lock className="w-3 h-3 inline mr-1" />
+                      Upgrade to Premium to see correct answers & explanations
+                    </p>
                   )}
                 </div>
               </motion.div>
@@ -737,26 +750,36 @@ const Quiz = () => {
                   <div className="space-y-3">
                     {quizResult[currentQuestion].options.map((option, idx) => {
                       const isSelected = selectedAnswers[currentQuestion] === option;
+                      const hasAnswered = selectedAnswers[currentQuestion] !== undefined;
                       const isCorrect = isCorrectAnswer(currentQuestion, option);
-                      const showCorrectFeedback = isSelected && isCorrect && !submitted;
+                      const userSelectedCorrect = hasAnswered && isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]);
+                      const userSelectedWrong = hasAnswered && !userSelectedCorrect;
                       
                       return (
                         <motion.button
                           key={idx}
                           onClick={() => handleSelectOption(currentQuestion, option)}
-                          disabled={submitted}
-                          whileHover={!submitted ? { scale: 1.01 } : {}}
-                          whileTap={!submitted ? { scale: 0.99 } : {}}
+                          disabled={hasAnswered || submitted}
+                          whileHover={!hasAnswered && !submitted ? { scale: 1.01 } : {}}
+                          whileTap={!hasAnswered && !submitted ? { scale: 0.99 } : {}}
                           className={cn(
-                            "w-full text-left p-4 rounded-xl border transition-all",
+                            "w-full text-left p-4 rounded-xl border transition-all touch-manipulation",
+                            // After submission: show correct/incorrect
                             submitted && isCorrect
                               ? "bg-green-500/10 border-green-500 text-foreground"
                               : submitted && isSelected && !isCorrect
                                 ? "bg-destructive/10 border-destructive text-foreground"
-                                : isSelected
-                                  ? "bg-primary/10 border-primary text-foreground"
+                            // During quiz after selection: show if user was correct/wrong
+                            : isSelected && userSelectedCorrect
+                              ? "bg-green-500/10 border-green-500 text-foreground"
+                              : isSelected && userSelectedWrong
+                                ? "bg-destructive/10 border-destructive text-foreground"
+                              : isSelected
+                                ? "bg-primary/10 border-primary text-foreground"
+                                : hasAnswered
+                                  ? "bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60"
                                   : "bg-card border-border hover:border-primary/50 text-foreground",
-                            submitted && "cursor-default"
+                            (hasAnswered || submitted) && "cursor-default"
                           )}
                         >
                           <span className="font-medium">{option}</span>
@@ -765,18 +788,34 @@ const Quiz = () => {
                     })}
                   </div>
 
-                  {/* Show explanation if user selected correct answer (during quiz) */}
+                  {/* Feedback after selection - Correct answer */}
                   {selectedAnswers[currentQuestion] && 
                    isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]) && 
                    !submitted && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="mt-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg"
+                      className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl"
                     >
                       <p className="text-sm text-green-400 flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-                        <span>{quizResult[currentQuestion].explanation}</span>
+                        <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
+                        <span className="font-medium">Correct! {quizResult[currentQuestion].explanation}</span>
+                      </p>
+                    </motion.div>
+                  )}
+
+                  {/* Feedback after selection - Wrong answer (no correct answer revealed) */}
+                  {selectedAnswers[currentQuestion] && 
+                   !isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]) && 
+                   !submitted && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-4 p-4 bg-destructive/10 border border-destructive/30 rounded-xl"
+                    >
+                      <p className="text-sm text-destructive flex items-start gap-2">
+                        <XCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                        <span className="font-medium">That's not quite right. Think about the key concepts and try to remember the solution steps.</span>
                       </p>
                     </motion.div>
                   )}
@@ -820,7 +859,7 @@ const Quiz = () => {
               </motion.div>
             )}
 
-            {/* Review Mode - Full review with all answers */}
+            {/* Review Mode - Different views for Free vs Premium */}
             {reviewMode && quizResult && (
               <motion.div
                 key="review-mode"
@@ -829,10 +868,10 @@ const Quiz = () => {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-6"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h2 className="text-lg font-heading font-bold flex items-center gap-2">
                     <Eye className="w-5 h-5 text-primary" />
-                    Review Mode
+                    {isPremium ? "Full Review" : "Quiz Summary"}
                   </h2>
                   <Button
                     variant="ghost"
@@ -845,6 +884,30 @@ const Quiz = () => {
                   </Button>
                 </div>
 
+                {/* Premium Upsell Banner for Free Users */}
+                {!isPremium && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 bg-primary/10 border border-primary/30 rounded-xl"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Crown className="w-6 h-6 text-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">Unlock Full Review Mode</p>
+                        <p className="text-xs text-muted-foreground">
+                          See correct answers and detailed explanations for each question
+                        </p>
+                      </div>
+                      <Link to="/premium">
+                        <Button size="sm" variant="outline" className="shrink-0">
+                          Upgrade
+                        </Button>
+                      </Link>
+                    </div>
+                  </motion.div>
+                )}
+
                 {quizResult.map((q, idx) => {
                   const userAnswer = selectedAnswers[idx];
                   const isCorrect = userAnswer && isCorrectAnswer(idx, userAnswer);
@@ -855,10 +918,11 @@ const Quiz = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.05 }}
-                      className="bg-card border border-border rounded-xl p-6"
+                      className="bg-card border border-border rounded-xl p-4 sm:p-6 overflow-hidden"
                     >
+                      {/* Question Header */}
                       <div className="flex items-start gap-3 mb-4">
-                        <span className="text-sm font-medium text-muted-foreground">
+                        <span className="text-sm font-medium text-muted-foreground shrink-0">
                           Q{idx + 1}
                         </span>
                         {isCorrect ? (
@@ -866,49 +930,103 @@ const Quiz = () => {
                         ) : (
                           <XCircle className="w-5 h-5 text-destructive shrink-0" />
                         )}
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {isCorrect ? "Correct" : "Incorrect"}
+                        </span>
                       </div>
                       
-                      <h3 className="font-medium mb-4">{q.question}</h3>
+                      <h3 className="font-medium mb-4 text-sm sm:text-base break-words">{q.question}</h3>
 
+                      {/* Options - Different view for Free vs Premium */}
                       <div className="space-y-2 mb-4">
-                        {q.options.map((option, optIdx) => {
-                          const isCorrectOption = getOptionLetter(option) === q.answer;
-                          const isUserSelection = userAnswer === option;
-                          
-                          return (
-                            <div
-                              key={optIdx}
-                              className={cn(
-                                "p-3 rounded-lg border text-sm",
-                                isCorrectOption
-                                  ? "bg-green-500/10 border-green-500/50 text-foreground"
-                                  : isUserSelection
-                                    ? "bg-destructive/10 border-destructive/50 text-foreground"
-                                    : "bg-muted/30 border-border text-muted-foreground"
-                              )}
-                            >
-                              {option}
-                              {isCorrectOption && (
-                                <span className="ml-2 text-green-500 text-xs">✓ Correct</span>
-                              )}
-                              {isUserSelection && !isCorrectOption && (
-                                <span className="ml-2 text-destructive text-xs">Your answer</span>
-                              )}
+                        {isPremium ? (
+                          // Premium: Show all options with correct answer highlighted
+                          q.options.map((option, optIdx) => {
+                            const isCorrectOption = getOptionLetter(option) === q.answer;
+                            const isUserSelection = userAnswer === option;
+                            
+                            return (
+                              <div
+                                key={optIdx}
+                                className={cn(
+                                  "p-3 rounded-xl border text-sm break-words",
+                                  isCorrectOption
+                                    ? "bg-green-500/10 border-green-500/50 text-foreground"
+                                    : isUserSelection
+                                      ? "bg-destructive/10 border-destructive/50 text-foreground"
+                                      : "bg-muted/30 border-border text-muted-foreground"
+                                )}
+                              >
+                                <span className="break-words">{option}</span>
+                                {isCorrectOption && (
+                                  <span className="ml-2 text-green-500 text-xs font-medium">✓ Correct</span>
+                                )}
+                                {isUserSelection && !isCorrectOption && (
+                                  <span className="ml-2 text-destructive text-xs font-medium">Your answer</span>
+                                )}
+                              </div>
+                            );
+                          })
+                        ) : (
+                          // Free: Only show user's answer without revealing correct one
+                          <div className="space-y-2">
+                            <div className={cn(
+                              "p-3 rounded-xl border text-sm",
+                              isCorrect
+                                ? "bg-green-500/10 border-green-500/50"
+                                : "bg-destructive/10 border-destructive/50"
+                            )}>
+                              <span className="text-xs text-muted-foreground block mb-1">Your answer:</span>
+                              <span className="break-words">{userAnswer || "Not answered"}</span>
                             </div>
-                          );
-                        })}
+                            {!isCorrect && (
+                              <div className="p-3 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 text-sm">
+                                <Lock className="w-3 h-3 inline mr-1.5 text-muted-foreground" />
+                                <span className="text-muted-foreground text-xs">
+                                  Correct answer hidden • Upgrade to Premium to reveal
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Explanation */}
-                      <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                        <p className="text-sm text-muted-foreground">
-                          <span className="font-medium text-primary">Explanation:</span>{" "}
-                          {q.explanation}
-                        </p>
-                      </div>
+                      {/* Explanation - Premium only */}
+                      {isPremium ? (
+                        <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                          <p className="text-sm">
+                            <span className="font-medium text-primary block mb-1">Why this is correct:</span>
+                            <span className="text-muted-foreground break-words">{q.explanation}</span>
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-xl text-center">
+                          <Lock className="w-4 h-4 inline mr-1.5 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            Explanation available with Premium
+                          </span>
+                        </div>
+                      )}
                     </motion.div>
                   );
                 })}
+
+                {/* Bottom CTA for Free Users */}
+                {!isPremium && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-center py-4"
+                  >
+                    <Link to="/premium">
+                      <Button variant="neon" size="lg" className="gap-2">
+                        <Crown className="w-5 h-5" />
+                        Unlock Full Review Mode
+                      </Button>
+                    </Link>
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
