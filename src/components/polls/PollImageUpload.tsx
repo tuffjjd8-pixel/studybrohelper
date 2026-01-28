@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ImageIcon, X, AlertCircle, Link2 } from "lucide-react";
+import { ImageIcon, Link, Upload, X, AlertCircle } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface PollImageUploadProps {
@@ -29,8 +30,9 @@ export function PollImageUpload({
   label = "Image",
   aspectRatio = 16 / 9 
 }: PollImageUploadProps) {
+  const [mode, setMode] = useState<"none" | "url" | "upload">("none");
   const [urlInput, setUrlInput] = useState("");
-  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const handleUrlSubmit = () => {
@@ -47,7 +49,51 @@ export function PollImageUpload({
     setImageError(false);
     onImageChange(urlInput.trim());
     setUrlInput("");
-    setShowUrlInput(false);
+    setMode("none");
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `poll-${Date.now()}.${fileExt}`;
+      const filePath = `poll-images/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      setImageError(false);
+      onImageChange(publicUrl);
+      setMode("none");
+      toast.success("Image uploaded!");
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload image");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleRemoveImage = () => {
@@ -59,32 +105,25 @@ export function PollImageUpload({
     setImageError(true);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleUrlSubmit();
-    }
-  };
-
   return (
     <div className="space-y-2">
-      <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+      <label className="text-sm text-muted-foreground flex items-center gap-1">
         <ImageIcon className="w-3 h-3" /> {label}
       </label>
 
       {/* Image Preview */}
       {imageUrl && (
-        <div className="relative group">
-          <AspectRatio ratio={aspectRatio} className="bg-muted rounded-lg overflow-hidden border border-border">
+        <div className="relative">
+          <AspectRatio ratio={aspectRatio} className="bg-muted rounded-lg overflow-hidden">
             {imageError ? (
               <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
-                <AlertCircle className="w-6 h-6 mb-1" />
-                <span className="text-xs">Image unavailable</span>
+                <AlertCircle className="w-8 h-8 mb-2" />
+                <span className="text-sm">Image unavailable</span>
               </div>
             ) : (
               <img 
                 src={imageUrl} 
-                alt="Preview" 
+                alt="Poll image preview" 
                 className="w-full h-full object-cover"
                 onError={handleImageError}
               />
@@ -94,60 +133,80 @@ export function PollImageUpload({
             type="button"
             variant="destructive"
             size="icon"
-            className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute top-2 right-2 h-7 w-7"
             onClick={handleRemoveImage}
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </Button>
         </div>
       )}
 
-      {/* URL Input Toggle */}
-      {!imageUrl && !showUrlInput && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowUrlInput(true)}
-          className="w-full h-9 border border-dashed border-border hover:border-primary/50 text-muted-foreground hover:text-foreground"
-        >
-          <Link2 className="w-3.5 h-3.5 mr-1.5" /> 
-          Paste Image URL
-        </Button>
+      {/* Add Image Options */}
+      {!imageUrl && mode === "none" && (
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setMode("url")}
+            className="flex-1"
+          >
+            <Link className="w-4 h-4 mr-1" /> Paste URL
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setMode("upload")}
+            className="flex-1"
+          >
+            <Upload className="w-4 h-4 mr-1" /> Upload
+          </Button>
+        </div>
       )}
 
-      {/* URL Input Field */}
-      {!imageUrl && showUrlInput && (
+      {/* URL Input */}
+      {!imageUrl && mode === "url" && (
         <div className="flex gap-2">
           <Input
             placeholder="https://example.com/image.jpg"
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="flex-1 h-9 text-sm"
-            autoFocus
+            className="flex-1"
           />
-          <Button 
-            type="button" 
-            size="sm" 
-            onClick={handleUrlSubmit}
-            className="h-9 px-3"
-          >
+          <Button type="button" size="sm" onClick={handleUrlSubmit}>
             Add
           </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setMode("none")}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* File Upload */}
+      {!imageUrl && mode === "upload" && (
+        <div className="flex gap-2 items-center">
+          <Input
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            disabled={uploading}
+            className="flex-1"
+          />
           <Button 
             type="button" 
             variant="ghost" 
             size="sm" 
-            onClick={() => {
-              setShowUrlInput(false);
-              setUrlInput("");
-            }}
-            className="h-9 px-2"
+            onClick={() => setMode("none")}
+            disabled={uploading}
           >
             <X className="w-4 h-4" />
           </Button>
         </div>
+      )}
+
+      {uploading && (
+        <p className="text-xs text-muted-foreground">Uploading...</p>
       )}
     </div>
   );
