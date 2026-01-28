@@ -337,12 +337,27 @@ export function PollsSection() {
 
   const fetchPolls = async () => {
     try {
-      // Use public_polls view to avoid exposing creator email addresses
-      const { data, error } = await supabase
-        .from("public_polls")
-        .select("*")
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
+      let data;
+      let error;
+
+      // Admin sees ALL polls (public and hidden), users see only public
+      if (isAdmin) {
+        const result = await supabase
+          .from("polls")
+          .select("id, title, description, options, is_public, created_at, ends_at, total_votes, views_count, image_url")
+          .order("created_at", { ascending: false });
+        data = result.data;
+        error = result.error;
+      } else {
+        // Use public_polls view for non-admins to avoid exposing creator email
+        const result = await supabase
+          .from("public_polls")
+          .select("*")
+          .eq("is_public", true)
+          .order("created_at", { ascending: false });
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) throw error;
       
@@ -367,8 +382,8 @@ export function PollsSection() {
         
         const totalVotes = updatedOptions.reduce((sum, opt) => sum + opt.votes, 0);
         
-        // Track view for analytics
-        if (user?.id && poll.id) {
+        // Track view for analytics (only for public polls)
+        if (user?.id && poll.id && poll.is_public) {
           trackPollView(poll.id);
         }
         
@@ -595,25 +610,36 @@ export function PollsSection() {
     }
   };
 
-  const handleToggleVisibility = async (pollId: string, isPublic: boolean) => {
+  const handleToggleVisibility = async (pollId: string) => {
     if (!isAdmin) {
       toast.error("You do not have permission to manage polls");
       return;
     }
 
+    // Find the poll to get its current visibility
+    const poll = polls.find(p => p.id === pollId);
+    if (!poll) {
+      toast.error("Poll not found");
+      return;
+    }
+
+    // Toggle: if currently public, make hidden; if hidden, make public
+    const newVisibility = !poll.is_public;
+
     try {
       const { error } = await supabase
         .from("polls")
-        .update({ is_public: isPublic })
+        .update({ is_public: newVisibility })
         .eq("id", pollId);
 
       if (error) throw error;
 
-      if (!isPublic) {
-        setPolls(prev => prev.filter(p => p.id !== pollId));
-      }
-      toast.success(isPublic ? "Poll made public" : "Poll hidden");
-      fetchPolls();
+      // Update local state immediately (admin always sees all polls)
+      setPolls(prev => prev.map(p => 
+        p.id === pollId ? { ...p, is_public: newVisibility } : p
+      ));
+      
+      toast.success(newVisibility ? "Poll is now visible to users" : "Poll is now hidden from users");
     } catch (error) {
       toast.error("Failed to update poll visibility");
     }
@@ -896,12 +922,13 @@ export function PollsSection() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleToggleVisibility(poll.id, !poll.is_public)}
+                          onClick={() => handleToggleVisibility(poll.id)}
+                          title={poll.is_public ? "Hide from users" : "Show to users"}
                         >
                           {poll.is_public ? (
                             <Eye className="w-4 h-4" />
                           ) : (
-                            <EyeOff className="w-4 h-4" />
+                            <EyeOff className="w-4 h-4 text-muted-foreground" />
                           )}
                         </Button>
                         <Button
