@@ -56,12 +56,12 @@ export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
         disabled={isLoading}
         variant="neonGreenFilled"
         size="icon-xl"
-        className="relative z-10 font-heading font-bold text-sm leading-tight"
+        className="relative z-10 w-28 h-28 md:w-32 md:h-32"
       >
         {isLoading ? (
-          <Loader2 className="w-6 h-6 animate-spin" />
+          <Loader2 className="w-10 h-10 md:w-12 md:h-12 animate-spin" />
         ) : (
-          <Camera className="w-8 h-8" />
+          <Camera className="w-10 h-10 md:w-12 md:h-12" />
         )}
       </Button>
     </motion.div>
