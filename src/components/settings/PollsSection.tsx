@@ -17,7 +17,8 @@ import {
   EyeOff,
   Lock,
   Clock,
-  RefreshCw
+  RefreshCw,
+  AlertCircle
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -27,17 +28,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PollImageUpload } from "@/components/polls/PollImageUpload";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+
+interface PollOption {
+  text: string;
+  votes: number;
+  imageUrl?: string | null;
+}
 
 interface Poll {
   id: string;
   title: string;
   description: string | null;
-  options: { text: string; votes: number }[];
+  options: PollOption[];
   is_public: boolean;
   created_at: string;
   ends_at: string | null;
   total_votes: number;
   views_count?: number;
+  image_url?: string | null;
 }
 
 interface PollAnalytics {
@@ -95,6 +105,11 @@ const getTimeRemaining = (endsAt: string | null): string | null => {
   return `${diffMins}m left`;
 };
 
+interface NewPollOption {
+  text: string;
+  imageUrl: string | null;
+}
+
 export function PollsSection() {
   const { user } = useAuth();
   const [polls, setPolls] = useState<Poll[]>([]);
@@ -105,15 +120,24 @@ export function PollsSection() {
   const [pollAnalytics, setPollAnalytics] = useState<Record<string, PollAnalytics>>({});
   const [userIsPremium, setUserIsPremium] = useState(false);
   const [deviceId] = useState(() => getDeviceId());
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   
   // Admin state
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newPoll, setNewPoll] = useState({
+  const [newPoll, setNewPoll] = useState<{
+    title: string;
+    description: string;
+    options: NewPollOption[];
+    is_public: boolean;
+    timeLimit: "none" | "24h" | "3d" | "7d";
+    imageUrl: string | null;
+  }>({
     title: "",
     description: "",
-    options: ["", ""],
+    options: [{ text: "", imageUrl: null }, { text: "", imageUrl: null }],
     is_public: true,
-    timeLimit: "none" as "none" | "24h" | "3d" | "7d"
+    timeLimit: "none",
+    imageUrl: null
   });
   
   // Fetch user premium status
@@ -163,21 +187,6 @@ export function PollsSection() {
       });
     } catch (error) {
       console.error("Error tracking poll vote:", error);
-    }
-  };
-
-  // Track conversion (when user clicks a feature after voting)
-  const trackConversion = async (pollId: string, target: string) => {
-    if (!user?.id) return;
-    try {
-      await supabase.from("poll_analytics").insert({
-        poll_id: pollId,
-        event_type: "conversion",
-        user_id: user.id,
-        conversion_target: target
-      });
-    } catch (error) {
-      console.error("Error tracking conversion:", error);
     }
   };
 
@@ -339,7 +348,7 @@ export function PollsSection() {
       
       // Parse options and fetch actual vote counts from database
       const parsedPolls = await Promise.all((data || []).map(async poll => {
-        const options = poll.options as { text: string; votes: number }[];
+        const options = poll.options as unknown as PollOption[];
         
         // Fetch actual vote counts from poll_votes table
         const { data: voteCounts } = await supabase.rpc('get_poll_vote_counts', {
@@ -372,7 +381,8 @@ export function PollsSection() {
           is_public: poll.is_public!,
           created_at: poll.created_at!,
           ends_at: poll.ends_at,
-          total_votes: totalVotes
+          total_votes: totalVotes,
+          image_url: (poll as unknown as { image_url?: string | null }).image_url || null
         };
       }));
       
@@ -519,15 +529,19 @@ export function PollsSection() {
       return;
     }
 
-    if (!newPoll.title.trim() || newPoll.options.filter(o => o.trim()).length < 2) {
+    if (!newPoll.title.trim() || newPoll.options.filter(o => o.text.trim()).length < 2) {
       toast.error("Please provide a title and at least 2 options");
       return;
     }
 
     try {
       const options = newPoll.options
-        .filter(o => o.trim())
-        .map(text => ({ text: text.trim(), votes: 0 }));
+        .filter(o => o.text.trim())
+        .map(opt => ({ 
+          text: opt.text.trim(), 
+          votes: 0,
+          imageUrl: opt.imageUrl || null
+        }));
 
       const { error } = await supabase
         .from("polls")
@@ -537,13 +551,21 @@ export function PollsSection() {
           options,
           is_public: newPoll.is_public,
           created_by: user?.email || "admin",
-          ends_at: getEndsAt(newPoll.timeLimit)
+          ends_at: getEndsAt(newPoll.timeLimit),
+          image_url: newPoll.imageUrl || null
         });
 
       if (error) throw error;
 
       toast.success("Poll created!");
-      setNewPoll({ title: "", description: "", options: ["", ""], is_public: true, timeLimit: "none" });
+      setNewPoll({ 
+        title: "", 
+        description: "", 
+        options: [{ text: "", imageUrl: null }, { text: "", imageUrl: null }], 
+        is_public: true, 
+        timeLimit: "none",
+        imageUrl: null
+      });
       setShowCreateForm(false);
       fetchPolls();
     } catch (error) {
@@ -599,7 +621,10 @@ export function PollsSection() {
 
   const addOption = () => {
     if (newPoll.options.length < 6) {
-      setNewPoll(prev => ({ ...prev, options: [...prev.options, ""] }));
+      setNewPoll(prev => ({ 
+        ...prev, 
+        options: [...prev.options, { text: "", imageUrl: null }] 
+      }));
     }
   };
 
@@ -612,11 +637,26 @@ export function PollsSection() {
     }
   };
 
-  const updateOption = (index: number, value: string) => {
+  const updateOptionText = (index: number, value: string) => {
     setNewPoll(prev => ({
       ...prev,
-      options: prev.options.map((opt, i) => i === index ? value : opt)
+      options: prev.options.map((opt, i) => 
+        i === index ? { ...opt, text: value } : opt
+      )
     }));
+  };
+
+  const updateOptionImage = (index: number, imageUrl: string | null) => {
+    setNewPoll(prev => ({
+      ...prev,
+      options: prev.options.map((opt, i) => 
+        i === index ? { ...opt, imageUrl } : opt
+      )
+    }));
+  };
+
+  const handleMainImageError = (pollId: string) => {
+    setImageErrors(prev => ({ ...prev, [pollId]: true }));
   };
 
   if (loading) {
@@ -672,25 +712,40 @@ export function PollsSection() {
                 onChange={(e) => setNewPoll(prev => ({ ...prev, description: e.target.value }))}
                 rows={2}
               />
+
+              {/* Main Poll Image */}
+              <PollImageUpload
+                imageUrl={newPoll.imageUrl}
+                onImageChange={(url) => setNewPoll(prev => ({ ...prev, imageUrl: url }))}
+                label="Poll Image (optional)"
+              />
               
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="text-sm text-muted-foreground">Options</label>
                 {newPoll.options.map((opt, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      placeholder={`Option ${index + 1}`}
-                      value={opt}
-                      onChange={(e) => updateOption(index, e.target.value)}
+                  <div key={index} className="p-3 bg-muted/30 rounded-lg space-y-2 border border-border">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={`Option ${index + 1}`}
+                        value={opt.text}
+                        onChange={(e) => updateOptionText(index, e.target.value)}
+                      />
+                      {newPoll.options.length > 2 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeOption(index)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <PollImageUpload
+                      imageUrl={opt.imageUrl}
+                      onImageChange={(url) => updateOptionImage(index, url)}
+                      label={`Option ${index + 1} Image (optional)`}
+                      aspectRatio={1}
                     />
-                    {newPoll.options.length > 2 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeOption(index)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
                   </div>
                 ))}
                 {newPoll.options.length < 6 && (
@@ -757,6 +812,7 @@ export function PollsSection() {
             const votedOption = votedPolls[poll.id];
             const expired = isPollExpired(poll.ends_at);
             const timeRemaining = getTimeRemaining(poll.ends_at);
+            const mainImageError = imageErrors[poll.id];
             
             return (
               <motion.div
@@ -766,6 +822,27 @@ export function PollsSection() {
                 transition={{ delay: index * 0.1 }}
                 className={`p-4 bg-card rounded-xl border ${expired ? "border-muted opacity-75" : "border-border"}`}
               >
+                {/* Poll Main Image */}
+                {poll.image_url && (
+                  <div className="mb-4 -mx-4 -mt-4">
+                    {mainImageError ? (
+                      <div className="w-full h-32 bg-muted flex items-center justify-center text-muted-foreground rounded-t-xl">
+                        <AlertCircle className="w-5 h-5 mr-2" />
+                        <span className="text-sm">Image unavailable</span>
+                      </div>
+                    ) : (
+                      <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-t-xl">
+                        <img 
+                          src={poll.image_url} 
+                          alt={poll.title}
+                          className="w-full h-full object-cover"
+                          onError={() => handleMainImageError(poll.id)}
+                        />
+                      </AspectRatio>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h4 className="font-medium">{poll.title}</h4>
@@ -877,6 +954,8 @@ export function PollsSection() {
                       ? Math.round((option.votes / poll.total_votes) * 100)
                       : 0;
                     const isSelected = votedOption === optIndex;
+                    const optionImageErrorKey = `${poll.id}-opt-${optIndex}`;
+                    const optionImageError = imageErrors[optionImageErrorKey];
 
                     return (
                       <button
@@ -905,18 +984,41 @@ export function PollsSection() {
                             }`}
                           />
                         )}
-                        <div className="relative flex items-center justify-between">
-                          <span className={`flex items-center gap-2 ${isSelected ? "font-medium" : ""}`}>
-                            {option.text}
-                            {isSelected && hasVoted && !expired && (
-                              <RefreshCw className="w-3 h-3 text-primary" />
-                            )}
-                          </span>
-                          {(hasVoted || expired) && (
-                            <span className="text-sm text-muted-foreground">
-                              {percentage}% ({option.votes})
-                            </span>
+                        <div className="relative">
+                          {/* Option Image */}
+                          {option.imageUrl && (
+                            <div className="mb-2">
+                              {optionImageError ? (
+                                <div className="w-full h-16 bg-muted/50 rounded flex items-center justify-center text-muted-foreground">
+                                  <AlertCircle className="w-4 h-4 mr-1" />
+                                  <span className="text-xs">Image unavailable</span>
+                                </div>
+                              ) : (
+                                <img 
+                                  src={option.imageUrl} 
+                                  alt={option.text}
+                                  className="w-full h-20 object-cover rounded"
+                                  onError={() => setImageErrors(prev => ({ 
+                                    ...prev, 
+                                    [optionImageErrorKey]: true 
+                                  }))}
+                                />
+                              )}
+                            </div>
                           )}
+                          <div className="flex items-center justify-between">
+                            <span className={`flex items-center gap-2 ${isSelected ? "font-medium" : ""}`}>
+                              {option.text}
+                              {isSelected && hasVoted && !expired && (
+                                <RefreshCw className="w-3 h-3 text-primary" />
+                              )}
+                            </span>
+                            {(hasVoted || expired) && (
+                              <span className="text-sm text-muted-foreground">
+                                {percentage}% ({option.votes})
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </button>
                     );
