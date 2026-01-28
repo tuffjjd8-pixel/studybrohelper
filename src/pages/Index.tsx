@@ -13,6 +13,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarTrigger } from "@/components/layout/SidebarTrigger";
+import { ScannerModal } from "@/components/scanner/ScannerModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
@@ -66,6 +67,7 @@ const Index = () => {
   
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   
   // Pending image state
   const [pendingImage, setPendingImage] = useState<string | null>(null);
@@ -348,6 +350,18 @@ const Index = () => {
     toast.info("Image ready! Press Enter or type a question to solve.");
   };
 
+  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string) => {
+    setSolution({
+      subject,
+      question,
+      answer: solutionText,
+      image,
+    });
+    setShowConfetti(true);
+    fetchRecentSolves();
+    fetchProfile();
+  };
+
   const handleTextSubmit = (text: string) => {
     if (pendingImage) {
       handleSolve(text, pendingImage);
@@ -411,7 +425,7 @@ const Index = () => {
               </div>
 
               {/* Camera button */}
-              <CameraButton onImageCapture={handleImageCapture} isLoading={isLoading} />
+              <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
 
               {/* Pending image preview */}
               {pendingImage && (
@@ -539,6 +553,15 @@ const Index = () => {
 
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
+      
+      {/* Scanner Modal */}
+      <ScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onSolved={handleScannerSolved}
+        userId={user?.id}
+        isPremium={isPremium}
+      />
     </div>
   );
 };
