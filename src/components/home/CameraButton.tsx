@@ -52,24 +52,24 @@ export function CameraButton({ isLoading }: CameraButtonProps) {
         </>
       )}
 
-      {/* Main button - TEXT ONLY, NO CAMERA ICON */}
+      {/* Main button - CIRCULAR, TEXT ONLY, NO CAMERA ICON */}
       <motion.button
         onClick={handleClick}
         disabled={isLoading}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="relative z-10 px-10 py-5 rounded-full font-heading font-bold text-lg md:text-xl text-primary-foreground bg-primary disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
+        className="relative z-10 w-36 h-36 md:w-40 md:h-40 rounded-full font-heading font-bold text-base md:text-lg text-primary-foreground bg-primary disabled:opacity-70 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-center leading-tight"
         style={{
-          boxShadow: "0 0 40px hsl(var(--primary) / 0.4), 0 4px 20px hsl(var(--primary) / 0.3)",
+          boxShadow: "0 0 50px hsl(var(--primary) / 0.5), 0 0 100px hsl(var(--primary) / 0.3), 0 4px 20px hsl(var(--primary) / 0.4)",
         }}
       >
         {isLoading ? (
-          <span className="flex items-center gap-3">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Solving...
+          <span className="flex flex-col items-center gap-2">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>Solving...</span>
           </span>
         ) : (
-          <span>Snap Homework</span>
+          <span className="px-2">Snap<br />Homework</span>
         )}
       </motion.button>
     </motion.div>
