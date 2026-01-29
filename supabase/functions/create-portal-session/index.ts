@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
     // Get the authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      console.error("Missing or invalid authorization header");
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -59,10 +60,12 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log("Profile data:", JSON.stringify(profile));
+
     if (!profile?.subscription_id) {
       console.error("No subscription found for user:", userId);
       return new Response(
-        JSON.stringify({ error: "No active subscription found" }),
+        JSON.stringify({ error: "No active subscription found. Please contact support if you believe this is an error." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -87,7 +90,7 @@ Deno.serve(async (req) => {
     if (!stripeSecretKey) {
       console.error("Stripe secret key not configured for mode:", stripeMode);
       return new Response(
-        JSON.stringify({ error: "Stripe not configured" }),
+        JSON.stringify({ error: "Stripe not configured properly" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -97,25 +100,58 @@ Deno.serve(async (req) => {
     });
 
     // Retrieve the subscription to get the customer ID
-    const subscription = await stripe.subscriptions.retrieve(profile.subscription_id);
-    const customerId = subscription.customer as string;
-    console.log("Found customer ID:", customerId);
+    console.log("Retrieving subscription from Stripe:", profile.subscription_id);
+    let customerId: string;
+    
+    try {
+      const subscription = await stripe.subscriptions.retrieve(profile.subscription_id);
+      customerId = subscription.customer as string;
+      console.log("Found customer ID from subscription:", customerId);
+    } catch (stripeError: unknown) {
+      const errorMessage = stripeError instanceof Error ? stripeError.message : "Unknown Stripe error";
+      console.error("Stripe subscription retrieval error:", errorMessage);
+      
+      // Check if it's a mode mismatch error
+      if (errorMessage.includes("test mode") || errorMessage.includes("live mode")) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Your subscription was created in a different environment. Please contact support for assistance." 
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ error: "Failed to retrieve subscription. Please contact support." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Create billing portal session
-    const session = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: "https://studybrohelper.lovable.app/profile",
-    });
+    console.log("Creating billing portal session for customer:", customerId);
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: "https://studybrohelper.lovable.app/profile",
+      });
 
-    console.log("Created portal session:", session.url);
+      console.log("Successfully created portal session:", session.url);
 
-    return new Response(
-      JSON.stringify({ url: session.url }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+      return new Response(
+        JSON.stringify({ url: session.url }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } catch (portalError: unknown) {
+      const errorMessage = portalError instanceof Error ? portalError.message : "Failed to create portal session";
+      console.error("Portal session creation error:", errorMessage);
+      return new Response(
+        JSON.stringify({ error: errorMessage }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Failed to create portal session";
-    console.error("Portal session error:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+    console.error("Unexpected error:", error);
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
