@@ -25,7 +25,7 @@ export const useBadges = () => {
     total_solves: number;
     streak_count: number;
     subject_solves: Record<string, number>;
-    referral_count: number;
+    speed_solves: number;
     is_premium: boolean;
   } | null>(null);
 
@@ -47,7 +47,7 @@ export const useBadges = () => {
       // Fetch profile data for progress calculation
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('total_solves, streak_count, subject_solves, referral_count, is_premium')
+        .select('total_solves, streak_count, subject_solves, speed_solves, is_premium')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -57,7 +57,7 @@ export const useBadges = () => {
         total_solves: 0,
         streak_count: 0,
         subject_solves: {},
-        referral_count: 0,
+        speed_solves: 0,
         is_premium: false,
       };
 
@@ -91,8 +91,8 @@ export const useBadges = () => {
             const maxSubjectSolves = Math.max(0, ...Object.values(subjectSolves as Record<string, number>));
             progress = Math.min(maxSubjectSolves, badge.requirement);
             break;
-          case 'referrals':
-            progress = Math.min(userProfile.referral_count || 0, badge.requirement);
+          case 'speed_solves':
+            progress = Math.min(userProfile.speed_solves || 0, badge.requirement);
             break;
         }
 

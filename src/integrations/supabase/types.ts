@@ -296,6 +296,7 @@ export type Database = {
           referred_by: string | null
           renewal_date: string | null
           speech_clips_used: number
+          speed_solves: number | null
           streak_count: number
           subject_solves: Json | null
           subscription_id: string | null
@@ -324,6 +325,7 @@ export type Database = {
           referred_by?: string | null
           renewal_date?: string | null
           speech_clips_used?: number
+          speed_solves?: number | null
           streak_count?: number
           subject_solves?: Json | null
           subscription_id?: string | null
@@ -352,6 +354,7 @@ export type Database = {
           referred_by?: string | null
           renewal_date?: string | null
           speech_clips_used?: number
+          speed_solves?: number | null
           streak_count?: number
           subject_solves?: Json | null
           subscription_id?: string | null

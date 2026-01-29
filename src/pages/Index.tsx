@@ -50,6 +50,7 @@ const Index = () => {
     }
   }, [searchParams]);
   const [isLoading, setIsLoading] = useState(false);
+  const [solveStartTime, setSolveStartTime] = useState<number | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [recentSolves, setRecentSolves] = useState<{ id: string; subject: string; question: string; createdAt: Date }[]>([]);
@@ -224,6 +225,10 @@ const Index = () => {
     setIsLoading(true);
     setSolution(null);
     setPendingImage(null);
+    
+    // Track solve start time for Speed Solver badge
+    const startTime = Date.now();
+    setSolveStartTime(startTime);
 
     // Auto-disable toggle if limit is hit
     const useAnimatedSteps = animatedSteps && animatedStepsUsedToday < maxAnimatedSteps;
@@ -262,6 +267,11 @@ const Index = () => {
         } else {
           solveId = solveData?.id;
           
+          // Calculate solve time for Speed Solver badge
+          const solveEndTime = Date.now();
+          const solveTimeSeconds = (solveEndTime - startTime) / 1000;
+          const isSpeedSolve = solveTimeSeconds <= 120; // Under 2 minutes
+          
           // Update profile stats
           const updates: Record<string, unknown> = {
             total_solves: (profile?.total_solves || 0) + 1,
@@ -279,6 +289,20 @@ const Index = () => {
             .from("profiles")
             .update(updates)
             .eq("user_id", user.id);
+          
+          // Increment speed_solves if this was a fast solve
+          if (isSpeedSolve) {
+            const { data: currentProfile } = await supabase
+              .from("profiles")
+              .select("speed_solves")
+              .eq("user_id", user.id)
+              .single();
+            
+            await supabase
+              .from("profiles")
+              .update({ speed_solves: (currentProfile?.speed_solves || 0) + 1 })
+              .eq("user_id", user.id);
+          }
 
           // Check if this is the user's first solve and complete referral if applicable
           if ((profile?.total_solves || 0) === 0) {
