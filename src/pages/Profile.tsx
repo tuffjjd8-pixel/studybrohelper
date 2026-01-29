@@ -469,9 +469,27 @@ const Profile = () => {
                 <p className="text-sm text-muted-foreground mb-4">
                   16 animated steps, 15 speech clips/day, enhanced solving
                 </p>
-                <Button onClick={() => navigate("/premium")} className="w-full">
+                <Button 
+                  onClick={() => {
+                    // Detect if running in Capacitor or WebView
+                    const isCapacitor = !!(window as any).Capacitor;
+                    const isWebView = /wv|WebView/i.test(navigator.userAgent) || 
+                      (navigator.userAgent.includes('Android') && navigator.userAgent.includes('Version/'));
+                    
+                    if (isCapacitor || isWebView) {
+                      // Open external browser for mobile apps (Google Play compliance)
+                      window.open("https://studybro.ai/upgrade", "_system");
+                    } else {
+                      navigate("/premium");
+                    }
+                  }} 
+                  className="w-full"
+                >
                   Upgrade for $5.99/month
                 </Button>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Purchases are completed on our website to comply with Google Play policies.
+                </p>
               </motion.div>
             )}
 
