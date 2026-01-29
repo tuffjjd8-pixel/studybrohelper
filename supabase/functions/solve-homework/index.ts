@@ -1,24 +1,27 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // ============================================================
-// MODEL CONFIGURATION
-// Text model: "llama-3.3-70b-versatile" - Primary for ALL text/reasoning tasks
-// Vision model: "meta-llama/llama-4-scout-17b-16e-instruct" - For image processing
-// Graph model: LLaMA 3.3 70B via OpenRouter (free tier, structured JSON)
+// MODEL CONFIGURATION - TIER-BASED ROUTING
+// Free users: llama-3.1-8b-instant (fast, basic)
+// Pro users: llama-3.3-70b-versatile (powerful, advanced)
+// Vision: meta-llama/llama-4-scout-17b-16e-instruct
 // ============================================================
-const GROQ_TEXT_MODEL = "llama-3.3-70b-versatile";
+const FREE_TEXT_MODEL = "llama-3.1-8b-instant";
+const PREMIUM_TEXT_MODEL = "llama-3.3-70b-versatile";
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const OPENROUTER_GRAPH_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 // ============================================================
 // TIER LIMITS
 // ============================================================
+const FREE_SOLVES_PER_DAY = 20;
 const FREE_ANIMATED_STEPS = 5;
 const PREMIUM_ANIMATED_STEPS = 16;
 const FREE_GRAPHS_PER_DAY = 4;
@@ -295,7 +298,7 @@ import {
   callGroqWithRotation 
 } from "../_shared/groq-key-manager.ts";
 
-// Call Groq API for text-only input with key rotation
+// Call Groq API for text-only input with key rotation - MODEL ROUTING BY TIER
 async function callGroqText(
   question: string, 
   isPremium: boolean,
@@ -303,24 +306,27 @@ async function callGroqText(
 ): Promise<string> {
   let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
-  // Add animated steps instruction
-  if (animatedSteps) {
-    const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
+  // Select model based on tier
+  const model = isPremium ? PREMIUM_TEXT_MODEL : FREE_TEXT_MODEL;
+  
+  // Add animated steps instruction (Premium only)
+  if (animatedSteps && isPremium) {
+    const maxSteps = PREMIUM_ANIMATED_STEPS;
     systemPrompt += getAnimatedStepsPrompt(maxSteps);
   }
   
-  console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
+  console.log("Calling Groq Text API with model:", model, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
   const response = await callGroqWithRotation(
     "https://api.groq.com/openai/v1/chat/completions",
     {
-      model: GROQ_TEXT_MODEL,
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: question }
       ],
       temperature: isPremium ? 0.5 : 0.7,
-      max_tokens: isPremium ? 8192 : 4096,
+      max_tokens: isPremium ? 8192 : 2048,
     }
   );
 
@@ -481,8 +487,63 @@ serve(async (req) => {
       isPremium = false,
       animatedSteps = false,
       generateGraph = false,
-      userGraphCount = 0 // Current graph count for the day
+      userGraphCount = 0, // Current graph count for the day
+      userId = null // User ID for quota tracking
     } = await req.json();
+
+    // ============================================================
+    // DAILY SOLVE LIMIT ENFORCEMENT (Free users only)
+    // ============================================================
+    let solvesUsedToday = 0;
+    let canSolve = true;
+    
+    if (!isPremium && userId) {
+      // Check user's daily solve count
+      const authHeader = req.headers.get('Authorization');
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      
+      if (authHeader?.startsWith('Bearer ')) {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+          global: { headers: { Authorization: authHeader } }
+        });
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("daily_solves_used, last_usage_date")
+          .eq("user_id", userId)
+          .single();
+
+        if (profile) {
+          const lastUsage = profile.last_usage_date ? new Date(profile.last_usage_date) : null;
+          const now = new Date();
+          const today = now.toISOString().split('T')[0];
+          
+          if (lastUsage && profile.last_usage_date === today) {
+            solvesUsedToday = profile.daily_solves_used || 0;
+          } else {
+            solvesUsedToday = 0;
+          }
+          
+          if (solvesUsedToday >= FREE_SOLVES_PER_DAY) {
+            canSolve = false;
+          }
+        }
+      }
+    }
+
+    // Block if free user has exceeded daily limit
+    if (!canSolve) {
+      return new Response(
+        JSON.stringify({ 
+          error: "daily_limit_reached",
+          message: "Daily solve limit reached. Upgrade to Pro for unlimited solves!",
+          solvesUsed: solvesUsedToday,
+          dailyLimit: FREE_SOLVES_PER_DAY
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     
     // Check graph limit
     const maxGraphs = isPremium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
@@ -491,10 +552,13 @@ serve(async (req) => {
     if (generateGraph && !canGenerateGraph) {
       console.log(`Graph limit reached: ${userGraphCount}/${maxGraphs} (Premium: ${isPremium})`);
     }
+
+    // Free users cannot use animated steps
+    const effectiveAnimatedSteps = isPremium ? animatedSteps : false;
     
     let solution: string;
 
-    // Route to appropriate model based on input type
+    // Route to appropriate model based on input type and tier
     if (image) {
       // Image input → use Groq Vision (Enhanced OCR for premium)
       const matches = image.match(/^data:([^;]+);base64,(.+)$/);
@@ -508,11 +572,11 @@ serve(async (req) => {
         base64Data, 
         mimeType, 
         isPremium, 
-        animatedSteps
+        effectiveAnimatedSteps
       );
     } else if (question) {
-      // Text-only input → use Groq Text
-      solution = await callGroqText(question, isPremium, animatedSteps);
+      // Text-only input → use Groq Text (model selected by tier)
+      solution = await callGroqText(question, isPremium, effectiveAnimatedSteps);
     } else {
       throw new Error("Please provide a question or image");
     }
@@ -548,9 +612,9 @@ serve(async (req) => {
       tier: isPremium ? "premium" : "free"
     };
     
-    // Add animated steps if requested
-    if (animatedSteps) {
-      const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
+    // Add animated steps if requested (Premium only)
+    if (effectiveAnimatedSteps) {
+      const maxSteps = PREMIUM_ANIMATED_STEPS;
       responseData.steps = parseAnimatedSteps(solution, maxSteps);
       responseData.maxSteps = maxSteps;
     }
