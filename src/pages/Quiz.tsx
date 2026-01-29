@@ -51,11 +51,11 @@ interface Profile {
   last_quiz_reset?: string;
 }
 
-// Tier constants
+// Tier constants - Updated for Free vs Pro
 const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
-const FREE_DAILY_QUIZZES = 7;
-const PREMIUM_DAILY_QUIZZES = 13;
+const FREE_DAILY_QUIZZES = 4;
+const PREMIUM_DAILY_QUIZZES = 999; // Unlimited for premium
 
 const Quiz = () => {
   const navigate = useNavigate();
