@@ -2,7 +2,7 @@ import { StreakCounter } from "@/components/gamification/StreakCounter";
 import { motion } from "framer-motion";
 import { Crown, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 
@@ -14,6 +14,21 @@ interface HeaderProps {
 
 export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleProClick = () => {
+    // Detect if running in Capacitor or WebView
+    const isCapacitor = !!(window as any).Capacitor;
+    const isWebView = /wv|WebView/i.test(navigator.userAgent) || 
+      (navigator.userAgent.includes('Android') && navigator.userAgent.includes('Version/'));
+    
+    if (isCapacitor || isWebView) {
+      // Open external browser for mobile apps (Google Play compliance)
+      window.open("https://studybro.ai/upgrade", "_system");
+    } else {
+      navigate("/premium");
+    }
+  };
 
   return (
     <motion.header
@@ -47,12 +62,15 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
           <StreakCounter streak={streak} totalSolves={totalSolves} />
           
           {!isPremium && (
-            <Link to="/premium">
-              <Button variant="cyan" size="sm" className="gap-1 px-2 sm:px-3">
-                <Crown className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">Pro</span>
-              </Button>
-            </Link>
+            <Button 
+              variant="cyan" 
+              size="sm" 
+              className="gap-1 px-2 sm:px-3"
+              onClick={handleProClick}
+            >
+              <Crown className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Pro</span>
+            </Button>
           )}
           
           {!user && (
