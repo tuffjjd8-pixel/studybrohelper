@@ -6,7 +6,7 @@ export interface BadgeDefinition {
   description: string;
   icon: string;
   requirement: number;
-  requirementType: 'total_solves' | 'streak' | 'subject_solves' | 'referrals';
+  requirementType: 'total_solves' | 'streak' | 'subject_solves' | 'speed_solves';
   isPremiumOnly: boolean;
 }
 
@@ -59,12 +59,12 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
     isPremiumOnly: true,
   },
   {
-    key: 'social_butterfly',
-    name: 'Social Butterfly',
-    description: 'Refer 3 friends successfully',
-    icon: '👥',
-    requirement: 3,
-    requirementType: 'referrals',
+    key: 'speed_solver',
+    name: 'Speed Solver',
+    description: 'Solve 5 problems in under 2 minutes each',
+    icon: '⚡',
+    requirement: 5,
+    requirementType: 'speed_solves',
     isPremiumOnly: true,
   },
 ];
