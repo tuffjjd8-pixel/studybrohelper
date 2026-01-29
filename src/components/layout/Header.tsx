@@ -23,8 +23,8 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
       (navigator.userAgent.includes('Android') && navigator.userAgent.includes('Version/'));
     
     if (isCapacitor || isWebView) {
-      // Open external browser for mobile apps (Google Play compliance)
-      window.open("https://studybro.ai/upgrade", "_system");
+      // Open external browser for mobile apps (App Store + Google Play compliance)
+      window.open("https://studybrohelper.lovable.app/premium", "_system");
     } else {
       navigate("/premium");
     }

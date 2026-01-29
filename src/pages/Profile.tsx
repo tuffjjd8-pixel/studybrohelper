@@ -477,8 +477,8 @@ const Profile = () => {
                       (navigator.userAgent.includes('Android') && navigator.userAgent.includes('Version/'));
                     
                     if (isCapacitor || isWebView) {
-                      // Open external browser for mobile apps (Google Play compliance)
-                      window.open("https://studybro.ai/upgrade", "_system");
+                      // Open external browser for mobile apps (App Store + Google Play compliance)
+                      window.open("https://studybrohelper.lovable.app/premium", "_system");
                     } else {
                       navigate("/premium");
                     }
@@ -488,7 +488,7 @@ const Profile = () => {
                   Upgrade for $5.99/month
                 </Button>
                 <p className="text-xs text-muted-foreground mt-3">
-                  Purchases are completed on our website to comply with Google Play policies.
+                  Purchases are completed on our website to comply with App Store and Google Play policies.
                 </p>
               </motion.div>
             )}
