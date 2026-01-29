@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { CreditCard, XCircle, ExternalLink } from 'lucide-react';
+import { CreditCard, XCircle, ExternalLink, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface SubscriptionButtonsProps {
   isPremium: boolean;
@@ -25,6 +26,7 @@ export const SubscriptionButtons = ({
   subscriptionId,
 }: SubscriptionButtonsProps) => {
   const [showCancelRestrictionModal, setShowCancelRestrictionModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Check if within 24 hours of purchase
   const isWithin24Hours = (): boolean => {
@@ -35,13 +37,42 @@ export const SubscriptionButtons = ({
     return hoursSincePurchase < 24;
   };
 
-  const getPortalUrl = () => {
-    // Use environment variable for Stripe Billing Portal URL
-    return import.meta.env.VITE_STRIPE_PORTAL_URL || 'https://billing.stripe.com/p/login/test_14k28O8CI5SDbgQ3cc';
+  const openBillingPortal = async () => {
+    setIsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please sign in to manage your subscription');
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-portal-session', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Portal session error:', error);
+        toast.error('Failed to open billing portal. Please try again.');
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error('Failed to create billing portal session');
+      }
+    } catch (err) {
+      console.error('Portal session error:', err);
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleManageSubscription = () => {
-    window.location.href = getPortalUrl();
+    openBillingPortal();
   };
 
   const handleCancelSubscription = () => {
@@ -49,7 +80,7 @@ export const SubscriptionButtons = ({
       setShowCancelRestrictionModal(true);
       return;
     }
-    window.location.href = getPortalUrl();
+    openBillingPortal();
   };
 
   if (!isPremium || !subscriptionId) {
@@ -71,19 +102,29 @@ export const SubscriptionButtons = ({
         <Button
           variant="outline"
           onClick={handleManageSubscription}
+          disabled={isLoading}
           className="w-full"
         >
-          <CreditCard className="w-4 h-4 mr-2" />
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <CreditCard className="w-4 h-4 mr-2" />
+          )}
           Manage Subscription
-          <ExternalLink className="w-3 h-3 ml-2 opacity-50" />
+          {!isLoading && <ExternalLink className="w-3 h-3 ml-2 opacity-50" />}
         </Button>
 
         <Button
           variant="outline"
           onClick={handleCancelSubscription}
+          disabled={isLoading}
           className="w-full text-muted-foreground hover:text-destructive hover:border-destructive/50"
         >
-          <XCircle className="w-4 h-4 mr-2" />
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <XCircle className="w-4 h-4 mr-2" />
+          )}
           Cancel Premium
         </Button>
       </motion.div>
