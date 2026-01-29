@@ -12,7 +12,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 interface SubscriptionButtonsProps {
   isPremium: boolean;
@@ -42,30 +41,42 @@ export const SubscriptionButtons = ({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error('Please sign in to manage your subscription');
+        alert('⚠️ Please sign in to manage your subscription');
         return;
       }
 
+      console.log('Calling create-portal-session edge function...');
+      
       const { data, error } = await supabase.functions.invoke('create-portal-session', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
       });
 
+      console.log('Portal session response:', { data, error });
+
       if (error) {
         console.error('Portal session error:', error);
-        toast.error('Failed to open billing portal. Please try again.');
+        alert('⚠️ Failed to open billing portal. Please try again.');
+        return;
+      }
+
+      if (data?.error) {
+        console.error('Portal session returned error:', data.error);
+        alert(`⚠️ ${data.error}`);
         return;
       }
 
       if (data?.url) {
+        console.log('Redirecting to billing portal:', data.url);
         window.location.href = data.url;
       } else {
-        toast.error('Failed to create billing portal session');
+        console.error('No URL returned from portal session');
+        alert('⚠️ Failed to create billing portal session. Please try again.');
       }
     } catch (err) {
-      console.error('Portal session error:', err);
-      toast.error('An error occurred. Please try again.');
+      console.error('Unexpected portal session error:', err);
+      alert('⚠️ An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
