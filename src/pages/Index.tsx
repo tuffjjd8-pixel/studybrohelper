@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useSearchParams } from "react-router-dom";
 
 import { CameraButton } from "@/components/home/CameraButton";
 import { TextInputBox } from "@/components/home/TextInputBox";
 import { RecentSolves } from "@/components/home/RecentSolves";
-import { UsageCounter } from "@/components/home/UsageCounter";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
@@ -14,15 +12,13 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarTrigger } from "@/components/layout/SidebarTrigger";
-import { ScannerModal } from "@/components/scanner/ScannerModal";
-import { UpgradeModal } from "@/components/modals/UpgradeModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useSpeechClips } from "@/hooks/useSpeechClips";
 import { toast } from "sonner";
 
 // Tier limits
-const FREE_SOLVES_PER_DAY = 20;
+const FREE_GRAPHS_PER_DAY = 4;
+const PREMIUM_GRAPHS_PER_DAY = 15;
 const FREE_ANIMATED_STEPS_PER_DAY = 5;
 const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 
@@ -34,26 +30,26 @@ interface SolutionData {
   solveId?: string;
   steps?: Array<{ title: string; content: string }>;
   maxSteps?: number;
+  graph?: { type: string; data: Record<string, unknown> };
+  limits?: {
+    animatedSteps: number;
+    graphsPerDay: number;
+    graphsUsed: number;
+  };
 }
 
-// Helper to get current date in user's local timezone
-const getLocalDate = (): string => {
-  return new Date().toISOString().split('T')[0];
+// Helper to get current date in CST
+const getCSTDate = (): string => {
+  const now = new Date();
+  const cstOffset = -6 * 60; // CST is UTC-6
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const cstTime = new Date(utc + (cstOffset * 60000));
+  return cstTime.toISOString().split('T')[0];
 };
 
 const Index = () => {
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
-  
-  // Capture referral code from URL and store it
-  useEffect(() => {
-    const refCode = searchParams.get("ref");
-    if (refCode) {
-      localStorage.setItem("pending_referral_code", refCode);
-    }
-  }, [searchParams]);
   const [isLoading, setIsLoading] = useState(false);
-  const [solveStartTime, setSolveStartTime] = useState<number | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [recentSolves, setRecentSolves] = useState<{ id: string; subject: string; question: string; createdAt: Date }[]>([]);
@@ -63,125 +59,45 @@ const Index = () => {
     is_premium: boolean; 
     daily_solves_used: number;
     animated_steps_used_today: number;
+    graphs_used_today: number;
     last_usage_date: string | null;
   } | null>(null);
   
-  // Guest usage state
-  const [guestUsage, setGuestUsage] = useState({ animatedSteps: 0, speechUses: 0, solves: 0, date: "" });
-  
-  // Upgrade modal state
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [scannerOpen, setScannerOpen] = useState(false);
   
   // Pending image state
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   
-  // Solve toggles - persist in localStorage
-  const [animatedSteps, setAnimatedSteps] = useState(() => {
-    const saved = localStorage.getItem("toggle_animated_steps");
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  
-  const [speechInput, setSpeechInput] = useState(() => {
-    const saved = localStorage.getItem("toggle_speech_input");
-    return saved !== null ? JSON.parse(saved) : false;
-  });
-
-  const [speechLanguage, setSpeechLanguage] = useState(() => {
-    const saved = localStorage.getItem("speech_language");
-    return saved ?? "auto";
-  });
-
-  // Persist toggles
-  useEffect(() => {
-    localStorage.setItem("toggle_animated_steps", JSON.stringify(animatedSteps));
-  }, [animatedSteps]);
-
-  useEffect(() => {
-    localStorage.setItem("toggle_speech_input", JSON.stringify(speechInput));
-  }, [speechInput]);
-
-  useEffect(() => {
-    localStorage.setItem("speech_language", speechLanguage);
-  }, [speechLanguage]);
+  // Solve toggles
+  const [animatedSteps, setAnimatedSteps] = useState(true);
+  const [generateGraph, setGenerateGraph] = useState(false);
 
   const isPremium = profile?.is_premium || false;
-  
-  // Speech clips hook
-  const speechClips = useSpeechClips(user?.id, isPremium);
-  
+  const maxGraphs = isPremium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
   const maxAnimatedSteps = isPremium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
-  const maxSolves = isPremium ? Infinity : FREE_SOLVES_PER_DAY;
   
-  // Check if usage needs reset (midnight local time)
-  const currentLocalDate = getLocalDate();
-  const needsReset = user ? (profile?.last_usage_date !== currentLocalDate) : (guestUsage.date !== currentLocalDate);
+  // Check if usage needs reset (midnight CST)
+  const currentCSTDate = getCSTDate();
+  const needsReset = profile?.last_usage_date !== currentCSTDate;
   
-  const animatedStepsUsedToday = user 
-    ? (needsReset ? 0 : (profile?.animated_steps_used_today || 0))
-    : (needsReset ? 0 : guestUsage.animatedSteps);
+  const graphsUsedToday = needsReset ? 0 : (profile?.graphs_used_today || 0);
+  const animatedStepsUsedToday = needsReset ? 0 : (profile?.animated_steps_used_today || 0);
 
-  const solvesUsedToday = user 
-    ? (needsReset ? 0 : (profile?.daily_solves_used || 0))
-    : (needsReset ? 0 : guestUsage.solves);
-
-  const canSolve = isPremium || solvesUsedToday < FREE_SOLVES_PER_DAY;
-
-
-  // Load guest usage on mount
-  useEffect(() => {
-    if (!user) {
-      loadGuestUsage();
-    }
-  }, [user]);
-
-  // Fetch profile for authenticated users
+  // Fetch recent solves and profile for logged-in users
   useEffect(() => {
     if (user) {
-      fetchProfile();
       fetchRecentSolves();
+      fetchProfile();
     }
   }, [user]);
 
-  // Reset usage counters at midnight if needed
+  // Reset usage counters at midnight CST if needed
   useEffect(() => {
     if (user && profile && needsReset) {
       resetDailyUsage();
-    } else if (!user && needsReset) {
-      resetGuestUsage();
     }
-  }, [user, profile, needsReset, guestUsage]);
-
-  const loadGuestUsage = () => {
-    try {
-      const stored = localStorage.getItem("guest_usage");
-      if (stored) {
-        const usage = JSON.parse(stored);
-        setGuestUsage({
-          animatedSteps: usage.animatedSteps || 0,
-          speechUses: usage.speechUses || 0,
-          solves: usage.solves || 0,
-          date: usage.date || ""
-        });
-      }
-    } catch (e) {
-      console.error("Failed to load guest usage:", e);
-    }
-  };
-
-  const resetGuestUsage = () => {
-    const newUsage = { animatedSteps: 0, speechUses: 0, solves: 0, date: currentLocalDate };
-    localStorage.setItem("guest_usage", JSON.stringify(newUsage));
-    setGuestUsage(newUsage);
-  };
-
-  const handleSpeechUsed = async () => {
-    if (!user) return; // Guest users can't use speech
-    await speechClips.useClip();
-  };
+  }, [user, profile, needsReset]);
 
   const fetchRecentSolves = async () => {
     const { data } = await supabase
@@ -206,7 +122,7 @@ const Index = () => {
   const fetchProfile = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("streak_count, total_solves, is_premium, daily_solves_used, animated_steps_used_today, last_usage_date")
+      .select("streak_count, total_solves, is_premium, daily_solves_used, animated_steps_used_today, graphs_used_today, last_usage_date")
       .eq("user_id", user?.id)
       .single();
 
@@ -220,8 +136,8 @@ const Index = () => {
       .from("profiles")
       .update({
         animated_steps_used_today: 0,
-        daily_solves_used: 0,
-        last_usage_date: currentLocalDate,
+        graphs_used_today: 0,
+        last_usage_date: currentCSTDate,
       })
       .eq("user_id", user?.id);
 
@@ -229,29 +145,20 @@ const Index = () => {
       setProfile(prev => prev ? {
         ...prev,
         animated_steps_used_today: 0,
-        daily_solves_used: 0,
-        last_usage_date: currentLocalDate,
+        graphs_used_today: 0,
+        last_usage_date: currentCSTDate,
       } : null);
     }
   };
 
   const handleSolve = async (input: string, imageData?: string) => {
-    // Check daily solve limit for free users
-    if (!canSolve) {
-      setShowUpgradeModal(true);
-      return;
-    }
-
     setIsLoading(true);
     setSolution(null);
     setPendingImage(null);
-    
-    // Track solve start time for Speed Solver badge
-    const startTime = Date.now();
-    setSolveStartTime(startTime);
 
-    // Animated steps only for premium users
-    const useAnimatedSteps = isPremium && animatedSteps && animatedStepsUsedToday < maxAnimatedSteps;
+    // Auto-disable toggles if limits are hit (don't block solving)
+    const useAnimatedSteps = animatedSteps && animatedStepsUsedToday < maxAnimatedSteps;
+    const useGraph = generateGraph && graphsUsedToday < maxGraphs;
 
     try {
       const { data, error } = await supabase.functions.invoke("solve-homework", {
@@ -260,17 +167,10 @@ const Index = () => {
           image: imageData,
           isPremium,
           animatedSteps: useAnimatedSteps,
-          generateGraph: false,
-          userId: user?.id || null,
+          generateGraph: useGraph,
+          userGraphCount: graphsUsedToday,
         },
       });
-
-      // Check for daily limit error from backend
-      if (data?.error === "daily_limit_reached") {
-        setShowUpgradeModal(true);
-        setIsLoading(false);
-        return;
-      }
 
       if (error) throw error;
 
@@ -295,83 +195,31 @@ const Index = () => {
         } else {
           solveId = solveData?.id;
           
-          // Calculate solve time for Speed Solver badge
-          const solveEndTime = Date.now();
-          const solveTimeSeconds = (solveEndTime - startTime) / 1000;
-          const isSpeedSolve = solveTimeSeconds <= 120; // Under 2 minutes
-          
-          // Update profile stats
+          // Update profile stats including usage counters
           const updates: Record<string, unknown> = {
             total_solves: (profile?.total_solves || 0) + 1,
             daily_solves_used: (profile?.daily_solves_used || 0) + 1,
             last_solve_date: new Date().toISOString().split('T')[0],
-            last_usage_date: currentLocalDate,
+            last_usage_date: currentCSTDate,
           };
           
-          // Increment animated steps usage if used
+          // Increment animated steps usage if toggle was on and steps were generated
           if (useAnimatedSteps && data.steps?.length > 0) {
             updates.animated_steps_used_today = animatedStepsUsedToday + 1;
+          }
+          
+          // Increment graph usage if a graph was generated
+          if (data.graph) {
+            updates.graphs_used_today = graphsUsedToday + 1;
           }
 
           await supabase
             .from("profiles")
             .update(updates)
             .eq("user_id", user.id);
-          
-          // Increment speed_solves if this was a fast solve
-          if (isSpeedSolve) {
-            const { data: currentProfile } = await supabase
-              .from("profiles")
-              .select("speed_solves")
-              .eq("user_id", user.id)
-              .single();
-            
-            await supabase
-              .from("profiles")
-              .update({ speed_solves: (currentProfile?.speed_solves || 0) + 1 })
-              .eq("user_id", user.id);
-          }
-
-          // Check if this is the user's first solve and complete referral if applicable
-          if ((profile?.total_solves || 0) === 0) {
-            try {
-              await supabase.rpc("complete_referral", { referred_id: user.id });
-            } catch (e) {
-              console.error("Referral completion failed:", e);
-            }
-          }
             
           fetchRecentSolves();
           fetchProfile();
-        }
-      } else {
-        // Save to localStorage for guests
-        solveId = `guest-${Date.now()}`;
-        const guestSolve = {
-          id: solveId,
-          subject: data.subject || "other",
-          question_text: input || null,
-          question_image_url: imageData || null,
-          solution_markdown: data.solution,
-          created_at: new Date().toISOString(),
-        };
-        
-        try {
-          const existingSolves = JSON.parse(localStorage.getItem("guest_solves") || "[]");
-          existingSolves.unshift(guestSolve);
-          localStorage.setItem("guest_solves", JSON.stringify(existingSolves.slice(0, 50)));
-          
-          // Update guest usage tracking
-          const newUsage = {
-            date: currentLocalDate,
-            animatedSteps: guestUsage.animatedSteps + (useAnimatedSteps && data.steps?.length > 0 ? 1 : 0),
-            speechUses: guestUsage.speechUses,
-            solves: guestUsage.solves + 1
-          };
-          localStorage.setItem("guest_usage", JSON.stringify(newUsage));
-          setGuestUsage(newUsage);
-        } catch (e) {
-          console.error("Failed to save to localStorage:", e);
         }
       }
 
@@ -383,6 +231,8 @@ const Index = () => {
         solveId,
         steps: data.steps,
         maxSteps: data.maxSteps,
+        graph: data.graph,
+        limits: data.limits,
       });
       setShowConfetti(true);
     } catch (error: unknown) {
@@ -401,18 +251,6 @@ const Index = () => {
   const handleImageCapture = (imageData: string) => {
     setPendingImage(imageData);
     toast.info("Image ready! Press Enter or type a question to solve.");
-  };
-
-  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string) => {
-    setSolution({
-      subject,
-      question,
-      answer: solutionText,
-      image,
-    });
-    setShowConfetti(true);
-    fetchRecentSolves();
-    fetchProfile();
   };
 
   const handleTextSubmit = (text: string) => {
@@ -477,18 +315,8 @@ const Index = () => {
                 </motion.p>
               </div>
 
-              {/* Usage Counter for Free Users */}
-              {user && !isPremium && (
-                <UsageCounter
-                  label="Solves Today"
-                  used={solvesUsedToday}
-                  max={FREE_SOLVES_PER_DAY}
-                  isPremium={isPremium}
-                />
-              )}
-
               {/* Camera button */}
-              <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
+              <CameraButton onImageCapture={handleImageCapture} isLoading={isLoading} />
 
               {/* Pending image preview */}
               {pendingImage && (
@@ -517,15 +345,14 @@ const Index = () => {
               {/* Solve Toggles */}
               <SolveToggles
                 animatedSteps={animatedSteps}
+                generateGraph={generateGraph}
                 onAnimatedStepsChange={setAnimatedSteps}
+                onGenerateGraphChange={setGenerateGraph}
                 isPremium={isPremium}
+                graphsUsed={graphsUsedToday}
+                maxGraphs={maxGraphs}
                 animatedStepsUsed={animatedStepsUsedToday}
                 maxAnimatedSteps={maxAnimatedSteps}
-                speechInput={speechInput}
-                onSpeechInputChange={setSpeechInput}
-                speechLanguage={speechLanguage}
-                onSpeechLanguageChange={setSpeechLanguage}
-                isAuthenticated={!!user}
               />
 
               {/* Divider */}
@@ -545,15 +372,6 @@ const Index = () => {
                 isLoading={isLoading}
                 hasPendingImage={!!pendingImage}
                 placeholder={pendingImage ? "Add details or press Enter to solve..." : "Paste or type your homework question..."}
-                speechInputEnabled={speechInput}
-                isPremium={isPremium}
-                speechLanguage={speechLanguage}
-                onSpeechUsed={handleSpeechUsed}
-                isAuthenticated={!!user}
-                canUseSpeechClip={speechClips.canUseClip}
-                speechClipsRemaining={speechClips.clipsRemaining}
-                maxSpeechClips={speechClips.maxClips}
-                hoursUntilReset={speechClips.hoursUntilReset}
               />
 
               {/* Recent solves */}
@@ -599,6 +417,27 @@ const Index = () => {
                     autoPlayDelay={3000}
                     fullSolution={solution.answer}
                   />
+
+                  {/* Graph visualization if available */}
+                  {solution.graph && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="glass-card p-6"
+                    >
+                      <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-4">
+                        Graph Visualization
+                      </h3>
+                      <div className="bg-muted/50 rounded-lg p-4 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          Graph type: {solution.graph.type}
+                        </p>
+                        <pre className="text-xs text-left mt-2 overflow-x-auto">
+                          {JSON.stringify(solution.graph.data, null, 2)}
+                        </pre>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
               ) : (
                 <SolutionSteps
@@ -616,24 +455,6 @@ const Index = () => {
 
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
-      
-      {/* Scanner Modal */}
-      <ScannerModal
-        isOpen={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onSolved={handleScannerSolved}
-        userId={user?.id}
-        isPremium={isPremium}
-      />
-
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        limitType="solves"
-        currentUsage={solvesUsedToday}
-        maxUsage={FREE_SOLVES_PER_DAY}
-      />
     </div>
   );
 };

@@ -9,9 +9,9 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// Use llama-3.3-70b-versatile for ALL text/reasoning tasks
+// Change this to any Gemini model (e.g., "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash")
 // ============================================================
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -21,9 +21,11 @@ serve(async (req) => {
 
   try {
     const { message, context, history } = await req.json();
-    
-    // Import key rotation
-    const { callGroqWithRotation } = await import("../_shared/groq-key-manager.ts");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
+    }
 
     console.log("Follow-up chat request:", { message, subject: context?.subject });
 
@@ -36,40 +38,54 @@ ${context?.solution || "No previous solution"}
 
 Now help with follow-up questions. Be friendly, clear, and educational. Use markdown for formatting and LaTeX for math (wrap inline math in $...$ and display math in $$...$$). If they ask for a different method, provide one. If they don't understand, explain differently.`;
 
-    // Build messages array for Groq
-    const messages: { role: string; content: string }[] = [
-      { role: "system", content: systemPrompt }
-    ];
+    // Build conversation contents for Gemini
+    const contents: any[] = [];
 
     // Add history
     if (history && Array.isArray(history)) {
       for (const msg of history) {
-        messages.push({
-          role: msg.role,
-          content: msg.content
+        contents.push({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: msg.content }]
         });
       }
     }
 
     // Add current message
-    messages.push({
+    contents.push({
       role: "user",
-      content: message
+      parts: [{ text: message }]
     });
 
-    // Call Groq API with key rotation
-    const response = await callGroqWithRotation(
-      "https://api.groq.com/openai/v1/chat/completions",
+    // Call Google Gemini API
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
-        model: GROQ_MODEL,
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 2000,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: systemPrompt }]
+          },
+          contents: contents,
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 2000,
+          }
+        }),
       }
     );
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Gemini API error:", errorText);
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
     const data = await response.json();
-    const aiResponse = data.choices?.[0]?.message?.content || "Sorry bro, I couldn't process that. Try again!";
+    const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry bro, I couldn't process that. Try again!";
 
     console.log("Follow-up response generated successfully");
 

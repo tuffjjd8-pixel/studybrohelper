@@ -3,12 +3,12 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
-import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send } from "lucide-react";
-import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
+import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, GraduationCap, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SolutionStepsProps {
@@ -18,6 +18,7 @@ interface SolutionStepsProps {
   questionImage?: string;
   solveId?: string;
   onFollowUp?: () => void;
+  onTakeQuiz?: () => void;
 }
 
 const subjectIcons: Record<string, React.ReactNode> = {
@@ -36,11 +37,20 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, onTakeQuiz }: SolutionStepsProps) {
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const [followUpResponse, setFollowUpResponse] = useState<string | null>(null);
+
+  const handleQuiz = () => {
+    if (solveId) {
+      navigate(`/quiz/${solveId}`);
+    } else if (onTakeQuiz) {
+      onTakeQuiz();
+    }
+  };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(solution);
@@ -275,7 +285,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             className="shrink-0"
           >
             {isAsking ? (
-              <AIBrainIcon size="sm" animate glowIntensity="strong" />
+              <Sparkles className="w-4 h-4 animate-pulse" />
             ) : (
               <Send className="w-4 h-4" />
             )}
@@ -286,6 +296,23 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         </p>
       </motion.div>
 
+      {/* Test yourself button */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4 }}
+        className="flex justify-center"
+      >
+        <Button
+          variant="neon"
+          size="lg"
+          onClick={handleQuiz}
+          className="gap-2"
+        >
+          <GraduationCap className="w-5 h-5" />
+          Test yourself
+        </Button>
+      </motion.div>
     </motion.div>
   );
 }
