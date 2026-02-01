@@ -9,17 +9,12 @@ const corsHeaders = {
 // Tier limits
 const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
-const FREE_DAILY_QUIZZES = 4;
-const PREMIUM_DAILY_QUIZZES = 999; // Unlimited for premium
+const FREE_DAILY_QUIZZES = 7;
+const PREMIUM_DAILY_QUIZZES = 13;
 
-// Model routing by tier
-const FREE_QUIZ_MODEL = "llama-3.1-8b-instant";
-const PREMIUM_QUIZ_MODEL = "llama-3.3-70b-versatile";
-
-// Fallback models chain
+// Primary model for all text/reasoning (NO instant models)
 const FALLBACK_MODELS = [
-  "llama-3.3-70b-versatile",
-  "llama-3.1-70b-versatile",
+  "llama-3.3-70b-versatile", // Primary and only model
 ];
 
 // Sanitize and validate quiz output
@@ -126,21 +121,17 @@ function parseQuizJSON(content: string): any {
   throw new Error("Unable to parse quiz JSON after all strategies");
 }
 
-// Call Groq with model based on tier (with fallback for premium)
-async function callGroqWithTier(
+// Call Groq with model fallback
+async function callGroqWithFallback(
   prompt: string,
   systemPrompt: string,
-  keyManager: any,
-  isPremium: boolean
+  keyManager: any
 ): Promise<{ data: any; model: string }> {
   let lastError: Error | null = null;
 
-  // Select model based on tier
-  const models = isPremium ? FALLBACK_MODELS : [FREE_QUIZ_MODEL];
-
-  for (const model of models) {
+  for (const model of FALLBACK_MODELS) {
     try {
-      console.log(`Attempting quiz generation with model: ${model} (Premium: ${isPremium})`);
+      console.log(`Attempting quiz generation with model: ${model}`);
       
       const response = await keyManager.callGroqWithRotation(
         "https://api.groq.com/openai/v1/chat/completions",
@@ -151,7 +142,7 @@ async function callGroqWithTier(
             { role: "user", content: prompt },
           ],
           temperature: 0.3,
-          max_tokens: isPremium ? 6000 : 3000,
+          max_tokens: 4000,
         }
       );
 
@@ -300,13 +291,12 @@ REQUIRED JSON STRUCTURE (return EXACTLY this format):
 - options must have exactly 4 items with A), B), C), D) prefixes
 - Return ONLY the JSON object, nothing else.`;
 
-    // Use tier-based call
+    // Use fallback-enabled call
     const keyManager = { callGroqWithRotation };
-    const { data: content, model: usedModel } = await callGroqWithTier(
+    const { data: content, model: usedModel } = await callGroqWithFallback(
       conversationText,
       systemPrompt,
-      keyManager,
-      isPremium
+      keyManager
     );
 
     console.log(`Quiz generated successfully using model: ${usedModel}`);

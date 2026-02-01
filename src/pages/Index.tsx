@@ -5,7 +5,6 @@ import { useSearchParams } from "react-router-dom";
 import { CameraButton } from "@/components/home/CameraButton";
 import { TextInputBox } from "@/components/home/TextInputBox";
 import { RecentSolves } from "@/components/home/RecentSolves";
-import { UsageCounter } from "@/components/home/UsageCounter";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
@@ -15,14 +14,12 @@ import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarTrigger } from "@/components/layout/SidebarTrigger";
 import { ScannerModal } from "@/components/scanner/ScannerModal";
-import { UpgradeModal } from "@/components/modals/UpgradeModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
 import { toast } from "sonner";
 
 // Tier limits
-const FREE_SOLVES_PER_DAY = 20;
 const FREE_ANIMATED_STEPS_PER_DAY = 5;
 const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 
@@ -67,10 +64,7 @@ const Index = () => {
   } | null>(null);
   
   // Guest usage state
-  const [guestUsage, setGuestUsage] = useState({ animatedSteps: 0, speechUses: 0, solves: 0, date: "" });
-  
-  // Upgrade modal state
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [guestUsage, setGuestUsage] = useState({ animatedSteps: 0, speechUses: 0, date: "" });
   
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -114,7 +108,6 @@ const Index = () => {
   const speechClips = useSpeechClips(user?.id, isPremium);
   
   const maxAnimatedSteps = isPremium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
-  const maxSolves = isPremium ? Infinity : FREE_SOLVES_PER_DAY;
   
   // Check if usage needs reset (midnight local time)
   const currentLocalDate = getLocalDate();
@@ -123,12 +116,6 @@ const Index = () => {
   const animatedStepsUsedToday = user 
     ? (needsReset ? 0 : (profile?.animated_steps_used_today || 0))
     : (needsReset ? 0 : guestUsage.animatedSteps);
-
-  const solvesUsedToday = user 
-    ? (needsReset ? 0 : (profile?.daily_solves_used || 0))
-    : (needsReset ? 0 : guestUsage.solves);
-
-  const canSolve = isPremium || solvesUsedToday < FREE_SOLVES_PER_DAY;
 
 
   // Load guest usage on mount
@@ -163,7 +150,6 @@ const Index = () => {
         setGuestUsage({
           animatedSteps: usage.animatedSteps || 0,
           speechUses: usage.speechUses || 0,
-          solves: usage.solves || 0,
           date: usage.date || ""
         });
       }
@@ -173,7 +159,7 @@ const Index = () => {
   };
 
   const resetGuestUsage = () => {
-    const newUsage = { animatedSteps: 0, speechUses: 0, solves: 0, date: currentLocalDate };
+    const newUsage = { animatedSteps: 0, speechUses: 0, date: currentLocalDate };
     localStorage.setItem("guest_usage", JSON.stringify(newUsage));
     setGuestUsage(newUsage);
   };
@@ -236,12 +222,6 @@ const Index = () => {
   };
 
   const handleSolve = async (input: string, imageData?: string) => {
-    // Check daily solve limit for free users
-    if (!canSolve) {
-      setShowUpgradeModal(true);
-      return;
-    }
-
     setIsLoading(true);
     setSolution(null);
     setPendingImage(null);
@@ -250,8 +230,8 @@ const Index = () => {
     const startTime = Date.now();
     setSolveStartTime(startTime);
 
-    // Animated steps only for premium users
-    const useAnimatedSteps = isPremium && animatedSteps && animatedStepsUsedToday < maxAnimatedSteps;
+    // Auto-disable toggle if limit is hit
+    const useAnimatedSteps = animatedSteps && animatedStepsUsedToday < maxAnimatedSteps;
 
     try {
       const { data, error } = await supabase.functions.invoke("solve-homework", {
@@ -260,17 +240,9 @@ const Index = () => {
           image: imageData,
           isPremium,
           animatedSteps: useAnimatedSteps,
-          generateGraph: false,
-          userId: user?.id || null,
+          generateGraph: false, // Graph feature removed
         },
       });
-
-      // Check for daily limit error from backend
-      if (data?.error === "daily_limit_reached") {
-        setShowUpgradeModal(true);
-        setIsLoading(false);
-        return;
-      }
 
       if (error) throw error;
 
@@ -365,8 +337,7 @@ const Index = () => {
           const newUsage = {
             date: currentLocalDate,
             animatedSteps: guestUsage.animatedSteps + (useAnimatedSteps && data.steps?.length > 0 ? 1 : 0),
-            speechUses: guestUsage.speechUses,
-            solves: guestUsage.solves + 1
+            speechUses: guestUsage.speechUses
           };
           localStorage.setItem("guest_usage", JSON.stringify(newUsage));
           setGuestUsage(newUsage);
@@ -476,16 +447,6 @@ const Index = () => {
                   Your AI homework bro – instant step-by-step solutions
                 </motion.p>
               </div>
-
-              {/* Usage Counter for Free Users */}
-              {user && !isPremium && (
-                <UsageCounter
-                  label="Solves Today"
-                  used={solvesUsedToday}
-                  max={FREE_SOLVES_PER_DAY}
-                  isPremium={isPremium}
-                />
-              )}
 
               {/* Camera button */}
               <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
@@ -624,15 +585,6 @@ const Index = () => {
         onSolved={handleScannerSolved}
         userId={user?.id}
         isPremium={isPremium}
-      />
-
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        limitType="solves"
-        currentUsage={solvesUsedToday}
-        maxUsage={FREE_SOLVES_PER_DAY}
       />
     </div>
   );
