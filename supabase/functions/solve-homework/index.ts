@@ -1,67 +1,127 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // ============================================================
-// MODEL CONFIGURATION - Groq Only
-// Vision model for images: "meta-llama/llama-4-scout-17b-16e-instruct"
-// Text model for text-only: "llama-3.1-8b-instant"
+// MODEL CONFIGURATION - TIER-BASED ROUTING
+// Free users: llama-3.1-8b-instant (fast, basic)
+// Pro users: llama-3.3-70b-versatile (powerful, advanced)
+// Vision: meta-llama/llama-4-scout-17b-16e-instruct
 // ============================================================
+const FREE_TEXT_MODEL = "llama-3.1-8b-instant";
+const PREMIUM_TEXT_MODEL = "llama-3.3-70b-versatile";
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
-const GROQ_TEXT_MODEL = "llama-3.1-8b-instant";
+const OPENROUTER_GRAPH_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 // ============================================================
 // TIER LIMITS
 // ============================================================
+const FREE_SOLVES_PER_DAY = 20;
 const FREE_ANIMATED_STEPS = 5;
 const PREMIUM_ANIMATED_STEPS = 16;
 const FREE_GRAPHS_PER_DAY = 4;
 const PREMIUM_GRAPHS_PER_DAY = 15;
 
-// System prompt for free users - basic explanations
-const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a friendly math tutor who explains everything clearly with proper LaTeX math formatting.
+// Simple greeting based on tier
+function getGreeting(isPremium: boolean): string {
+  return isPremium 
+    ? "I'm StudyBro AI Premium." 
+    : "I'm StudyBro AI, your homework helper.";
+}
+
+// System prompt for free users - supports ALL subjects
+const FREE_SYSTEM_PROMPT = `You are StudyBro AI, a fast, friendly, student-focused homework helper.
+
+## RESPONSE FORMAT (CRITICAL):
+Your response MUST follow this EXACT structure:
+
+[GREETING_PLACEHOLDER]
+
+[Your clear, correct, student-friendly answer here]
+
+## Rules:
+- No labels like "Solved!" or "Final Answer"
+- No emojis unless the user uses them first
+- No upsells or mention of Premium features
+- No mention of missing features
+- Just answer the question cleanly and directly
+
+## Subject Detection:
+- First, identify what subject the question is about
+- Respond using the appropriate format and conventions for that subject
+- Do NOT assume every question is math-related
 
 ## Core Formatting Rules:
-- When solving math problems, format all expressions using LaTeX-style math notation
-- Wrap inline equations in \`$...$\` for inline math
-- Wrap display equations in \`$$...$$\` for display math
-- Do NOT use plain text like x^2 or sqrt() - always use proper LaTeX
+- For math problems, use LaTeX notation: \`$...$\` for inline, \`$$...$$\` for display
+- For science, include formulas in LaTeX where applicable
+- For coding questions, use markdown code blocks with syntax highlighting
+- For essays/writing, structure with clear paragraphs and thesis
+- For history, include key dates, context, and significance
+- For right angles in geometry, use the proper symbol ∟ or ⊾ instead of the letter "C"
 
-## LaTeX Examples:
+## LaTeX Examples (for math/science):
 - Fractions: $\\frac{3}{4}$
 - Exponents: $x^2$
 - Square roots: $\\sqrt{25} = 5$
 - Display equations: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
 
-## CRITICAL: Fraction Conversion Rule
+## CRITICAL: Fraction Conversion Rule (Math)
 - When subtracting fractions from whole numbers, ALWAYS convert the whole number to a fraction first
 - Example: $10 - \\frac{1}{2}$ → First write $10 = \\frac{20}{2}$, then $\\frac{20}{2} - \\frac{1}{2} = \\frac{19}{2}$
-- NEVER skip the conversion step. Show it explicitly every time.
+
+## Pattern-Based Equations (Non-Standard Arithmetic)
+For equations like "a + b = result" where the result is NOT standard addition:
+1. Find a SINGLE simple pattern that fits ALL given examples
+2. Explain the pattern in 1-3 short sentences
+3. Show a quick check for each equation
 
 ## Problem-Solving Rules:
-1. Identify the subject and problem type first
-2. Show key steps using "Step 1:", "Step 2:", etc.
-3. Write final answers with emphasis: **Final Answer: $x = 5$**
+1. ALWAYS give the FULL solution, not partial
+2. ALWAYS answer the question directly
+3. Keep explanations clean and student-friendly
+4. NEVER output JSON
+5. NEVER hallucinate formulas
 
 ## Tone:
-- Friendly, supportive, and organized
+- Friendly, casual, supportive — like texting a smart friend
 - Keep explanations concise but clear`;
 
-// Enhanced system prompt for premium users - detailed, accurate, priority reasoning
-const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, an expert tutor providing the most detailed and accurate solutions with proper LaTeX math formatting. You have access to Groq's latest models for enhanced OCR, formatting, and reasoning.
+// Enhanced system prompt for premium users - supports ALL subjects with priority reasoning
+const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, a fast, friendly, student-focused homework helper with enhanced capabilities.
+
+## RESPONSE FORMAT (CRITICAL):
+Your response MUST follow this EXACT structure:
+
+[GREETING_PLACEHOLDER]
+
+[Your clear, correct, student-friendly answer here]
+
+[Then provide connected, logical steps that fully explain the reasoning and clearly lead to the answer]
+
+## Rules:
+- No labels like "Solved!" or "Final Answer"
+- No emojis unless the user uses them first
+- Just answer the question cleanly and directly
+
+## Subject Detection:
+- First, identify what subject the question is about
+- Respond using the appropriate format and conventions for that subject
+- Do NOT assume every question is math-related
 
 ## Core Formatting Rules:
-- When solving math problems, format all expressions using LaTeX-style math notation
-- Wrap inline equations in \`$...$\` for inline math
-- Wrap display equations in \`$$...$$\` for display math
-- Do NOT use plain text like x^2 or sqrt() - always use proper LaTeX
-- Always format math cleanly and clearly for readability
+- For math problems, use LaTeX notation: \`$...$\` for inline, \`$$...$$\` for display
+- For science, include formulas in LaTeX where applicable
+- For coding questions, use markdown code blocks with syntax highlighting
+- For essays/writing, structure with clear paragraphs and thesis
+- For history, include key dates, context, and significance
+- For right angles in geometry, use the proper symbol ∟ or ⊾ instead of the letter "C"
 
-## LaTeX Examples:
+## LaTeX Examples (for math/science):
 - Fractions: $\\frac{3}{4}$, $\\frac{x + 1}{x - 2}$
 - Exponents: $x^2$, $2^3 = 8$
 - Square roots: $\\sqrt{25} = 5$, $\\sqrt{x + 1}$
@@ -69,185 +129,219 @@ const PREMIUM_SYSTEM_PROMPT = `You are StudyBro AI Premium, an expert tutor prov
 - Not equal: $x \\neq -1$
 - Display equations: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
 
-## CRITICAL: Fraction Conversion Rule (MANDATORY)
+## CRITICAL: Fraction Conversion Rule (Math)
 - When subtracting fractions from whole numbers, ALWAYS convert the whole number to a fraction first
 - Example: $10 - \\frac{1}{2}$ → First write $10 = \\frac{20}{2}$, then $\\frac{20}{2} - \\frac{1}{2} = \\frac{19}{2}$
 - NEVER skip the conversion step. Show it explicitly every time.
-- This applies to ALL operations involving whole numbers and fractions.
 
-## ERROR-FREE ALGEBRAIC SOLUTIONS (Critical Rules):
-For equations, especially rational/algebraic equations, follow these strict rules:
+## Pattern-Based Equations (Non-Standard Arithmetic)
+For equations like "a + b = result" where the result is NOT standard addition:
+1. Find a SINGLE simple pattern that fits ALL given examples
+2. Explain the pattern in 1-3 short sentences
+3. Show a quick check for each equation
 
-1. **Domain Restrictions First**
-   - Identify ALL values that make any denominator zero BEFORE solving
-   - State clearly: "Domain restriction: $x \\neq [value]$ because [denominator] = 0"
+## ERROR-FREE ALGEBRAIC SOLUTIONS (Math):
+1. **Domain Restrictions First** - Identify values that make denominators zero
+2. **Step-by-Step Transformations** - Show every algebraic step
+3. **Extraneous Solution Check** - Substitute solutions back into original equation
+4. **Final Answer Format** - Domain restrictions, valid solutions, extraneous if any
 
-2. **No Unjustified Simplification**
-   - NEVER cancel terms unless mathematically valid and explicitly justified
-   - Before canceling $(x - a)$ from both sides, state: "Since $x \\neq a$ (domain restriction), we can divide"
+## Subject-Specific Guidelines:
 
-3. **Step-by-Step Transformations**
-   - Show every algebraic step explicitly
-   - When multiplying both sides by an expression, state the domain restriction
+### Science (Physics, Chemistry, Biology):
+- Include relevant formulas with units
+- Explain concepts with real-world examples
+- Show calculations step by step
 
-4. **Quadratic Solutions**
-   - Show factored form of any quadratics: $x^2 - 4x - 5 = (x - 5)(x + 1)$
-   - Apply quadratic formula when factoring is unclear
+### History:
+- Provide historical context
+- Include key dates and figures
+- Explain significance and impact
 
-5. **Extraneous Solution Check (Mandatory)**
-   - After solving, substitute EACH solution back into the ORIGINAL equation
-   - Check against domain restrictions
-   - Mark extraneous solutions clearly
+### Literature/Writing:
+- Give original, well-structured content
+- Include clear thesis statements
+- Analyze themes, characters, and literary devices
 
-6. **Final Answer Format**
-   - Domain restrictions: $x \\neq [values]$
-   - Valid solutions: $x = [values]$
-   - Extraneous solutions (if any): $x = [values]$ rejected because [reason]
+### Coding:
+- Use proper syntax highlighting
+- Explain the logic behind the code
+- Include comments for clarity
 
 ## Problem-Solving Rules:
-1. Identify the subject and problem type first
-2. Show EVERY step using "Step 1:", "Step 2:", etc.
-3. Never skip simplifications, factoring, or algebra
-4. Use FOIL, distributive property, and factoring rules when needed
-5. Check for domain restrictions (division by zero, negative square roots)
-6. Verify solutions by substituting back when applicable
-7. Mark any extraneous solutions clearly
+1. ALWAYS give the FULL solution, not partial
+2. ALWAYS answer the question directly
+3. Use LaTeX for math when helpful
+4. Keep explanations clean and student-friendly
+5. NEVER output JSON
+6. NEVER hallucinate formulas
+7. NEVER skip key reasoning in steps
+8. Verify solutions when applicable
 
-## Formatting Structure:
-- Use markdown headers (##) to organize: Problem, Solution Steps, Final Answer
-- Use numbered steps: Step 1:, Step 2:, etc.
-- Write final answers with emphasis: **Final Answer: $x = -\\frac{1}{2}$ and $x = 5$**
-- Add domain notes: Note: $x \\neq 0$ (undefined)
-
-## For Non-Math Subjects:
-- Essays: Give original, well-structured content with clear thesis
-- Science: Explain concepts with examples, use LaTeX for formulas
-- History: Provide context, key dates, and significance
+## Steps Rules:
+- Steps must be connected and logical
+- Steps must fully explain the reasoning
+- Steps must NOT be random or disconnected
+- Steps must clearly lead to the final answer
 
 ## Tone:
-- Friendly, supportive, and organized
+- Friendly, casual, supportive — like texting a smart friend
 - Human-like explanations that are easy to follow
-- Keep everything clean, readable, and beautifully formatted
+- Keep everything clean, readable, and beautifully formatted`;
 
-Before responding, verify: All steps shown? LaTeX formatted correctly? Domain checked? Extraneous solutions checked? Final answer emphasized?`;
-
-// Prompt to generate structured animated steps
+// Prompt to generate structured animated steps - optimized for fewer steps without losing clarity
 function getAnimatedStepsPrompt(maxSteps: number): string {
   return `
 
-IMPORTANT: Structure your response as exactly ${maxSteps} numbered steps maximum.
-Each step should be self-contained and build on the previous.
+IMPORTANT: Structure your response efficiently using FEWER steps when possible.
+- Use ${maxSteps} steps as the MAXIMUM, not the target
+- Combine related concepts into single steps when it improves clarity
+- Simple problems: 2-3 steps. Medium: 4-6 steps. Complex only: up to ${maxSteps} steps
+- Each step should be self-contained and build on the previous
+
 Format each step as:
 **Step N: [Title]**
 [Content with LaTeX formatting]
 
-Keep each step focused on ONE key action or concept.`;
+Keep each step focused but don't artificially split simple operations.`;
 }
 
-// Prompt to generate graph data - structured JSON for frontend rendering
-const GRAPH_PROMPT = `
+// Prompt to generate graph data - optimized for Mistral Small 3.1 24B
+const GRAPH_PROMPT = `You are generating structured graph data. 
+Do NOT generate Python code, images, ASCII art, or explanations.
 
-If this problem involves a function, equation, or data that can be graphed:
-At the END of your response, include a JSON block for graphing.
-DO NOT return image URLs or symbolic representations.
-Return ONLY structured JSON data that can be rendered by a charting library.
+Return ONLY a JSON object in this format:
 
-\`\`\`graph
 {
-  "type": "line",
-  "title": "Graph of y = 2x + 1",
-  "xLabel": "x",
-  "yLabel": "y",
-  "labels": [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5],
-  "datasets": [
-    {
-      "label": "y = 2x + 1",
-      "data": [-9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11],
-      "borderColor": "#8b5cf6",
-      "fill": false
-    }
-  ],
-  "equation": "y = 2x + 1"
+  "graph": {
+    "type": "line" | "bar" | "scatter",
+    "labels": [...],
+    "datasets": [
+      {
+        "label": "string",
+        "data": [...]
+      }
+    ]
+  }
 }
-\`\`\`
 
-For bar charts use type: "bar". For scatter plots use type: "scatter".
-Always provide numeric labels array and datasets array with data points.
-Only include the graph block if the problem genuinely benefits from visualization.`;
+Rules:
+- If the user provides an equation (e.g., y = 2x + 3), generate x values from -10 to 10 and compute y.
+- If the user provides data (e.g., Jan 100, Feb 150), convert it into labels and datasets.
+- Do not include any text before or after the JSON.
+- Do not output code.
+- Do not describe the graph.
+- Only output the JSON object.`;
 
-// Call Groq API for text-only input
-async function callGroqText(
-  question: string, 
-  isPremium: boolean,
-  animatedSteps: boolean,
-  generateGraph: boolean
-): Promise<string> {
-  const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-  if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY is not configured");
+// Check if problem should trigger graph generation
+function shouldGenerateGraph(question: string): boolean {
+  const lowerQ = question.toLowerCase();
+  return (
+    lowerQ.includes("graph") ||
+    lowerQ.includes("plot") ||
+    lowerQ.includes("y =") ||
+    lowerQ.includes("y=") ||
+    lowerQ.includes("f(x)") ||
+    lowerQ.includes("chart") ||
+    lowerQ.includes("visualize") ||
+    /\by\s*=\s*[\dx\+\-\*\/\^\(\)]+/i.test(question)
+  );
+}
+
+// Call OpenRouter API for graph generation (Mistral Small 3.1 24B)
+async function callOpenRouterGraph(question: string): Promise<string> {
+  const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+  if (!OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY is not configured");
   }
 
-  let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
-  
-  // Add animated steps instruction
-  if (animatedSteps) {
-    const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
-    systemPrompt += getAnimatedStepsPrompt(maxSteps);
-  }
-  
-  // Add graph generation instruction
-  if (generateGraph) {
-    systemPrompt += GRAPH_PROMPT;
-  }
-  
-  console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "GenerateGraph:", generateGraph);
+  console.log("Calling OpenRouter API with model:", OPENROUTER_GRAPH_MODEL, "for graph generation");
 
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${GROQ_API_KEY}`,
+      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
     },
     body: JSON.stringify({
-      model: GROQ_TEXT_MODEL,
+      model: OPENROUTER_GRAPH_MODEL,
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: GRAPH_PROMPT },
         { role: "user", content: question }
       ],
-      temperature: isPremium ? 0.5 : 0.7,
-      max_tokens: isPremium ? 8192 : 4096,
+      temperature: 0.3,
+      max_tokens: 4096,
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("Groq Text API error:", response.status, errorText);
+    console.error("OpenRouter API error:", response.status, errorText);
     
     if (response.status === 429) {
       throw new Error("Rate limit exceeded. Please try again in a moment.");
     }
     
-    throw new Error(`Groq API error: ${response.status}`);
+    throw new Error(`OpenRouter API error: ${response.status}`);
   }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "{}";
+}
+
+// Import key rotation utilities
+import { 
+  getActiveKey, 
+  markKeyUsed, 
+  markKeyRateLimited, 
+  markKeyFailed,
+  callGroqWithRotation 
+} from "../_shared/groq-key-manager.ts";
+
+// Call Groq API for text-only input with key rotation - MODEL ROUTING BY TIER
+async function callGroqText(
+  question: string, 
+  isPremium: boolean,
+  animatedSteps: boolean
+): Promise<string> {
+  let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
+  
+  // Select model based on tier
+  const model = isPremium ? PREMIUM_TEXT_MODEL : FREE_TEXT_MODEL;
+  
+  // Add animated steps instruction (Premium only)
+  if (animatedSteps && isPremium) {
+    const maxSteps = PREMIUM_ANIMATED_STEPS;
+    systemPrompt += getAnimatedStepsPrompt(maxSteps);
+  }
+  
+  console.log("Calling Groq Text API with model:", model, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
+
+  const response = await callGroqWithRotation(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question }
+      ],
+      temperature: isPremium ? 0.5 : 0.7,
+      max_tokens: isPremium ? 8192 : 2048,
+    }
+  );
 
   const data = await response.json();
   return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
 }
 
-// Call Groq API for image input (Vision model) - Enhanced OCR for premium
+// Call Groq API for image input (Vision model) - Enhanced OCR for premium with key rotation
 async function callGroqVision(
   question: string, 
   imageBase64: string, 
   mimeType: string, 
   isPremium: boolean,
-  animatedSteps: boolean,
-  generateGraph: boolean
+  animatedSteps: boolean
 ): Promise<string> {
-  const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-  if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY is not configured");
-  }
-
   let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
   // Premium gets enhanced OCR instructions
@@ -266,23 +360,14 @@ async function callGroqVision(
     const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
     systemPrompt += getAnimatedStepsPrompt(maxSteps);
   }
-  
-  // Add graph generation instruction
-  if (generateGraph) {
-    systemPrompt += GRAPH_PROMPT;
-  }
 
   const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide a step-by-step solution.";
   
-  console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "GenerateGraph:", generateGraph);
+  console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
+  const response = await callGroqWithRotation(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
       model: GROQ_VISION_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
@@ -301,19 +386,8 @@ async function callGroqVision(
       ],
       temperature: isPremium ? 0.5 : 0.7,
       max_tokens: isPremium ? 8192 : 4096,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Groq Vision API error:", response.status, errorText);
-    
-    if (response.status === 429) {
-      throw new Error("Rate limit exceeded. Please try again in a moment.");
     }
-    
-    throw new Error(`Groq API error: ${response.status}`);
-  }
+  );
 
   const data = await response.json();
   return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
@@ -345,27 +419,60 @@ function parseAnimatedSteps(solution: string, maxSteps: number): Array<{ title: 
   return steps.slice(0, maxSteps);
 }
 
-// Parse graph data from solution
-function parseGraphData(solution: string): { type: string; data: Record<string, unknown> } | null {
-  const graphMatch = solution.match(/```graph\n?([\s\S]*?)\n?```/);
-  
-  if (!graphMatch) return null;
+// Parse graph data from raw JSON response (OpenRouter returns raw JSON)
+function parseGraphData(response: string): { type: string; data: Record<string, unknown> } | null {
+  if (!response || response.trim() === "") return null;
   
   try {
-    const graphJson = JSON.parse(graphMatch[1]);
-    return {
-      type: graphJson.type || "line",
-      data: graphJson
-    };
+    // Try to parse the raw JSON directly
+    let jsonStr = response.trim();
+    
+    // Remove any markdown code fences if present
+    if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.replace(/```(?:json|graph)?\n?/g, "").replace(/\n?```$/g, "").trim();
+    }
+    
+    const parsed = JSON.parse(jsonStr);
+    
+    // Handle both { graph: {...} } and direct graph object formats
+    const graphData = parsed.graph || parsed;
+    
+    if (graphData.type && graphData.labels && graphData.datasets) {
+      // Return the full graph object as data so GraphRenderer can access labels/datasets
+      return {
+        type: graphData.type || "line",
+        data: {
+          type: graphData.type || "line",
+          labels: graphData.labels,
+          datasets: graphData.datasets,
+          title: graphData.title,
+          xLabel: graphData.xLabel,
+          yLabel: graphData.yLabel,
+          equation: graphData.equation,
+          domain: graphData.domain,
+          range: graphData.range,
+        }
+      };
+    }
+    
+    return null;
   } catch (e) {
-    console.error("Failed to parse graph data:", e);
+    console.error("Failed to parse graph data:", e, "Response:", response.substring(0, 200));
     return null;
   }
 }
 
-// Remove graph block from solution text
-function cleanSolutionText(solution: string): string {
-  return solution.replace(/```graph\n?[\s\S]*?\n?```/g, "").trim();
+// Remove graph block and inject greeting into solution text
+function cleanSolutionText(solution: string, isPremium: boolean): string {
+  const greeting = getGreeting(isPremium);
+  
+  // Replace the placeholder with the actual greeting
+  let cleaned = solution.replace(/\[GREETING_PLACEHOLDER\]/g, greeting);
+  
+  // Remove graph code blocks
+  cleaned = cleaned.replace(/```graph\n?[\s\S]*?\n?```/g, "");
+  
+  return cleaned.trim();
 }
 
 serve(async (req) => {
@@ -380,8 +487,63 @@ serve(async (req) => {
       isPremium = false,
       animatedSteps = false,
       generateGraph = false,
-      userGraphCount = 0 // Current graph count for the day
+      userGraphCount = 0, // Current graph count for the day
+      userId = null // User ID for quota tracking
     } = await req.json();
+
+    // ============================================================
+    // DAILY SOLVE LIMIT ENFORCEMENT (Free users only)
+    // ============================================================
+    let solvesUsedToday = 0;
+    let canSolve = true;
+    
+    if (!isPremium && userId) {
+      // Check user's daily solve count
+      const authHeader = req.headers.get('Authorization');
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      
+      if (authHeader?.startsWith('Bearer ')) {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+          global: { headers: { Authorization: authHeader } }
+        });
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("daily_solves_used, last_usage_date")
+          .eq("user_id", userId)
+          .single();
+
+        if (profile) {
+          const lastUsage = profile.last_usage_date ? new Date(profile.last_usage_date) : null;
+          const now = new Date();
+          const today = now.toISOString().split('T')[0];
+          
+          if (lastUsage && profile.last_usage_date === today) {
+            solvesUsedToday = profile.daily_solves_used || 0;
+          } else {
+            solvesUsedToday = 0;
+          }
+          
+          if (solvesUsedToday >= FREE_SOLVES_PER_DAY) {
+            canSolve = false;
+          }
+        }
+      }
+    }
+
+    // Block if free user has exceeded daily limit
+    if (!canSolve) {
+      return new Response(
+        JSON.stringify({ 
+          error: "daily_limit_reached",
+          message: "Daily solve limit reached. Upgrade to Pro for unlimited solves!",
+          solvesUsed: solvesUsedToday,
+          dailyLimit: FREE_SOLVES_PER_DAY
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     
     // Check graph limit
     const maxGraphs = isPremium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
@@ -390,10 +552,13 @@ serve(async (req) => {
     if (generateGraph && !canGenerateGraph) {
       console.log(`Graph limit reached: ${userGraphCount}/${maxGraphs} (Premium: ${isPremium})`);
     }
+
+    // Free users cannot use animated steps
+    const effectiveAnimatedSteps = isPremium ? animatedSteps : false;
     
     let solution: string;
 
-    // Route to appropriate Groq model based on input type
+    // Route to appropriate model based on input type and tier
     if (image) {
       // Image input → use Groq Vision (Enhanced OCR for premium)
       const matches = image.match(/^data:([^;]+);base64,(.+)$/);
@@ -407,14 +572,24 @@ serve(async (req) => {
         base64Data, 
         mimeType, 
         isPremium, 
-        animatedSteps,
-        canGenerateGraph
+        effectiveAnimatedSteps
       );
     } else if (question) {
-      // Text-only input → use Groq Text
-      solution = await callGroqText(question, isPremium, animatedSteps, canGenerateGraph);
+      // Text-only input → use Groq Text (model selected by tier)
+      solution = await callGroqText(question, isPremium, effectiveAnimatedSteps);
     } else {
       throw new Error("Please provide a question or image");
+    }
+    
+    // If graph generation is enabled, call OpenRouter separately for graph data
+    let graphResponse = "";
+    if (canGenerateGraph && shouldGenerateGraph(question || "")) {
+      try {
+        graphResponse = await callOpenRouterGraph(question || "graph this equation");
+        console.log("OpenRouter graph response:", graphResponse);
+      } catch (graphError) {
+        console.error("Graph generation failed:", graphError);
+      }
     }
 
     // Detect subject from response
@@ -432,21 +607,21 @@ serve(async (req) => {
 
     // Build response object
     const responseData: Record<string, unknown> = {
-      solution: cleanSolutionText(solution),
+      solution: cleanSolutionText(solution, isPremium),
       subject,
       tier: isPremium ? "premium" : "free"
     };
     
-    // Add animated steps if requested
-    if (animatedSteps) {
-      const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
+    // Add animated steps if requested (Premium only)
+    if (effectiveAnimatedSteps) {
+      const maxSteps = PREMIUM_ANIMATED_STEPS;
       responseData.steps = parseAnimatedSteps(solution, maxSteps);
       responseData.maxSteps = maxSteps;
     }
     
-    // Add graph data if generated
-    if (canGenerateGraph) {
-      const graphData = parseGraphData(solution);
+    // Add graph data if generated (from OpenRouter/Mistral)
+    if (canGenerateGraph && graphResponse) {
+      const graphData = parseGraphData(graphResponse);
       if (graphData) {
         responseData.graph = graphData;
         responseData.graphsRemaining = maxGraphs - userGraphCount - 1;

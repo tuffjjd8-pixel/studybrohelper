@@ -1,36 +1,44 @@
 import { StreakCounter } from "@/components/gamification/StreakCounter";
 import { motion } from "framer-motion";
-import { Sparkles, Crown } from "lucide-react";
+import { Crown, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
+import { openPremiumPage } from "@/lib/mobileDetection";
+
 interface HeaderProps {
   streak: number;
   totalSolves: number;
   isPremium?: boolean;
 }
-export function Header({
-  streak,
-  totalSolves,
-  isPremium
-}: HeaderProps) {
-  return <motion.header initial={{
-    opacity: 0,
-    y: -20
-  }} animate={{
-    opacity: 1,
-    y: 0
-  }} className="
+
+export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleProClick = () => {
+    openPremiumPage(navigate);
+  };
+
+  return (
+    <motion.header
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="
         fixed top-0 left-0 right-0 z-50
         bg-background/80 backdrop-blur-xl border-b border-border/50
         px-4 py-3
-      ">
+      "
+    >
       <div className="flex items-center justify-between max-w-4xl mx-auto">
-        {/* Logo - offset to right to make room for sidebar trigger */}
-        <Link to="/" className="flex items-center gap-2 ml-12">
-          <motion.div whileHover={{
-          rotate: 10
-        }} className="p-2 bg-primary/10 rounded-xl">
-            <Sparkles className="w-6 h-6 text-primary" />
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-2">
+          <motion.div
+            whileHover={{ rotate: 10, scale: 1.05 }}
+            className="p-2 bg-primary/10 rounded-xl"
+          >
+            <AIBrainIcon size="lg" glowIntensity="strong" />
           </motion.div>
           <div>
             <h1 className="font-heading font-bold text-lg leading-none">
@@ -40,17 +48,32 @@ export function Header({
           </div>
         </Link>
 
-        {/* Stats & Premium */}
-        <div className="flex items-center gap-3">
+        {/* Stats & Premium & Auth */}
+        <div className="flex items-center gap-2 sm:gap-3">
           <StreakCounter streak={streak} totalSolves={totalSolves} />
           
-          {!isPremium && <Link to="/premium">
-              <Button variant="cyan" size="sm" className="gap-1.5 hidden sm:flex">
-                <Crown className="w-4 h-4" />
-                <span> Pro</span>
+          {!isPremium && (
+            <Button 
+              variant="cyan" 
+              size="sm" 
+              className="gap-1 px-2 sm:px-3"
+              onClick={handleProClick}
+            >
+              <Crown className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Pro</span>
+            </Button>
+          )}
+          
+          {!user && (
+            <Link to="/auth">
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground px-2 sm:px-3">
+                <LogIn className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm">Sign in</span>
               </Button>
-            </Link>}
+            </Link>
+          )}
         </div>
       </div>
-    </motion.header>;
+    </motion.header>
+  );
 }

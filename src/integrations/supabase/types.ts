@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
@@ -46,6 +70,210 @@ export type Database = {
           },
         ]
       }
+      email_verification_codes: {
+        Row: {
+          code: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          used?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      poll_analytics: {
+        Row: {
+          conversion_target: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          option_index: number | null
+          poll_id: string
+          user_id: string | null
+        }
+        Insert: {
+          conversion_target?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          option_index?: number | null
+          poll_id: string
+          user_id?: string | null
+        }
+        Update: {
+          conversion_target?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          option_index?: number | null
+          poll_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_analytics_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_analytics_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "public_polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poll_views: {
+        Row: {
+          device_id: string | null
+          first_viewed_at: string
+          id: string
+          poll_id: string
+          user_id: string | null
+        }
+        Insert: {
+          device_id?: string | null
+          first_viewed_at?: string
+          id?: string
+          poll_id: string
+          user_id?: string | null
+        }
+        Update: {
+          device_id?: string | null
+          first_viewed_at?: string
+          id?: string
+          poll_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_views_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_views_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "public_polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poll_votes: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          id: string
+          is_premium: boolean | null
+          option_index: number
+          poll_id: string
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          is_premium?: boolean | null
+          option_index: number
+          poll_id: string
+          voter_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          is_premium?: boolean | null
+          option_index?: number
+          poll_id?: string
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "public_polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      polls: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          ends_at: string | null
+          id: string
+          image_url: string | null
+          is_public: boolean
+          options: Json
+          title: string
+          total_votes: number
+          views_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_public?: boolean
+          options?: Json
+          title: string
+          total_votes?: number
+          views_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_public?: boolean
+          options?: Json
+          title?: string
+          total_votes?: number
+          views_count?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           animated_steps_used_today: number | null
@@ -53,13 +281,25 @@ export type Database = {
           created_at: string
           daily_solves_used: number
           display_name: string | null
+          email_verified: boolean
           graphs_used_today: number | null
           id: string
           is_premium: boolean
+          last_quiz_reset: string | null
           last_solve_date: string | null
+          last_speech_reset: string | null
           last_usage_date: string | null
+          premium_until: string | null
+          quizzes_used_today: number | null
           referral_code: string | null
+          referral_count: number | null
+          referred_by: string | null
+          renewal_date: string | null
+          speech_clips_used: number
+          speed_solves: number | null
           streak_count: number
+          subject_solves: Json | null
+          subscription_id: string | null
           total_solves: number
           updated_at: string
           user_id: string
@@ -70,13 +310,25 @@ export type Database = {
           created_at?: string
           daily_solves_used?: number
           display_name?: string | null
+          email_verified?: boolean
           graphs_used_today?: number | null
           id?: string
           is_premium?: boolean
+          last_quiz_reset?: string | null
           last_solve_date?: string | null
+          last_speech_reset?: string | null
           last_usage_date?: string | null
+          premium_until?: string | null
+          quizzes_used_today?: number | null
           referral_code?: string | null
+          referral_count?: number | null
+          referred_by?: string | null
+          renewal_date?: string | null
+          speech_clips_used?: number
+          speed_solves?: number | null
           streak_count?: number
+          subject_solves?: Json | null
+          subscription_id?: string | null
           total_solves?: number
           updated_at?: string
           user_id: string
@@ -87,16 +339,55 @@ export type Database = {
           created_at?: string
           daily_solves_used?: number
           display_name?: string | null
+          email_verified?: boolean
           graphs_used_today?: number | null
           id?: string
           is_premium?: boolean
+          last_quiz_reset?: string | null
           last_solve_date?: string | null
+          last_speech_reset?: string | null
           last_usage_date?: string | null
+          premium_until?: string | null
+          quizzes_used_today?: number | null
           referral_code?: string | null
+          referral_count?: number | null
+          referred_by?: string | null
+          renewal_date?: string | null
+          speech_clips_used?: number
+          speed_solves?: number | null
           streak_count?: number
+          subject_solves?: Json | null
+          subscription_id?: string | null
           total_solves?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          referred_user_id: string
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referred_user_id: string
+          referrer_id: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referred_user_id?: string
+          referrer_id?: string
+          status?: string
         }
         Relationships: []
       }
@@ -130,15 +421,125 @@ export type Database = {
         }
         Relationships: []
       }
+      user_badges: {
+        Row: {
+          badge_key: string
+          id: string
+          progress: number | null
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          badge_key: string
+          id?: string
+          progress?: number | null
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          badge_key?: string
+          id?: string
+          progress?: number | null
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      public_polls: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          ends_at: string | null
+          id: string | null
+          image_url: string | null
+          is_public: boolean | null
+          options: Json | null
+          title: string | null
+          total_votes: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string | null
+          image_url?: string | null
+          is_public?: boolean | null
+          options?: Json | null
+          title?: string | null
+          total_votes?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string | null
+          image_url?: string | null
+          is_public?: boolean | null
+          options?: Json | null
+          title?: string | null
+          total_votes?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      check_vote_exists: {
+        Args: {
+          device_id_param: string
+          poll_id_param: string
+          voter_id_param: string
+        }
+        Returns: boolean
+      }
+      complete_referral: { Args: { referred_id: string }; Returns: undefined }
+      get_poll_analytics: { Args: { poll_id_param: string }; Returns: Json }
+      get_poll_vote_counts: { Args: { poll_id_param: string }; Returns: Json }
+      get_user_vote: {
+        Args: { poll_id_param: string; voter_id_param: string }
+        Returns: number
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_poll_admin: { Args: { _user_id: string }; Returns: boolean }
+      record_poll_view: {
+        Args: {
+          device_id_param: string
+          poll_id_param: string
+          user_id_param: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -265,6 +666,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const

@@ -1,23 +1,29 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Eye, EyeOff, Sparkles } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
+import { isValidEmailDomain, getEmailDomainError, ALLOWED_EMAIL_DOMAINS } from "@/lib/emailValidation";
 
 const authSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").refine(
+    (email) => isValidEmailDomain(email),
+    { message: `Please use an email from: ${ALLOWED_EMAIL_DOMAINS.join(", ")}` }
+  ),
   password: z.string().min(6, "Password must be at least 6 characters"),
   displayName: z.string().min(2, "Name must be at least 2 characters").optional(),
 });
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { user, signUp, signIn } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { user, signUp, signIn, checkEmailVerified } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,6 +31,16 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  
+  // Get referral code from URL or localStorage
+  const [referralCode] = useState(() => {
+    const urlRef = searchParams.get("ref");
+    if (urlRef) {
+      localStorage.setItem("pending_referral_code", urlRef);
+      return urlRef;
+    }
+    return localStorage.getItem("pending_referral_code") || "";
+  });
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
@@ -63,28 +79,69 @@ const Auth = () => {
       authSchema.parse(validationData);
 
       if (isLogin) {
-        const { error } = await signIn(email, password);
+        const { error, emailVerified } = await signIn(email, password);
         if (error) {
           if (error.message.includes("Invalid login credentials")) {
             toast.error("Wrong email or password, bro!");
           } else {
             toast.error(error.message);
           }
+        } else if (emailVerified === false) {
+          // User is not verified, get their user ID and redirect to verification
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) {
+            toast.info("Please verify your email to continue.");
+            // Send a new verification code
+            try {
+              await supabase.functions.invoke("send-verification-email", {
+                body: { userId: currentUser.id, email, isResend: true },
+              });
+            } catch (e) {
+              console.error("Failed to resend verification email:", e);
+            }
+            navigate(`/verify-email?email=${encodeURIComponent(email)}&userId=${currentUser.id}`);
+          }
         } else {
           toast.success("Welcome back, study bro! 🎉");
           navigate("/");
         }
       } else {
-        const { error } = await signUp(email, password, displayName);
+        // Validate email domain before signup
+        const domainError = getEmailDomainError(email);
+        if (domainError) {
+          toast.error(domainError);
+          setIsLoading(false);
+          return;
+        }
+
+        const { error, userId } = await signUp(email, password, displayName, referralCode);
         if (error) {
           if (error.message.includes("already registered")) {
             toast.error("This email is already registered. Try logging in!");
           } else {
             toast.error(error.message);
           }
-        } else {
-          toast.success("Account created! Let's crush some homework! 💪");
-          navigate("/");
+        } else if (userId) {
+          // Clear the pending referral code after successful signup
+          localStorage.removeItem("pending_referral_code");
+          
+          // Send verification email
+          try {
+            const { data, error: emailError } = await supabase.functions.invoke("send-verification-email", {
+              body: { userId, email },
+            });
+            
+            if (emailError) {
+              console.error("Failed to send verification email:", emailError);
+              toast.error("Account created but failed to send verification email. Please try again.");
+            } else {
+              toast.success("Account created! Check your email for the verification code.");
+              navigate(`/verify-email?email=${encodeURIComponent(email)}&userId=${userId}`);
+            }
+          } catch (e) {
+            console.error("Error sending verification email:", e);
+            toast.error("Account created but failed to send verification email.");
+          }
         }
       }
     } catch (error) {
@@ -108,7 +165,7 @@ const Auth = () => {
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 mb-4">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-primary-foreground" />
+                <AIBrainIcon size="lg" glowIntensity="strong" />
               </div>
             </div>
             <h1 className="text-2xl font-heading font-bold">
@@ -116,8 +173,11 @@ const Auth = () => {
             </h1>
             <p className="text-muted-foreground mt-2">
               {isLogin
-                ? "Log in to track your solves and keep that streak going"
+                ? "Sign in to sync your progress across devices"
                 : "Create an account to save your progress"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Signing in is optional — you can use all features without an account
             </p>
           </div>
 
@@ -232,9 +292,19 @@ const Auth = () => {
               onClick={() => setIsLogin(!isLogin)}
               className="text-primary hover:underline font-medium"
             >
-              {isLogin ? "Sign up" : "Log in"}
+            {isLogin ? "Sign up" : "Log in"}
             </button>
           </p>
+
+          {/* Skip sign in option */}
+          <div className="text-center mt-4">
+            <button
+              onClick={() => navigate("/")}
+              className="text-sm text-muted-foreground hover:text-foreground underline"
+            >
+              Continue without signing in
+            </button>
+          </div>
         </motion.div>
       </div>
     </div>

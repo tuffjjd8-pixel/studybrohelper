@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { motion } from "framer-motion";
+import { useState, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -10,116 +10,165 @@ import { Button } from "@/components/ui/button";
 import {
   Crown,
   Check,
+  X,
   Zap,
   Target,
   MessageSquare,
-  Sparkles,
   ArrowLeft,
   Calculator,
-  LineChart,
   Heart,
+  Shield,
+  Brain,
+  Loader2,
 } from "lucide-react";
+import { isMobileApp } from "@/lib/mobileDetection";
 
-const PREMIUM_FEATURES = [
+interface ComparisonItem {
+  feature: string;
+  free: string | boolean;
+  premium: string | boolean;
+}
+
+type PlanType = "monthly" | "weekend" | "yearly";
+
+interface PlanOption {
+  id: PlanType;
+  name: string;
+  price: number;
+  period: string;
+  description: string;
+  badge?: string;
+  savings?: string;
+}
+
+const PLANS: PlanOption[] = [
   {
-    icon: Sparkles,
-    title: "16 Animated Steps",
-    description: "Detailed animated breakdowns for deeper understanding",
+    id: "monthly",
+    name: "Monthly",
+    price: 5.99,
+    period: "/month",
+    description: "Full premium access",
   },
   {
-    icon: Calculator,
-    title: "Premium Calculator",
-    description: "Pick your model, advanced logic chaining & reasoning",
+    id: "weekend",
+    name: "Weekend Special",
+    price: 4.99,
+    period: "/month",
+    description: "Limited time offer",
+    badge: "🎉 SAVE $1",
   },
   {
-    icon: LineChart,
-    title: "15 Graphs Per Day",
-    description: "Create more visualizations to master concepts",
-  },
-  {
-    icon: Target,
-    title: "Enhanced Image Solving",
-    description: "Better OCR, formatting, and reasoning accuracy",
-  },
-  {
-    icon: Zap,
-    title: "Priority Response Speed",
-    description: "Skip the queue with faster processing times",
-  },
-  {
-    icon: MessageSquare,
-    title: "Latest AI Models",
-    description: "Access to Groq's cutting-edge text + vision models",
-  },
-  {
-    icon: Heart,
-    title: "Support Development",
-    description: "Help us build more amazing features for students",
+    id: "yearly",
+    name: "Yearly",
+    price: 40,
+    period: "/year",
+    description: "Best value",
+    badge: "BEST VALUE",
+    savings: "Save $31.88/year",
   },
 ];
 
-const FREE_FEATURES = [
-  {
-    label: "Unlimited solves",
-    description: "Solve as many problems as you need",
-  },
-  {
-    label: "5 animated steps",
-    description: "Clear step-by-step breakdowns",
-  },
-  {
-    label: "Basic calculator",
-    description: "Powerful solving, no model selection",
-  },
-  {
-    label: "4 graphs per day",
-    description: "Visualize your math problems",
-  },
-  {
-    label: "Text + image solving",
-    description: "Snap or type your homework",
-  },
+const COMPARISON: ComparisonItem[] = [
+  { feature: "Daily Solves", free: "Unlimited", premium: "Unlimited" },
+  { feature: "Animated Steps", free: "5/day", premium: "16/day" },
+  { feature: "Speech to Text", free: false, premium: "15/day" },
+  { feature: "AI Model", free: "Standard", premium: "Advanced" },
+  { feature: "Enhanced OCR", free: false, premium: true },
+  { feature: "Priority Speed", free: false, premium: true },
+  { feature: "Ad-Free Experience", free: true, premium: true },
+  { feature: "Quiz Generator", free: "7/day (max 10 Qs)", premium: "13/day (max 20 Qs)" },
+  { feature: "Strict Count Mode", free: false, premium: true },
+  { feature: "Calculator", free: "Basic", premium: "Scientific" },
+  { feature: "Full Quiz Review", free: false, premium: true },
+];
+
+const PREMIUM_BENEFITS = [
+  { icon: Brain, title: "16 Animated Steps/Day", description: "Detailed step-by-step breakdowns" },
+  { icon: Calculator, title: "Premium Calculator", description: "Advanced reasoning & logic" },
+  { icon: Target, title: "Enhanced Image Solving", description: "Better OCR accuracy" },
+  { icon: Zap, title: "Priority Response", description: "Skip the queue" },
+  { icon: Shield, title: "No Ads", description: "Distraction-free learning" },
+  { icon: MessageSquare, title: "Latest AI Models", description: "Cutting-edge technology" },
 ];
 
 const Premium = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
-  const [isUpgrading, setIsUpgrading] = useState(false);
+  const { user } = useAuth();
+  const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSelectingPlan, setIsSelectingPlan] = useState(false);
 
-  // Check if it's Friday (5) or Saturday (6) for weekend discount
+  // Check if it's Friday (5) or Saturday (6) for weekend discount visibility
   const isWeekendDiscount = useMemo(() => {
     const today = new Date().getDay();
-    return today === 5 || today === 6; // Friday = 5, Saturday = 6
+    return today === 5 || today === 6;
   }, []);
 
-  const currentPrice = isWeekendDiscount ? 4.99 : 8.0;
-  const regularPrice = 8.0;
+  // Lock/unlock scroll based on overlay state
+  useEffect(() => {
+    if (isSelectingPlan) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isSelectingPlan]);
 
-  const handleUpgrade = async () => {
+  const handleSelectPlanClick = () => {
+    if (!selectedPlan) {
+      toast.error("Please select a plan first");
+      return;
+    }
+    setIsSelectingPlan(true);
+  };
+
+  const handleCancelOverlay = () => {
+    setIsSelectingPlan(false);
+  };
+
+  const handleCheckout = async () => {
+    // GUARD: Prevent Stripe Checkout from running inside mobile apps
+    if (isMobileApp()) {
+      toast.error("Please complete your purchase on our website");
+      return;
+    }
+
+    if (!selectedPlan) {
+      toast.error("Please select a plan");
+      return;
+    }
+
     if (!user) {
-      toast.error("Please sign in to upgrade");
+      toast.error("Please sign in to continue");
       navigate("/auth");
       return;
     }
 
-    setIsUpgrading(true);
+    setIsLoading(true);
 
     try {
-      // Update user's premium status
-      const { error } = await supabase
-        .from("profiles")
-        .update({ is_premium: true })
-        .eq("user_id", user.id);
+      const { data, error } = await supabase.functions.invoke("createCheckoutSession", {
+        body: { userId: user.id, plan: selectedPlan },
+      });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Checkout error:", error);
+        toast.error("Failed to create checkout session. Please try again.");
+        return;
+      }
 
-      toast.success("🎉 Welcome to Premium! You're all set!");
-      navigate("/profile");
-    } catch (error) {
-      console.error("Upgrade error:", error);
-      toast.error("Failed to upgrade. Please try again.");
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error("No checkout URL received. Please try again.");
+      }
+    } catch (err) {
+      console.error("Checkout exception:", err);
+      toast.error("Something went wrong. Please try again.");
     } finally {
-      setIsUpgrading(false);
+      setIsLoading(false);
     }
   };
 
@@ -127,7 +176,7 @@ const Premium = () => {
     <div className="min-h-screen bg-background">
       <Header streak={0} totalSolves={0} isPremium={false} />
 
-      <main className="pt-20 pb-24 px-4">
+      <main className="pt-20 pb-32 px-4">
         <div className="max-w-lg mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -161,118 +210,241 @@ const Premium = () => {
               </p>
             </div>
 
-            {/* Pricing Card */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 }}
-              className="p-6 rounded-2xl border-2 border-primary bg-primary/5 relative overflow-hidden"
-            >
-              {isWeekendDiscount && (
-                <div className="absolute top-3 right-3 px-3 py-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full animate-pulse">
-                  🎉 WEEKEND DEAL!
-                </div>
-              )}
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <span className="text-4xl font-bold">${currentPrice.toFixed(2)}</span>
-                  <span className="text-muted-foreground">/month</span>
-                </div>
-                {isWeekendDiscount && (
-                  <p className="text-sm text-muted-foreground">
-                    <span className="line-through">${regularPrice.toFixed(2)}</span>
-                    <span className="text-secondary font-medium ml-2">
-                      Save ${(regularPrice - currentPrice).toFixed(2)} this weekend!
-                    </span>
-                  </p>
-                )}
-                {!isWeekendDiscount && (
-                  <p className="text-sm text-muted-foreground">
-                    💡 Come back Friday or Saturday for $4.99!
-                  </p>
-                )}
-              </div>
-            </motion.div>
-
-            {/* Premium Features list */}
+            {/* Plan Selection */}
             <div className="space-y-3">
-              <h2 className="font-semibold text-lg">Premium Features</h2>
-              {PREMIUM_FEATURES.map((feature, index) => (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="flex items-start gap-3 p-3 bg-card rounded-lg border border-border"
-                >
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <feature.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-sm">{feature.title}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {feature.description}
-                    </p>
-                  </div>
-                  <Check className="w-5 h-5 text-green-500 ml-auto flex-shrink-0" />
-                </motion.div>
-              ))}
+              <h2 className="font-semibold text-lg text-center">Choose Your Plan</h2>
+              <div className="space-y-3">
+                {PLANS.map((plan) => {
+                  const isSelected = selectedPlan === plan.id;
+                  const isWeekendPlan = plan.id === "weekend";
+                  
+                  return (
+                    <motion.button
+                      key={plan.id}
+                      onClick={() => setSelectedPlan(plan.id)}
+                      whileTap={{ scale: 0.98 }}
+                      className={`w-full p-4 rounded-2xl border-2 transition-all relative overflow-hidden text-left ${
+                        isSelected
+                          ? "border-primary bg-primary/10 shadow-lg"
+                          : "border-border bg-card hover:border-muted-foreground/50"
+                      } ${isWeekendPlan && !isWeekendDiscount ? "opacity-60" : ""}`}
+                      disabled={isWeekendPlan && !isWeekendDiscount}
+                    >
+                      {/* Badge */}
+                      {plan.badge && (
+                        <div className={`absolute top-3 right-3 px-2 py-0.5 text-xs font-bold rounded-full ${
+                          plan.id === "yearly" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "bg-secondary text-secondary-foreground animate-pulse"
+                        }`}>
+                          {plan.badge}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-3">
+                        {/* Selection indicator */}
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                          isSelected 
+                            ? "border-primary bg-primary" 
+                            : "border-muted-foreground"
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                        </div>
+
+                        <div className="flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-bold">${plan.price.toFixed(2)}</span>
+                            <span className="text-muted-foreground text-sm">{plan.period}</span>
+                          </div>
+                          <div className="font-medium">{plan.name}</div>
+                          <div className="text-xs text-muted-foreground">{plan.description}</div>
+                          {plan.savings && (
+                            <div className="text-xs text-primary font-medium mt-1">{plan.savings}</div>
+                          )}
+                          {isWeekendPlan && !isWeekendDiscount && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Available Fri-Sat only
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Free Plan Comparison */}
+            {/* Gauth-style Comparison Table */}
             <div className="space-y-3">
-              <h2 className="font-semibold text-lg">
-                Free Plan — Already Powerful
-              </h2>
-              <div className="p-4 bg-card rounded-lg border border-border">
-                <ul className="space-y-3">
-                  {FREE_FEATURES.map((feature, index) => (
-                    <li
-                      key={index}
-                      className="flex items-start gap-3"
-                    >
-                      <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                      <div>
-                        <span className="text-sm font-medium">{feature.label}</span>
-                        <p className="text-xs text-muted-foreground">{feature.description}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+              <h2 className="font-semibold text-lg text-center">Free vs Premium</h2>
+              <div className="rounded-xl border border-border overflow-hidden">
+                {/* Header */}
+                <div className="grid grid-cols-3 bg-muted/50 p-3 font-medium text-sm">
+                  <div>Feature</div>
+                  <div className="text-center">Free</div>
+                  <div className="text-center text-primary">Premium</div>
+                </div>
+                
+                {/* Rows */}
+                {COMPARISON.map((item, index) => (
+                  <div 
+                    key={item.feature}
+                    className={`grid grid-cols-3 p-3 text-sm ${
+                      index % 2 === 0 ? "bg-card" : "bg-muted/20"
+                    }`}
+                  >
+                    <div className="font-medium">{item.feature}</div>
+                    <div className="text-center">
+                      {typeof item.free === "boolean" ? (
+                        item.free ? (
+                          <Check className="w-4 h-4 text-green-500 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 text-muted-foreground mx-auto" />
+                        )
+                      ) : (
+                        <span className="text-muted-foreground">{item.free}</span>
+                      )}
+                    </div>
+                    <div className="text-center">
+                      {typeof item.premium === "boolean" ? (
+                        item.premium ? (
+                          <Check className="w-4 h-4 text-green-500 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 text-muted-foreground mx-auto" />
+                        )
+                      ) : (
+                        <span className="text-primary font-medium">{item.premium}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <p className="text-xs text-center text-muted-foreground">
-                Premium takes everything further — more steps, more graphs, faster & smarter AI.
+            </div>
+
+            {/* Premium Benefits */}
+            <div className="space-y-3">
+              <h2 className="font-semibold text-lg">Premium Benefits</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {PREMIUM_BENEFITS.map((benefit, index) => (
+                  <motion.div
+                    key={benefit.title}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="p-3 bg-card rounded-lg border border-border"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <benefit.icon className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">{benefit.title}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{benefit.description}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* Support */}
+            <div className="p-4 bg-card rounded-lg border border-border text-center">
+              <Heart className="w-6 h-6 text-red-500 mx-auto mb-2" />
+              <p className="text-sm font-medium">Support Student Development</p>
+              <p className="text-xs text-muted-foreground">
+                Your subscription helps us build better learning tools
               </p>
             </div>
+          </motion.div>
+        </div>
+      </main>
 
-            {/* CTA */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="sticky bottom-24 bg-background/95 backdrop-blur-sm pt-4 pb-2"
-            >
+      {/* Sticky CTA - only visible after selecting a plan */}
+      <AnimatePresence>
+        {selectedPlan && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="fixed bottom-20 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border"
+          >
+            <div className="max-w-lg mx-auto">
               <Button
-                onClick={handleUpgrade}
-                disabled={isUpgrading}
+                onClick={handleSelectPlanClick}
                 className="w-full h-14 text-lg font-bold gap-2"
               >
-                {isUpgrading ? (
-                  "Processing..."
-                ) : (
-                  <>
-                    <Crown className="w-5 h-5" />
-                    Upgrade Now - ${currentPrice.toFixed(2)}/mo
-                  </>
-                )}
+                <Crown className="w-5 h-5" />
+                Select Plan - ${PLANS.find(p => p.id === selectedPlan)?.price.toFixed(2)}{PLANS.find(p => p.id === selectedPlan)?.period}
               </Button>
-              <p className="text-xs text-muted-foreground text-center mt-2">
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirmation Overlay */}
+      <AnimatePresence>
+        {isSelectingPlan && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 space-y-6"
+            >
+              {/* Crown Icon */}
+              <div className="flex justify-center">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary via-secondary to-primary flex items-center justify-center">
+                  <Crown className="w-8 h-8 text-primary-foreground" />
+                </div>
+              </div>
+
+              {/* Plan Summary */}
+              <div className="text-center space-y-2">
+                <h2 className="text-xl font-bold">Confirm Your Plan</h2>
+                <p className="text-muted-foreground">
+                  {PLANS.find(p => p.id === selectedPlan)?.name} - ${PLANS.find(p => p.id === selectedPlan)?.price.toFixed(2)}{PLANS.find(p => p.id === selectedPlan)?.period}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-3">
+                <Button
+                  onClick={handleCheckout}
+                  disabled={isLoading}
+                  className="w-full h-12 text-base font-bold gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Creating checkout...
+                    </>
+                  ) : (
+                    <>
+                      <Crown className="w-5 h-5" />
+                      Continue to Checkout
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleCancelOverlay}
+                  disabled={isLoading}
+                  className="w-full h-12 text-base"
+                >
+                  Go Back
+                </Button>
+              </div>
+
+              {/* Cancel anytime message */}
+              <p className="text-xs text-muted-foreground text-center">
                 Cancel anytime. No questions asked.
               </p>
             </motion.div>
           </motion.div>
-        </div>
-      </main>
+        )}
+      </AnimatePresence>
 
       <BottomNav />
     </div>

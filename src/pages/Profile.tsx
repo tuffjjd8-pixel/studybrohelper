@@ -13,15 +13,17 @@ import {
   Flame,
   Trophy,
   LogOut,
-  Copy,
   Crown,
   Calendar,
-  Target,
   Camera,
-  Upload,
-  Sparkles,
-  LineChart,
+  Mic,
+  Settings,
+  Award,
 } from "lucide-react";
+import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
+import { AdminSettings } from "@/components/profile/AdminSettings";
+import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
+import { openPremiumPage } from "@/lib/mobileDetection";
 
 interface Profile {
   id: string;
@@ -34,11 +36,16 @@ interface Profile {
   created_at: string;
   avatar_url: string | null;
   animated_steps_used_today: number;
-  graphs_used_today: number;
+  speech_clips_used: number;
+  last_speech_reset: string | null;
+  premium_until: string | null;
+  subscription_id: string | null;
 }
 
-const FREE_GRAPHS_PER_DAY = 4;
-const PREMIUM_GRAPHS_PER_DAY = 15;
+// Speech clips reset daily (24 hours)
+const FREE_SPEECH_CLIPS = 3;
+const PREMIUM_SPEECH_CLIPS = 15; // Daily limit for premium
+const SPEECH_RESET_HOURS = 24;
 const FREE_ANIMATED_STEPS_PER_DAY = 5;
 const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 
@@ -52,11 +59,7 @@ const Profile = () => {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, authLoading, navigate]);
+  // No redirect - profile is accessible, but shows sign-in prompt for guests
 
   useEffect(() => {
     if (user) {
@@ -68,7 +71,7 @@ const Profile = () => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, display_name, streak_count, total_solves, is_premium, daily_solves_used, referral_code, created_at, avatar_url, animated_steps_used_today, speech_clips_used, last_speech_reset, premium_until, subscription_id")
         .eq("user_id", user?.id)
         .maybeSingle();
 
@@ -156,12 +159,6 @@ const Profile = () => {
     }
   };
 
-  const copyReferralCode = () => {
-    if (profile?.referral_code) {
-      navigator.clipboard.writeText(`https://studybro.ai?ref=${profile.referral_code}`);
-      toast.success("Referral link copied!");
-    }
-  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -169,7 +166,7 @@ const Profile = () => {
     toast.success("Signed out. See you later, bro! 👋");
   };
 
-  if (authLoading || !user) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -177,10 +174,106 @@ const Profile = () => {
     );
   }
 
-  const maxGraphs = profile?.is_premium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
+  // Guest profile view
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header streak={0} totalSolves={0} />
+        <main className="pt-20 pb-24 px-4">
+          <div className="max-w-lg mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <div className="text-center py-6">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto">
+                  <User className="w-10 h-10 text-primary-foreground" />
+                </div>
+                <h1 className="text-2xl font-heading font-bold mt-4">Guest User</h1>
+                <p className="text-muted-foreground text-sm mt-2">
+                  Sign in to sync your progress across devices
+                </p>
+              </div>
+
+              {/* Stats grid for guest - using localStorage */}
+              <div className="grid grid-cols-2 gap-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="p-4 bg-card rounded-xl border border-border text-center"
+                >
+                  <Flame className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                  <div className="text-2xl font-bold">0</div>
+                  <div className="text-xs text-muted-foreground">Day Streak</div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.15 }}
+                  className="p-4 bg-card rounded-xl border border-border text-center"
+                >
+                  <Trophy className="w-8 h-8 text-primary mx-auto mb-2" />
+                  <div className="text-2xl font-bold">
+                    {JSON.parse(localStorage.getItem("guest_solves") || "[]").length}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Problems Solved</div>
+                </motion.div>
+              </div>
+
+              {/* Sign in prompt - friendly, no pressure */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="p-6 bg-card rounded-xl border border-border text-center"
+              >
+                <User className="w-10 h-10 text-primary mx-auto mb-3" />
+                <h3 className="font-heading font-bold text-lg mb-2">
+                  Want to save your progress?
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Sign in to use History, Quizzes, and Polls.
+                </p>
+                <Button onClick={() => navigate("/auth")} variant="outline" className="w-full">
+                  Sign In
+                </Button>
+              </motion.div>
+            </motion.div>
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  const maxSpeechClips = profile?.is_premium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS;
   const maxAnimatedSteps = profile?.is_premium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
-  const graphsUsed = profile?.graphs_used_today || 0;
   const animatedStepsUsed = profile?.animated_steps_used_today || 0;
+  
+  // Calculate speech clips with 72h reset logic
+  const getSpeechClipsRemaining = () => {
+    if (!profile) return maxSpeechClips;
+    const lastReset = profile.last_speech_reset ? new Date(profile.last_speech_reset) : null;
+    if (!lastReset) return maxSpeechClips;
+    
+    const hoursSinceReset = (Date.now() - lastReset.getTime()) / (1000 * 60 * 60);
+    if (hoursSinceReset >= SPEECH_RESET_HOURS) {
+      return maxSpeechClips; // Reset happened
+    }
+    return Math.max(0, maxSpeechClips - (profile.speech_clips_used || 0));
+  };
+  
+  const speechClipsRemaining = getSpeechClipsRemaining();
+  const hoursUntilReset = () => {
+    if (!profile?.last_speech_reset) return 0;
+    const lastReset = new Date(profile.last_speech_reset);
+    const resetTime = new Date(lastReset.getTime() + SPEECH_RESET_HOURS * 60 * 60 * 1000);
+    const hours = Math.max(0, Math.ceil((resetTime.getTime() - Date.now()) / (1000 * 60 * 60)));
+    return hours;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -271,7 +364,7 @@ const Profile = () => {
                 transition={{ delay: 0.2 }}
                 className="p-4 bg-card rounded-xl border border-border text-center"
               >
-                <Sparkles className="w-8 h-8 text-primary mx-auto mb-2" />
+                <div className="mx-auto mb-2"><AIBrainIcon size="xl" glowIntensity="strong" /></div>
                 <div className="text-2xl font-bold">{animatedStepsUsed}/{maxAnimatedSteps}</div>
                 <div className="text-xs text-muted-foreground">Animated Steps Today</div>
               </motion.div>
@@ -282,9 +375,12 @@ const Profile = () => {
                 transition={{ delay: 0.25 }}
                 className="p-4 bg-card rounded-xl border border-border text-center"
               >
-                <LineChart className="w-8 h-8 text-secondary mx-auto mb-2" />
-                <div className="text-2xl font-bold">{maxGraphs - graphsUsed}/{maxGraphs}</div>
-                <div className="text-xs text-muted-foreground">Graphs Remaining</div>
+                <Mic className="w-8 h-8 text-secondary mx-auto mb-2" />
+                <div className="text-2xl font-bold">{speechClipsRemaining}/{maxSpeechClips}</div>
+                <div className="text-xs text-muted-foreground">Speech Clips Left</div>
+                {speechClipsRemaining === 0 && (
+                  <div className="text-xs text-orange-500 mt-1">Resets in {hoursUntilReset()}h</div>
+                )}
               </motion.div>
             </div>
 
@@ -335,37 +431,36 @@ const Profile = () => {
               </div>
             </motion.div>
 
-            {/* Referral */}
-            {profile?.referral_code && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl border border-primary/20"
+            {/* Big Badges Button */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+            >
+              <Button
+                onClick={() => navigate('/badges')}
+                className="w-full h-auto py-5 bg-gradient-to-r from-primary via-secondary to-primary bg-[length:200%_100%] hover:bg-[length:100%_100%] transition-all duration-500 border-0 shadow-[0_0_30px_hsl(var(--primary)/0.3)]"
               >
-                <h3 className="font-medium mb-2">Invite Friends</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Share your code and both get a free premium day!
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    readOnly
-                    value={`studybro.ai?ref=${profile.referral_code}`}
-                    className="bg-background text-sm"
-                  />
-                  <Button variant="outline" onClick={copyReferralCode}>
-                    <Copy className="w-4 h-4" />
-                  </Button>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-background/20 flex items-center justify-center">
+                    <Award className="w-7 h-7 text-primary-foreground" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-heading font-bold text-lg text-primary-foreground">Badge Collection</div>
+                    <div className="text-sm text-primary-foreground/80">
+                      View and unlock achievements
+                    </div>
+                  </div>
                 </div>
-              </motion.div>
-            )}
+              </Button>
+            </motion.div>
 
             {/* Premium upsell */}
             {!profile?.is_premium && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.45 }}
+                transition={{ delay: 0.4 }}
                 className="p-6 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl border border-primary/30 text-center"
               >
                 <Crown className="w-10 h-10 text-primary mx-auto mb-3" />
@@ -373,19 +468,51 @@ const Profile = () => {
                   Go Premium, Bro!
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  16 animated steps, 15 graphs/day, enhanced solving
+                  16 animated steps, 15 speech clips/day, enhanced solving
                 </p>
-                <Button onClick={() => navigate("/premium")} className="w-full">
-                  Upgrade for $4.99/month
+                <Button 
+                  onClick={() => openPremiumPage(navigate)} 
+                  className="w-full"
+                >
+                  Upgrade for $5.99/month
                 </Button>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Purchases are completed on our website to comply with App Store and Google Play policies.
+                </p>
               </motion.div>
             )}
+
+            {/* Subscription management buttons for premium users */}
+            <SubscriptionButtons 
+              isPremium={profile?.is_premium || false}
+              premiumSince={profile?.premium_until ? new Date(new Date(profile.premium_until).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() : null}
+              subscriptionId={profile?.subscription_id}
+            />
+
+            {/* Admin Settings - only visible to admin */}
+            <AdminSettings userEmail={user?.email} />
+
+            {/* Settings button for all users */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <Button
+                variant="outline"
+                onClick={() => navigate("/settings")}
+                className="w-full"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+            </motion.div>
 
             {/* Sign out */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
+              transition={{ delay: 0.55 }}
             >
               <Button
                 variant="outline"
