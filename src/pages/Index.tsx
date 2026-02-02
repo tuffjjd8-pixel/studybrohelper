@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { CameraButton } from "@/components/home/CameraButton";
 import { TextInputBox } from "@/components/home/TextInputBox";
 import { RecentSolves } from "@/components/home/RecentSolves";
+import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
@@ -519,6 +520,9 @@ const Index = () => {
 
               {/* Recent solves */}
               <RecentSolves solves={recentSolves} />
+
+              {/* Tools scroller */}
+              <ToolsScroller />
             </motion.div>
           ) : (
             <motion.div
