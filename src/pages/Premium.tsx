@@ -21,7 +21,6 @@ import {
   Brain,
   Loader2,
 } from "lucide-react";
-import { isMobileApp } from "@/lib/mobileDetection";
 
 interface ComparisonItem {
   feature: string;
@@ -129,12 +128,6 @@ const Premium = () => {
   };
 
   const handleCheckout = async () => {
-    // GUARD: Prevent Stripe Checkout from running inside mobile apps
-    if (isMobileApp()) {
-      toast.error("Please complete your purchase on our website");
-      return;
-    }
-
     if (!selectedPlan) {
       toast.error("Please select a plan");
       return;

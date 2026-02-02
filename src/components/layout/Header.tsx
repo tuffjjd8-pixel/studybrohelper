@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
-import { openPremiumPage } from "@/lib/mobileDetection";
 
 interface HeaderProps {
   streak: number;
@@ -18,7 +17,17 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
   const navigate = useNavigate();
 
   const handleProClick = () => {
-    openPremiumPage(navigate);
+    // Detect if running in Capacitor or WebView
+    const isCapacitor = !!(window as any).Capacitor;
+    const isWebView = /wv|WebView/i.test(navigator.userAgent) || 
+      (navigator.userAgent.includes('Android') && navigator.userAgent.includes('Version/'));
+    
+    if (isCapacitor || isWebView) {
+      // Open external browser for mobile apps (App Store + Google Play compliance)
+      window.open("https://studybrohelper.lovable.app/premium", "_system");
+    } else {
+      navigate("/premium");
+    }
   };
 
   return (

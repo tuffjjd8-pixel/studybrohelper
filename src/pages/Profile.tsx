@@ -23,7 +23,6 @@ import {
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
 import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
-import { openPremiumPage } from "@/lib/mobileDetection";
 
 interface Profile {
   id: string;
@@ -471,7 +470,19 @@ const Profile = () => {
                   16 animated steps, 15 speech clips/day, enhanced solving
                 </p>
                 <Button 
-                  onClick={() => openPremiumPage(navigate)} 
+                  onClick={() => {
+                    // Detect if running in Capacitor or WebView
+                    const isCapacitor = !!(window as any).Capacitor;
+                    const isWebView = /wv|WebView/i.test(navigator.userAgent) || 
+                      (navigator.userAgent.includes('Android') && navigator.userAgent.includes('Version/'));
+                    
+                    if (isCapacitor || isWebView) {
+                      // Open external browser for mobile apps (App Store + Google Play compliance)
+                      window.open("https://studybrohelper.lovable.app/premium", "_system");
+                    } else {
+                      navigate("/premium");
+                    }
+                  }} 
                   className="w-full"
                 >
                   Upgrade for $5.99/month
