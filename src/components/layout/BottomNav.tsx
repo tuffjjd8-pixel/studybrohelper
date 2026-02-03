@@ -20,6 +20,11 @@ export function BottomNav() {
   const location = useLocation();
   const isMobile = useIsMobile();
 
+  // Wait for mobile detection to complete before rendering
+  if (isMobile === undefined) {
+    return null;
+  }
+
   const navItems = isMobile ? mobileNavItems : allNavItems;
 
   return (

@@ -14,8 +14,9 @@ export const ToolsScroller = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  // Only show on mobile - desktop has all items in bottom nav
-  if (!isMobile) {
+  // Only show on mobile - desktop/tablet has all items in bottom nav
+  // Also hide while detecting to prevent flash
+  if (isMobile !== true) {
     return null;
   }
 
