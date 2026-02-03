@@ -452,6 +452,9 @@ const Index = () => {
               {/* Camera button */}
               <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
 
+              {/* Tools scroller - immediately after main content */}
+              <ToolsScroller />
+
               {/* Pending image preview */}
               {pendingImage && (
                 <motion.div
@@ -520,9 +523,6 @@ const Index = () => {
 
               {/* Recent solves */}
               <RecentSolves solves={recentSolves} />
-
-              {/* Tools scroller */}
-              <ToolsScroller />
             </motion.div>
           ) : (
             <motion.div
