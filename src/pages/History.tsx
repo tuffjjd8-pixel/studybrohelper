@@ -11,7 +11,6 @@ import { Search, Trash2, MessageCircle, BookOpen, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
-
 interface Solve {
   id: string;
   subject: string;
@@ -20,25 +19,25 @@ interface Solve {
   solution_markdown: string;
   created_at: string;
 }
-
 const subjectIcons: Record<string, string> = {
   math: "📐",
   science: "🔬",
   history: "📜",
   english: "📖",
   language: "🌍",
-  general: "📚",
+  general: "📚"
 };
-
 const History = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const {
+    user,
+    loading: authLoading
+  } = useAuth();
   const isMobile = useIsMobile();
   const [solves, setSolves] = useState<Solve[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSolve, setSelectedSolve] = useState<Solve | null>(null);
-
   useEffect(() => {
     if (user) {
       fetchSolves();
@@ -46,7 +45,6 @@ const History = () => {
       loadGuestHistory();
     }
   }, [user, authLoading]);
-
   const loadGuestHistory = () => {
     try {
       const guestSolves = localStorage.getItem("guest_solves");
@@ -59,14 +57,14 @@ const History = () => {
       setLoading(false);
     }
   };
-
   const fetchSolves = async () => {
     try {
-      const { data, error } = await supabase
-        .from("solves")
-        .select("*")
-        .order("created_at", { ascending: false });
-
+      const {
+        data,
+        error
+      } = await supabase.from("solves").select("*").order("created_at", {
+        ascending: false
+      });
       if (error) throw error;
       setSolves(data || []);
     } catch (error) {
@@ -76,10 +74,8 @@ const History = () => {
       setLoading(false);
     }
   };
-
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
     if (!user) {
       try {
         const guestSolves = localStorage.getItem("guest_solves");
@@ -98,11 +94,12 @@ const History = () => {
       }
       return;
     }
-    
     try {
-      const { error } = await supabase.from("solves").delete().eq("id", id);
+      const {
+        error
+      } = await supabase.from("solves").delete().eq("id", id);
       if (error) throw error;
-      setSolves(solves.filter((s) => s.id !== id));
+      setSolves(solves.filter(s => s.id !== id));
       toast.success("Problem deleted");
       if (selectedSolve?.id === id) {
         setSelectedSolve(null);
@@ -111,7 +108,6 @@ const History = () => {
       toast.error("Failed to delete");
     }
   };
-
   const handleSolveClick = (solve: Solve) => {
     if (isMobile) {
       // Mobile: Navigate directly to full-screen solution
@@ -121,34 +117,26 @@ const History = () => {
       setSelectedSolve(solve);
     }
   };
-
-  const filteredSolves = solves.filter(
-    (solve) =>
-      solve.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      solve.subject.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
+  const filteredSolves = solves.filter(solve => solve.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) || solve.subject.toLowerCase().includes(searchQuery.toLowerCase()));
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+    return <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+  return <div className="min-h-screen bg-background overflow-x-hidden">
       <Header streak={0} totalSolves={solves.length} />
 
       <main className="pt-20 pb-24 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto">
           {/* Header Section - Clean and centered for screenshots */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 text-center sm:text-left"
-          >
-            <h1 className="text-2xl sm:text-3xl font-heading font-bold mb-1 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+          <motion.div initial={{
+          opacity: 0,
+          y: 20
+        }} animate={{
+          opacity: 1,
+          y: 0
+        }} className="mb-6 text-center sm:text-left">
+            <h1 className="text-2xl sm:text-3xl font-heading font-bold mb-1 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-destructive-foreground bg-destructive-foreground">
               Your Solves
             </h1>
             <p className="text-muted-foreground text-sm sm:text-base">
@@ -159,63 +147,47 @@ const History = () => {
           {/* Search - Full width, touch-friendly */}
           <div className="relative mb-6">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              placeholder="Search your history..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-12 text-base bg-card border-border rounded-xl"
-            />
+            <Input placeholder="Search your history..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-12 h-12 text-base bg-card border-border rounded-xl" />
           </div>
 
-          {loading ? (
-            <div className="space-y-3">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-20 bg-card rounded-xl animate-pulse" />
-              ))}
-            </div>
-          ) : filteredSolves.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-16 px-4"
-            >
+          {loading ? <div className="space-y-3">
+              {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-card rounded-xl animate-pulse" />)}
+            </div> : filteredSolves.length === 0 ? <motion.div initial={{
+          opacity: 0
+        }} animate={{
+          opacity: 1
+        }} className="text-center py-16 px-4">
               <div className="text-6xl mb-4">📚</div>
               <h3 className="text-lg font-medium mb-2">No solves yet</h3>
               <p className="text-muted-foreground mb-6 text-sm sm:text-base">
                 Start solving homework to build your history
               </p>
-              <Button 
-                onClick={() => navigate("/")}
-                className="min-h-[48px] px-6"
-              >
+              <Button onClick={() => navigate("/")} className="min-h-[48px] px-6">
                 Solve Something
               </Button>
-            </motion.div>
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
+            </motion.div> : <div className="grid gap-4 lg:grid-cols-2">
               {/* Solve List */}
               <div className="space-y-3">
                 <AnimatePresence>
-                  {filteredSolves.map((solve, index) => (
-                    <motion.div
-                      key={solve.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, x: -100 }}
-                      transition={{ delay: index * 0.03 }}
-                      onClick={() => handleSolveClick(solve)}
-                      className={`
+                  {filteredSolves.map((solve, index) => <motion.div key={solve.id} initial={{
+                opacity: 0,
+                y: 20
+              }} animate={{
+                opacity: 1,
+                y: 0
+              }} exit={{
+                opacity: 0,
+                x: -100
+              }} transition={{
+                delay: index * 0.03
+              }} onClick={() => handleSolveClick(solve)} className={`
                         p-4 rounded-xl border cursor-pointer transition-all
                         min-h-[72px] touch-manipulation select-none
                         active:scale-[0.98] active:opacity-90
-                        ${
-                          selectedSolve?.id === solve.id && !isMobile
-                            ? "bg-primary/10 border-primary shadow-[0_0_20px_rgba(57,255,20,0.15)]"
-                            : "bg-card border-border hover:border-primary/50 hover:shadow-[0_0_15px_rgba(57,255,20,0.1)]"
-                        }
-                      `}
-                      style={{ WebkitTapHighlightColor: 'transparent' }}
-                    >
+                        ${selectedSolve?.id === solve.id && !isMobile ? "bg-primary/10 border-primary shadow-[0_0_20px_rgba(57,255,20,0.15)]" : "bg-card border-border hover:border-primary/50 hover:shadow-[0_0_15px_rgba(57,255,20,0.1)]"}
+                      `} style={{
+                WebkitTapHighlightColor: 'transparent'
+              }}>
                       <div className="flex items-center gap-3">
                         <div className="text-2xl flex-shrink-0">
                           {subjectIcons[solve.subject] || "📚"}
@@ -231,33 +203,28 @@ const History = () => {
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
                               {formatDistanceToNow(new Date(solve.created_at), {
-                                addSuffix: true,
-                              })}
+                          addSuffix: true
+                        })}
                             </span>
                           </div>
                         </div>
-                        <button
-                          onClick={(e) => handleDelete(solve.id, e)}
-                          className="p-3 -m-1 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                          aria-label="Delete solve"
-                        >
+                        <button onClick={e => handleDelete(solve.id, e)} className="p-3 -m-1 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Delete solve">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                    </motion.div>
-                  ))}
+                    </motion.div>)}
                 </AnimatePresence>
               </div>
 
               {/* Detail Panel - Desktop only */}
               <div className="hidden lg:block">
-                {selectedSolve ? (
-                  <motion.div
-                    key={selectedSolve.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="sticky top-24 p-6 bg-card rounded-xl border border-border shadow-[0_0_30px_rgba(57,255,20,0.08)]"
-                  >
+                {selectedSolve ? <motion.div key={selectedSolve.id} initial={{
+              opacity: 0,
+              x: 20
+            }} animate={{
+              opacity: 1,
+              x: 0
+            }} className="sticky top-24 p-6 bg-card rounded-xl border border-border shadow-[0_0_30px_rgba(57,255,20,0.08)]">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-2xl">
                         {subjectIcons[selectedSolve.subject] || "📚"}
@@ -278,41 +245,26 @@ const History = () => {
                     </div>
 
                     <div className="flex gap-3">
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        onClick={() => navigate(`/solve/${selectedSolve.id}`)}
-                        className="flex-1 min-h-[48px]"
-                      >
+                      <Button variant="outline" size="lg" onClick={() => navigate(`/solve/${selectedSolve.id}`)} className="flex-1 min-h-[48px]">
                         <BookOpen className="w-4 h-4 mr-2" />
                         View Full
                       </Button>
-                      <Button
-                        size="lg"
-                        onClick={() => navigate(`/chat/${selectedSolve.id}`)}
-                        className="flex-1 min-h-[48px]"
-                      >
+                      <Button size="lg" onClick={() => navigate(`/chat/${selectedSolve.id}`)} className="flex-1 min-h-[48px]">
                         <MessageCircle className="w-4 h-4 mr-2" />
                         Follow Up
                       </Button>
                     </div>
-                  </motion.div>
-                ) : (
-                  <div className="sticky top-24 p-8 bg-card/50 rounded-xl border border-dashed border-border text-center">
+                  </motion.div> : <div className="sticky top-24 p-8 bg-card/50 rounded-xl border border-dashed border-border text-center">
                     <p className="text-muted-foreground">
                       Select a problem to view details
                     </p>
-                  </div>
-                )}
+                  </div>}
               </div>
-            </div>
-          )}
+            </div>}
         </div>
       </main>
 
       <BottomNav />
-    </div>
-  );
+    </div>;
 };
-
 export default History;
