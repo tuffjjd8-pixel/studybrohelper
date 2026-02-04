@@ -518,8 +518,6 @@ const Index = () => {
                 hoursUntilReset={speechClips.hoursUntilReset}
               />
 
-              {/* Tools scroller - mobile only, below main input */}
-              <ToolsScroller />
 
               {/* Recent solves */}
               <RecentSolves solves={recentSolves} />
