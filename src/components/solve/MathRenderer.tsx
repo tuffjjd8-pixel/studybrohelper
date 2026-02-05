@@ -24,6 +24,49 @@ const isMathContent = (text: string): boolean => {
   return false;
 };
 
+// Process markdown formatting
+const processMarkdown = (text: string): string => {
+  let processed = text;
+  
+  // Headers
+  processed = processed.replace(/^### (.+)$/gm, '<h3 class="text-base font-medium text-foreground mb-2 mt-3">$1</h3>');
+  processed = processed.replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold text-foreground mb-2 mt-4">$1</h2>');
+  processed = processed.replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold text-foreground mb-3">$1</h1>');
+  
+  // Bold and italic
+  processed = processed.replace(/\*\*\*(.+?)\*\*\*/g, '<strong class="font-bold text-primary"><em>$1</em></strong>');
+  processed = processed.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-primary">$1</strong>');
+  processed = processed.replace(/\*(.+?)\*/g, '<em class="text-secondary italic">$1</em>');
+  
+  // Inline code (but not LaTeX)
+  processed = processed.replace(/`([^`]+)`/g, '<code class="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">$1</code>');
+  
+  // Ordered lists
+  processed = processed.replace(/^(\d+)\. (.+)$/gm, '<li class="text-foreground/90 ml-4 list-decimal">$2</li>');
+  
+  // Unordered lists
+  processed = processed.replace(/^[-*] (.+)$/gm, '<li class="text-foreground/90 ml-4 list-disc">$1</li>');
+  
+  // Wrap consecutive list items
+  processed = processed.replace(/(<li class="text-foreground\/90 ml-4 list-decimal">.+<\/li>\n?)+/g, (match) => {
+    return `<ol class="list-decimal list-inside space-y-1 mb-3 text-foreground/90">${match}</ol>`;
+  });
+  processed = processed.replace(/(<li class="text-foreground\/90 ml-4 list-disc">.+<\/li>\n?)+/g, (match) => {
+    return `<ul class="list-disc list-inside space-y-1 mb-3 text-foreground/90">${match}</ul>`;
+  });
+  
+  // Paragraphs - wrap lines that aren't already wrapped in HTML tags
+  const lines = processed.split('\n');
+  processed = lines.map(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('<')) return line;
+    return `<p class="text-foreground/90 mb-3 leading-relaxed">${line}</p>`;
+  }).join('\n');
+  
+  return processed;
+};
+
 export function MathRenderer({ content }: MathRendererProps) {
   const renderedContent = useMemo(() => {
     let processed = content;
@@ -99,6 +142,9 @@ export function MathRenderer({ content }: MathRendererProps) {
         return `<span class="px-2 py-1 border border-primary rounded">${content}</span>`;
       }
     });
+
+    // Process markdown formatting last
+    processed = processMarkdown(processed);
 
     return processed;
   }, [content]);
