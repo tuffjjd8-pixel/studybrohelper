@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BookOpen, Share2, Bot } from "lucide-react";
 import { toast } from "sonner";
-import { MathRenderer } from "@/components/solve/MathRenderer";
+import ReactMarkdown from "react-markdown";
 
 interface Solve {
   id: string;

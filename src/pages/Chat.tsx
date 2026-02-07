@@ -8,10 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Bot, User } from "lucide-react";
 import { toast } from "sonner";
-import { MathRenderer } from "@/components/solve/MathRenderer";
-import { usePremiumStatus } from "@/hooks/usePremiumStatus";
-import { Crown, Lock } from "lucide-react";
-import { Link } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   id: string;
@@ -27,23 +24,16 @@ interface Solve {
   solution_markdown: string;
 }
 
-const FREE_FOLLOWUP_LIMIT = 2;
-
 const Chat = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { isPremium, loading: premiumLoading } = usePremiumStatus();
   const [solve, setSolve] = useState<Solve | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Count user follow-ups (user messages only)
-  const userFollowUpCount = messages.filter(m => m.role === "user").length;
-  const followUpLimitReached = !isPremium && userFollowUpCount >= FREE_FOLLOWUP_LIMIT;
 
   useEffect(() => {
     if (!authLoading) {
@@ -284,7 +274,7 @@ const Chat = () => {
                 >
                   {message.role === "assistant" ? (
                     <div className="prose prose-sm prose-invert max-w-none">
-                      <MathRenderer content={message.content} />
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
                     </div>
                   ) : (
                     <p>{message.content}</p>
@@ -325,28 +315,11 @@ const Chat = () => {
       {/* Input */}
       <div className="fixed bottom-16 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border">
         <div className="max-w-2xl mx-auto">
-          {followUpLimitReached ? (
-            <div className="glass-card p-4 text-center space-y-3">
-              <div className="flex items-center justify-center gap-2 text-amber-400">
-                <Crown className="w-5 h-5" />
-                <span className="font-medium">Follow-up limit reached</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Free users get {FREE_FOLLOWUP_LIMIT} follow-ups per solve. Upgrade for unlimited.
-              </p>
-              <Link to="/premium">
-                <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-                  Upgrade to Premium
-                </button>
-              </Link>
-            </div>
-          ) : (
-            <FollowUpInput
-              onSubmit={handleSend}
-              isLoading={isLoading}
-              placeholder="Paste or type your homework question..."
-            />
-          )}
+          <FollowUpInput
+            onSubmit={handleSend}
+            isLoading={isLoading}
+            placeholder="Paste or type your homework question..."
+          />
         </div>
       </div>
 

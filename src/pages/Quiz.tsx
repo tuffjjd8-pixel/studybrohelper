@@ -29,7 +29,6 @@ import {
 import { cn } from "@/lib/utils";
 import { isSolveRequest } from "@/lib/intentRouting";
 import { QuizLoadingShimmer } from "@/components/quiz/QuizLoadingShimmer";
-import { MathRenderer } from "@/components/solve/MathRenderer";
 
 interface Solve {
   id: string;
@@ -743,9 +742,9 @@ const Quiz = () => {
                   exit={{ opacity: 0, x: -20 }}
                   className="bg-card border border-border rounded-xl p-6"
                 >
-                  <div className="text-lg font-medium mb-6">
-                    <MathRenderer content={quizResult[currentQuestion].question} />
-                  </div>
+                  <h2 className="text-lg font-medium mb-6">
+                    {quizResult[currentQuestion].question}
+                  </h2>
 
                   {/* Options */}
                   <div className="space-y-3">
@@ -783,7 +782,7 @@ const Quiz = () => {
                             (hasAnswered || submitted) && "cursor-default"
                           )}
                         >
-                          <span className="font-medium"><MathRenderer content={option} /></span>
+                          <span className="font-medium">{option}</span>
                         </motion.button>
                       );
                     })}
@@ -800,7 +799,7 @@ const Quiz = () => {
                     >
                       <p className="text-sm text-green-400 flex items-start gap-2">
                         <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
-                        <span className="font-medium">Correct! <MathRenderer content={quizResult[currentQuestion].explanation} /></span>
+                        <span className="font-medium">Correct! {quizResult[currentQuestion].explanation}</span>
                       </p>
                     </motion.div>
                   )}
@@ -936,7 +935,7 @@ const Quiz = () => {
                         </span>
                       </div>
                       
-                      <div className="font-medium mb-4 text-sm sm:text-base break-words"><MathRenderer content={q.question} /></div>
+                      <h3 className="font-medium mb-4 text-sm sm:text-base break-words">{q.question}</h3>
 
                       {/* Options - Different view for Free vs Premium */}
                       <div className="space-y-2 mb-4">
@@ -958,7 +957,7 @@ const Quiz = () => {
                                       : "bg-muted/30 border-border text-muted-foreground"
                                 )}
                               >
-                                <span className="break-words"><MathRenderer content={option} /></span>
+                                <span className="break-words">{option}</span>
                                 {isCorrectOption && (
                                   <span className="ml-2 text-green-500 text-xs font-medium">✓ Correct</span>
                                 )}
@@ -978,7 +977,7 @@ const Quiz = () => {
                                 : "bg-destructive/10 border-destructive/50"
                             )}>
                               <span className="text-xs text-muted-foreground block mb-1">Your answer:</span>
-                              <span className="break-words"><MathRenderer content={userAnswer || "Not answered"} /></span>
+                              <span className="break-words">{userAnswer || "Not answered"}</span>
                             </div>
                             {!isCorrect && (
                               <div className="p-3 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 text-sm">
@@ -997,7 +996,7 @@ const Quiz = () => {
                         <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
                           <p className="text-sm">
                             <span className="font-medium text-primary block mb-1">Why this is correct:</span>
-                            <span className="text-muted-foreground break-words"><MathRenderer content={q.explanation} /></span>
+                            <span className="text-muted-foreground break-words">{q.explanation}</span>
                           </p>
                         </div>
                       ) : (

@@ -34,7 +34,7 @@ Original question: ${context?.question || "Image question"}
 Your previous solution:
 ${context?.solution || "No previous solution"}
 
-Now help with follow-up questions. Be friendly, clear, and educational. Use markdown for formatting. For math, wrap inline math in $...$ and display math in $$...$$. NEVER mention "LaTeX", "KaTeX", or how you format math in your response. Just show the math cleanly. If they ask for a different method, provide one. If they don't understand, explain differently.`;
+Now help with follow-up questions. Be friendly, clear, and educational. Use markdown for formatting and LaTeX for math (wrap inline math in $...$ and display math in $$...$$). If they ask for a different method, provide one. If they don't understand, explain differently.`;
 
     // Build messages array for Groq
     const messages: { role: string; content: string }[] = [

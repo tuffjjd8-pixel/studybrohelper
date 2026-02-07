@@ -4,16 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
-import { usePremiumStatus } from "@/hooks/usePremiumStatus";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Search, Trash2, MessageCircle, BookOpen, Clock, Lock, Crown } from "lucide-react";
+import { Search, Trash2, MessageCircle, BookOpen, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { formatDistanceToNow, isToday } from "date-fns";
-import { MathRenderer } from "@/components/solve/MathRenderer";
-import { Link } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
 interface Solve {
   id: string;
   subject: string;
@@ -36,7 +33,6 @@ const History = () => {
     user,
     loading: authLoading
   } = useAuth();
-  const { isPremium } = usePremiumStatus();
   const isMobile = useIsMobile();
   const [solves, setSolves] = useState<Solve[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,19 +109,13 @@ const History = () => {
     }
   };
   const handleSolveClick = (solve: Solve) => {
-    // Free users can only open today's solves
-    if (!isPremium && !isToday(new Date(solve.created_at))) {
-      return;
-    }
     if (isMobile) {
+      // Mobile: Navigate directly to full-screen solution
       navigate(`/solve/${solve.id}`);
     } else {
+      // Desktop: Show in side panel
       setSelectedSolve(solve);
     }
-  };
-
-  const isSolveAccessible = (solve: Solve) => {
-    return isPremium || isToday(new Date(solve.created_at));
   };
   const filteredSolves = solves.filter(solve => solve.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) || solve.subject.toLowerCase().includes(searchQuery.toLowerCase()));
   if (authLoading) {
@@ -179,64 +169,50 @@ const History = () => {
               {/* Solve List */}
               <div className="space-y-3">
                 <AnimatePresence>
-                  {filteredSolves.map((solve, index) => {
-                    const accessible = isSolveAccessible(solve);
-                    return (
-                      <motion.div key={solve.id} initial={{
-                    opacity: 0,
-                    y: 20
-                  }} animate={{
-                    opacity: 1,
-                    y: 0
-                  }} exit={{
-                    opacity: 0,
-                    x: -100
-                  }} transition={{
-                    delay: index * 0.03
-                  }} onClick={() => handleSolveClick(solve)} className={`
-                          p-4 rounded-xl border transition-all
-                          min-h-[72px] touch-manipulation select-none
-                          ${!accessible ? "relative overflow-hidden cursor-default opacity-70" : "cursor-pointer active:scale-[0.98] active:opacity-90"}
-                          ${selectedSolve?.id === solve.id && !isMobile && accessible ? "bg-primary/10 border-primary shadow-[0_0_20px_rgba(57,255,20,0.15)]" : "bg-card border-border hover:border-primary/50 hover:shadow-[0_0_15px_rgba(57,255,20,0.1)]"}
-                        `} style={{
-                    WebkitTapHighlightColor: 'transparent'
-                  }}>
-                        {/* Blur overlay for locked solves */}
-                        {!accessible && (
-                          <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-2 rounded-xl">
-                            <Lock className="w-5 h-5 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground font-medium">Unlock full history with Premium</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-3">
-                          <div className="text-2xl flex-shrink-0">
-                            {subjectIcons[solve.subject] || "📚"}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm sm:text-base line-clamp-2 leading-snug">
-                              {solve.question_text || "Image question"}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                              <span className="capitalize bg-muted/50 px-2 py-0.5 rounded-md">
-                                {solve.subject}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {formatDistanceToNow(new Date(solve.created_at), {
-                            addSuffix: true
-                          })}
-                              </span>
-                            </div>
-                          </div>
-                          {accessible && (
-                            <button onClick={e => handleDelete(solve.id, e)} className="p-3 -m-1 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Delete solve">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
+                  {filteredSolves.map((solve, index) => <motion.div key={solve.id} initial={{
+                opacity: 0,
+                y: 20
+              }} animate={{
+                opacity: 1,
+                y: 0
+              }} exit={{
+                opacity: 0,
+                x: -100
+              }} transition={{
+                delay: index * 0.03
+              }} onClick={() => handleSolveClick(solve)} className={`
+                        p-4 rounded-xl border cursor-pointer transition-all
+                        min-h-[72px] touch-manipulation select-none
+                        active:scale-[0.98] active:opacity-90
+                        ${selectedSolve?.id === solve.id && !isMobile ? "bg-primary/10 border-primary shadow-[0_0_20px_rgba(57,255,20,0.15)]" : "bg-card border-border hover:border-primary/50 hover:shadow-[0_0_15px_rgba(57,255,20,0.1)]"}
+                      `} style={{
+                WebkitTapHighlightColor: 'transparent'
+              }}>
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl flex-shrink-0">
+                          {subjectIcons[solve.subject] || "📚"}
                         </div>
-                      </motion.div>
-                    );
-                  })}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm sm:text-base line-clamp-2 leading-snug">
+                            {solve.question_text || "Image question"}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                            <span className="capitalize bg-muted/50 px-2 py-0.5 rounded-md">
+                              {solve.subject}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {formatDistanceToNow(new Date(solve.created_at), {
+                          addSuffix: true
+                        })}
+                            </span>
+                          </div>
+                        </div>
+                        <button onClick={e => handleDelete(solve.id, e)} className="p-3 -m-1 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Delete solve">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>)}
                 </AnimatePresence>
               </div>
 
@@ -263,7 +239,9 @@ const History = () => {
                     </h3>
 
                     <div className="prose prose-invert prose-sm max-h-64 overflow-y-auto mb-6 bg-muted/30 rounded-lg p-4">
-                      <MathRenderer content={selectedSolve.solution_markdown.slice(0, 500) + "..."} />
+                      <pre className="whitespace-pre-wrap text-sm text-muted-foreground font-sans">
+                        {selectedSolve.solution_markdown.slice(0, 500)}...
+                      </pre>
                     </div>
 
                     <div className="flex gap-3">
@@ -271,19 +249,10 @@ const History = () => {
                         <BookOpen className="w-4 h-4 mr-2" />
                         View Full
                       </Button>
-                      {isPremium ? (
-                        <Button size="lg" onClick={() => navigate(`/chat/${selectedSolve.id}`)} className="flex-1 min-h-[48px]">
-                          <MessageCircle className="w-4 h-4 mr-2" />
-                          Follow Up
-                        </Button>
-                      ) : (
-                        <Link to="/premium" className="flex-1">
-                          <Button variant="outline" size="lg" className="w-full min-h-[48px] opacity-60" disabled>
-                            <Lock className="w-4 h-4 mr-2" />
-                            Premium Only
-                          </Button>
-                        </Link>
-                      )}
+                      <Button size="lg" onClick={() => navigate(`/chat/${selectedSolve.id}`)} className="flex-1 min-h-[48px]">
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        Follow Up
+                      </Button>
                     </div>
                   </motion.div> : <div className="sticky top-24 p-8 bg-card/50 rounded-xl border border-dashed border-border text-center">
                     <p className="text-muted-foreground">

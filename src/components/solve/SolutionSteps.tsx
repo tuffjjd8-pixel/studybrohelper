@@ -1,16 +1,15 @@
-import { MathRenderer } from "./MathRenderer";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
-import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send, Crown, Lock } from "lucide-react";
+import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { usePremiumStatus } from "@/hooks/usePremiumStatus";
-import { Link } from "react-router-dom";
-
-const FREE_FOLLOWUP_LIMIT = 2;
 
 interface SolutionStepsProps {
   subject: string;
@@ -19,7 +18,6 @@ interface SolutionStepsProps {
   questionImage?: string;
   solveId?: string;
   onFollowUp?: () => void;
-  isFromHistory?: boolean;
 }
 
 const subjectIcons: Record<string, React.ReactNode> = {
@@ -38,16 +36,11 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isFromHistory }: SolutionStepsProps) {
-  const { isPremium } = usePremiumStatus();
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const [followUpResponse, setFollowUpResponse] = useState<string | null>(null);
-  const [followUpCount, setFollowUpCount] = useState(0);
-
-  const followUpLimitReached = !isPremium && followUpCount >= FREE_FOLLOWUP_LIMIT;
-  const followUpBlocked = !isPremium && isFromHistory;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(solution);
@@ -95,7 +88,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
       setFollowUpResponse(data.response);
       setFollowUpText("");
-      setFollowUpCount(prev => prev + 1);
       toast.success("Got your answer!");
     } catch (error) {
       console.error("Follow-up error:", error);
@@ -174,7 +166,53 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           </div>
         </div>
         <div className="prose prose-invert prose-sm max-w-none math-solution">
-          <MathRenderer content={solution} />
+          <ReactMarkdown
+            remarkPlugins={[remarkMath]}
+            rehypePlugins={[rehypeKatex]}
+            components={{
+              h1: ({ children }) => <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>,
+              h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>,
+              h3: ({ children }) => <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>,
+              p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
+              ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-foreground/90">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-foreground/90">{children}</ol>,
+              li: ({ children }) => <li className="text-foreground/90">{children}</li>,
+              strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
+              em: ({ children }) => <em className="text-secondary italic">{children}</em>,
+              code: ({ children }) => (
+                <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">
+                  {children}
+                </code>
+              ),
+              pre: ({ children }) => (
+                <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-3">
+                  {children}
+                </pre>
+              ),
+              table: ({ children }) => (
+                <div className="overflow-x-auto my-4">
+                  <table className="min-w-full border border-border rounded-lg">
+                    {children}
+                  </table>
+                </div>
+              ),
+              thead: ({ children }) => (
+                <thead className="bg-primary/10">{children}</thead>
+              ),
+              th: ({ children }) => (
+                <th className="px-4 py-2 text-left font-semibold text-foreground border-b border-border">
+                  {children}
+                </th>
+              ),
+              td: ({ children }) => (
+                <td className="px-4 py-2 text-foreground/90 border-b border-border/50">
+                  {children}
+                </td>
+              ),
+            }}
+          >
+            {solution}
+          </ReactMarkdown>
         </div>
       </motion.div>
 
@@ -189,7 +227,16 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             Follow-up Answer
           </h3>
           <div className="prose prose-invert prose-sm max-w-none">
-          <MathRenderer content={followUpResponse} />
+            <ReactMarkdown
+              remarkPlugins={[remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              components={{
+                p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
+                strong: ({ children }) => <strong className="font-bold text-secondary">{children}</strong>,
+              }}
+            >
+              {followUpResponse}
+            </ReactMarkdown>
           </div>
         </motion.div>
       )}
@@ -201,71 +248,42 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         transition={{ delay: 0.3 }}
         className="glass-card p-4"
       >
-        {followUpBlocked ? (
-          <div className="text-center space-y-2 py-2">
-            <div className="flex items-center justify-center gap-2 text-muted-foreground">
-              <Lock className="w-4 h-4" />
-              <span className="text-sm font-medium">Follow-ups unavailable in history</span>
-            </div>
-            <Link to="/premium">
-              <span className="text-xs text-primary hover:underline">Upgrade to Premium for full access</span>
-            </Link>
-          </div>
-        ) : followUpLimitReached ? (
-          <div className="text-center space-y-3 py-2">
-            <div className="flex items-center justify-center gap-2 text-amber-400">
-              <Crown className="w-5 h-5" />
-              <span className="font-medium text-sm">Follow-up limit reached</span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Free users get {FREE_FOLLOWUP_LIMIT} follow-ups per solve. Upgrade for unlimited.
-            </p>
-            <Link to="/premium">
-              <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-                Upgrade to Premium
-              </button>
-            </Link>
-          </div>
-        ) : (
-          <>
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-              Ask a follow-up question {!isPremium && `(${followUpCount}/${FREE_FOLLOWUP_LIMIT})`}
-            </h3>
-            <div className="flex items-end gap-3">
-              <Textarea
-                value={followUpText}
-                onChange={(e) => setFollowUpText(e.target.value)}
-                onKeyDown={handleFollowUpKeyDown}
-                placeholder="Still confused? Ask me anything about this solution..."
-                disabled={isAsking}
-                className="
-                  min-h-[50px] max-h-[120px] resize-none
-                  bg-muted/50 border-none
-                  placeholder:text-muted-foreground/50
-                  focus-visible:ring-1 focus-visible:ring-primary/50
-                  text-sm
-                "
-                rows={2}
-              />
-              <Button
-                onClick={handleFollowUpSubmit}
-                disabled={!followUpText.trim() || isAsking}
-                variant="neon"
-                size="icon"
-                className="shrink-0"
-              >
-                {isAsking ? (
-                  <AIBrainIcon size="sm" animate glowIntensity="strong" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Press Enter to ask • Shift+Enter for new line
-            </p>
-          </>
-        )}
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+          Ask a follow-up question
+        </h3>
+        <div className="flex items-end gap-3">
+          <Textarea
+            value={followUpText}
+            onChange={(e) => setFollowUpText(e.target.value)}
+            onKeyDown={handleFollowUpKeyDown}
+            placeholder="Still confused? Ask me anything about this solution..."
+            disabled={isAsking}
+            className="
+              min-h-[50px] max-h-[120px] resize-none
+              bg-muted/50 border-none
+              placeholder:text-muted-foreground/50
+              focus-visible:ring-1 focus-visible:ring-primary/50
+              text-sm
+            "
+            rows={2}
+          />
+          <Button
+            onClick={handleFollowUpSubmit}
+            disabled={!followUpText.trim() || isAsking}
+            variant="neon"
+            size="icon"
+            className="shrink-0"
+          >
+            {isAsking ? (
+              <AIBrainIcon size="sm" animate glowIntensity="strong" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          Press Enter to ask • Shift+Enter for new line
+        </p>
       </motion.div>
 
     </motion.div>
