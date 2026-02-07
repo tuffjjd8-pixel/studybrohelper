@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import ReactMarkdown from "react-markdown";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
+import { MathRenderer } from "./MathRenderer";
 import { ChevronRight, ChevronLeft, Play, Pause, SkipForward, CheckCircle2, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -253,28 +250,7 @@ export function AnimatedSolutionSteps({
           </div>
 
           <div className="prose prose-invert prose-sm max-w-none math-solution">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                p: ({ children }) => (
-                  <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>
-                ),
-                strong: ({ children }) => (
-                  <strong className="font-bold text-primary">{children}</strong>
-                ),
-                em: ({ children }) => (
-                  <em className="text-secondary italic">{children}</em>
-                ),
-                code: ({ children }) => (
-                  <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">
-                    {children}
-                  </code>
-                ),
-              }}
-            >
-              {displayedContent}
-            </ReactMarkdown>
+            <MathRenderer content={displayedContent} />
           </div>
         </motion.div>
       </AnimatePresence>
@@ -336,28 +312,7 @@ export function AnimatedSolutionSteps({
             Full Solution
           </h3>
           <div className="prose prose-invert prose-sm max-w-none math-solution">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                p: ({ children }) => (
-                  <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>
-                ),
-                strong: ({ children }) => (
-                  <strong className="font-bold text-primary">{children}</strong>
-                ),
-                em: ({ children }) => (
-                  <em className="text-secondary italic">{children}</em>
-                ),
-                code: ({ children }) => (
-                  <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">
-                    {children}
-                  </code>
-                ),
-              }}
-            >
-              {fullSolution}
-            </ReactMarkdown>
+            <MathRenderer content={fullSolution} />
           </div>
         </motion.div>
       )}
