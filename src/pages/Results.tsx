@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Trophy, CheckCircle2, XCircle, Crown, TrendingUp, Lightbulb, BookOpen, Lock } from "lucide-react";
+import { Trophy, CheckCircle2, XCircle, Crown, TrendingUp, Lightbulb, BookOpen, Lock, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,7 @@ interface QuizResultData {
   weakTopics: string[];
   topicBreakdown?: TopicBreakdown[];
   subject?: string;
+  quizName?: string;
   timestamp: number;
 }
 
@@ -55,6 +56,21 @@ const getEncouragement = (pct: number) => {
   if (pct >= 70) return "Good effort! Keep pushing 💪";
   if (pct >= 60) return "You're getting there! Stay consistent 📈";
   return "Every expert was once a beginner. Keep going! 🌱";
+};
+
+const getSummary = (pct: number, subject: string, correct: number, total: number, weakTopics: string[]) => {
+  const topicLabel = subject.charAt(0).toUpperCase() + subject.slice(1);
+  if (pct >= 90) {
+    return `You aced this ${topicLabel} quiz — ${correct} out of ${total} correct. You clearly have a strong grasp of the material. Keep challenging yourself with harder problems!`;
+  }
+  if (pct >= 70) {
+    const weak = weakTopics.length > 0 ? ` Focus on ${weakTopics.join(" and ")} to push your score even higher.` : "";
+    return `Solid performance on this ${topicLabel} quiz with ${correct}/${total} correct.${weak} Review the concepts you missed and try again — you're close to mastering this!`;
+  }
+  if (pct >= 50) {
+    return `You got ${correct} out of ${total} on this ${topicLabel} quiz. That's a good start! Try re-reading the key concepts and practicing similar problems to strengthen your understanding.`;
+  }
+  return `You scored ${correct}/${total} on this ${topicLabel} quiz. Don't worry — this is a learning opportunity. Break the topic into smaller pieces, review the basics, and try again. You'll get there!`;
 };
 
 const LockedCard = ({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) => (
@@ -157,6 +173,8 @@ const Results = () => {
   const total = quizData?.totalQuestions ?? 0;
   const weakTopics = quizData?.weakTopics ?? [];
   const topicBreakdown = quizData?.topicBreakdown ?? [];
+  const quizName = quizData?.quizName || quizData?.subject || "Quiz";
+  const subject = quizData?.subject || "General";
 
   return (
     <div className="min-h-screen bg-background">
@@ -168,14 +186,17 @@ const Results = () => {
 
       <main className="pt-20 pb-24 px-4">
         <div className="max-w-md mx-auto space-y-5">
+          {/* Page Title with Quiz Name */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
               <Trophy className="w-6 h-6 text-primary" />
-              Your Results
+              Quiz Results
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Performance summary from your latest quiz
-            </p>
+            {hasData && (
+              <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
+                {quizName}
+              </p>
+            )}
           </motion.div>
 
           {!hasData ? (
@@ -220,9 +241,26 @@ const Results = () => {
                 </Card>
               </motion.div>
 
-              {/* Areas to Improve (Free) — simple one-line summary */}
+              {/* Quiz Summary (Free) */}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {getSummary(pct, subject, correct, total, weakTopics)}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Areas to Improve (Free) */}
               {weakTopics.length > 0 && (
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base flex items-center gap-2">
@@ -242,12 +280,46 @@ const Results = () => {
                 </motion.div>
               )}
 
-              {/* Premium sections — shown unlocked for premium, blurred/locked for free */}
+              {/* How to Improve (Free) */}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-primary" />
+                      How to Get Better
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {pct < 100 && (
+                      <div className="flex items-start gap-2 text-sm">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Review the questions you got wrong and understand <strong>why</strong> the correct answer is right.</span>
+                      </div>
+                    )}
+                    <div className="flex items-start gap-2 text-sm">
+                      <span className="text-primary mt-0.5">•</span>
+                      <span>Retake the quiz after studying — repetition builds mastery.</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm">
+                      <span className="text-primary mt-0.5">•</span>
+                      <span>Try solving similar problems on your own before checking the answer.</span>
+                    </div>
+                    {weakTopics.length > 0 && (
+                      <div className="flex items-start gap-2 text-sm">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Spend extra time on <strong>{weakTopics.join(" and ")}</strong> — these are your biggest growth areas.</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Premium sections */}
               {isPremium ? (
                 <>
                   {/* Topic Breakdown — Premium unlocked */}
                   {topicBreakdown.length > 0 && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
                       <Card>
                         <CardHeader className="pb-3">
                           <CardTitle className="text-base flex items-center gap-2">
@@ -272,9 +344,9 @@ const Results = () => {
                     </motion.div>
                   )}
 
-                  {/* Improvement Tips — Premium */}
+                  {/* Personalized Improvement Plan — Premium */}
                   {weakTopics.length > 0 && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
                       <Card>
                         <CardHeader className="pb-3">
                           <CardTitle className="text-base flex items-center gap-2">
@@ -287,7 +359,7 @@ const Results = () => {
                             <div key={topic} className="flex items-start gap-2 text-sm">
                               <span className="text-primary mt-0.5">•</span>
                               <span>
-                                Practice more <strong>{topic}</strong> problems — try breaking them into smaller steps.
+                                Practice more <strong>{topic}</strong> problems — try breaking them into smaller steps and checking each part.
                               </span>
                             </div>
                           ))}
@@ -297,7 +369,7 @@ const Results = () => {
                   )}
 
                   {/* Recommended Practice — Premium */}
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-base flex items-center gap-2">
@@ -320,9 +392,9 @@ const Results = () => {
                 </>
               ) : (
                 /* Free users: blurred locked cards + upsell */
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="space-y-4">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="space-y-4">
                   {/* Locked Topic Breakdown */}
-                  <LockedCard title="Topic Breakdown" icon={TrendingUp}>
+                  <LockedCard title="Detailed Topic Breakdown" icon={TrendingUp}>
                     <div className="space-y-3">
                       <div>
                         <div className="flex justify-between text-sm mb-1">
@@ -341,8 +413,22 @@ const Results = () => {
                     </div>
                   </LockedCard>
 
+                  {/* Locked Mistake Explanations */}
+                  <LockedCard title="Mistake Explanations" icon={Lightbulb}>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Q3: You confused the formula for area with perimeter...</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Q7: The negative sign was dropped when distributing...</span>
+                      </div>
+                    </div>
+                  </LockedCard>
+
                   {/* Locked Improvement Plan */}
-                  <LockedCard title="Personalized Improvement Plan" icon={Lightbulb}>
+                  <LockedCard title="Personalized Improvement Plan" icon={Sparkles}>
                     <div className="space-y-2 text-sm">
                       <div className="flex items-start gap-2">
                         <span className="text-primary mt-0.5">•</span>
@@ -375,7 +461,7 @@ const Results = () => {
                         <div className="space-y-1">
                           <h3 className="font-semibold text-sm">Unlock full insights with StudyBro Pro</h3>
                           <p className="text-xs text-muted-foreground leading-relaxed">
-                            Get topic breakdowns, personalized improvement tips, mistake explanations & recommended practice.
+                            Get detailed topic breakdowns, mistake explanations, personalized improvement plans & recommended practice.
                           </p>
                         </div>
                       </CardContent>
