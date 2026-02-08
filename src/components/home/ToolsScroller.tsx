@@ -1,12 +1,12 @@
 import { useNavigate } from "react-router-dom";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Brain, Calculator, BarChart3 } from "lucide-react";
+import { Brain, Trophy, BarChart3 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-// Only Quiz, Calc, Polls - these are hidden from bottom nav on mobile
+// Only Quiz, Results, Polls - these are hidden from bottom nav on mobile
 const tools = [
   { icon: Brain, label: "Quiz", path: "/quiz" },
-  { icon: Calculator, label: "Calc", path: "/calculator" },
+  { icon: Trophy, label: "Results", path: "/results" },
   { icon: BarChart3, label: "Polls", path: "/polls" },
 ];
 
