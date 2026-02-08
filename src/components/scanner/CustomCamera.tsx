@@ -35,12 +35,12 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
     stopStream();
 
     try {
-      // Request maximum resolution, full sensor FOV, rear camera
+      // Request medium-high resolution for fast startup; full sensor FOV, rear camera
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "environment" },
-          width: { ideal: 3840, min: 1280 },
-          height: { ideal: 2160, min: 720 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
         },
         audio: false,
       });
@@ -49,23 +49,22 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
 
+        // Fast ready detection with short timeout
         await new Promise<void>((resolve, reject) => {
           const video = videoRef.current!;
-          const timeout = setTimeout(() => reject(new Error("Video timeout")), 10000);
+          const timeout = setTimeout(() => reject(new Error("Video timeout")), 5000);
 
-          const checkReady = () => {
-            if (video.videoWidth > 0 && video.videoHeight > 0) {
-              clearTimeout(timeout);
-              resolve();
-            }
+          const onReady = () => {
+            clearTimeout(timeout);
+            resolve();
           };
 
           video.onloadedmetadata = () => {
-            video.play().then(checkReady).catch(reject);
+            video.play().then(onReady).catch(reject);
           };
 
-          if (video.readyState >= 2) {
-            video.play().then(checkReady).catch(reject);
+          if (video.readyState >= 1) {
+            video.play().then(onReady).catch(reject);
           }
         });
 
