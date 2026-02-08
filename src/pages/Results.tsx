@@ -16,12 +16,13 @@ interface Profile {
   total_solves?: number;
 }
 
-interface SolveRecord {
-  id: string;
-  subject: string;
-  question_text: string | null;
-  solution_markdown: string;
-  created_at: string;
+interface QuizResultData {
+  totalQuestions: number;
+  correctAnswers: number;
+  wrongAnswers: number;
+  scorePercentage: number;
+  weakTopics: string[];
+  timestamp: number;
 }
 
 const getLetterGrade = (pct: number) => {
@@ -63,28 +64,38 @@ const getTopicFromSubject = (subject: string) => {
 const Results = () => {
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [solves, setSolves] = useState<SolveRecord[]>([]);
+  const [quizData, setQuizData] = useState<QuizResultData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Load quiz result from localStorage
+    try {
+      const stored = localStorage.getItem("last_quiz_result");
+      if (stored) {
+        setQuizData(JSON.parse(stored));
+      }
+    } catch (err) {
+      console.error("Error reading quiz result:", err);
+    }
+
     if (user) {
-      fetchData();
+      fetchProfile();
     } else if (!authLoading) {
       setLoading(false);
     }
   }, [user, authLoading]);
 
-  const fetchData = async () => {
+  const fetchProfile = async () => {
     if (!user) return;
     try {
-      const [profileRes, solvesRes] = await Promise.all([
-        supabase.from("profiles").select("is_premium, streak_count, total_solves").eq("user_id", user.id).single(),
-        supabase.from("solves").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50),
-      ]);
-      setProfile(profileRes.data);
-      setSolves(solvesRes.data || []);
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_premium, streak_count, total_solves")
+        .eq("user_id", user.id)
+        .single();
+      setProfile(data);
     } catch (err) {
-      console.error("Error fetching results data:", err);
+      console.error("Error fetching profile:", err);
     } finally {
       setLoading(false);
     }
@@ -93,38 +104,18 @@ const Results = () => {
   const isPremium = profile?.is_premium === true;
 
   const stats = useMemo(() => {
-    const total = solves.length;
-    if (total === 0) return null;
+    if (!quizData) return null;
+    const { totalQuestions: total, correctAnswers: correct, wrongAnswers: wrong, scorePercentage: pct, weakTopics } = quizData;
 
-    // Approximate: solves with longer solutions likely had correct reasoning
-    const withSolution = solves.filter((s) => s.solution_markdown.length > 100);
-    const correct = withSolution.length;
-    const wrong = total - correct;
-    const pct = Math.round((correct / total) * 100);
+    const topics = weakTopics.map((name) => ({
+      name,
+      total: 0,
+      correct: 0,
+      pct: 0,
+    }));
 
-    // Topic breakdown
-    const topicMap: Record<string, { total: number; correct: number }> = {};
-    solves.forEach((s) => {
-      const topic = getTopicFromSubject(s.subject);
-      if (!topicMap[topic]) topicMap[topic] = { total: 0, correct: 0 };
-      topicMap[topic].total++;
-      if (s.solution_markdown.length > 100) topicMap[topic].correct++;
-    });
-
-    const topics = Object.entries(topicMap)
-      .map(([name, data]) => ({
-        name,
-        total: data.total,
-        correct: data.correct,
-        pct: Math.round((data.correct / data.total) * 100),
-      }))
-      .sort((a, b) => a.pct - b.pct);
-
-    const weakTopics = topics.filter((t) => t.pct < 80).slice(0, 3);
-    const strongTopics = topics.filter((t) => t.pct >= 80).slice(0, 3);
-
-    return { total, correct, wrong, pct, topics, weakTopics, strongTopics };
-  }, [solves]);
+    return { total, correct, wrong, pct, topics, weakTopics: topics, strongTopics: [] as typeof topics };
+  }, [quizData]);
 
   if (authLoading || loading) {
     return (
@@ -183,7 +174,7 @@ const Results = () => {
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
                 <BookOpen className="w-8 h-8 text-muted-foreground" />
               </div>
-              <p className="text-muted-foreground">No solves yet. Start solving to see your results!</p>
+              <p className="text-muted-foreground">Take a quiz to see your results!</p>
               <Link to="/">
                 <Button variant="outline">Start Solving</Button>
               </Link>
