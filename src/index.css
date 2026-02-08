@@ -277,9 +277,4 @@
 .math-solution .katex .sqrt-sign {
   color: hsl(var(--primary));
 }
-#lovable-badge {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
 }
