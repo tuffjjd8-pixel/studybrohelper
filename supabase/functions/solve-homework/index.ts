@@ -19,8 +19,8 @@ const OPENROUTER_GRAPH_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 // ============================================================
 // TIER LIMITS
 // ============================================================
-const FREE_ANIMATED_STEPS = 5;
-const PREMIUM_ANIMATED_STEPS = 16;
+const FREE_MAX_STEPS = 5;     // Simplified steps for free users
+const PREMIUM_MAX_STEPS = 16; // Detailed steps for premium users
 const FREE_GRAPHS_PER_DAY = 4;
 const PREMIUM_GRAPHS_PER_DAY = 15;
 
@@ -164,26 +164,47 @@ ${SHARED_FORMATTING_RULES}
 - Steps must clearly lead to the final answer.`;
 
 // Prompt to generate structured animated steps (ANIMATED STEPS MODE)
-function getAnimatedStepsPrompt(maxSteps: number): string {
-  return `
+// Free users get simplified steps, premium users get detailed steps
+function getAnimatedStepsPrompt(maxSteps: number, isPremium: boolean): string {
+  if (isPremium) {
+    return `
 
-ANIMATED STEPS MODE — STRICT RULES:
+ANIMATED STEPS MODE — PREMIUM (DETAILED):
 - You are NOT allowed to recompute the answer.
 - You MUST follow the solver's final answer exactly.
 - You MUST NOT contradict the solver.
 - You MUST NOT introduce new numbers.
 - You MUST NOT reinterpret the problem.
-- Explain the reasoning in 4-8 smooth, human-like steps.
+- Explain the reasoning in 4-8 smooth, detailed, human-like steps.
+- Each step should include WHY the operation is performed, not just WHAT.
+- Include helpful context and connections between steps.
 - End with: "Final Answer: {answer}"
 
 Use ${maxSteps} steps as the MAXIMUM, not the target.
-- Simple problems: 2-3 steps. Medium: 4-6 steps. Complex only: up to ${maxSteps} steps.
+- Simple problems: 3-4 steps. Medium: 5-6 steps. Complex: up to ${maxSteps} steps.
 
 Format each step as:
 **Step N: [Title]**
-[Content with LaTeX formatting]
+[Detailed content with LaTeX formatting and explanation of reasoning]`;
+  }
 
-Keep each step focused but don't artificially split simple operations.`;
+  // Free users get simplified steps
+  return `
+
+ANIMATED STEPS MODE — SIMPLIFIED:
+- You are NOT allowed to recompute the answer.
+- You MUST follow the solver's final answer exactly.
+- You MUST NOT contradict the solver.
+- Give brief, condensed steps. Keep each step to 1-2 sentences max.
+- Do NOT explain WHY — just show WHAT is done.
+- End with: "Final Answer: {answer}"
+
+Use ${maxSteps} steps as the MAXIMUM.
+- Simple problems: 2-3 steps. Medium: 3-4 steps. Complex: up to ${maxSteps} steps.
+
+Format each step as:
+**Step N: [Title]**
+[Brief content with LaTeX formatting]`;
 }
 
 // Prompt to generate graph data - optimized for Mistral Small 3.1 24B
@@ -288,8 +309,8 @@ async function callGroqText(
   
   // Add animated steps instruction
   if (animatedSteps) {
-    const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
-    systemPrompt += getAnimatedStepsPrompt(maxSteps);
+    const maxSteps = isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS;
+    systemPrompt += getAnimatedStepsPrompt(maxSteps, isPremium);
   }
   
   console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
@@ -334,8 +355,8 @@ async function callGroqVision(
   
   // Add animated steps instruction
   if (animatedSteps) {
-    const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
-    systemPrompt += getAnimatedStepsPrompt(maxSteps);
+    const maxSteps = isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS;
+    systemPrompt += getAnimatedStepsPrompt(maxSteps, isPremium);
   }
 
   const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide a step-by-step solution.";
@@ -533,7 +554,7 @@ serve(async (req) => {
     
     // Add animated steps if requested
     if (animatedSteps) {
-      const maxSteps = isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS;
+      const maxSteps = isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS;
       responseData.steps = parseAnimatedSteps(solution, maxSteps);
       responseData.maxSteps = maxSteps;
     }
@@ -549,7 +570,7 @@ serve(async (req) => {
     
     // Add tier info for frontend
     responseData.limits = {
-      animatedSteps: isPremium ? PREMIUM_ANIMATED_STEPS : FREE_ANIMATED_STEPS,
+      animatedSteps: isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS,
       graphsPerDay: maxGraphs,
       graphsUsed: canGenerateGraph && responseData.graph ? userGraphCount + 1 : userGraphCount,
       hasEnhancedOCR: isPremium,
