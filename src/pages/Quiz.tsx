@@ -319,6 +319,7 @@ const Quiz = () => {
       weakTopics,
       topicBreakdown,
       subject: selectedSolve?.subject || "General",
+      quizName: selectedSolve?.question_text || selectedSolve?.subject || "Quiz",
       timestamp: Date.now(),
     };
     localStorage.setItem("last_quiz_result", JSON.stringify(quizResultData));
