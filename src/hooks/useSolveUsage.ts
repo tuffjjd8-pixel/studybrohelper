@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const FREE_SOLVES_PER_DAY = 5;
@@ -27,11 +27,10 @@ const usageCache: { data: SolveUsageState | null; ts: number; key: string } = {
   ts: 0,
   key: "",
 };
-const CACHE_TTL = 15_000; // 15 seconds
+const CACHE_TTL = 20_000; // 20 seconds
 
 export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
   const [state, setState] = useState<SolveUsageState>(() => {
-    // Premium users: instant state, no loading needed
     if (isPremium) {
       return {
         solvesUsed: 0,
@@ -41,6 +40,12 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
         isPremium: true,
         loading: false,
       };
+    }
+    // Check client cache for instant hydration
+    const deviceId = getDeviceId();
+    const cacheKey = userId || deviceId;
+    if (usageCache.key === cacheKey && Date.now() - usageCache.ts < CACHE_TTL && usageCache.data) {
+      return usageCache.data;
     }
     return {
       solvesUsed: 0,
@@ -55,7 +60,7 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
   const deviceId = getDeviceId();
   const cacheKey = userId || deviceId;
 
-  // Skip all backend calls for premium users
+  // Initial check on mount — single "check" call, cached for 20s
   const checkUsage = useCallback(async () => {
     if (isPremium) {
       setState({
@@ -108,14 +113,14 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
     }
   }, [userId, deviceId, isPremium, cacheKey]);
 
+  // Atomic check_and_use: single call that checks limits AND deducts in one round-trip
   const useSolve = useCallback(async (): Promise<boolean> => {
-    // Premium users: instant success, no backend call
     if (isPremium) return true;
 
     try {
       const { data, error } = await supabase.functions.invoke("check-solve-usage", {
         body: {
-          action: "use",
+          action: "check_and_use",
           userId: userId || null,
           deviceId: userId ? null : deviceId,
         },
@@ -131,12 +136,11 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
           solvesUsed: data.solvesUsed ?? 0,
           solvesRemaining: data.solvesRemaining ?? 0,
           maxSolves: data.maxSolves ?? FREE_SOLVES_PER_DAY,
-          canSolve: (data.solvesRemaining ?? 0) > 0 || data.isPremium,
+          canSolve: data.canSolve ?? false,
           isPremium: data.isPremium ?? false,
           loading: false,
         };
         setState(newState);
-        // Update cache after use
         usageCache.data = newState;
         usageCache.ts = Date.now();
         usageCache.key = cacheKey;

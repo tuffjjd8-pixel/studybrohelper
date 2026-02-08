@@ -145,7 +145,7 @@ const Index = () => {
   };
 
   const handleSolve = async (input: string, imageData?: string) => {
-    // Check solve limit BEFORE making the request (backend-persisted)
+    // Quick client-side guard (cached state)
     if (!solveUsage.isPremium && !solveUsage.canSolve) {
       toast.error("You've used all 5 free solves today. Upgrade to Pro for unlimited solves!");
       return;
@@ -158,8 +158,7 @@ const Index = () => {
     const startTime = Date.now();
     setSolveStartTime(startTime);
 
-    // For premium users: skip usage deduction entirely (instant)
-    // For free users: deduct 1 solve from backend
+    // For free users: single atomic check_and_use call (1 round-trip instead of 3)
     if (!isPremium) {
       const solveAllowed = await solveUsage.useSolve();
       if (!solveAllowed) {
