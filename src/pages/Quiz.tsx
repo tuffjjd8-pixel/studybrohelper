@@ -274,6 +274,32 @@ const Quiz = () => {
     }
     setSubmitted(true);
     toast.success("Quiz submitted!");
+
+    // Store real quiz results for the Results page
+    const quizScore = calculateScore();
+    const weakTopicMap: Record<string, { total: number; correct: number }> = {};
+    quizResult.forEach((q, idx) => {
+      const topic = selectedSolve?.subject || "General";
+      if (!weakTopicMap[topic]) weakTopicMap[topic] = { total: 0, correct: 0 };
+      weakTopicMap[topic].total++;
+      const selectedOption = selectedAnswers[idx];
+      if (selectedOption && isCorrectAnswer(idx, selectedOption)) {
+        weakTopicMap[topic].correct++;
+      }
+    });
+    const weakTopics = Object.entries(weakTopicMap)
+      .filter(([, d]) => Math.round((d.correct / d.total) * 100) < 80)
+      .map(([name]) => name);
+
+    const quizResultData = {
+      totalQuestions: quizScore.total,
+      correctAnswers: quizScore.correct,
+      wrongAnswers: quizScore.total - quizScore.correct,
+      scorePercentage: Math.round((quizScore.correct / quizScore.total) * 100),
+      weakTopics,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem("last_quiz_result", JSON.stringify(quizResultData));
   };
   const handleRestart = () => {
     setQuizResult(null);
