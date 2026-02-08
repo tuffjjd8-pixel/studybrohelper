@@ -263,6 +263,15 @@ const Quiz = () => {
   };
   const handleSubmit = () => {
     if (!quizResult) return;
+    if (!allQuestionsAnswered) {
+      // Find first unanswered question and navigate to it
+      const unansweredIndex = quizResult.findIndex((_, idx) => selectedAnswers[idx] === undefined);
+      if (unansweredIndex !== -1) {
+        setCurrentQuestion(unansweredIndex);
+        toast.error(`Please answer question ${unansweredIndex + 1} before submitting`);
+      }
+      return;
+    }
     setSubmitted(true);
     toast.success("Quiz submitted!");
   };
@@ -657,8 +666,8 @@ const Quiz = () => {
                   <Button variant="outline" onClick={handlePrevQuestion} disabled={currentQuestion === 0} className="flex-1">
                     Previous
                   </Button>
-                  {currentQuestion === quizResult.length - 1 ? <Button onClick={handleSubmit} disabled={!allQuestionsAnswered || submitted} className="flex-1" variant="neon">
-                      {submitted ? "Submitted ✓" : "Submit"}
+                  {currentQuestion === quizResult.length - 1 ? <Button onClick={handleSubmit} disabled={submitted} className="flex-1" variant="neon">
+                      {submitted ? "Submitted ✓" : allQuestionsAnswered ? "Submit" : `Submit (${Object.keys(selectedAnswers).length}/${quizResult.length})`}
                     </Button> : <Button onClick={handleNextQuestion} className="flex-1">
                       Next
                     </Button>}
