@@ -155,16 +155,18 @@ const Index = () => {
     setSolution(null);
     setPendingImage(null);
     
-    // Track solve start time for Speed Solver badge
     const startTime = Date.now();
     setSolveStartTime(startTime);
 
-    // Deduct 1 solve from backend (counts as 1 whether normal or animated)
-    const solveAllowed = await solveUsage.useSolve();
-    if (!solveAllowed && !isPremium) {
-      toast.error("Daily solve limit reached. Upgrade to Pro for unlimited!");
-      setIsLoading(false);
-      return;
+    // For premium users: skip usage deduction entirely (instant)
+    // For free users: deduct 1 solve from backend
+    if (!isPremium) {
+      const solveAllowed = await solveUsage.useSolve();
+      if (!solveAllowed) {
+        toast.error("Daily solve limit reached. Upgrade to Pro for unlimited!");
+        setIsLoading(false);
+        return;
+      }
     }
 
     try {
@@ -173,7 +175,7 @@ const Index = () => {
           question: input, 
           image: imageData,
           isPremium,
-          animatedSteps, // Always pass the toggle state; backend handles free vs pro quality
+          animatedSteps,
           generateGraph: false,
         },
       });
@@ -184,7 +186,11 @@ const Index = () => {
 
       // Save to database if logged in
       if (user) {
-        const { data: solveData, error: saveError } = await supabase
+        // Single combined insert + profile update (fire in parallel)
+        const solveTimeSeconds = (Date.now() - startTime) / 1000;
+        const isSpeedSolve = solveTimeSeconds <= 120;
+
+        const insertPromise = supabase
           .from("solves")
           .insert({
             user_id: user.id,
@@ -196,56 +202,38 @@ const Index = () => {
           .select("id")
           .single();
 
-        if (saveError) {
-          console.error("Save error:", saveError);
+        // Combine ALL profile updates into one call
+        const profileUpdates: Record<string, unknown> = {
+          total_solves: (profile?.total_solves || 0) + 1,
+          daily_solves_used: (profile?.daily_solves_used || 0) + 1,
+          last_solve_date: new Date().toISOString().split('T')[0],
+        };
+        if (isSpeedSolve) {
+          profileUpdates.speed_solves = (profile?.total_solves !== undefined ? ((profile as any).speed_solves || 0) : 0) + 1;
+        }
+
+        const updatePromise = supabase
+          .from("profiles")
+          .update(profileUpdates)
+          .eq("user_id", user.id);
+
+        const [solveResult, _profileResult] = await Promise.all([insertPromise, updatePromise]);
+
+        if (solveResult.error) {
+          console.error("Save error:", solveResult.error);
         } else {
-          solveId = solveData?.id;
+          solveId = solveResult.data?.id;
           
-          // Calculate solve time for Speed Solver badge
-          const solveEndTime = Date.now();
-          const solveTimeSeconds = (solveEndTime - startTime) / 1000;
-          const isSpeedSolve = solveTimeSeconds <= 120;
-          
-          // Update profile stats
-          const updates: Record<string, unknown> = {
-            total_solves: (profile?.total_solves || 0) + 1,
-            daily_solves_used: (profile?.daily_solves_used || 0) + 1,
-            last_solve_date: new Date().toISOString().split('T')[0],
-          };
-
-          await supabase
-            .from("profiles")
-            .update(updates)
-            .eq("user_id", user.id);
-          
-          // Increment speed_solves if this was a fast solve
-          if (isSpeedSolve) {
-            const { data: currentProfile } = await supabase
-              .from("profiles")
-              .select("speed_solves")
-              .eq("user_id", user.id)
-              .single();
-            
-            await supabase
-              .from("profiles")
-              .update({ speed_solves: (currentProfile?.speed_solves || 0) + 1 })
-              .eq("user_id", user.id);
-          }
-
-          // Check if this is the user's first solve and complete referral if applicable
+          // Non-critical: referral completion (fire and forget)
           if ((profile?.total_solves || 0) === 0) {
-            try {
-              await supabase.rpc("complete_referral", { referred_id: user.id });
-            } catch (e) {
-              console.error("Referral completion failed:", e);
-            }
+            try { await supabase.rpc("complete_referral", { referred_id: user.id }); } catch (_) {}
           }
             
+          // Refresh recent solves and profile in background (non-blocking)
           fetchRecentSolves();
           fetchProfile();
         }
       } else {
-        // Save to localStorage for guests
         solveId = `guest-${Date.now()}`;
         const guestSolve = {
           id: solveId,
