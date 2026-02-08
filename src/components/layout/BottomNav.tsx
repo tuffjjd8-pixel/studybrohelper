@@ -1,4 +1,4 @@
-import { Home, Clock, User, BarChart3, Brain, Calculator } from "lucide-react";
+import { Home, Clock, User, BarChart3, Brain, Trophy } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -6,7 +6,7 @@ const allNavItems = [
   { icon: Home, label: "Home", path: "/" },
   { icon: Clock, label: "History", path: "/history" },
   { icon: Brain, label: "Quiz", path: "/quiz" },
-  { icon: Calculator, label: "Calc", path: "/calculator" },
+  { icon: Trophy, label: "Results", path: "/results" },
   { icon: BarChart3, label: "Polls", path: "/polls" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
