@@ -391,6 +391,39 @@ export type Database = {
         }
         Relationships: []
       }
+      solve_usage: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          id: string
+          last_reset_at: string
+          solves_used: number
+          updated_at: string
+          usage_date: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          last_reset_at?: string
+          solves_used?: number
+          updated_at?: string
+          usage_date?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          last_reset_at?: string
+          solves_used?: number
+          updated_at?: string
+          usage_date?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       solves: {
         Row: {
           created_at: string

@@ -18,11 +18,8 @@ import { ScannerModal } from "@/components/scanner/ScannerModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
+import { useSolveUsage } from "@/hooks/useSolveUsage";
 import { toast } from "sonner";
-
-// Tier limits
-const FREE_ANIMATED_STEPS_PER_DAY = 5;
-const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 
 interface SolutionData {
   subject: string;
@@ -33,11 +30,6 @@ interface SolutionData {
   steps?: Array<{ title: string; content: string }>;
   maxSteps?: number;
 }
-
-// Helper to get current date in user's local timezone
-const getLocalDate = (): string => {
-  return new Date().toISOString().split('T')[0];
-};
 
 const Index = () => {
   const { user } = useAuth();
@@ -60,12 +52,7 @@ const Index = () => {
     total_solves: number; 
     is_premium: boolean; 
     daily_solves_used: number;
-    animated_steps_used_today: number;
-    last_usage_date: string | null;
   } | null>(null);
-  
-  // Guest usage state
-  const [guestUsage, setGuestUsage] = useState({ animatedSteps: 0, speechUses: 0, date: "" });
   
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -105,26 +92,11 @@ const Index = () => {
 
   const isPremium = profile?.is_premium || false;
   
+  // Persistent solve usage tracking (backend-backed, not localStorage)
+  const solveUsage = useSolveUsage(user?.id, isPremium);
+  
   // Speech clips hook
   const speechClips = useSpeechClips(user?.id, isPremium);
-  
-  const maxAnimatedSteps = isPremium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
-  
-  // Check if usage needs reset (midnight local time)
-  const currentLocalDate = getLocalDate();
-  const needsReset = user ? (profile?.last_usage_date !== currentLocalDate) : (guestUsage.date !== currentLocalDate);
-  
-  const animatedStepsUsedToday = user 
-    ? (needsReset ? 0 : (profile?.animated_steps_used_today || 0))
-    : (needsReset ? 0 : guestUsage.animatedSteps);
-
-
-  // Load guest usage on mount
-  useEffect(() => {
-    if (!user) {
-      loadGuestUsage();
-    }
-  }, [user]);
 
   // Fetch profile for authenticated users
   useEffect(() => {
@@ -134,39 +106,8 @@ const Index = () => {
     }
   }, [user]);
 
-  // Reset usage counters at midnight if needed
-  useEffect(() => {
-    if (user && profile && needsReset) {
-      resetDailyUsage();
-    } else if (!user && needsReset) {
-      resetGuestUsage();
-    }
-  }, [user, profile, needsReset, guestUsage]);
-
-  const loadGuestUsage = () => {
-    try {
-      const stored = localStorage.getItem("guest_usage");
-      if (stored) {
-        const usage = JSON.parse(stored);
-        setGuestUsage({
-          animatedSteps: usage.animatedSteps || 0,
-          speechUses: usage.speechUses || 0,
-          date: usage.date || ""
-        });
-      }
-    } catch (e) {
-      console.error("Failed to load guest usage:", e);
-    }
-  };
-
-  const resetGuestUsage = () => {
-    const newUsage = { animatedSteps: 0, speechUses: 0, date: currentLocalDate };
-    localStorage.setItem("guest_usage", JSON.stringify(newUsage));
-    setGuestUsage(newUsage);
-  };
-
   const handleSpeechUsed = async () => {
-    if (!user) return; // Guest users can't use speech
+    if (!user) return;
     await speechClips.useClip();
   };
 
@@ -193,7 +134,7 @@ const Index = () => {
   const fetchProfile = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("streak_count, total_solves, is_premium, daily_solves_used, animated_steps_used_today, last_usage_date")
+      .select("streak_count, total_solves, is_premium, daily_solves_used")
       .eq("user_id", user?.id)
       .single();
 
@@ -202,27 +143,13 @@ const Index = () => {
     }
   };
 
-  const resetDailyUsage = async () => {
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        animated_steps_used_today: 0,
-        daily_solves_used: 0,
-        last_usage_date: currentLocalDate,
-      })
-      .eq("user_id", user?.id);
-
-    if (!error) {
-      setProfile(prev => prev ? {
-        ...prev,
-        animated_steps_used_today: 0,
-        daily_solves_used: 0,
-        last_usage_date: currentLocalDate,
-      } : null);
-    }
-  };
-
   const handleSolve = async (input: string, imageData?: string) => {
+    // Check solve limit BEFORE making the request (backend-persisted)
+    if (!solveUsage.isPremium && !solveUsage.canSolve) {
+      toast.error("You've used all 5 free solves today. Upgrade to Pro for unlimited solves!");
+      return;
+    }
+
     setIsLoading(true);
     setSolution(null);
     setPendingImage(null);
@@ -231,8 +158,13 @@ const Index = () => {
     const startTime = Date.now();
     setSolveStartTime(startTime);
 
-    // Auto-disable toggle if limit is hit
-    const useAnimatedSteps = animatedSteps && animatedStepsUsedToday < maxAnimatedSteps;
+    // Deduct 1 solve from backend (counts as 1 whether normal or animated)
+    const solveAllowed = await solveUsage.useSolve();
+    if (!solveAllowed && !isPremium) {
+      toast.error("Daily solve limit reached. Upgrade to Pro for unlimited!");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const { data, error } = await supabase.functions.invoke("solve-homework", {
@@ -240,8 +172,8 @@ const Index = () => {
           question: input, 
           image: imageData,
           isPremium,
-          animatedSteps: useAnimatedSteps,
-          generateGraph: false, // Graph feature removed
+          animatedSteps, // Always pass the toggle state; backend handles free vs pro quality
+          generateGraph: false,
         },
       });
 
@@ -271,20 +203,14 @@ const Index = () => {
           // Calculate solve time for Speed Solver badge
           const solveEndTime = Date.now();
           const solveTimeSeconds = (solveEndTime - startTime) / 1000;
-          const isSpeedSolve = solveTimeSeconds <= 120; // Under 2 minutes
+          const isSpeedSolve = solveTimeSeconds <= 120;
           
           // Update profile stats
           const updates: Record<string, unknown> = {
             total_solves: (profile?.total_solves || 0) + 1,
             daily_solves_used: (profile?.daily_solves_used || 0) + 1,
             last_solve_date: new Date().toISOString().split('T')[0],
-            last_usage_date: currentLocalDate,
           };
-          
-          // Increment animated steps usage if used
-          if (useAnimatedSteps && data.steps?.length > 0) {
-            updates.animated_steps_used_today = animatedStepsUsedToday + 1;
-          }
 
           await supabase
             .from("profiles")
@@ -333,15 +259,6 @@ const Index = () => {
           const existingSolves = JSON.parse(localStorage.getItem("guest_solves") || "[]");
           existingSolves.unshift(guestSolve);
           localStorage.setItem("guest_solves", JSON.stringify(existingSolves.slice(0, 50)));
-          
-          // Update guest usage tracking
-          const newUsage = {
-            date: currentLocalDate,
-            animatedSteps: guestUsage.animatedSteps + (useAnimatedSteps && data.steps?.length > 0 ? 1 : 0),
-            speechUses: guestUsage.speechUses
-          };
-          localStorage.setItem("guest_usage", JSON.stringify(newUsage));
-          setGuestUsage(newUsage);
         } catch (e) {
           console.error("Failed to save to localStorage:", e);
         }
@@ -481,8 +398,9 @@ const Index = () => {
                 animatedSteps={animatedSteps}
                 onAnimatedStepsChange={setAnimatedSteps}
                 isPremium={isPremium}
-                animatedStepsUsed={animatedStepsUsedToday}
-                maxAnimatedSteps={maxAnimatedSteps}
+                solvesUsed={solveUsage.solvesUsed}
+                maxSolves={solveUsage.maxSolves}
+                canSolve={solveUsage.canSolve}
                 speechInput={speechInput}
                 onSpeechInputChange={setSpeechInput}
                 speechLanguage={speechLanguage}
@@ -556,7 +474,7 @@ const Index = () => {
                   {/* Animated steps */}
                   <AnimatedSolutionSteps
                     steps={solution.steps!}
-                    maxSteps={solution.maxSteps || maxAnimatedSteps}
+                    maxSteps={solution.maxSteps || 16}
                     isPremium={isPremium}
                     autoPlay={false}
                     autoPlayDelay={3000}
