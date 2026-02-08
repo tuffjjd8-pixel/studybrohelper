@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.check-solve-usage]
 verify_jwt = false
+
+[functions.humanize-answer]
+verify_jwt = false
