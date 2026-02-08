@@ -92,11 +92,23 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
       const scaleX = image.naturalWidth / image.width;
       const scaleY = image.naturalHeight / image.height;
 
-      // Apply zoom to crop dimensions
-      const cropX = completedCrop.x * scaleX;
-      const cropY = completedCrop.y * scaleY;
-      const cropWidth = completedCrop.width * scaleX;
-      const cropHeight = completedCrop.height * scaleY;
+      // The CSS zoom scales the image around its center.
+      // The crop rect is in displayed-pixel space, so we must
+      // reverse the zoom to find the corresponding region on the
+      // original bitmap.
+      const displayW = image.width;
+      const displayH = image.height;
+
+      // Center of the displayed image (zoom origin)
+      const cx = displayW / 2;
+      const cy = displayH / 2;
+
+      // Convert crop rect from zoomed-display space back to
+      // un-zoomed display space, then to natural-pixel space.
+      const cropX = ((completedCrop.x - cx) / zoom + cx) * scaleX;
+      const cropY = ((completedCrop.y - cy) / zoom + cy) * scaleY;
+      const cropWidth = (completedCrop.width / zoom) * scaleX;
+      const cropHeight = (completedCrop.height / zoom) * scaleY;
 
       // Set canvas size (max 2048 for performance)
       const maxDim = 2048;
