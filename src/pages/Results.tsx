@@ -9,11 +9,19 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 
 interface Profile {
   is_premium?: boolean;
   streak_count?: number;
   total_solves?: number;
+}
+
+interface TopicBreakdown {
+  name: string;
+  total: number;
+  correct: number;
+  pct: number;
 }
 
 interface QuizResultData {
@@ -22,6 +30,8 @@ interface QuizResultData {
   wrongAnswers: number;
   scorePercentage: number;
   weakTopics: string[];
+  topicBreakdown?: TopicBreakdown[];
+  subject?: string;
   timestamp: number;
 }
 
@@ -47,19 +57,26 @@ const getEncouragement = (pct: number) => {
   return "Every expert was once a beginner. Keep going! 🌱";
 };
 
-const getTopicFromSubject = (subject: string) => {
-  const s = subject.toLowerCase();
-  if (s.includes("algebra") || s.includes("equation")) return "Algebra";
-  if (s.includes("geometry") || s.includes("triangle") || s.includes("circle")) return "Geometry";
-  if (s.includes("calculus") || s.includes("derivative") || s.includes("integral")) return "Calculus";
-  if (s.includes("statistics") || s.includes("probability")) return "Statistics";
-  if (s.includes("physics")) return "Physics";
-  if (s.includes("chemistry")) return "Chemistry";
-  if (s.includes("biology")) return "Biology";
-  if (s.includes("history")) return "History";
-  if (s.includes("english") || s.includes("grammar")) return "English";
-  return subject || "General";
-};
+const LockedCard = ({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) => (
+  <Card className="relative overflow-hidden">
+    <div className="absolute inset-0 backdrop-blur-sm bg-background/60 z-10 flex flex-col items-center justify-center gap-2">
+      <div className="flex items-center gap-1.5">
+        <Lock className="w-4 h-4 text-muted-foreground" />
+        <Badge variant="secondary" className="text-xs font-medium">Pro</Badge>
+      </div>
+      <p className="text-xs text-muted-foreground">Unlock with StudyBro Pro</p>
+    </div>
+    <CardHeader className="pb-3">
+      <CardTitle className="text-base flex items-center gap-2">
+        <Icon className="w-4 h-4 text-primary" />
+        {title}
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-3">
+      {children}
+    </CardContent>
+  </Card>
+);
 
 const Results = () => {
   const { user, loading: authLoading } = useAuth();
@@ -68,7 +85,6 @@ const Results = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load quiz result from localStorage
     try {
       const stored = localStorage.getItem("last_quiz_result");
       if (stored) {
@@ -103,20 +119,6 @@ const Results = () => {
 
   const isPremium = profile?.is_premium === true;
 
-  const stats = useMemo(() => {
-    if (!quizData) return null;
-    const { totalQuestions: total, correctAnswers: correct, wrongAnswers: wrong, scorePercentage: pct, weakTopics } = quizData;
-
-    const topics = weakTopics.map((name) => ({
-      name,
-      total: 0,
-      correct: 0,
-      pct: 0,
-    }));
-
-    return { total, correct, wrong, pct, topics, weakTopics: topics, strongTopics: [] as typeof topics };
-  }, [quizData]);
-
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -148,6 +150,14 @@ const Results = () => {
     );
   }
 
+  const hasData = quizData !== null;
+  const pct = quizData?.scorePercentage ?? 0;
+  const correct = quizData?.correctAnswers ?? 0;
+  const wrong = quizData?.wrongAnswers ?? 0;
+  const total = quizData?.totalQuestions ?? 0;
+  const weakTopics = quizData?.weakTopics ?? [];
+  const topicBreakdown = quizData?.topicBreakdown ?? [];
+
   return (
     <div className="min-h-screen bg-background">
       <Header
@@ -158,25 +168,24 @@ const Results = () => {
 
       <main className="pt-20 pb-24 px-4">
         <div className="max-w-md mx-auto space-y-5">
-          {/* Page Title */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
               <Trophy className="w-6 h-6 text-primary" />
               Your Results
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Performance summary based on your recent solves
+              Performance summary from your latest quiz
             </p>
           </motion.div>
 
-          {!stats ? (
+          {!hasData ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16 space-y-4">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
                 <BookOpen className="w-8 h-8 text-muted-foreground" />
               </div>
               <p className="text-muted-foreground">Take a quiz to see your results!</p>
-              <Link to="/">
-                <Button variant="outline">Start Solving</Button>
+              <Link to="/quiz">
+                <Button variant="outline">Go to Quiz</Button>
               </Link>
             </motion.div>
           ) : (
@@ -185,9 +194,9 @@ const Results = () => {
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
                 <Card className="overflow-hidden">
                   <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6 text-center">
-                    <div className="text-6xl font-bold font-heading text-primary mb-1">{stats.pct}%</div>
-                    <div className="text-3xl font-bold text-foreground mb-2">{getLetterGrade(stats.pct)}</div>
-                    <p className="text-sm text-muted-foreground">{getEncouragement(stats.pct)}</p>
+                    <div className="text-6xl font-bold font-heading text-primary mb-1">{pct}%</div>
+                    <div className="text-3xl font-bold text-foreground mb-2">{getLetterGrade(pct)}</div>
+                    <p className="text-sm text-muted-foreground">{getEncouragement(pct)}</p>
                   </div>
                 </Card>
               </motion.div>
@@ -196,23 +205,23 @@ const Results = () => {
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="grid grid-cols-3 gap-3">
                 <Card className="text-center p-4">
                   <CheckCircle2 className="w-5 h-5 text-primary mx-auto mb-1" />
-                  <div className="text-xl font-bold">{stats.correct}</div>
+                  <div className="text-xl font-bold">{correct}</div>
                   <div className="text-xs text-muted-foreground">Correct</div>
                 </Card>
                 <Card className="text-center p-4">
                   <XCircle className="w-5 h-5 text-destructive mx-auto mb-1" />
-                  <div className="text-xl font-bold">{stats.wrong}</div>
-                  <div className="text-xs text-muted-foreground">Needs Work</div>
+                  <div className="text-xl font-bold">{wrong}</div>
+                  <div className="text-xs text-muted-foreground">Incorrect</div>
                 </Card>
                 <Card className="text-center p-4">
                   <BookOpen className="w-5 h-5 text-primary mx-auto mb-1" />
-                  <div className="text-xl font-bold">{stats.total}</div>
+                  <div className="text-xl font-bold">{total}</div>
                   <div className="text-xs text-muted-foreground">Total</div>
                 </Card>
               </motion.div>
 
-              {/* Weak Areas (Free) */}
-              {stats.weakTopics.length > 0 && (
+              {/* Areas to Improve (Free) — simple one-line summary */}
+              {weakTopics.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                   <Card>
                     <CardHeader className="pb-3">
@@ -221,68 +230,64 @@ const Results = () => {
                         Areas to Improve
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      {stats.weakTopics.map((topic) => (
-                        <div key={topic.name}>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="font-medium">{topic.name}</span>
-                            <span className="text-muted-foreground">{topic.pct}%</span>
-                          </div>
-                          <Progress value={topic.pct} className="h-2" />
-                        </div>
-                      ))}
-                      <p className="text-xs text-muted-foreground pt-1">
-                        💡 Focus on these topics to boost your overall score!
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        Focus on: <span className="font-medium text-foreground">{weakTopics.join(", ")}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        💡 Practice these topics to boost your score!
                       </p>
                     </CardContent>
                   </Card>
                 </motion.div>
               )}
 
-              {/* Premium Section */}
+              {/* Premium sections — shown unlocked for premium, blurred/locked for free */}
               {isPremium ? (
                 <>
-                  {/* Full Topic Breakdown */}
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4 text-primary" />
-                          Topic Breakdown
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {stats.topics.map((topic) => (
-                          <div key={topic.name}>
-                            <div className="flex justify-between text-sm mb-1">
-                              <span className="font-medium">{topic.name}</span>
-                              <span className="text-muted-foreground">
-                                {topic.correct}/{topic.total} ({topic.pct}%)
-                              </span>
+                  {/* Topic Breakdown — Premium unlocked */}
+                  {topicBreakdown.length > 0 && (
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-primary" />
+                            Topic Breakdown
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {topicBreakdown.map((topic) => (
+                            <div key={topic.name}>
+                              <div className="flex justify-between text-sm mb-1">
+                                <span className="font-medium">{topic.name}</span>
+                                <span className="text-muted-foreground">
+                                  {topic.correct}/{topic.total} ({topic.pct}%)
+                                </span>
+                              </div>
+                              <Progress value={topic.pct} className="h-2" />
                             </div>
-                            <Progress value={topic.pct} className="h-2" />
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  </motion.div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  )}
 
-                  {/* Personalized Tips */}
-                  {stats.weakTopics.length > 0 && (
+                  {/* Improvement Tips — Premium */}
+                  {weakTopics.length > 0 && (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
                       <Card>
                         <CardHeader className="pb-3">
                           <CardTitle className="text-base flex items-center gap-2">
                             <Lightbulb className="w-4 h-4 text-accent-foreground" />
-                            Improvement Tips
+                            Personalized Improvement Plan
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                          {stats.weakTopics.map((topic) => (
-                            <div key={topic.name} className="flex items-start gap-2 text-sm">
+                          {weakTopics.map((topic) => (
+                            <div key={topic} className="flex items-start gap-2 text-sm">
                               <span className="text-primary mt-0.5">•</span>
                               <span>
-                                Practice more <strong>{topic.name}</strong> problems — try breaking them into smaller steps.
+                                Practice more <strong>{topic}</strong> problems — try breaking them into smaller steps.
                               </span>
                             </div>
                           ))}
@@ -291,7 +296,7 @@ const Results = () => {
                     </motion.div>
                   )}
 
-                  {/* Recommended Practice */}
+                  {/* Recommended Practice — Premium */}
                   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
                     <Card>
                       <CardHeader className="pb-3">
@@ -301,10 +306,10 @@ const Results = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
-                        {(stats.weakTopics.length > 0 ? stats.weakTopics : stats.topics.slice(0, 2)).map((topic) => (
-                          <Link key={topic.name} to={`/quiz`}>
+                        {(weakTopics.length > 0 ? weakTopics : topicBreakdown.map((t) => t.name).slice(0, 2)).map((topic) => (
+                          <Link key={topic} to="/quiz">
                             <div className="flex items-center justify-between p-2.5 rounded-lg bg-accent/50 hover:bg-accent transition-colors mb-1.5">
-                              <span className="text-sm font-medium">{topic.name} Quiz</span>
+                              <span className="text-sm font-medium">{topic} Quiz</span>
                               <span className="text-xs text-muted-foreground">Practice →</span>
                             </div>
                           </Link>
@@ -314,8 +319,53 @@ const Results = () => {
                   </motion.div>
                 </>
               ) : (
-                /* Premium Upsell */
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+                /* Free users: blurred locked cards + upsell */
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="space-y-4">
+                  {/* Locked Topic Breakdown */}
+                  <LockedCard title="Topic Breakdown" icon={TrendingUp}>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="font-medium">Algebra</span>
+                          <span className="text-muted-foreground">4/5 (80%)</span>
+                        </div>
+                        <Progress value={80} className="h-2" />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="font-medium">Geometry</span>
+                          <span className="text-muted-foreground">2/3 (67%)</span>
+                        </div>
+                        <Progress value={67} className="h-2" />
+                      </div>
+                    </div>
+                  </LockedCard>
+
+                  {/* Locked Improvement Plan */}
+                  <LockedCard title="Personalized Improvement Plan" icon={Lightbulb}>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Focus on word problems by identifying key variables first.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Review formulas for area and perimeter calculations.</span>
+                      </div>
+                    </div>
+                  </LockedCard>
+
+                  {/* Locked Recommended Practice */}
+                  <LockedCard title="Recommended Practice" icon={BookOpen}>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-accent/50">
+                        <span className="text-sm font-medium">Algebra Quiz</span>
+                        <span className="text-xs text-muted-foreground">Practice →</span>
+                      </div>
+                    </div>
+                  </LockedCard>
+
+                  {/* Upsell Card */}
                   <Link to="/premium">
                     <Card className="border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors cursor-pointer">
                       <CardContent className="p-5 flex items-start gap-4">
@@ -323,12 +373,9 @@ const Results = () => {
                           <Crown className="w-5 h-5 text-primary" />
                         </div>
                         <div className="space-y-1">
-                          <h3 className="font-semibold text-sm flex items-center gap-1.5">
-                            <Lock className="w-3.5 h-3.5" />
-                            Unlock Detailed Insights
-                          </h3>
+                          <h3 className="font-semibold text-sm">Unlock full insights with StudyBro Pro</h3>
                           <p className="text-xs text-muted-foreground leading-relaxed">
-                            Get topic breakdowns, personalized improvement tips, mistake explanations & recommended practice with Premium.
+                            Get topic breakdowns, personalized improvement tips, mistake explanations & recommended practice.
                           </p>
                         </div>
                       </CardContent>
