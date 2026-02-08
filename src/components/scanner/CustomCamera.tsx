@@ -31,16 +31,15 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
 
   const startCamera = useCallback(async () => {
     setError(null);
-    setIsReady(false);
     stopStream();
 
     try {
-      // Request medium-high resolution for fast startup; full sensor FOV, rear camera
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 },
         },
         audio: false,
       });
@@ -48,32 +47,21 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
 
-        // Fast ready detection with short timeout
-        await new Promise<void>((resolve, reject) => {
-          const video = videoRef.current!;
-          const timeout = setTimeout(() => reject(new Error("Video timeout")), 5000);
-
-          const onReady = () => {
-            clearTimeout(timeout);
-            resolve();
-          };
-
-          video.onloadedmetadata = () => {
-            video.play().then(onReady).catch(reject);
-          };
-
-          if (video.readyState >= 1) {
-            video.play().then(onReady).catch(reject);
+        // Mark ready as soon as first frame arrives — no blocking waits
+        const onFrame = () => {
+          if (videoRef.current && videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
+            setIsReady(true);
+            // Check torch after ready (non-blocking)
+            const track = stream.getVideoTracks()[0];
+            const caps = track.getCapabilities?.() as MediaTrackCapabilities & { torch?: boolean };
+            setTorchSupported(caps?.torch === true);
+          } else {
+            requestAnimationFrame(onFrame);
           }
-        });
-
-        // Check torch support
-        const track = stream.getVideoTracks()[0];
-        const capabilities = track.getCapabilities?.() as MediaTrackCapabilities & { torch?: boolean };
-        setTorchSupported(capabilities?.torch === true);
-
-        setIsReady(true);
+        };
+        requestAnimationFrame(onFrame);
       }
     } catch (err) {
       console.error("Camera error:", err);
