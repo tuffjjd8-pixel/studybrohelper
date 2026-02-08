@@ -7,13 +7,26 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Daily solve limits
 const FREE_SOLVES_PER_DAY = 5;
+
+// In-memory cache for premium status (avoids repeated DB lookups within same cold-start)
+const premiumCache = new Map<string, { isPremium: boolean; ts: number }>();
+const CACHE_TTL_MS = 15_000; // 15 seconds
+
+function getCachedPremium(userId: string): boolean | null {
+  const entry = premiumCache.get(userId);
+  if (entry && Date.now() - entry.ts < CACHE_TTL_MS) return entry.isPremium;
+  premiumCache.delete(userId);
+  return null;
+}
+
+function setCachedPremium(userId: string, isPremium: boolean) {
+  premiumCache.set(userId, { isPremium, ts: Date.now() });
+}
 
 // Get today's date in CST (UTC-6)
 function getTodayCST(): string {
   const now = new Date();
-  // CST is UTC-6
   const cstOffset = -6 * 60;
   const cstTime = new Date(now.getTime() + (cstOffset + now.getTimezoneOffset()) * 60000);
   return cstTime.toISOString().split("T")[0];
@@ -32,9 +45,6 @@ serve(async (req) => {
     const { action, deviceId, userId } = await req.json();
     const todayCST = getTodayCST();
 
-    console.log(`[check-solve-usage] action=${action}, userId=${userId || "none"}, deviceId=${deviceId || "none"}, date=${todayCST}`);
-
-    // Determine lookup method: userId takes priority over deviceId
     const lookupByUser = !!userId;
     const lookupId = lookupByUser ? userId : deviceId;
 
@@ -45,54 +55,50 @@ serve(async (req) => {
       );
     }
 
-    // Check if user is premium (only for authenticated users)
+    // === FAST PATH: Premium check with in-memory cache ===
     let isPremium = false;
     if (userId) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_premium")
-        .eq("user_id", userId)
-        .single();
-      isPremium = profile?.is_premium || false;
+      const cached = getCachedPremium(userId);
+      if (cached !== null) {
+        isPremium = cached;
+      } else {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_premium")
+          .eq("user_id", userId)
+          .single();
+        isPremium = profile?.is_premium || false;
+        setCachedPremium(userId, isPremium);
+      }
     }
 
-    // Premium users have unlimited solves
+    // Premium users: instant return, no usage tracking
     if (isPremium) {
-      if (action === "check") {
-        return new Response(
-          JSON.stringify({ canSolve: true, solvesUsed: 0, solvesRemaining: -1, isPremium: true }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      // For "use" action, premium users always succeed — no tracking needed
-      if (action === "use") {
-        return new Response(
-          JSON.stringify({ success: true, solvesUsed: 0, solvesRemaining: -1, isPremium: true }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      const resp = action === "use"
+        ? { success: true, solvesUsed: 0, solvesRemaining: -1, isPremium: true }
+        : { canSolve: true, solvesUsed: 0, solvesRemaining: -1, isPremium: true };
+      return new Response(JSON.stringify(resp), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // === FREE USER LOGIC ===
-
-    // Build the query filter
+    // === FREE USER: Single query to get today's usage ===
     const filterCol = lookupByUser ? "user_id" : "device_id";
-
-    // Get or create today's usage record
     const { data: existing } = await supabase
       .from("solve_usage")
-      .select("*")
+      .select("id, solves_used")
       .eq(filterCol, lookupId)
       .eq("usage_date", todayCST)
       .maybeSingle();
 
+    const currentUsed = existing?.solves_used || 0;
+
     if (action === "check") {
-      const solvesUsed = existing?.solves_used || 0;
-      const solvesRemaining = Math.max(0, FREE_SOLVES_PER_DAY - solvesUsed);
+      const solvesRemaining = Math.max(0, FREE_SOLVES_PER_DAY - currentUsed);
       return new Response(
         JSON.stringify({
           canSolve: solvesRemaining > 0,
-          solvesUsed,
+          solvesUsed: currentUsed,
           solvesRemaining,
           maxSolves: FREE_SOLVES_PER_DAY,
           isPremium: false,
@@ -102,8 +108,6 @@ serve(async (req) => {
     }
 
     if (action === "use") {
-      const currentUsed = existing?.solves_used || 0;
-
       if (currentUsed >= FREE_SOLVES_PER_DAY) {
         return new Response(
           JSON.stringify({
@@ -118,37 +122,20 @@ serve(async (req) => {
         );
       }
 
+      // Single upsert: update if exists, insert if not
       if (existing) {
-        // Update existing record
-        const { error } = await supabase
+        await supabase
           .from("solve_usage")
           .update({ solves_used: currentUsed + 1 })
           .eq("id", existing.id);
-
-        if (error) {
-          console.error("[check-solve-usage] Update error:", error);
-          throw error;
-        }
       } else {
-        // Insert new record for today
         const insertData: Record<string, unknown> = {
           solves_used: 1,
           usage_date: todayCST,
         };
-        if (lookupByUser) {
-          insertData.user_id = lookupId;
-        } else {
-          insertData.device_id = lookupId;
-        }
-
-        const { error } = await supabase
-          .from("solve_usage")
-          .insert(insertData);
-
-        if (error) {
-          console.error("[check-solve-usage] Insert error:", error);
-          throw error;
-        }
+        if (lookupByUser) insertData.user_id = lookupId;
+        else insertData.device_id = lookupId;
+        await supabase.from("solve_usage").insert(insertData);
       }
 
       const newUsed = currentUsed + 1;
