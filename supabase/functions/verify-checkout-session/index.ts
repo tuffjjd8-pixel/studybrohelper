@@ -88,6 +88,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // TEST MODE GUARD: Only allow developer account to activate premium in test mode
+    const DEVELOPER_EMAIL = "apexwavesstudios@gmail.com";
+    if (isTestMode) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+      const userEmail = authUser?.user?.email;
+      console.log(`Test mode check: userId=${userId}, email=${userEmail}`);
+
+      if (userEmail !== DEVELOPER_EMAIL) {
+        console.log(`Test mode purchase blocked for non-developer: ${userEmail}`);
+        return new Response(
+          JSON.stringify({ success: true, message: "Test mode — no premium activated" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.log("Test mode purchase allowed for developer account");
+    }
+
     // Get subscription details for renewal date
     let renewalDate: string | null = null;
     if (session.subscription) {
