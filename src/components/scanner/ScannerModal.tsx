@@ -121,15 +121,13 @@ export function ScannerModal({
 
       {/* Manual crop screen */}
       {state === "cropping" && capturedImage && (
-        <Dialog open onOpenChange={() => {}}>
-          <DialogContent className="max-w-lg w-[95vw] max-h-[90vh] overflow-y-auto p-4 bg-background border-border">
-            <ImageCropper
-              imageSrc={capturedImage}
-              onCropComplete={handleCropComplete}
-              onCancel={handleCropCancel}
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          <ImageCropper
+            imageSrc={capturedImage}
+            onCropComplete={handleCropComplete}
+            onCancel={handleCropCancel}
+          />
+        </div>
       )}
 
       {/* Processing / scanning dialog */}
