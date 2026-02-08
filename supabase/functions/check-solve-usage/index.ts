@@ -11,7 +11,7 @@ const FREE_SOLVES_PER_DAY = 5;
 
 // In-memory cache for premium status (avoids repeated DB lookups within same cold-start)
 const premiumCache = new Map<string, { isPremium: boolean; ts: number }>();
-const CACHE_TTL_MS = 15_000; // 15 seconds
+const CACHE_TTL_MS = 15_000;
 
 function getCachedPremium(userId: string): boolean | null {
   const entry = premiumCache.get(userId);
@@ -74,12 +74,17 @@ serve(async (req) => {
 
     // Premium users: instant return, no usage tracking
     if (isPremium) {
-      const resp = action === "use"
-        ? { success: true, solvesUsed: 0, solvesRemaining: -1, isPremium: true }
-        : { canSolve: true, solvesUsed: 0, solvesRemaining: -1, isPremium: true };
-      return new Response(JSON.stringify(resp), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          canSolve: true,
+          solvesUsed: 0,
+          solvesRemaining: -1,
+          maxSolves: FREE_SOLVES_PER_DAY,
+          isPremium: true,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // === FREE USER: Single query to get today's usage ===
@@ -93,6 +98,7 @@ serve(async (req) => {
 
     const currentUsed = existing?.solves_used || 0;
 
+    // === ACTION: check — read-only, no deduction ===
     if (action === "check") {
       const solvesRemaining = Math.max(0, FREE_SOLVES_PER_DAY - currentUsed);
       return new Response(
@@ -107,11 +113,13 @@ serve(async (req) => {
       );
     }
 
-    if (action === "use") {
+    // === ACTION: use OR check_and_use — atomic check + deduct in one call ===
+    if (action === "use" || action === "check_and_use") {
       if (currentUsed >= FREE_SOLVES_PER_DAY) {
         return new Response(
           JSON.stringify({
             success: false,
+            canSolve: false,
             error: "Daily solve limit reached",
             solvesUsed: currentUsed,
             solvesRemaining: 0,
@@ -142,6 +150,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
+          canSolve: Math.max(0, FREE_SOLVES_PER_DAY - newUsed) > 0,
           solvesUsed: newUsed,
           solvesRemaining: Math.max(0, FREE_SOLVES_PER_DAY - newUsed),
           maxSolves: FREE_SOLVES_PER_DAY,
@@ -152,7 +161,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ error: "Invalid action. Use 'check' or 'use'." }),
+      JSON.stringify({ error: "Invalid action. Use 'check', 'use', or 'check_and_use'." }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
