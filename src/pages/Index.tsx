@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { Crown } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import { CameraButton } from "@/components/home/CameraButton";
@@ -489,6 +490,35 @@ const Index = () => {
                   questionImage={solution.image}
                   solveId={solution.solveId}
                 />
+              )}
+
+              {/* Solve usage banner below solution */}
+              {!isPremium && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="mt-6 glass-card p-4 space-y-2"
+                >
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {solveUsage.canSolve
+                        ? `${Math.max(0, solveUsage.maxSolves - solveUsage.solvesUsed)} solve${Math.max(0, solveUsage.maxSolves - solveUsage.solvesUsed) !== 1 ? "s" : ""} remaining today`
+                        : "Daily limit reached"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">Resets at midnight CST</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${(solveUsage.solvesUsed / solveUsage.maxSolves) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center pt-1">
+                    <Crown className="w-3 h-3 inline mr-1" />
+                    Upgrade to Pro for unlimited solves + detailed steps + speech to text
+                  </p>
+                </motion.div>
               )}
             </motion.div>
           )}
