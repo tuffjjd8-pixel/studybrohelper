@@ -1,13 +1,13 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CustomCamera } from "@/components/scanner/CustomCamera";
+import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
-import { processHomeworkImage } from "@/lib/imageProcessing";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type ScannerState = "idle" | "camera" | "processing" | "scanning";
+type ScannerState = "idle" | "camera" | "cropping" | "processing" | "scanning";
 type LoadingStage = "extracting" | "classifying" | "solving";
 
 interface ScannerModalProps {
@@ -28,33 +28,35 @@ export function ScannerModal({
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
   const [processedImage, setProcessedImage] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   // Open camera immediately when modal opens
   const cameraActive = isOpen && (state === "idle" || state === "camera");
 
-  const handleCameraCapture = useCallback(async (imageData: string) => {
-    setState("processing");
-    try {
-      // Auto-crop pipeline: edge detect → deskew → crop → enhance
-      setLoadingStage("extracting");
-      const processed = await processHomeworkImage(imageData);
-
-      // Clean up blob URL from camera
-      if (imageData.startsWith("blob:")) {
-        URL.revokeObjectURL(imageData);
-      }
-
-      setProcessedImage(processed);
-      setState("scanning");
-      await solveProblem(processed);
-    } catch (err) {
-      console.error("Processing error:", err);
-      // Fallback: use original image if processing fails
-      setProcessedImage(imageData);
-      setState("scanning");
-      await solveProblem(imageData);
-    }
+  const handleCameraCapture = useCallback((imageData: string) => {
+    setCapturedImage(imageData);
+    setState("cropping");
   }, []);
+
+  const handleCropComplete = useCallback((croppedImage: string) => {
+    // Clean up original capture
+    if (capturedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(capturedImage);
+    }
+    setCapturedImage(null);
+    setProcessedImage(croppedImage);
+    setState("scanning");
+    setLoadingStage("classifying");
+    solveProblem(croppedImage);
+  }, [capturedImage]);
+
+  const handleCropCancel = useCallback(() => {
+    if (capturedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(capturedImage);
+    }
+    setCapturedImage(null);
+    setState("idle");
+  }, [capturedImage]);
 
   const handleCameraClose = useCallback(() => {
     handleReset();
@@ -105,6 +107,7 @@ export function ScannerModal({
   const handleReset = useCallback(() => {
     setState("idle");
     setProcessedImage(null);
+    setCapturedImage(null);
   }, []);
 
   return (
@@ -115,6 +118,19 @@ export function ScannerModal({
         onCapture={handleCameraCapture}
         onClose={handleCameraClose}
       />
+
+      {/* Manual crop screen */}
+      {state === "cropping" && capturedImage && (
+        <Dialog open onOpenChange={() => {}}>
+          <DialogContent className="max-w-lg w-[95vw] max-h-[90vh] overflow-y-auto p-4 bg-background border-border">
+            <ImageCropper
+              imageSrc={capturedImage}
+              onCropComplete={handleCropComplete}
+              onCancel={handleCropCancel}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Processing / scanning dialog */}
       {(state === "processing" || state === "scanning") && (
