@@ -165,6 +165,25 @@ export const AdminControlsPanel = ({ userEmail }: AdminControlsPanelProps) => {
           })}
         </div>
       )}
+
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full mt-4 gap-2"
+        onClick={() => {
+          try {
+            localStorage.removeItem("admin_controls_cache");
+            window.dispatchEvent(new Event("admin_controls_refresh"));
+            toast.success("Flags refreshed for all users!");
+          } catch (e) {
+            console.error("Failed to clear admin controls cache", e);
+            toast.error("Failed to refresh flags");
+          }
+        }}
+      >
+        <RefreshCw className="w-4 h-4" />
+        Force Refresh Flags
+      </Button>
     </motion.div>
   );
 };
