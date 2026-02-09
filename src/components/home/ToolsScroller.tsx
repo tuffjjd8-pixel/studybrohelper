@@ -2,28 +2,28 @@ import { useNavigate } from "react-router-dom";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Brain, Trophy, BarChart3 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { useAdminControls } from "@/hooks/useAdminControls";
 import { useAuth } from "@/hooks/useAuth";
 
-// Tools with optional feature flag keys
+// Tools with optional admin control keys
 const tools = [
-  { icon: Brain, label: "Quiz", path: "/quiz" },
-  { icon: Trophy, label: "Results", path: "/results", flag: "show_advanced_results" },
-  { icon: BarChart3, label: "Polls", path: "/polls" },
+  { icon: Brain, label: "Quiz", path: "/quiz", controlKey: "nav_quiz" },
+  { icon: Trophy, label: "Results", path: "/results", controlKey: "nav_results" },
+  { icon: BarChart3, label: "Polls", path: "/polls", controlKey: "nav_polls" },
 ];
 
 export const ToolsScroller = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { user } = useAuth();
-  const { isFeatureEnabled, loading } = useFeatureFlags(user?.email);
+  const { isVisible, loading } = useAdminControls(user?.email);
 
   if (isMobile !== true) return null;
 
-  // Filter tools by feature flags
+  // Filter tools by admin controls
   const visibleTools = tools.filter((tool) => {
-    if (!tool.flag) return true;
-    return isFeatureEnabled(tool.flag);
+    if (!tool.controlKey) return true;
+    return isVisible(tool.controlKey);
   });
 
   if (visibleTools.length === 0 || loading) return null;

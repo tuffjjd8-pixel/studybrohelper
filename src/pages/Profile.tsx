@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
-import { FeatureFlagsPanel } from "@/components/profile/FeatureFlagsPanel";
+import { AdminControlsPanel } from "@/components/profile/AdminControlsPanel";
+import { CommunityGoalEditor } from "@/components/profile/CommunityGoalEditor";
 import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
 import { openPremiumPage } from "@/lib/mobileDetection";
 
@@ -492,8 +493,11 @@ const Profile = () => {
 
             <AdminSettings userEmail={user?.email} />
 
-            {/* Feature Flags Panel - only visible to admin */}
-            <FeatureFlagsPanel userEmail={user?.email} />
+            {/* Admin Controls Panel - only visible to admin */}
+            <AdminControlsPanel userEmail={user?.email} />
+
+            {/* Community Goal Editor - only visible to admin */}
+            <CommunityGoalEditor userEmail={user?.email} />
 
             {/* Settings button for all users */}
             <motion.div
