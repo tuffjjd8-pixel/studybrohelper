@@ -392,7 +392,7 @@ const Index = () => {
 
                   {/* Animated steps */}
                   <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} showFollowUps={isVisible('solve_followups')} />}
+                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} showFollowUps={isVisible('solve_followups')} showHumanize={isVisible('solve_humanize')} />}
 
               {/* Solve usage banner below solution */}
               {!isPremium}

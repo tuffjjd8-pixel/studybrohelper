@@ -217,6 +217,7 @@ const SolveDetail = () => {
               isPremium={isPremium}
               isHistory={true}
               showFollowUps={isVisible('solve_followups')}
+              showHumanize={isVisible('solve_humanize')}
             />
 
           </motion.div>
