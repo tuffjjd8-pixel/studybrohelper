@@ -93,6 +93,8 @@ export const AdminControlsPanel = ({ userEmail }: AdminControlsPanelProps) => {
         prev.map((c) => (c.id === control.id ? { ...c, [field]: newValue } : c))
       );
       localStorage.removeItem("admin_controls_cache");
+      // Broadcast refresh to all useAdminControls instances
+      window.dispatchEvent(new Event("admin_controls_refresh"));
       toast.success(`${LABELS[control.feature_key] || control.feature_key} ${newValue ? "shown" : "hidden"} for ${field === "visible_for_users" ? "users" : "admin"}`);
     }
     setUpdating(null);

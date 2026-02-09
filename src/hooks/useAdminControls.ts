@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
 const CACHE_KEY = "admin_controls_cache";
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const REFRESH_EVENT = "admin_controls_refresh";
 
 interface AdminControl {
   id: string;
@@ -56,6 +57,13 @@ export function useAdminControls(userEmail?: string) {
 
   useEffect(() => {
     fetchControls();
+  }, [fetchControls]);
+
+  // Listen for refresh events from AdminControlsPanel
+  useEffect(() => {
+    const handler = () => fetchControls(true);
+    window.addEventListener(REFRESH_EVENT, handler);
+    return () => window.removeEventListener(REFRESH_EVENT, handler);
   }, [fetchControls]);
 
   const isVisible = useCallback(

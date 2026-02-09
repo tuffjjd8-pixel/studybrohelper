@@ -23,6 +23,7 @@ interface SolutionStepsProps {
   isHistory?: boolean;
   followUpCount?: number;
   maxFollowUps?: number;
+  showFollowUps?: boolean;
 }
 
 const subjectIcons: Record<string, React.ReactNode> = {
@@ -41,7 +42,7 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2 }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, showFollowUps = true }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -51,7 +52,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium });
 
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
-  const showFollowUp = !isHistory || isPremium;
+  const showFollowUp = showFollowUps && (!isHistory || isPremium);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(solution);
