@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminControls } from "@/hooks/useAdminControls";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BookOpen, Share2, Bot } from "lucide-react";
@@ -30,6 +31,7 @@ const SolveDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { isVisible } = useAdminControls(user?.email);
   const [solve, setSolve] = useState<Solve | null>(null);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -214,6 +216,7 @@ const SolveDetail = () => {
               solveId={solve.id}
               isPremium={isPremium}
               isHistory={true}
+              showFollowUps={isVisible('solve_followups')}
             />
 
           </motion.div>
