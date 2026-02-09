@@ -24,6 +24,7 @@ interface SolutionStepsProps {
   followUpCount?: number;
   maxFollowUps?: number;
   showFollowUps?: boolean;
+  showHumanize?: boolean;
 }
 
 const subjectIcons: Record<string, React.ReactNode> = {
@@ -42,7 +43,7 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, showFollowUps = true }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, showFollowUps = true, showHumanize = true }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -243,7 +244,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         </div>
 
         {/* Humanize button - shown after solution */}
-        {!isHistory || isPremium ? (
+        {showHumanize && (!isHistory || isPremium) ? (
           <div className="mt-4 pt-4 border-t border-border/50 flex items-center gap-3">
             {isHumanized ? (
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary bg-secondary/10 px-3 py-1.5 rounded-full">

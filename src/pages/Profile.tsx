@@ -26,6 +26,7 @@ import { AdminControlsPanel } from "@/components/profile/AdminControlsPanel";
 import { CommunityGoalEditor } from "@/components/profile/CommunityGoalEditor";
 import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
 import { openPremiumPage } from "@/lib/mobileDetection";
+import { useAdminControls } from "@/hooks/useAdminControls";
 
 interface Profile {
   id: string;
@@ -54,6 +55,7 @@ const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 const Profile = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
+  const { isVisible } = useAdminControls(user?.email);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState("");
@@ -433,7 +435,8 @@ const Profile = () => {
               </div>
             </motion.div>
 
-            {/* Big Badges Button */}
+            {/* Big Badges Button - gated by admin control */}
+            {isVisible('badges') && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -456,6 +459,7 @@ const Profile = () => {
                 </div>
               </Button>
             </motion.div>
+            )}
 
             {/* Premium upsell */}
             {!profile?.is_premium && (
