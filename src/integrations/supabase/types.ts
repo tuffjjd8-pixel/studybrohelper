@@ -127,6 +127,30 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_flags: {
+        Row: {
+          enabled_for_admin: boolean
+          enabled_for_all: boolean
+          feature_name: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          enabled_for_admin?: boolean
+          enabled_for_all?: boolean
+          feature_name: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          enabled_for_admin?: boolean
+          enabled_for_all?: boolean
+          feature_name?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       poll_analytics: {
         Row: {
           conversion_target: string | null
