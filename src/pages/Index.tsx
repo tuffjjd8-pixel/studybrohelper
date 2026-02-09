@@ -6,6 +6,8 @@ import { CameraButton } from "@/components/home/CameraButton";
 import { TextInputBox } from "@/components/home/TextInputBox";
 import { RecentSolves } from "@/components/home/RecentSolves";
 import { ToolsScroller } from "@/components/home/ToolsScroller";
+import { CommunityGoalCard } from "@/components/home/CommunityGoalCard";
+import { useAdminControls } from "@/hooks/useAdminControls";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
@@ -36,6 +38,7 @@ const Index = () => {
   const {
     user
   } = useAuth();
+  const { isVisible } = useAdminControls(user?.email);
   const [searchParams] = useSearchParams();
 
   // Capture referral code from URL and store it
@@ -347,8 +350,8 @@ const Index = () => {
                   </p>
                 </motion.div>}
 
-              {/* Solve Toggles */}
-              <SolveToggles animatedSteps={animatedSteps} onAnimatedStepsChange={setAnimatedSteps} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
+              {/* Solve Toggles - respect admin controls */}
+              <SolveToggles animatedSteps={isVisible('home_animated_steps') ? animatedSteps : false} onAnimatedStepsChange={setAnimatedSteps} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={isVisible('home_speech_to_text') ? speechInput : false} onSpeechInputChange={isVisible('home_speech_to_text') ? setSpeechInput : undefined} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} showAnimatedStepsToggle={isVisible('home_animated_steps')} showSpeechToggle={isVisible('home_speech_to_text')} />
 
               {/* Divider */}
               <div className="flex items-center gap-4 w-full max-w-md">
@@ -362,6 +365,8 @@ const Index = () => {
               {/* Text input */}
               <TextInputBox onSubmit={handleTextSubmit} onEmptySubmit={handleSolveWithPendingImage} onImagePaste={handleImageCapture} isLoading={isLoading} hasPendingImage={!!pendingImage} placeholder={pendingImage ? "Add details or press Enter to solve..." : "Paste or type your homework question..."} speechInputEnabled={speechInput} isPremium={isPremium} speechLanguage={speechLanguage} onSpeechUsed={handleSpeechUsed} isAuthenticated={!!user} canUseSpeechClip={speechClips.canUseClip} speechClipsRemaining={speechClips.clipsRemaining} maxSpeechClips={speechClips.maxClips} hoursUntilReset={speechClips.hoursUntilReset} />
 
+              {/* Community Goal Card */}
+              {isVisible('community_goal') && <CommunityGoalCard />}
 
               {/* Recent solves */}
               <RecentSolves solves={recentSolves} />

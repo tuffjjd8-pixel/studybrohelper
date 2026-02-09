@@ -26,6 +26,8 @@ interface SolveTogglesProps {
   speechLanguage?: string;
   onSpeechLanguageChange?: (value: string) => void;
   isAuthenticated?: boolean;
+  showAnimatedStepsToggle?: boolean;
+  showSpeechToggle?: boolean;
 }
 
 export function SolveToggles({
@@ -40,6 +42,8 @@ export function SolveToggles({
   speechLanguage = "auto",
   onSpeechLanguageChange,
   isAuthenticated = false,
+  showAnimatedStepsToggle = true,
+  showSpeechToggle = true,
 }: SolveTogglesProps) {
   const solvesRemaining = isPremium ? -1 : Math.max(0, maxSolves - solvesUsed);
   const usagePercent = isPremium ? 0 : (solvesUsed / maxSolves) * 100;
@@ -67,6 +71,7 @@ export function SolveToggles({
         </div>
 
         {/* Animated Steps Toggle */}
+        {showAnimatedStepsToggle && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${canSolve ? "bg-primary/10" : "bg-muted"}`}>
@@ -99,9 +104,10 @@ export function SolveToggles({
             onCheckedChange={onAnimatedStepsChange}
           />
         </div>
+        )}
 
         {/* Free user upsell banner for animated steps */}
-        {!isPremium && animatedSteps && canSolve && (
+        {showAnimatedStepsToggle && !isPremium && animatedSteps && canSolve && (
           <div className="text-xs text-muted-foreground bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
             <Crown className="w-3 h-3 inline mr-1 text-primary" />
             Upgrade to Pro for detailed animated steps with full explanations.
@@ -109,7 +115,7 @@ export function SolveToggles({
         )}
 
         {/* Speech Input Toggle - Premium Only AND Authenticated Only */}
-        {canShowPremiumFeatures && onSpeechInputChange && (
+        {showSpeechToggle && canShowPremiumFeatures && onSpeechInputChange && (
           <>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
