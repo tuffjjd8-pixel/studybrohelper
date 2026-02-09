@@ -2,29 +2,37 @@ import { useNavigate } from "react-router-dom";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Brain, Trophy, BarChart3 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { useAuth } from "@/hooks/useAuth";
 
-// Only Quiz, Results, Polls - these are hidden from bottom nav on mobile
+// Tools with optional feature flag keys
 const tools = [
   { icon: Brain, label: "Quiz", path: "/quiz" },
-  { icon: Trophy, label: "Results", path: "/results" },
+  { icon: Trophy, label: "Results", path: "/results", flag: "show_advanced_results" },
   { icon: BarChart3, label: "Polls", path: "/polls" },
 ];
 
 export const ToolsScroller = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { user } = useAuth();
+  const { isFeatureEnabled, loading } = useFeatureFlags(user?.email);
 
-  // Only show on mobile - desktop/tablet has all items in bottom nav
-  // Also hide while detecting to prevent flash
-  if (isMobile !== true) {
-    return null;
-  }
+  if (isMobile !== true) return null;
+
+  // Filter tools by feature flags
+  const visibleTools = tools.filter((tool) => {
+    if (!tool.flag) return true;
+    return isFeatureEnabled(tool.flag);
+  });
+
+  if (visibleTools.length === 0 || loading) return null;
 
   return (
     <div className="w-full max-w-lg mt-6">
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex gap-3 px-2 py-3">
-          {tools.map((tool) => (
+          {visibleTools.map((tool) => (
             <button
               key={tool.label}
               onClick={() => navigate(tool.path)}
