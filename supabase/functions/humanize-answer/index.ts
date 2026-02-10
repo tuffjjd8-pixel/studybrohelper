@@ -115,6 +115,15 @@ serve(async (req) => {
 
     console.log("Humanize completed successfully");
 
+    // Log usage for admin dashboard
+    try {
+      const { createClient: createAdminClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+      const adminClient = createAdminClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await adminClient.from("api_usage_logs").insert({
+        user_id: userId, request_type: "humanize", estimated_cost: 0.002,
+      });
+    } catch (logErr) { console.error("Usage log error:", logErr); }
+
     return new Response(
       JSON.stringify({ humanized }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
