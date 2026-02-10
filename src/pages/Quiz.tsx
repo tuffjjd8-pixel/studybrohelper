@@ -42,6 +42,49 @@ const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 7;
 const PREMIUM_DAILY_QUIZZES = 13;
+const getTopicFromSubject = (subject: string) => {
+  const s = subject.toLowerCase();
+  if (s.includes("algebra") || s.includes("equation")) return "Algebra";
+  if (s.includes("geometry") || s.includes("triangle") || s.includes("circle")) return "Geometry";
+  if (s.includes("calculus") || s.includes("derivative") || s.includes("integral")) return "Calculus";
+  if (s.includes("statistics") || s.includes("probability")) return "Statistics";
+  if (s.includes("physics")) return "Physics";
+  if (s.includes("chemistry")) return "Chemistry";
+  if (s.includes("biology")) return "Biology";
+  if (s.includes("history")) return "History";
+  if (s.includes("english") || s.includes("grammar")) return "English";
+  return subject.charAt(0).toUpperCase() + subject.slice(1) || "General";
+};
+
+const TOPIC_KEYWORDS: Record<string, string[]> = {
+  "Grammar": ["grammar", "sentence", "punctuation", "clause", "syntax"],
+  "Verb Tense": ["tense", "past", "present", "future", "verb form", "conjugat"],
+  "Vocabulary": ["vocabulary", "synonym", "antonym", "definition", "meaning"],
+  "Sentence Structure": ["sentence structure", "subject", "predicate", "fragment", "run-on"],
+  "Algebra": ["equation", "variable", "solve for", "factor", "polynomial", "linear"],
+  "Geometry": ["angle", "triangle", "circle", "area", "perimeter", "volume"],
+  "Calculus": ["derivative", "integral", "limit", "differentiat", "rate of change"],
+  "Fractions": ["fraction", "numerator", "denominator", "simplif"],
+  "Word Problems": ["word problem", "how many", "how much", "total cost"],
+};
+
+const extractWeakTopics = (wrongQuestionTexts: string[], subject: string): string[] => {
+  const topics = new Set<string>();
+  const combined = wrongQuestionTexts.join(" ").toLowerCase();
+
+  for (const [topic, keywords] of Object.entries(TOPIC_KEYWORDS)) {
+    if (keywords.some(kw => combined.includes(kw))) {
+      topics.add(topic);
+    }
+  }
+
+  if (topics.size === 0) {
+    topics.add(getTopicFromSubject(subject));
+  }
+
+  return Array.from(topics).slice(0, 3);
+};
+
 const Quiz = () => {
   const navigate = useNavigate();
   const {
@@ -263,8 +306,58 @@ const Quiz = () => {
   };
   const handleSubmit = () => {
     if (!quizResult) return;
+    if (!allQuestionsAnswered) {
+      // Find first unanswered question and navigate to it
+      const unansweredIndex = quizResult.findIndex((_, idx) => selectedAnswers[idx] === undefined);
+      if (unansweredIndex !== -1) {
+        setCurrentQuestion(unansweredIndex);
+        toast.error(`Please answer question ${unansweredIndex + 1} before submitting`);
+      }
+      return;
+    }
     setSubmitted(true);
     toast.success("Quiz submitted!");
+
+    // Store rich quiz results for the Results page
+    const quizScore = calculateScore();
+
+    // Build per-question results with correctness
+    const questionResults = quizResult.map((q, idx) => {
+      const userAnswer = selectedAnswers[idx] || "";
+      const userLetter = getOptionLetter(userAnswer);
+      const correctLetter = q.answer.toUpperCase();
+      const correct = userLetter === correctLetter;
+      return {
+        question: q.question,
+        userAnswer,
+        correctAnswer: q.options.find(o => getOptionLetter(o) === correctLetter) || "",
+        correct,
+        explanation: q.explanation,
+      };
+    });
+
+    const correctCount = questionResults.filter(q => q.correct).length;
+    const totalCount = questionResults.length;
+    const pct = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+
+    // Extract weak topics from wrong answers (use question text keywords)
+    const wrongQuestions = questionResults.filter(q => !q.correct);
+    const weakTopics = wrongQuestions.length > 0
+      ? extractWeakTopics(wrongQuestions.map(q => q.question), selectedSolve?.subject || "General")
+      : [];
+
+    const quizResultData = {
+      totalQuestions: totalCount,
+      correctAnswers: correctCount,
+      wrongAnswers: totalCount - correctCount,
+      scorePercentage: pct,
+      weakTopics,
+      questionResults,
+      subject: selectedSolve?.subject || "General",
+      quizName: selectedSolve?.question_text || selectedSolve?.subject || "Quiz",
+      timestamp: Date.now(),
+    };
+    localStorage.setItem("last_quiz_result", JSON.stringify(quizResultData));
   };
   const handleRestart = () => {
     setQuizResult(null);
@@ -657,8 +750,8 @@ const Quiz = () => {
                   <Button variant="outline" onClick={handlePrevQuestion} disabled={currentQuestion === 0} className="flex-1">
                     Previous
                   </Button>
-                  {currentQuestion === quizResult.length - 1 ? <Button onClick={handleSubmit} disabled={!allQuestionsAnswered || submitted} className="flex-1" variant="neon">
-                      {submitted ? "Submitted ✓" : "Submit"}
+                  {currentQuestion === quizResult.length - 1 ? <Button onClick={handleSubmit} disabled={submitted} className="flex-1" variant="neon">
+                      {submitted ? "Submitted ✓" : allQuestionsAnswered ? "Submit" : `Submit (${Object.keys(selectedAnswers).length}/${quizResult.length})`}
                     </Button> : <Button onClick={handleNextQuestion} className="flex-1">
                       Next
                     </Button>}

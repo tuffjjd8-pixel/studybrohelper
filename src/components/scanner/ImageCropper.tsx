@@ -92,11 +92,23 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
       const scaleX = image.naturalWidth / image.width;
       const scaleY = image.naturalHeight / image.height;
 
-      // Apply zoom to crop dimensions
-      const cropX = completedCrop.x * scaleX;
-      const cropY = completedCrop.y * scaleY;
-      const cropWidth = completedCrop.width * scaleX;
-      const cropHeight = completedCrop.height * scaleY;
+      // The CSS zoom scales the image around its center.
+      // The crop rect is in displayed-pixel space, so we must
+      // reverse the zoom to find the corresponding region on the
+      // original bitmap.
+      const displayW = image.width;
+      const displayH = image.height;
+
+      // Center of the displayed image (zoom origin)
+      const cx = displayW / 2;
+      const cy = displayH / 2;
+
+      // Convert crop rect from zoomed-display space back to
+      // un-zoomed display space, then to natural-pixel space.
+      const cropX = ((completedCrop.x - cx) / zoom + cx) * scaleX;
+      const cropY = ((completedCrop.y - cy) / zoom + cy) * scaleY;
+      const cropWidth = (completedCrop.width / zoom) * scaleX;
+      const cropHeight = (completedCrop.height / zoom) * scaleY;
 
       // Set canvas size (max 2048 for performance)
       const maxDim = 2048;
@@ -153,32 +165,29 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className="flex flex-col items-center gap-4 w-full max-w-2xl mx-auto"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="flex flex-col w-full h-full"
     >
-      {/* Instructions */}
-      <div className="text-sm text-muted-foreground text-center">
+      {/* Instructions bar */}
+      <div className="text-sm text-muted-foreground text-center py-2 shrink-0">
         Drag corners to adjust • Pinch to zoom
       </div>
 
-      {/* Crop container with neon border */}
+      {/* Crop container — fills remaining space */}
       <div 
         ref={containerRef}
-        className="relative w-full overflow-hidden rounded-2xl"
-        style={{
-          boxShadow: "0 0 30px hsl(var(--primary) / 0.2), inset 0 0 1px hsl(var(--primary) / 0.3)",
-          border: "2px solid hsl(var(--primary) / 0.4)",
-        }}
+        className="relative flex-1 min-h-0 w-full overflow-hidden bg-black"
       >
         <ReactCrop
           crop={crop}
           onChange={(c) => setCrop(c)}
           onComplete={(c) => setCompletedCrop(c)}
-          className="max-h-[55vh]"
           style={{
             "--ReactCrop-crop-border": "2px solid hsl(82 100% 67%)",
+            width: "100%",
+            height: "100%",
           } as React.CSSProperties}
         >
           <img
@@ -186,7 +195,7 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
             src={imageSrc}
             alt="Crop preview"
             onLoad={onImageLoad}
-            className="max-h-[55vh] w-full object-contain bg-black/50"
+            className="w-full h-full object-contain"
             style={{
               transform: `scale(${zoom})`,
               transformOrigin: "center",
@@ -204,67 +213,70 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
         )}
       </div>
 
-      {/* Zoom controls */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleZoomOut}
-          disabled={zoom <= 0.5}
-          className="w-9 h-9 rounded-full"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </Button>
-        <span className="text-xs text-muted-foreground w-12 text-center">
-          {Math.round(zoom * 100)}%
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleZoomIn}
-          disabled={zoom >= 3}
-          className="w-9 h-9 rounded-full"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </Button>
-      </div>
+      {/* Bottom controls */}
+      <div className="shrink-0 flex flex-col items-center gap-2 py-3 px-4 bg-background border-t border-border">
+        {/* Zoom controls */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleZoomOut}
+            disabled={zoom <= 0.5}
+            className="w-9 h-9 rounded-full"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </Button>
+          <span className="text-xs text-muted-foreground w-12 text-center">
+            {Math.round(zoom * 100)}%
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleZoomIn}
+            disabled={zoom >= 3}
+            className="w-9 h-9 rounded-full"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </Button>
+        </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-3 mt-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          disabled={isProcessing}
-          className="gap-2 rounded-xl"
-        >
-          <X className="w-4 h-4" />
-          Cancel
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={resetCrop}
-          disabled={isProcessing}
-          className="gap-2 rounded-xl"
-        >
-          <RotateCcw className="w-4 h-4" />
-          Reset
-        </Button>
-        <Button
-          variant="default"
-          size="sm"
-          onClick={getCroppedImg}
-          disabled={!completedCrop || isProcessing}
-          className="gap-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-button"
-        >
-          {isProcessing ? (
-            <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-          ) : (
-            <Check className="w-4 h-4" />
-          )}
-          {isProcessing ? "Processing..." : "Scan"}
-        </Button>
+        {/* Action buttons */}
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            disabled={isProcessing}
+            className="gap-2 rounded-xl"
+          >
+            <X className="w-4 h-4" />
+            Cancel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={resetCrop}
+            disabled={isProcessing}
+            className="gap-2 rounded-xl"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={getCroppedImg}
+            disabled={!completedCrop || isProcessing}
+            className="gap-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-button"
+          >
+            {isProcessing ? (
+              <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+            ) : (
+              <Check className="w-4 h-4" />
+            )}
+            {isProcessing ? "Processing..." : "Scan"}
+          </Button>
+        </div>
       </div>
     </motion.div>
   );

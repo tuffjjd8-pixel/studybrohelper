@@ -17,3 +17,12 @@ verify_jwt = false
 
 [functions.create-portal-session]
 verify_jwt = false
+
+[functions.check-solve-usage]
+verify_jwt = false
+
+[functions.humanize-answer]
+verify_jwt = false
+
+[functions.admin-usage-stats]
+verify_jwt = false

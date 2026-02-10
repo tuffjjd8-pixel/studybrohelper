@@ -1,12 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Brain, Calculator, BarChart3 } from "lucide-react";
+import { Brain, Trophy, BarChart3 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-// Only Quiz, Calc, Polls - these are hidden from bottom nav on mobile
 const tools = [
   { icon: Brain, label: "Quiz", path: "/quiz" },
-  { icon: Calculator, label: "Calc", path: "/calculator" },
+  { icon: Trophy, label: "Results", path: "/results" },
   { icon: BarChart3, label: "Polls", path: "/polls" },
 ];
 
@@ -14,11 +13,7 @@ export const ToolsScroller = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  // Only show on mobile - desktop/tablet has all items in bottom nav
-  // Also hide while detecting to prevent flash
-  if (isMobile !== true) {
-    return null;
-  }
+  if (isMobile !== true) return null;
 
   return (
     <div className="w-full max-w-lg mt-6">
