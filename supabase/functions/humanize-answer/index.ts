@@ -115,6 +115,11 @@ serve(async (req) => {
 
     console.log("Humanize completed successfully");
 
+    // Log usage (fire-and-forget)
+    const { logUsage } = await import("../_shared/usage-logger.ts");
+    const deviceId = req.headers.get("x-device-id");
+    logUsage("humanize", 0.0010, userId, deviceId);
+
     return new Response(
       JSON.stringify({ humanized }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

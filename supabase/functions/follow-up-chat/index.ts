@@ -73,6 +73,20 @@ Now help with follow-up questions. Be friendly, clear, and educational. Use mark
 
     console.log("Follow-up response generated successfully");
 
+    // Log usage (fire-and-forget)
+    const { logUsage } = await import("../_shared/usage-logger.ts");
+    const authHeader = req.headers.get("Authorization");
+    let logUserId: string | null = null;
+    if (authHeader) {
+      try {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
+        const { data: { user: u } } = await sb.auth.getUser();
+        logUserId = u?.id || null;
+      } catch (_) {}
+    }
+    logUsage("follow-up", 0.0008, logUserId);
+
     return new Response(
       JSON.stringify({ response: aiResponse }),
       {
