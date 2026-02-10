@@ -235,7 +235,7 @@ const Index = () => {
   };
 
   // Determine what features to show: admin sees everything, users see nothing advanced
-  const showFollowUps = isAdmin;
+  const showFollowUps = true;
   const showHumanize = true;
 
   return (
@@ -323,7 +323,7 @@ const Index = () => {
                 <div className="flex-1 h-px bg-border" />
               </div>
 
-              <TextInputBox onSubmit={handleTextSubmit} onEmptySubmit={handleSolveWithPendingImage} onImagePaste={handleImageCapture} isLoading={isLoading} hasPendingImage={!!pendingImage} placeholder={pendingImage ? "Add details or press Enter to solve..." : "Paste or type your homework question..."} speechInputEnabled={false} isPremium={isPremium} speechLanguage="auto" onSpeechUsed={async () => {}} isAuthenticated={!!user} canUseSpeechClip={false} speechClipsRemaining={0} maxSpeechClips={0} hoursUntilReset={0} />
+              <TextInputBox onSubmit={handleTextSubmit} onEmptySubmit={handleSolveWithPendingImage} onImagePaste={handleImageCapture} isLoading={isLoading} hasPendingImage={!!pendingImage} placeholder={pendingImage ? "Add details or press Enter to solve..." : "Paste or type your homework question..."} speechInputEnabled={isPremium} isPremium={isPremium} speechLanguage="auto" onSpeechUsed={async () => {}} isAuthenticated={!!user} canUseSpeechClip={isPremium} speechClipsRemaining={isPremium ? 15 : 0} maxSpeechClips={isPremium ? 15 : 0} hoursUntilReset={0} />
 
               {isVisible('community_goal') && <CommunityGoalCard />}
 
