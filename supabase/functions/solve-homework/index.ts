@@ -298,6 +298,7 @@ import {
   markKeyFailed,
   callGroqWithRotation 
 } from "../_shared/groq-key-manager.ts";
+import { logUsage } from "../_shared/usage-logger.ts";
 
 // Call Groq API for text-only input with key rotation
 async function callGroqText(
@@ -580,28 +581,18 @@ serve(async (req) => {
 
     console.log("Solution generated, subject:", subject, "steps:", responseData.steps ? (responseData.steps as Array<unknown>).length : 0, "hasGraph:", !!responseData.graph);
 
-    // Log usage for admin dashboard (fire-and-forget, non-blocking)
-    try {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-      const adminClient = createClient(supabaseUrl, serviceKey);
-      const authHeader = req.headers.get("Authorization");
-      let logUserId: string | null = null;
-      if (authHeader) {
-        const token = authHeader.replace("Bearer ", "");
-        const { data: { user } } = await adminClient.auth.getUser(token);
-        logUserId = user?.id || null;
-      }
-      await adminClient.from("api_usage_logs").insert({
-        user_id: logUserId,
-        device_id: null,
-        request_type: "solve",
-        estimated_cost: 0.004,
-      });
-    } catch (logErr) {
-      console.error("Usage log error (non-blocking):", logErr);
+    // Log usage (fire-and-forget)
+    const authHeader = req.headers.get("Authorization");
+    let logUserId: string | null = null;
+    if (authHeader) {
+      try {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
+        const { data: { user: u } } = await sb.auth.getUser();
+        logUserId = u?.id || null;
+      } catch (_) {}
     }
+    logUsage("solve", 0.0012, logUserId);
 
     return new Response(
       JSON.stringify(responseData),

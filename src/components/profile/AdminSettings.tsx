@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, CreditCard, BarChart3 } from "lucide-react";
+import { Settings, CreditCard, BarChart3, Activity } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -114,6 +114,16 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         )}
       </div>
 
+      {/* Usage & Cost Dashboard */}
+      <Button
+        variant="outline"
+        onClick={() => navigate("/admin/usage")}
+        className="w-full justify-start gap-2"
+      >
+        <Activity className="w-4 h-4" />
+        Usage & Cost Dashboard
+      </Button>
+
       {/* Poll Management Button */}
       <Button
         variant="outline"
@@ -122,16 +132,6 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
       >
         <BarChart3 className="w-4 h-4" />
         Manage Polls
-      </Button>
-
-      {/* Usage Dashboard Button */}
-      <Button
-        variant="outline"
-        onClick={() => navigate("/admin/usage")}
-        className="w-full justify-start gap-2"
-      >
-        <BarChart3 className="w-4 h-4" />
-        Usage &amp; Cost Dashboard
       </Button>
 
       {/* Settings Button */}

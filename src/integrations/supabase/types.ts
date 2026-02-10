@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_controls: {
+        Row: {
+          feature_key: string
+          id: string
+          updated_at: string
+          visible_for_admin: boolean
+          visible_for_users: boolean
+        }
+        Insert: {
+          feature_key: string
+          id?: string
+          updated_at?: string
+          visible_for_admin?: boolean
+          visible_for_users?: boolean
+        }
+        Update: {
+          feature_key?: string
+          id?: string
+          updated_at?: string
+          visible_for_admin?: boolean
+          visible_for_users?: boolean
+        }
+        Relationships: []
+      }
       api_usage_logs: {
         Row: {
           created_at: string
@@ -96,6 +120,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      community_goal_content: {
+        Row: {
+          body: string
+          id: string
+          image_url: string | null
+          title: string
+          updated_at: string
+          visible: boolean
+        }
+        Insert: {
+          body?: string
+          id?: string
+          image_url?: string | null
+          title?: string
+          updated_at?: string
+          visible?: boolean
+        }
+        Update: {
+          body?: string
+          id?: string
+          image_url?: string | null
+          title?: string
+          updated_at?: string
+          visible?: boolean
+        }
+        Relationships: []
       }
       email_verification_codes: {
         Row: {
