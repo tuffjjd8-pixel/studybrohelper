@@ -71,6 +71,9 @@ const PLANS: PlanOption[] = [
 const COMPARISON: ComparisonItem[] = [
   { feature: "Daily Solves", free: "Unlimited", premium: "Unlimited" },
   { feature: "AI Model", free: "Standard", premium: "Advanced" },
+  { feature: "Humanize Answers", free: "5/day", premium: "Unlimited" },
+  { feature: "Follow-Up Questions", free: "2/solve", premium: "Unlimited" },
+  { feature: "Speech-to-Text", free: false, premium: "15 clips/day" },
   { feature: "Advanced Results", free: false, premium: true },
   { feature: "Enhanced OCR", free: false, premium: true },
   { feature: "Priority Speed", free: false, premium: true },
