@@ -140,7 +140,7 @@ const SolveDetail = () => {
               solveId={solve.id}
               isPremium={isPremium}
               isHistory={true}
-              showFollowUps={true}
+              showFollowUps={isAdmin}
               showHumanize={true}
             />
           </motion.div>
