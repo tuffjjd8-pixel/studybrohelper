@@ -31,9 +31,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!plan || !["monthly", "weekend", "yearly"].includes(plan)) {
+    if (!plan || !["monthly", "weekend", "yearly", "lifetime"].includes(plan)) {
       return new Response(
-        JSON.stringify({ error: "plan must be 'monthly', 'weekend', or 'yearly'" }),
+        JSON.stringify({ error: "plan must be 'monthly', 'weekend', 'yearly', or 'lifetime'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -81,6 +81,9 @@ Deno.serve(async (req) => {
         case "yearly":
           priceId = Deno.env.get("STRIPE_PRICE_ID_YEARLY_TEST");
           break;
+        case "lifetime":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_LIFETIME_TEST");
+          break;
       }
     } else {
       switch (plan) {
@@ -92,6 +95,9 @@ Deno.serve(async (req) => {
           break;
         case "yearly":
           priceId = Deno.env.get("STRIPE_PRICE_ID_YEARLY");
+          break;
+        case "lifetime":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_LIFETIME_LIVE");
           break;
       }
     }
@@ -128,8 +134,11 @@ Deno.serve(async (req) => {
     });
 
     // Create checkout session
+    // Lifetime is a one-time payment, everything else is a subscription
+    const sessionMode = plan === "lifetime" ? "payment" : "subscription";
+
     const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
+      mode: sessionMode,
       line_items: [
         {
           price: priceId,
