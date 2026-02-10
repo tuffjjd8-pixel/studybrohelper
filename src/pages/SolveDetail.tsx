@@ -141,7 +141,7 @@ const SolveDetail = () => {
               isPremium={isPremium}
               isHistory={true}
               showFollowUps={isAdmin}
-              showHumanize={isAdmin}
+              showHumanize={true}
             />
           </motion.div>
         </div>

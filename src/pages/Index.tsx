@@ -236,7 +236,7 @@ const Index = () => {
 
   // Determine what features to show: admin sees everything, users see nothing advanced
   const showFollowUps = isAdmin;
-  const showHumanize = isAdmin;
+  const showHumanize = true;
 
   return (
     <div className="min-h-screen bg-background">
