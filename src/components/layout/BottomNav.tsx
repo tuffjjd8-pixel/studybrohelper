@@ -11,19 +11,21 @@ const allNavItems = [
   { icon: User, label: "Profile", path: "/profile" },
 ];
 
-const mobileKeys = ["/", "/history", "/profile"];
+// Mobile: only show Home, History, Profile
+const mobileNavItems = allNavItems.filter(item => 
+  ["/", "/history", "/profile"].includes(item.path)
+);
 
 export function BottomNav() {
   const location = useLocation();
   const isMobile = useIsMobile();
 
+  // Wait for mobile detection to complete before rendering
   if (isMobile === undefined) {
     return null;
   }
 
-  const navItems = isMobile
-    ? allNavItems.filter(item => mobileKeys.includes(item.path))
-    : allNavItems;
+  const navItems = isMobile ? mobileNavItems : allNavItems;
 
   return (
     <nav

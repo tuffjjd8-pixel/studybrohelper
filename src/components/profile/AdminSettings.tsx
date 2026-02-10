@@ -124,16 +124,6 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         Manage Polls
       </Button>
 
-      {/* Usage Dashboard Button */}
-      <Button
-        variant="outline"
-        onClick={() => navigate("/admin/usage")}
-        className="w-full justify-start gap-2"
-      >
-        <BarChart3 className="w-4 h-4" />
-        Usage &amp; Cost Dashboard
-      </Button>
-
       {/* Settings Button */}
       <Button
         variant="outline"

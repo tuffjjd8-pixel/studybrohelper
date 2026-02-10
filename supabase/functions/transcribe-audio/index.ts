@@ -131,15 +131,6 @@ serve(async (req) => {
 
     console.log('[STT] Transcription successful');
 
-    // Log usage for admin dashboard
-    try {
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      await adminClient.from("api_usage_logs").insert({
-        request_type: "transcribe", estimated_cost: 0.006,
-      });
-    } catch (logErr) { console.error("Usage log error:", logErr); }
-
     return new Response(
       JSON.stringify({ text: result.text }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
