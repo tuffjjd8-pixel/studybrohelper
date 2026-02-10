@@ -117,8 +117,7 @@ serve(async (req) => {
 
     // Log usage (fire-and-forget)
     const { logUsage } = await import("../_shared/usage-logger.ts");
-    const deviceId = req.headers.get("x-device-id");
-    logUsage("humanize", 0.0010, userId, deviceId);
+    logUsage("humanize", 0.0010, userId);
 
     return new Response(
       JSON.stringify({ humanized }),

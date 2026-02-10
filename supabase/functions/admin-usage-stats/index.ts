@@ -103,12 +103,12 @@ serve(async (req) => {
     const costPer1K = monthlyTotalRequests > 0 ? (monthlyTotalCost / monthlyTotalRequests) * 1000 : 0;
 
     // === PER-USER BREAKDOWN (today) ===
-    const userMap = new Map<string, { userId: string | null; deviceId: string | null; solves: number; followUps: number; humanize: number; quizzes: number; transcribe: number; totalCost: number }>();
+    const userMap = new Map<string, { userId: string | null; solves: number; followUps: number; humanize: number; quizzes: number; transcribe: number; totalCost: number }>();
 
     for (const log of dailyLogs || []) {
-      const key = log.user_id || log.device_id || "anonymous";
+      const key = log.user_id || "anonymous";
       if (!userMap.has(key)) {
-        userMap.set(key, { userId: log.user_id, deviceId: log.device_id, solves: 0, followUps: 0, humanize: 0, quizzes: 0, transcribe: 0, totalCost: 0 });
+        userMap.set(key, { userId: log.user_id, solves: 0, followUps: 0, humanize: 0, quizzes: 0, transcribe: 0, totalCost: 0 });
       }
       const entry = userMap.get(key)!;
       const cost = log.estimated_cost || COST_PER_REQUEST[log.request_type] || 0;
@@ -140,7 +140,6 @@ serve(async (req) => {
     const perUserBreakdown = [...userMap.entries()].map(([key, data]) => ({
       key,
       userId: data.userId ? data.userId.substring(0, 8) + "..." : null,
-      deviceId: data.deviceId ? data.deviceId.substring(0, 12) + "..." : null,
       solves: data.solves,
       followUps: data.followUps,
       humanize: data.humanize,
@@ -151,7 +150,7 @@ serve(async (req) => {
     }));
 
     // Active users this month
-    const uniqueUsers = new Set((monthlyLogs || []).map(l => l.user_id || l.device_id).filter(Boolean));
+    const uniqueUsers = new Set((monthlyLogs || []).map(l => l.user_id).filter(Boolean));
     const costPerActiveUser = uniqueUsers.size > 0 ? monthlyTotalCost / uniqueUsers.size : 0;
 
     return new Response(

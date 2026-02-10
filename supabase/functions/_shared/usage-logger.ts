@@ -7,8 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 export function logUsage(
   requestType: string,
   estimatedCost: number,
-  userId?: string | null,
-  deviceId?: string | null
+  userId?: string | null
 ): void {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -24,7 +23,6 @@ export function logUsage(
         request_type: requestType,
         estimated_cost: estimatedCost,
         user_id: userId || null,
-        device_id: deviceId || null,
       })
       .then(({ error }) => {
         if (error) console.error("[UsageLogger] Insert error:", error.message);
