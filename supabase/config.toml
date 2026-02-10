@@ -23,6 +23,3 @@ verify_jwt = false
 
 [functions.humanize-answer]
 verify_jwt = false
-
-[functions.admin-usage-stats]
-verify_jwt = false

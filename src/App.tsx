@@ -19,7 +19,6 @@ import Results from "./pages/Results";
 import Settings from "./pages/Settings";
 import Polls from "./pages/Polls";
 import BadgeCollection from "./pages/BadgeCollection";
-import AdminUsage from "./pages/AdminUsage";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -46,7 +45,6 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="/polls" element={<Polls />} />
             <Route path="/badges" element={<BadgeCollection />} />
-            <Route path="/admin/usage" element={<AdminUsage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

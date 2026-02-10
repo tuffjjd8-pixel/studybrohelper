@@ -344,10 +344,6 @@ REQUIRED JSON STRUCTURE (return EXACTLY this format):
         .eq("user_id", userId);
     }
 
-    // Log usage (fire-and-forget)
-    const { logUsage } = await import("../_shared/usage-logger.ts");
-    logUsage("quiz", 0.0015, userId);
-
     return new Response(
       JSON.stringify({ 
         quiz,
