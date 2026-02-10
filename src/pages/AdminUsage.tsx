@@ -35,7 +35,6 @@ interface UsageStats {
   perUser: Array<{
     key: string;
     userId: string | null;
-    deviceId: string | null;
     solves: number;
     followUps: number;
     humanize: number;
@@ -100,7 +99,6 @@ export default function AdminUsage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 pb-24 max-w-4xl mx-auto">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigate("/profile")}>
           <ArrowLeft className="w-5 h-5" />
@@ -121,10 +119,9 @@ export default function AdminUsage() {
         </div>
       ) : stats ? (
         <div className="space-y-6">
-          {/* Date */}
           <p className="text-sm text-muted-foreground">Today: {stats.today}</p>
 
-          {/* Daily Usage Overview */}
+          {/* Daily Usage */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
@@ -147,7 +144,7 @@ export default function AdminUsage() {
             </CardContent>
           </Card>
 
-          {/* Monthly Usage Overview */}
+          {/* Monthly Usage */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
@@ -234,7 +231,7 @@ export default function AdminUsage() {
             </CardContent>
           </Card>
 
-          {/* Per-User Breakdown Table */}
+          {/* Per-User Breakdown */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
@@ -249,7 +246,7 @@ export default function AdminUsage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-xs">User/Device</TableHead>
+                        <TableHead className="text-xs">User</TableHead>
                         <TableHead className="text-xs text-center">Solves</TableHead>
                         <TableHead className="text-xs text-center">Follow</TableHead>
                         <TableHead className="text-xs text-center">Human</TableHead>
@@ -263,7 +260,7 @@ export default function AdminUsage() {
                       {stats.perUser.map((u) => (
                         <TableRow key={u.key}>
                           <TableCell className="text-xs font-mono">
-                            {u.userId || u.deviceId || "anon"}
+                            {u.userId || "anon"}
                           </TableCell>
                           <TableCell className="text-center text-xs">{u.solves}</TableCell>
                           <TableCell className="text-center text-xs">{u.followUps}</TableCell>
