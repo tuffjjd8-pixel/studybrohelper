@@ -244,7 +244,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         </div>
 
         {/* Humanize button - shown after solution */}
-        {showHumanize && (!isHistory || isPremium) ? (
+        {showHumanize ? (
           <div className="mt-4 pt-4 border-t border-border/50 flex items-center gap-3">
             {isHumanized ? (
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary bg-secondary/10 px-3 py-1.5 rounded-full">
@@ -369,11 +369,11 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       )}
 
       {/* History: no follow-ups for free users */}
-      {isHistory && !isPremium && (
+      {isHistory && !isPremium && !showFollowUps && (
         <div className="glass-card p-4 text-center">
           <Lock className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
           <p className="text-xs text-muted-foreground">
-            Follow-ups and humanize are not available in history for free users.
+            Follow-ups are not available in history for free users.
           </p>
           <span className="text-xs text-primary flex items-center justify-center gap-1 mt-1">
             <Crown className="w-3 h-3" />

@@ -95,7 +95,7 @@ const Quiz = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSolve, setSelectedSolve] = useState<Solve | null>(null);
   const [questionCount, setQuestionCount] = useState<string>("");
-  const [strictCountMode, setStrictCountMode] = useState(false);
+  
   const [generating, setGenerating] = useState(false);
   const [showShimmer, setShowShimmer] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -199,11 +199,6 @@ const Quiz = () => {
       return;
     }
 
-    // Validate strict count mode
-    if (strictCountMode && !isPremium) {
-      toast.error("Strict Count Mode is a Premium feature");
-      return;
-    }
     setGenerating(true);
     setGenerationError(null);
     setQuizResult(null);
@@ -226,8 +221,7 @@ const Quiz = () => {
         body: {
           conversationText,
           questionCount: validCount,
-          subject: selectedSolve.subject,
-          strictCountMode: isPremium ? strictCountMode : false
+          subject: selectedSolve.subject
         }
       });
       if (error) throw error;
@@ -538,35 +532,11 @@ const Quiz = () => {
                 </p>
               </div>
 
-              {/* Strict Count Mode Toggle */}
-              <div className={cn("flex items-center justify-between p-4 rounded-lg mb-6", isPremium ? "bg-muted/30" : "bg-muted/10 border border-dashed border-border")}>
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="strict-count" className="text-sm font-medium">
-                      Strict Count Mode
-                    </Label>
-                    {!isPremium && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Crown className="w-3 h-3" /> Premium
-                      </span>}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {isPremium ? strictCountMode ? "Always generate the exact number of questions requested" : "Generate only what the conversation supports" : "Force exact question count (Premium only)"}
-                  </p>
-                </div>
-                <Switch id="strict-count" checked={isPremium ? strictCountMode : false} onCheckedChange={checked => {
-              if (!isPremium) {
-                toast.error("Strict Count Mode is a Premium feature");
-                return;
-              }
-              setStrictCountMode(checked);
-            }} disabled={!isPremium} />
-              </div>
-
               {/* Premium Upsell */}
               {!isPremium && <Link to="/premium" className="block mb-6">
                   <div className="flex items-center justify-center gap-2 p-3 bg-primary/10 border border-primary/30 rounded-xl text-sm hover:bg-primary/20 transition-colors">
                     <Crown className="w-4 h-4 text-primary" />
-                    <span>Upgrade for more questions & Strict Count Mode</span>
+                    <span>Upgrade for more questions</span>
                   </div>
                 </Link>}
 
