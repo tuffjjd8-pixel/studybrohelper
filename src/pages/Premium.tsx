@@ -70,22 +70,25 @@ const PLANS: PlanOption[] = [
 
 const COMPARISON: ComparisonItem[] = [
   { feature: "Daily Solves", free: "Unlimited", premium: "Unlimited" },
+  { feature: "Animated Steps", free: "5/day", premium: "16/day" },
+  { feature: "Speech to Text", free: false, premium: "15/day" },
   { feature: "AI Model", free: "Standard", premium: "Advanced" },
-  { feature: "Advanced Results", free: false, premium: true },
   { feature: "Enhanced OCR", free: false, premium: true },
   { feature: "Priority Speed", free: false, premium: true },
   { feature: "Ad-Free Experience", free: true, premium: true },
   { feature: "Quiz Generator", free: "7/day (max 10 Qs)", premium: "13/day (max 20 Qs)" },
+  { feature: "Strict Count Mode", free: false, premium: true },
+  { feature: "Calculator", free: "Basic", premium: "Scientific" },
   { feature: "Full Quiz Review", free: false, premium: true },
 ];
 
 const PREMIUM_BENEFITS = [
-  { icon: Brain, title: "Advanced Results", description: "Deeper reasoning & subject insights" },
+  { icon: Brain, title: "16 Animated Steps/Day", description: "Detailed step-by-step breakdowns" },
+  { icon: Calculator, title: "Premium Calculator", description: "Advanced reasoning & logic" },
   { icon: Target, title: "Enhanced Image Solving", description: "Better OCR accuracy" },
   { icon: Zap, title: "Priority Response", description: "Skip the queue" },
   { icon: Shield, title: "No Ads", description: "Distraction-free learning" },
   { icon: MessageSquare, title: "Latest AI Models", description: "Cutting-edge technology" },
-  { icon: Calculator, title: "Advanced Calculator", description: "Complex problem solving" },
 ];
 
 const Premium = () => {
@@ -126,9 +129,9 @@ const Premium = () => {
   };
 
   const handleCheckout = async () => {
-    // Play Store safe: always redirect to website for mobile apps
+    // GUARD: Prevent Stripe Checkout from running inside mobile apps
     if (isMobileApp()) {
-      window.open("https://studybro.trade/premium", "_system");
+      toast.error("Please complete your purchase on our website");
       return;
     }
 

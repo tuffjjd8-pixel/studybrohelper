@@ -15,11 +15,10 @@ import PremiumCancel from "./pages/PremiumCancel";
 import SolveDetail from "./pages/SolveDetail";
 import Chat from "./pages/Chat";
 import Quiz from "./pages/Quiz";
-import Results from "./pages/Results";
+import Calculator from "./pages/Calculator";
 import Settings from "./pages/Settings";
 import Polls from "./pages/Polls";
 import BadgeCollection from "./pages/BadgeCollection";
-import AdminUsage from "./pages/AdminUsage";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -42,11 +41,10 @@ const App = () => (
             <Route path="/solve/:id" element={<SolveDetail />} />
             <Route path="/chat/:id" element={<Chat />} />
             <Route path="/quiz" element={<Quiz />} />
-            <Route path="/results" element={<Results />} />
+            <Route path="/calculator" element={<Calculator />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/polls" element={<Polls />} />
             <Route path="/badges" element={<BadgeCollection />} />
-            <Route path="/admin/usage" element={<AdminUsage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

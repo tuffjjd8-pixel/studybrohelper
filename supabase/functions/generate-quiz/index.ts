@@ -332,15 +332,6 @@ REQUIRED JSON STRUCTURE (return EXACTLY this format):
       );
     }
 
-    // Log usage for admin dashboard
-    try {
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const adminClient = createClient(supabaseUrl, serviceKey);
-      await adminClient.from("api_usage_logs").insert({
-        user_id: userId, request_type: "quiz", estimated_cost: 0.005,
-      });
-    } catch (logErr) { console.error("Usage log error:", logErr); }
-
     // Increment quiz usage counter if authenticated
     if (userId && authHeader) {
       const supabase = createClient(supabaseUrl, supabaseAnonKey, {

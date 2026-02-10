@@ -292,7 +292,7 @@ export function AnimatedSolutionSteps({
         </Button>
 
         <span className="text-sm text-muted-foreground">
-          {isPremium ? "Pro • Detailed steps" : "Basic steps"} • Up to {maxSteps} steps
+          {isPremium ? "Premium" : "Free"} • Up to {maxSteps} steps
         </span>
 
         {isLastStep && !isFinished ? (

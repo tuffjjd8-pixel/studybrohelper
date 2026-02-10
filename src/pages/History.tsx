@@ -7,10 +7,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Search, Trash2, MessageCircle, BookOpen, Clock, Lock, Crown } from "lucide-react";
+import { Search, Trash2, MessageCircle, BookOpen, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { formatDistanceToNow, isToday } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 interface Solve {
   id: string;
   subject: string;
@@ -38,25 +38,13 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSolve, setSelectedSolve] = useState<Solve | null>(null);
-  const [isPremium, setIsPremium] = useState(false);
   useEffect(() => {
     if (user) {
       fetchSolves();
-      fetchPremiumStatus();
     } else if (!authLoading) {
       loadGuestHistory();
     }
   }, [user, authLoading]);
-
-  const fetchPremiumStatus = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("is_premium")
-      .eq("user_id", user.id)
-      .single();
-    if (data) setIsPremium(data.is_premium);
-  };
   const loadGuestHistory = () => {
     try {
       const guestSolves = localStorage.getItem("guest_solves");
@@ -120,19 +108,12 @@ const History = () => {
       toast.error("Failed to delete");
     }
   };
-  const isSolveAccessible = (solve: Solve): boolean => {
-    if (isPremium) return true;
-    return isToday(new Date(solve.created_at));
-  };
-
   const handleSolveClick = (solve: Solve) => {
-    if (!isSolveAccessible(solve)) {
-      toast.error("Upgrade to Pro to access older history.");
-      return;
-    }
     if (isMobile) {
+      // Mobile: Navigate directly to full-screen solution
       navigate(`/solve/${solve.id}`);
     } else {
+      // Desktop: Show in side panel
       setSelectedSolve(solve);
     }
   };
@@ -188,9 +169,7 @@ const History = () => {
               {/* Solve List */}
               <div className="space-y-3">
                 <AnimatePresence>
-                  {filteredSolves.map((solve, index) => {
-                    const accessible = isSolveAccessible(solve);
-                    return <motion.div key={solve.id} initial={{
+                  {filteredSolves.map((solve, index) => <motion.div key={solve.id} initial={{
                 opacity: 0,
                 y: 20
               }} animate={{
@@ -205,14 +184,13 @@ const History = () => {
                         p-4 rounded-xl border cursor-pointer transition-all
                         min-h-[72px] touch-manipulation select-none
                         active:scale-[0.98] active:opacity-90
-                        ${!accessible ? "opacity-60" : ""}
                         ${selectedSolve?.id === solve.id && !isMobile ? "bg-primary/10 border-primary shadow-[0_0_20px_rgba(57,255,20,0.15)]" : "bg-card border-border hover:border-primary/50 hover:shadow-[0_0_15px_rgba(57,255,20,0.1)]"}
                       `} style={{
                 WebkitTapHighlightColor: 'transparent'
               }}>
                       <div className="flex items-center gap-3">
                         <div className="text-2xl flex-shrink-0">
-                          {accessible ? (subjectIcons[solve.subject] || "📚") : <Lock className="w-5 h-5 text-muted-foreground" />}
+                          {subjectIcons[solve.subject] || "📚"}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm sm:text-base line-clamp-2 leading-snug">
@@ -228,20 +206,13 @@ const History = () => {
                           addSuffix: true
                         })}
                             </span>
-                            {!accessible && (
-                              <span className="flex items-center gap-1 text-primary">
-                                <Crown className="w-3 h-3" />
-                                Pro
-                              </span>
-                            )}
                           </div>
                         </div>
                         <button onClick={e => handleDelete(solve.id, e)} className="p-3 -m-1 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Delete solve">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                    </motion.div>;
-                  })}
+                    </motion.div>)}
                 </AnimatePresence>
               </div>
 

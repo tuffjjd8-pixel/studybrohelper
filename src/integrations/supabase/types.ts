@@ -14,57 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      admin_controls: {
-        Row: {
-          feature_key: string
-          id: string
-          updated_at: string
-          visible_for_admin: boolean
-          visible_for_users: boolean
-        }
-        Insert: {
-          feature_key: string
-          id?: string
-          updated_at?: string
-          visible_for_admin?: boolean
-          visible_for_users?: boolean
-        }
-        Update: {
-          feature_key?: string
-          id?: string
-          updated_at?: string
-          visible_for_admin?: boolean
-          visible_for_users?: boolean
-        }
-        Relationships: []
-      }
-      api_usage_logs: {
-        Row: {
-          created_at: string
-          device_id: string | null
-          estimated_cost: number | null
-          id: string
-          request_type: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          device_id?: string | null
-          estimated_cost?: number | null
-          id?: string
-          request_type: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          device_id?: string | null
-          estimated_cost?: number | null
-          id?: string
-          request_type?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       app_settings: {
         Row: {
           id: string
@@ -120,33 +69,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      community_goal_content: {
-        Row: {
-          body: string
-          id: string
-          image_url: string | null
-          title: string
-          updated_at: string
-          visible: boolean
-        }
-        Insert: {
-          body?: string
-          id?: string
-          image_url?: string | null
-          title?: string
-          updated_at?: string
-          visible?: boolean
-        }
-        Update: {
-          body?: string
-          id?: string
-          image_url?: string | null
-          title?: string
-          updated_at?: string
-          visible?: boolean
-        }
-        Relationships: []
       }
       email_verification_codes: {
         Row: {
@@ -466,39 +388,6 @@ export type Database = {
           referred_user_id?: string
           referrer_id?: string
           status?: string
-        }
-        Relationships: []
-      }
-      solve_usage: {
-        Row: {
-          created_at: string
-          device_id: string | null
-          id: string
-          last_reset_at: string
-          solves_used: number
-          updated_at: string
-          usage_date: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          device_id?: string | null
-          id?: string
-          last_reset_at?: string
-          solves_used?: number
-          updated_at?: string
-          usage_date?: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          device_id?: string | null
-          id?: string
-          last_reset_at?: string
-          solves_used?: number
-          updated_at?: string
-          usage_date?: string
-          user_id?: string | null
         }
         Relationships: []
       }

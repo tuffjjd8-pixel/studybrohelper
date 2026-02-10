@@ -57,22 +57,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Helper: check if test-mode purchase should be blocked for non-developer
-    const DEVELOPER_EMAIL = "apexwavesstudios@gmail.com";
-    const isTestModeEvent = event.livemode === false;
-
-    const shouldBlockTestMode = async (uid: string): Promise<boolean> => {
-      if (!isTestModeEvent) return false;
-      const { data: authUser } = await supabase.auth.admin.getUserById(uid);
-      const email = authUser?.user?.email;
-      console.log(`Test mode webhook check: uid=${uid}, email=${email}`);
-      if (email !== DEVELOPER_EMAIL) {
-        console.log(`Blocked test-mode premium for non-developer: ${email}`);
-        return true;
-      }
-      return false;
-    };
-
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
@@ -83,8 +67,6 @@ Deno.serve(async (req) => {
           console.error("No client_reference_id found in session");
           break;
         }
-
-        if (await shouldBlockTestMode(userId)) break;
 
         console.log(`Checkout completed for user ${userId}, subscription ${subscriptionId}`);
 
@@ -116,16 +98,6 @@ Deno.serve(async (req) => {
         const renewalDate = new Date(subscription.current_period_end * 1000).toISOString();
         const isActive = subscription.status === "active" || subscription.status === "trialing";
 
-        // Look up user by subscription_id to enforce test-mode guard
-        if (isTestModeEvent) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("user_id")
-            .eq("subscription_id", subscriptionId)
-            .single();
-          if (profile && await shouldBlockTestMode(profile.user_id)) break;
-        }
-
         console.log(`Subscription ${subscriptionId} updated, status: ${subscription.status}`);
 
         const { error } = await supabase
@@ -148,16 +120,6 @@ Deno.serve(async (req) => {
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         const subscriptionId = subscription.id;
-
-        // Look up user by subscription_id to enforce test-mode guard
-        if (isTestModeEvent) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("user_id")
-            .eq("subscription_id", subscriptionId)
-            .single();
-          if (profile && await shouldBlockTestMode(profile.user_id)) break;
-        }
 
         console.log(`Subscription ${subscriptionId} deleted`);
 

@@ -104,22 +104,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // TEST MODE GUARD: Only allow developer account to create test-mode checkout
-    const DEVELOPER_EMAIL = "apexwavesstudios@gmail.com";
-    if (isTestMode) {
-      const { data: authUser } = await supabase.auth.admin.getUserById(userId);
-      const userEmail = authUser?.user?.email;
-      console.log(`Test mode checkout check: userId=${userId}, email=${userEmail}`);
-
-      if (userEmail !== DEVELOPER_EMAIL) {
-        console.log(`Test mode checkout blocked for non-developer: ${userEmail}`);
-        return new Response(
-          JSON.stringify({ error: "Test mode checkout not available" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-
     console.log(`Creating checkout session for user ${userId}, plan: ${plan}, priceId: ${priceId}, mode: ${stripeMode}`);
 
     // Initialize Stripe
