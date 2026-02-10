@@ -7,13 +7,11 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Only allow POST
     if (req.method !== "POST") {
       return new Response(
         JSON.stringify({ error: "Method not allowed" }),
@@ -21,7 +19,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse request body
     const { userId, plan } = await req.json();
 
     if (!userId || typeof userId !== "string") {
@@ -31,19 +28,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!plan || !["monthly", "weekend", "yearly"].includes(plan)) {
+    if (!plan || !["monthly", "lifetime"].includes(plan)) {
       return new Response(
-        JSON.stringify({ error: "plan must be 'monthly', 'weekend', or 'yearly'" }),
+        JSON.stringify({ error: "plan must be 'monthly' or 'lifetime'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get Supabase client to read stripe mode setting
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Read stripe mode from app_settings
     const { data: settingData } = await supabase
       .from("app_settings")
       .select("value")
@@ -55,43 +50,35 @@ Deno.serve(async (req) => {
 
     console.log(`Stripe mode: ${stripeMode}, isTestMode: ${isTestMode}`);
 
-    // Get Stripe secret key based on mode
-    const stripeSecretKey = isTestMode 
+    const stripeSecretKey = isTestMode
       ? Deno.env.get("STRIPE_SECRET_KEY_TEST")
       : Deno.env.get("STRIPE_SECRET_KEY_LIVE");
 
     if (!stripeSecretKey) {
-      console.error(`STRIPE_SECRET_KEY_${isTestMode ? 'TEST' : 'LIVE'} not configured`);
+      console.error(`STRIPE_SECRET_KEY_${isTestMode ? "TEST" : "LIVE"} not configured`);
       return new Response(
         JSON.stringify({ error: "Stripe is not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get the correct price ID based on plan and mode
     let priceId: string | undefined;
     if (isTestMode) {
       switch (plan) {
         case "monthly":
-          priceId = Deno.env.get("STRIPE_PRICE_ID_MONTHLY_NORMAL_TEST");
-          break;
-        case "weekend":
           priceId = Deno.env.get("STRIPE_PRICE_ID_MONTHLY_WEEKEND_TEST");
           break;
-        case "yearly":
-          priceId = Deno.env.get("STRIPE_PRICE_ID_YEARLY_TEST");
+        case "lifetime":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_LIFETIME_TEST");
           break;
       }
     } else {
       switch (plan) {
         case "monthly":
-          priceId = Deno.env.get("STRIPE_PRICE_ID_MONTHLY_NORMAL");
-          break;
-        case "weekend":
           priceId = Deno.env.get("STRIPE_PRICE_ID_MONTHLY_WEEKEND");
           break;
-        case "yearly":
-          priceId = Deno.env.get("STRIPE_PRICE_ID_YEARLY");
+        case "lifetime":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_LIFETIME_LIVE");
           break;
       }
     }
@@ -104,7 +91,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // TEST MODE GUARD: Only allow developer account to create test-mode checkout
+    // TEST MODE GUARD
     const DEVELOPER_EMAIL = "apexwavesstudios@gmail.com";
     if (isTestMode) {
       const { data: authUser } = await supabase.auth.admin.getUserById(userId);
@@ -122,14 +109,15 @@ Deno.serve(async (req) => {
 
     console.log(`Creating checkout session for user ${userId}, plan: ${plan}, priceId: ${priceId}, mode: ${stripeMode}`);
 
-    // Initialize Stripe
     const stripe = new Stripe(stripeSecretKey, {
       apiVersion: "2023-10-16",
     });
 
-    // Create checkout session
+    // Lifetime is a one-time payment, monthly is a subscription
+    const isLifetime = plan === "lifetime";
+
     const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
+      mode: isLifetime ? "payment" : "subscription",
       line_items: [
         {
           price: priceId,
