@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
@@ -20,7 +20,6 @@ import {
   Shield,
   Brain,
   Loader2,
-  Infinity,
 } from "lucide-react";
 import { isMobileApp } from "@/lib/mobileDetection";
 
@@ -30,7 +29,7 @@ interface ComparisonItem {
   premium: string | boolean;
 }
 
-type PlanType = "monthly" | "lifetime";
+type PlanType = "monthly" | "weekend" | "yearly";
 
 interface PlanOption {
   id: PlanType;
@@ -39,26 +38,33 @@ interface PlanOption {
   period: string;
   description: string;
   badge?: string;
-  subtext?: string;
+  savings?: string;
 }
 
 const PLANS: PlanOption[] = [
   {
     id: "monthly",
     name: "Monthly",
-    price: 4.99,
+    price: 5.99,
     period: "/month",
-    description: "Full premium access, billed monthly",
-    subtext: `Only $${(4.99 / 30).toFixed(2)} per day`,
+    description: "Full premium access",
   },
   {
-    id: "lifetime",
-    name: "Lifetime",
-    price: 84.99,
-    period: "",
-    description: "One-Time Payment — yours forever",
+    id: "weekend",
+    name: "Weekend Special",
+    price: 4.99,
+    period: "/month",
+    description: "Limited time offer",
+    badge: "🎉 SAVE $1",
+  },
+  {
+    id: "yearly",
+    name: "Yearly",
+    price: 40,
+    period: "/year",
+    description: "Best value",
     badge: "BEST VALUE",
-    subtext: "Pay once, never again",
+    savings: "Save $31.88/year",
   },
 ];
 
@@ -92,6 +98,13 @@ const Premium = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectingPlan, setIsSelectingPlan] = useState(false);
 
+  // Check if it's Friday (5) or Saturday (6) for weekend discount visibility
+  const isWeekendDiscount = useMemo(() => {
+    const today = new Date().getDay();
+    return today === 5 || today === 6;
+  }, []);
+
+  // Lock/unlock scroll based on overlay state
   useEffect(() => {
     if (isSelectingPlan) {
       document.body.style.overflow = "hidden";
@@ -116,14 +129,17 @@ const Premium = () => {
   };
 
   const handleCheckout = async () => {
+    // GUARD: Prevent Stripe Checkout from running inside mobile apps
     if (isMobileApp()) {
       toast.error("Please complete your purchase on our website");
       return;
     }
+
     if (!selectedPlan) {
       toast.error("Please select a plan");
       return;
     }
+
     if (!user) {
       toast.error("Please sign in to continue");
       navigate("/auth");
@@ -131,15 +147,18 @@ const Premium = () => {
     }
 
     setIsLoading(true);
+
     try {
       const { data, error } = await supabase.functions.invoke("createCheckoutSession", {
         body: { userId: user.id, plan: selectedPlan },
       });
+
       if (error) {
         console.error("Checkout error:", error);
         toast.error("Failed to create checkout session. Please try again.");
         return;
       }
+
       if (data?.url) {
         window.location.href = data.url;
       } else {
@@ -152,8 +171,6 @@ const Premium = () => {
       setIsLoading(false);
     }
   };
-
-  const selectedPlanData = PLANS.find((p) => p.id === selectedPlan);
 
   return (
     <div className="min-h-screen bg-background">
@@ -181,79 +198,72 @@ const Premium = () => {
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", bounce: 0.5 }}
-                className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-500 via-amber-400 to-yellow-600 flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(245,158,11,0.4)]"
+                className="w-20 h-20 rounded-full bg-gradient-to-br from-primary via-secondary to-primary flex items-center justify-center mx-auto mb-4"
               >
-                <Crown className="w-10 h-10 text-black" />
+                <Crown className="w-10 h-10 text-primary-foreground" />
               </motion.div>
               <h1 className="text-3xl font-heading font-bold mb-2">
-                Go <span className="bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 bg-clip-text text-transparent">Premium</span>
+                Go <span className="text-gradient">Premium</span>
               </h1>
               <p className="text-muted-foreground">
                 Unlock the full power of StudyBro AI
               </p>
             </div>
 
-            {/* Plan Cards */}
+            {/* Plan Selection */}
             <div className="space-y-3">
               <h2 className="font-semibold text-lg text-center">Choose Your Plan</h2>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {PLANS.map((plan) => {
                   const isSelected = selectedPlan === plan.id;
-                  const isLifetime = plan.id === "lifetime";
-
+                  const isWeekendPlan = plan.id === "weekend";
+                  
                   return (
                     <motion.button
                       key={plan.id}
                       onClick={() => setSelectedPlan(plan.id)}
                       whileTap={{ scale: 0.98 }}
-                      className={`w-full p-5 rounded-2xl border-2 transition-all relative overflow-hidden text-left ${
-                        isLifetime
-                          ? isSelected
-                            ? "border-yellow-400 bg-gradient-to-br from-yellow-500/15 via-amber-500/10 to-yellow-600/5 shadow-[0_0_20px_rgba(245,158,11,0.2)]"
-                            : "border-yellow-500/40 bg-gradient-to-br from-yellow-500/5 via-transparent to-amber-500/5 hover:border-yellow-400/70"
-                          : isSelected
-                            ? "border-primary bg-primary/10 shadow-lg"
-                            : "border-border bg-card hover:border-muted-foreground/50"
-                      }`}
+                      className={`w-full p-4 rounded-2xl border-2 transition-all relative overflow-hidden text-left ${
+                        isSelected
+                          ? "border-primary bg-primary/10 shadow-lg"
+                          : "border-border bg-card hover:border-muted-foreground/50"
+                      } ${isWeekendPlan && !isWeekendDiscount ? "opacity-60" : ""}`}
+                      disabled={isWeekendPlan && !isWeekendDiscount}
                     >
                       {/* Badge */}
                       {plan.badge && (
-                        <div className="absolute top-3 right-3 px-2.5 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-yellow-500 to-amber-400 text-black">
+                        <div className={`absolute top-3 right-3 px-2 py-0.5 text-xs font-bold rounded-full ${
+                          plan.id === "yearly" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "bg-secondary text-secondary-foreground animate-pulse"
+                        }`}>
                           {plan.badge}
                         </div>
                       )}
 
                       <div className="flex items-center gap-3">
                         {/* Selection indicator */}
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                            isSelected
-                              ? isLifetime
-                                ? "border-yellow-400 bg-yellow-400"
-                                : "border-primary bg-primary"
-                              : "border-muted-foreground"
-                          }`}
-                        >
-                          {isSelected && <Check className="w-3 h-3 text-black" />}
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                          isSelected 
+                            ? "border-primary bg-primary" 
+                            : "border-muted-foreground"
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
                         </div>
 
                         <div className="flex-1">
                           <div className="flex items-baseline gap-2">
-                            <span className={`text-2xl font-bold ${isLifetime ? "bg-gradient-to-r from-yellow-400 to-amber-300 bg-clip-text text-transparent" : ""}`}>
-                              ${plan.price.toFixed(2)}
-                            </span>
-                            {plan.period && (
-                              <span className="text-muted-foreground text-sm">{plan.period}</span>
-                            )}
+                            <span className="text-2xl font-bold">${plan.price.toFixed(2)}</span>
+                            <span className="text-muted-foreground text-sm">{plan.period}</span>
                           </div>
-                          <div className="font-medium flex items-center gap-2">
-                            {plan.name}
-                            {isLifetime && <Infinity className="w-4 h-4 text-yellow-400" />}
-                          </div>
+                          <div className="font-medium">{plan.name}</div>
                           <div className="text-xs text-muted-foreground">{plan.description}</div>
-                          {plan.subtext && (
-                            <div className={`text-xs font-medium mt-1 ${isLifetime ? "text-yellow-400" : "text-primary"}`}>
-                              {plan.subtext}
+                          {plan.savings && (
+                            <div className="text-xs text-primary font-medium mt-1">{plan.savings}</div>
+                          )}
+                          {isWeekendPlan && !isWeekendDiscount && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Available Fri-Sat only
                             </div>
                           )}
                         </div>
@@ -264,17 +274,20 @@ const Premium = () => {
               </div>
             </div>
 
-            {/* Comparison Table */}
+            {/* Gauth-style Comparison Table */}
             <div className="space-y-3">
               <h2 className="font-semibold text-lg text-center">Free vs Premium</h2>
               <div className="rounded-xl border border-border overflow-hidden">
+                {/* Header */}
                 <div className="grid grid-cols-3 bg-muted/50 p-3 font-medium text-sm">
                   <div>Feature</div>
                   <div className="text-center">Free</div>
-                  <div className="text-center text-yellow-400">Premium</div>
+                  <div className="text-center text-primary">Premium</div>
                 </div>
+                
+                {/* Rows */}
                 {COMPARISON.map((item, index) => (
-                  <div
+                  <div 
                     key={item.feature}
                     className={`grid grid-cols-3 p-3 text-sm ${
                       index % 2 === 0 ? "bg-card" : "bg-muted/20"
@@ -300,7 +313,7 @@ const Premium = () => {
                           <X className="w-4 h-4 text-muted-foreground mx-auto" />
                         )
                       ) : (
-                        <span className="text-yellow-400 font-medium">{item.premium}</span>
+                        <span className="text-primary font-medium">{item.premium}</span>
                       )}
                     </div>
                   </div>
@@ -321,7 +334,7 @@ const Premium = () => {
                     className="p-3 bg-card rounded-lg border border-border"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <benefit.icon className="w-4 h-4 text-yellow-400" />
+                      <benefit.icon className="w-4 h-4 text-primary" />
                       <span className="text-sm font-medium">{benefit.title}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">{benefit.description}</p>
@@ -342,7 +355,7 @@ const Premium = () => {
         </div>
       </main>
 
-      {/* Sticky CTA */}
+      {/* Sticky CTA - only visible after selecting a plan */}
       <AnimatePresence>
         {selectedPlan && (
           <motion.div
@@ -355,16 +368,10 @@ const Premium = () => {
             <div className="max-w-lg mx-auto">
               <Button
                 onClick={handleSelectPlanClick}
-                className={`w-full h-14 text-lg font-bold gap-2 ${
-                  selectedPlan === "lifetime"
-                    ? "bg-gradient-to-r from-yellow-500 to-amber-400 text-black hover:from-yellow-400 hover:to-amber-300"
-                    : ""
-                }`}
+                className="w-full h-14 text-lg font-bold gap-2"
               >
                 <Crown className="w-5 h-5" />
-                {selectedPlan === "lifetime"
-                  ? `Get Lifetime — $${selectedPlanData?.price.toFixed(2)}`
-                  : `Select Plan — $${selectedPlanData?.price.toFixed(2)}${selectedPlanData?.period}`}
+                Select Plan - ${PLANS.find(p => p.id === selectedPlan)?.price.toFixed(2)}{PLANS.find(p => p.id === selectedPlan)?.period}
               </Button>
             </div>
           </motion.div>
@@ -386,36 +393,27 @@ const Premium = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 space-y-6"
             >
+              {/* Crown Icon */}
               <div className="flex justify-center">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                  selectedPlan === "lifetime"
-                    ? "bg-gradient-to-br from-yellow-500 via-amber-400 to-yellow-600 shadow-[0_0_20px_rgba(245,158,11,0.4)]"
-                    : "bg-gradient-to-br from-primary via-secondary to-primary"
-                }`}>
-                  <Crown className={`w-8 h-8 ${selectedPlan === "lifetime" ? "text-black" : "text-primary-foreground"}`} />
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary via-secondary to-primary flex items-center justify-center">
+                  <Crown className="w-8 h-8 text-primary-foreground" />
                 </div>
               </div>
 
+              {/* Plan Summary */}
               <div className="text-center space-y-2">
                 <h2 className="text-xl font-bold">Confirm Your Plan</h2>
                 <p className="text-muted-foreground">
-                  {selectedPlanData?.name} — ${selectedPlanData?.price.toFixed(2)}
-                  {selectedPlanData?.period}
+                  {PLANS.find(p => p.id === selectedPlan)?.name} - ${PLANS.find(p => p.id === selectedPlan)?.price.toFixed(2)}{PLANS.find(p => p.id === selectedPlan)?.period}
                 </p>
-                {selectedPlan === "lifetime" && (
-                  <p className="text-xs text-yellow-400 font-medium">One-time payment, lifetime access</p>
-                )}
               </div>
 
+              {/* Actions */}
               <div className="space-y-3">
                 <Button
                   onClick={handleCheckout}
                   disabled={isLoading}
-                  className={`w-full h-12 text-base font-bold gap-2 ${
-                    selectedPlan === "lifetime"
-                      ? "bg-gradient-to-r from-yellow-500 to-amber-400 text-black hover:from-yellow-400 hover:to-amber-300"
-                      : ""
-                  }`}
+                  className="w-full h-12 text-base font-bold gap-2"
                 >
                   {isLoading ? (
                     <>
@@ -439,6 +437,7 @@ const Premium = () => {
                 </Button>
               </div>
 
+              {/* Cancel anytime message */}
               <p className="text-xs text-muted-foreground text-center">
                 Cancel anytime. No questions asked.
               </p>
