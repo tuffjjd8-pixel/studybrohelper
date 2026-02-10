@@ -131,6 +131,10 @@ serve(async (req) => {
 
     console.log('[STT] Transcription successful');
 
+    // Log usage (fire-and-forget)
+    const { logUsage } = await import("../_shared/usage-logger.ts");
+    logUsage("transcribe", 0.0006);
+
     return new Response(
       JSON.stringify({ text: result.text }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
