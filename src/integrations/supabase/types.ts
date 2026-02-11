@@ -469,6 +469,42 @@ export type Database = {
         }
         Relationships: []
       }
+      share_likes: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          id: string
+          likes_claimed: number
+          likes_confirmed: number
+          reviewed_at: string | null
+          screenshot_url: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          id?: string
+          likes_claimed?: number
+          likes_confirmed?: number
+          reviewed_at?: string | null
+          screenshot_url: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          id?: string
+          likes_claimed?: number
+          likes_confirmed?: number
+          reviewed_at?: string | null
+          screenshot_url?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       solve_usage: {
         Row: {
           created_at: string
