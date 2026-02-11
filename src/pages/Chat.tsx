@@ -24,8 +24,6 @@ interface Solve {
   solution_markdown: string;
 }
 
-const FREE_FOLLOWUP_LIMIT = 2;
-
 const Chat = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -35,7 +33,6 @@ const Chat = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
-  const [isPremium, setIsPremium] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,14 +80,13 @@ const Chat = () => {
 
   const fetchData = async () => {
     try {
-      const [solveRes, messagesRes, profileRes] = await Promise.all([
+      const [solveRes, messagesRes] = await Promise.all([
         supabase.from("solves").select("*").eq("id", id).maybeSingle(),
         supabase
           .from("chat_messages")
           .select("*")
           .eq("solve_id", id)
           .order("created_at", { ascending: true }),
-        user ? supabase.from("profiles").select("is_premium").eq("user_id", user.id).single() : Promise.resolve({ data: null }),
       ]);
 
       if (solveRes.error) throw solveRes.error;
@@ -107,7 +103,6 @@ const Chat = () => {
 
       setSolve(solveRes.data);
       setMessages(typedMessages);
-      if (profileRes.data) setIsPremium(profileRes.data.is_premium);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load chat");
@@ -116,16 +111,8 @@ const Chat = () => {
     }
   };
 
-  // Count user messages for follow-up limit
-  const userMessageCount = messages.filter(m => m.role === "user").length;
-  const followUpLimitReached = !isPremium && userMessageCount >= FREE_FOLLOWUP_LIMIT;
-
   const handleSend = async (message: string) => {
     if (!message.trim() || !solve) return;
-    if (followUpLimitReached) {
-      toast.error("Follow-up limit reached. Upgrade to Pro for unlimited!");
-      return;
-    }
 
     const userMessage = message.trim();
     setIsLoading(true);
@@ -328,22 +315,11 @@ const Chat = () => {
       {/* Input */}
       <div className="fixed bottom-16 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border">
         <div className="max-w-2xl mx-auto">
-          {followUpLimitReached ? (
-            <div className="text-center py-3">
-              <p className="text-sm text-muted-foreground mb-1">
-                Follow-up limit reached ({FREE_FOLLOWUP_LIMIT}/{FREE_FOLLOWUP_LIMIT})
-              </p>
-              <p className="text-xs text-primary">
-                Upgrade to Pro for unlimited follow-ups
-              </p>
-            </div>
-          ) : (
-            <FollowUpInput
-              onSubmit={handleSend}
-              isLoading={isLoading}
-              placeholder="Ask a follow-up question..."
-            />
-          )}
+          <FollowUpInput
+            onSubmit={handleSend}
+            isLoading={isLoading}
+            placeholder="Paste or type your homework question..."
+          />
         </div>
       </div>
 

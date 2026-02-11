@@ -42,20 +42,6 @@ const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 7;
 const PREMIUM_DAILY_QUIZZES = 13;
-const getTopicFromSubject = (subject: string) => {
-  const s = subject.toLowerCase();
-  if (s.includes("algebra") || s.includes("equation")) return "Algebra";
-  if (s.includes("geometry") || s.includes("triangle") || s.includes("circle")) return "Geometry";
-  if (s.includes("calculus") || s.includes("derivative") || s.includes("integral")) return "Calculus";
-  if (s.includes("statistics") || s.includes("probability")) return "Statistics";
-  if (s.includes("physics")) return "Physics";
-  if (s.includes("chemistry")) return "Chemistry";
-  if (s.includes("biology")) return "Biology";
-  if (s.includes("history")) return "History";
-  if (s.includes("english") || s.includes("grammar")) return "English";
-  return subject.charAt(0).toUpperCase() + subject.slice(1) || "General";
-};
-
 const Quiz = () => {
   const navigate = useNavigate();
   const {
@@ -277,52 +263,8 @@ const Quiz = () => {
   };
   const handleSubmit = () => {
     if (!quizResult) return;
-    if (!allQuestionsAnswered) {
-      // Find first unanswered question and navigate to it
-      const unansweredIndex = quizResult.findIndex((_, idx) => selectedAnswers[idx] === undefined);
-      if (unansweredIndex !== -1) {
-        setCurrentQuestion(unansweredIndex);
-        toast.error(`Please answer question ${unansweredIndex + 1} before submitting`);
-      }
-      return;
-    }
     setSubmitted(true);
     toast.success("Quiz submitted!");
-
-    // Store real quiz results for the Results page
-    const quizScore = calculateScore();
-    const topicMap: Record<string, { total: number; correct: number }> = {};
-    quizResult.forEach((q, idx) => {
-      const topic = getTopicFromSubject(selectedSolve?.subject || "General");
-      if (!topicMap[topic]) topicMap[topic] = { total: 0, correct: 0 };
-      topicMap[topic].total++;
-      const selectedOption = selectedAnswers[idx];
-      if (selectedOption && isCorrectAnswer(idx, selectedOption)) {
-        topicMap[topic].correct++;
-      }
-    });
-
-    const topicBreakdown = Object.entries(topicMap).map(([name, d]) => ({
-      name,
-      total: d.total,
-      correct: d.correct,
-      pct: Math.round((d.correct / d.total) * 100),
-    }));
-
-    const weakTopics = topicBreakdown.filter((t) => t.pct < 80).map((t) => t.name);
-
-    const quizResultData = {
-      totalQuestions: quizScore.total,
-      correctAnswers: quizScore.correct,
-      wrongAnswers: quizScore.total - quizScore.correct,
-      scorePercentage: Math.round((quizScore.correct / quizScore.total) * 100),
-      weakTopics,
-      topicBreakdown,
-      subject: selectedSolve?.subject || "General",
-      quizName: selectedSolve?.question_text || selectedSolve?.subject || "Quiz",
-      timestamp: Date.now(),
-    };
-    localStorage.setItem("last_quiz_result", JSON.stringify(quizResultData));
   };
   const handleRestart = () => {
     setQuizResult(null);
@@ -715,8 +657,8 @@ const Quiz = () => {
                   <Button variant="outline" onClick={handlePrevQuestion} disabled={currentQuestion === 0} className="flex-1">
                     Previous
                   </Button>
-                  {currentQuestion === quizResult.length - 1 ? <Button onClick={handleSubmit} disabled={submitted} className="flex-1" variant="neon">
-                      {submitted ? "Submitted ✓" : allQuestionsAnswered ? "Submit" : `Submit (${Object.keys(selectedAnswers).length}/${quizResult.length})`}
+                  {currentQuestion === quizResult.length - 1 ? <Button onClick={handleSubmit} disabled={!allQuestionsAnswered || submitted} className="flex-1" variant="neon">
+                      {submitted ? "Submitted ✓" : "Submit"}
                     </Button> : <Button onClick={handleNextQuestion} className="flex-1">
                       Next
                     </Button>}

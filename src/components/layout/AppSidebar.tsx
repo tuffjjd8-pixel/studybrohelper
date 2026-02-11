@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Home, Clock, User, Crown, Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 
 interface AppSidebarProps {
   isOpen: boolean;
@@ -46,7 +45,7 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
             <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <AIBrainIcon size="lg" glowIntensity="strong" />
+                  <span className="text-2xl font-heading font-bold text-primary">C</span>
                 </div>
                 <div>
                   <h2 className="font-heading font-bold text-sidebar-foreground">

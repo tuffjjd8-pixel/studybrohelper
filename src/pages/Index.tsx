@@ -15,7 +15,6 @@ import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarTrigger } from "@/components/layout/SidebarTrigger";
 import { ScannerModal } from "@/components/scanner/ScannerModal";
-import { TopSharerPopup } from "@/components/share/TopSharerPopup";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
@@ -291,9 +290,11 @@ const Index = () => {
   };
   const showAnimatedSteps = animatedSteps && solution?.steps && solution.steps.length > 0;
   return <div className="min-h-screen bg-background">
+      {/* Sidebar trigger */}
+      <SidebarTrigger onClick={() => setSidebarOpen(true)} />
+      
       {/* Sidebar */}
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
       
       <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
       
@@ -388,7 +389,7 @@ const Index = () => {
 
                   {/* Animated steps */}
                   <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} />}
+                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} />}
 
               {/* Solve usage banner below solution */}
               {!isPremium}
@@ -398,7 +399,6 @@ const Index = () => {
 
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
-      <TopSharerPopup />
       
       {/* Scanner Modal */}
       <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} />
