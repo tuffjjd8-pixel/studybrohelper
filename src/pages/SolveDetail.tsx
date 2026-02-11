@@ -34,6 +34,7 @@ const SolveDetail = () => {
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isAsking, setIsAsking] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
 
   useEffect(() => {
     if (!authLoading) {
@@ -76,13 +77,14 @@ const SolveDetail = () => {
 
   const fetchSolve = async () => {
     try {
-      const [solveRes, messagesRes] = await Promise.all([
+      const [solveRes, messagesRes, profileRes] = await Promise.all([
         supabase.from("solves").select("*").eq("id", id).maybeSingle(),
         supabase
           .from("chat_messages")
           .select("*")
           .eq("solve_id", id)
           .order("created_at", { ascending: true }),
+        supabase.from("profiles").select("is_premium").eq("user_id", user!.id).single(),
       ]);
 
       if (solveRes.error) throw solveRes.error;
@@ -92,6 +94,7 @@ const SolveDetail = () => {
         return;
       }
       setSolve(solveRes.data);
+      setIsPremium(profileRes.data?.is_premium ?? false);
       setMessages(
         (messagesRes.data || []).map((m) => ({
           ...m,
@@ -208,6 +211,9 @@ const SolveDetail = () => {
               question={solve.question_text || "Image question"}
               solution={solve.solution_markdown}
               questionImage={solve.question_image_url || undefined}
+              solveId={solve.id}
+              isPremium={isPremium}
+              isHistory={true}
             />
 
           </motion.div>
