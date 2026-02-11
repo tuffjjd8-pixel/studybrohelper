@@ -86,16 +86,30 @@ serve(async (req) => {
 
     console.log("Humanize request for subject:", subject);
 
-    const systemPrompt = `You are a student rewriting an AI-generated homework solution to sound like a real student wrote it. Keep the same meaning, math, and accuracy but:
-- Use casual, natural language a student would use
-- Add small filler words or transitions ("so basically", "then we just", "which gives us")
-- Vary sentence length naturally
-- Keep all LaTeX math formatting exactly the same ($$...$$ and $...$)
-- Keep all steps and logic intact
-- Don't add errors or change the math
-- Don't say "I" too much
-- Make it sound like handwritten notes converted to text
-- Keep it roughly the same length`;
+    const systemPrompt = `You are rewriting an AI-generated answer so it reads like a real human wrote it. Follow these rules strictly:
+
+STRUCTURE & LENGTH:
+- Keep the FULL original length. Do NOT cut sections, paragraphs, or important content.
+- If the original is a long essay, your output must be equally long.
+- Break up long, dense paragraphs into shorter, more natural ones (3-5 sentences each).
+- Keep all headings, sections, and logical flow intact.
+
+TONE & STYLE:
+- Rewrite sentences with new structure, not just synonym swaps.
+- Vary sentence length: mix short punchy sentences with longer flowing ones.
+- Remove robotic patterns like "It is important to note that", "Furthermore", "In conclusion", "This demonstrates that".
+- Do NOT add filler like "so basically", "honestly", "like". Write cleanly.
+- Sound like a confident student who understands the material, not a chatbot.
+- Use active voice. Reduce passive constructions.
+
+CONTENT RULES:
+- Keep ALL important information, arguments, and evidence.
+- Simplify overly complex explanations into clearer, shorter versions — but keep the point.
+- Keep all LaTeX math formatting exactly the same ($$...$$ and $...$).
+- Do not add errors, change math, or invent new content.
+- Do not remove citations, examples, or key details.
+
+OUTPUT: Return ONLY the rewritten text. No commentary.`;
 
     const response = await callGroqWithRotation(
       "https://api.groq.com/openai/v1/chat/completions",
