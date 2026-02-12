@@ -165,12 +165,26 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
       const optimized = await fileToOptimizedDataUrl(file, {
         maxDimension: 2048,
         quality: 0.92,
-        mimeType: "image/webp",
+        // Use jpeg for max compatibility (older Safari, Android WebView)
+        mimeType: "image/jpeg",
       });
       stopStream(false);
       onCapture(optimized);
     } catch (err) {
       console.error("Gallery error:", err);
+      // Ultimate fallback: just pass the raw file as data URL
+      try {
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        stopStream(false);
+        onCapture(dataUrl);
+      } catch {
+        console.error("Gallery fallback also failed");
+      }
     }
     if (e.target) e.target.value = "";
   }, [stopStream, onCapture]);
@@ -196,9 +210,10 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,image/heic,image/heif"
           onChange={handleGalleryPick}
           className="hidden"
+          style={{ position: "absolute", top: -9999, left: -9999, opacity: 0 }}
         />
 
         {/* Full-screen edge-to-edge camera feed */}
