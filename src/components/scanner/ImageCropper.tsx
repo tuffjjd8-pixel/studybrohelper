@@ -110,10 +110,11 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
         0, 0, canvas.width, canvas.height
       );
 
+      // Use JPEG for max compatibility (older Safari, Android WebView, Capacitor)
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error("Blob creation failed"))),
-          "image/webp",
+          "image/jpeg",
           0.92
         );
       });

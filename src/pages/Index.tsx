@@ -167,7 +167,8 @@ const Index = () => {
           image: imageData,
           isPremium,
           animatedSteps,
-          generateGraph: false
+          generateGraph: false,
+          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
         }
       });
       if (error) throw error;

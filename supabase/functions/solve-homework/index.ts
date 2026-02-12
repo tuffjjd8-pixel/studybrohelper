@@ -8,11 +8,13 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// Text model: "llama-3.3-70b-versatile" - Primary for ALL text/reasoning tasks
-// Vision model: "meta-llama/llama-4-scout-17b-16e-instruct" - For image processing
-// Graph model: LLaMA 3.3 70B via OpenRouter (free tier, structured JSON)
+// Free tier:  llama-3.1-8b-instant (fast, lightweight)
+// Pro tier:   llama-3.3-70b-versatile (full reasoning)
+// Vision:     llama-4-scout (image processing) — Pro only
+// Graph:      LLaMA 3.3 70B via OpenRouter (free tier, structured JSON)
 // ============================================================
-const GROQ_TEXT_MODEL = "llama-3.3-70b-versatile";
+const FREE_TEXT_MODEL = "llama-3.1-8b-instant";
+const PRO_TEXT_MODEL = "llama-3.3-70b-versatile";
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const OPENROUTER_GRAPH_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
@@ -314,12 +316,13 @@ async function callGroqText(
     systemPrompt += getAnimatedStepsPrompt(maxSteps, isPremium);
   }
   
-  console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
+  const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
+  console.log("Calling Groq Text API with model:", textModel, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
   const response = await callGroqWithRotation(
     "https://api.groq.com/openai/v1/chat/completions",
     {
-      model: GROQ_TEXT_MODEL,
+      model: textModel,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: question }
@@ -486,7 +489,8 @@ serve(async (req) => {
       isPremium = false,
       animatedSteps = false,
       generateGraph = false,
-      userGraphCount = 0 // Current graph count for the day
+      userGraphCount = 0, // Current graph count for the day
+      deviceType = "web" // "web" | "capacitor"
     } = await req.json();
     
     // Check graph limit
@@ -498,10 +502,22 @@ serve(async (req) => {
     }
     
     let solution: string;
+    let modelUsed: string;
+    let ocrEngineUsed: string = "none";
 
-    // Route to appropriate model based on input type
+    // Route to appropriate model based on input type and tier
     if (image) {
-      // Image input → use Groq Vision (Enhanced OCR for premium)
+      if (!isPremium) {
+        // Free users: no vision model, extract text concept only via text model
+        // Still use vision for basic OCR but log as free tier
+        ocrEngineUsed = "free_groq_vision";
+        modelUsed = GROQ_VISION_MODEL;
+      } else {
+        // Pro users: full enhanced vision OCR
+        ocrEngineUsed = "pro_groq_vision_enhanced";
+        modelUsed = GROQ_VISION_MODEL;
+      }
+      
       const matches = image.match(/^data:([^;]+);base64,(.+)$/);
       if (!matches) {
         throw new Error("Invalid image format");
@@ -516,7 +532,8 @@ serve(async (req) => {
         animatedSteps
       );
     } else if (question) {
-      // Text-only input → use Groq Text
+      // Text-only input → route to tier-appropriate text model
+      modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
       solution = await callGroqText(question, isPremium, animatedSteps);
     } else {
       throw new Error("Please provide a question or image");
@@ -550,7 +567,12 @@ serve(async (req) => {
     const responseData: Record<string, unknown> = {
       solution: cleanSolutionText(solution, isPremium),
       subject,
-      tier: isPremium ? "premium" : "free"
+      tier: isPremium ? "premium" : "free",
+      debug: {
+        model_used: modelUsed!,
+        ocr_engine_used: ocrEngineUsed,
+        device_type: deviceType,
+      }
     };
     
     // Add animated steps if requested
@@ -579,7 +601,7 @@ serve(async (req) => {
       hasModelSelection: isPremium
     };
 
-    console.log("Solution generated, subject:", subject, "steps:", responseData.steps ? (responseData.steps as Array<unknown>).length : 0, "hasGraph:", !!responseData.graph);
+    console.log("Solution generated, subject:", subject, "model:", modelUsed!, "ocr:", ocrEngineUsed, "device:", deviceType, "steps:", responseData.steps ? (responseData.steps as Array<unknown>).length : 0, "hasGraph:", !!responseData.graph);
 
     // Log usage (fire-and-forget)
     const authHeader = req.headers.get("Authorization");

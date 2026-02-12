@@ -91,6 +91,7 @@ const Scanner = () => {
           isPremium: false,
           animatedSteps: false,
           generateGraph: false,
+          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
         },
       });
 
