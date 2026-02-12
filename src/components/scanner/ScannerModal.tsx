@@ -76,6 +76,7 @@ export function ScannerModal({
           isPremium,
           animatedSteps: false,
           generateGraph: false,
+          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
         },
       });
 
