@@ -26,10 +26,34 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-async function fileToImageBitmapSafe(file: File): Promise<ImageBitmap | null> {
+async function loadImageElement(file: File): Promise<HTMLImageElement> {
+  const url = URL.createObjectURL(file);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Image load failed"));
+    };
+    img.src = url;
+  });
+}
+
+async function fileToImageBitmapSafe(file: File): Promise<ImageBitmap | HTMLImageElement | null> {
+  // Try createImageBitmap first (fast, works in modern browsers)
+  if (typeof createImageBitmap === "function") {
+    try {
+      return await createImageBitmap(file);
+    } catch {
+      // Fall through to HTMLImageElement path
+    }
+  }
+  // Fallback for older iOS Safari and other browsers
   try {
-    // Fast path in modern browsers
-    return await createImageBitmap(file);
+    return await loadImageElement(file);
   } catch {
     return null;
   }
@@ -65,12 +89,16 @@ export async function fileToOptimizedDataUrl(
 
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    bitmap.close();
+    if ("close" in bitmap && typeof (bitmap as any).close === "function") {
+      (bitmap as ImageBitmap).close();
+    }
     return await blobToDataUrl(file);
   }
 
   ctx.drawImage(bitmap, 0, 0, targetW, targetH);
-  bitmap.close();
+  if ("close" in bitmap && typeof bitmap.close === "function") {
+    bitmap.close();
+  }
 
   const q = clamp(quality, 0.4, 0.95);
 
