@@ -8,9 +8,11 @@ const corsHeaders = {
 
 // ============================================================
 // STT MODEL CONFIGURATION
-// Use whisper-large-v3-turbo for all audio transcription
+// whisper-large-v3-turbo for transcription (fast)
+// whisper-large-v3 for translation (turbo doesn't support translate)
 // ============================================================
-const WHISPER_MODEL = "whisper-large-v3-turbo";
+const TRANSCRIBE_MODEL = "whisper-large-v3-turbo";
+const TRANSLATE_MODEL = "whisper-large-v3";
 
 // All available Groq API key environment variable names for STT rotation
 const STT_KEY_NAMES = [
@@ -48,7 +50,8 @@ async function transcribeWithRotation(
     throw new Error("No Groq API keys configured for STT");
   }
   
-  console.log(`[STT] Starting transcription with ${keys.length} available keys, model: ${WHISPER_MODEL}`);
+  const model = mode === "translate" ? TRANSLATE_MODEL : TRANSCRIBE_MODEL;
+  console.log(`[STT] Starting transcription with ${keys.length} available keys, model: ${model}`);
   
   let lastError: Error | null = null;
   
@@ -58,7 +61,7 @@ async function transcribeWithRotation(
       
       const formData = new FormData();
       formData.append('file', audioBlob, 'audio.webm');
-      formData.append('model', WHISPER_MODEL);
+      formData.append('model', model);
       
       const endpoint = mode === "translate" 
         ? 'https://api.groq.com/openai/v1/audio/translations'
@@ -115,7 +118,7 @@ serve(async (req) => {
       throw new Error('No audio data provided');
     }
 
-    console.log(`[STT] Transcription request - mode: ${mode}, language: ${language || 'auto'}, model: ${WHISPER_MODEL}`);
+    console.log(`[STT] Transcription request - mode: ${mode}, language: ${language || 'auto'}, model: ${mode === "translate" ? TRANSLATE_MODEL : TRANSCRIBE_MODEL}`);
 
     // Decode base64 to binary
     const binaryString = atob(audio);
