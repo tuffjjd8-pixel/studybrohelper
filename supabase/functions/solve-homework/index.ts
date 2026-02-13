@@ -273,9 +273,11 @@ import { logUsage } from "../_shared/usage-logger.ts";
 async function callGroqText(
   question: string, 
   isPremium: boolean,
-  animatedSteps: boolean
+  animatedSteps: boolean,
+  solveMode: string = "instant"
 ): Promise<string> {
-  let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
+  // Select prompt based on effective mode, not just tier
+  let systemPrompt = solveMode === "deep" ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
   // Add animated steps instruction
   if (animatedSteps) {
@@ -309,9 +311,10 @@ async function callGroqVision(
   imageBase64: string, 
   mimeType: string, 
   isPremium: boolean,
-  animatedSteps: boolean
+  animatedSteps: boolean,
+  solveMode: string = "instant"
 ): Promise<string> {
-  let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
+  let systemPrompt = solveMode === "deep" ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
   // Premium gets enhanced OCR instructions
   if (isPremium) {
@@ -453,9 +456,13 @@ serve(async (req) => {
       isPremium = false,
       animatedSteps = false,
       generateGraph = false,
-      userGraphCount = 0, // Current graph count for the day
-      deviceType = "web" // "web" | "capacitor"
+      userGraphCount = 0,
+      solveMode = "instant",
+      deviceType = "web"
     } = await req.json();
+    
+    // Enforce: free users are ALWAYS instant, regardless of what's sent
+    const effectiveMode = isPremium ? solveMode : "instant";
     
     // Check graph limit
     const maxGraphs = isPremium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
@@ -493,12 +500,13 @@ serve(async (req) => {
         base64Data, 
         mimeType, 
         isPremium, 
-        animatedSteps
+        animatedSteps,
+        effectiveMode
       );
     } else if (question) {
       // Text-only input → route to tier-appropriate text model
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-      solution = await callGroqText(question, isPremium, animatedSteps);
+      solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode);
     } else {
       throw new Error("Please provide a question or image");
     }
@@ -536,6 +544,7 @@ serve(async (req) => {
         model_used: modelUsed!,
         ocr_engine_used: ocrEngineUsed,
         device_type: deviceType,
+        solve_mode: effectiveMode,
       }
     };
     
