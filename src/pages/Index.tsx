@@ -83,6 +83,10 @@ const Index = () => {
     const saved = localStorage.getItem("speech_language");
     return saved ?? "auto";
   });
+  const [solveMode, setSolveMode] = useState<"instant" | "deep">(() => {
+    const saved = localStorage.getItem("solve_mode");
+    return (saved === "deep" ? "deep" : "instant");
+  });
 
   // Persist toggles
   useEffect(() => {
@@ -94,6 +98,9 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem("speech_language", speechLanguage);
   }, [speechLanguage]);
+  useEffect(() => {
+    localStorage.setItem("solve_mode", solveMode);
+  }, [solveMode]);
   const isPremium = profile?.is_premium || false;
 
   // Persistent solve usage tracking (backend-backed, not localStorage)
@@ -168,6 +175,7 @@ const Index = () => {
           isPremium,
           animatedSteps,
           generateGraph: false,
+          solveMode: isPremium ? solveMode : "instant",
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
         }
       });
@@ -350,7 +358,7 @@ const Index = () => {
                 </motion.div>}
 
               {/* Solve Toggles */}
-              <SolveToggles animatedSteps={animatedSteps} onAnimatedStepsChange={setAnimatedSteps} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
+              <SolveToggles animatedSteps={animatedSteps} onAnimatedStepsChange={setAnimatedSteps} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={setSolveMode} />
 
               {/* Divider */}
               <div className="flex items-center gap-4 w-full max-w-md">
