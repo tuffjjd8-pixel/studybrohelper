@@ -377,30 +377,30 @@ async function callGroqVision(
   return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
 }
 
-// Parse structured steps from solution
-function parseAnimatedSteps(solution: string, maxSteps: number): Array<{ title: string; content: string }> {
-  const steps: Array<{ title: string; content: string }> = [];
+// Parse structured sections from solution (used only for Animated Steps feature)
+function parseAnimatedSections(solution: string, maxSections: number): Array<{ title: string; content: string }> {
+  const sections: Array<{ title: string; content: string }> = [];
   
-  // Match patterns like "**Step 1: Title**" or "Step 1:" or "## Step 1"
-  const stepPattern = /(?:\*\*)?(?:##?\s*)?Step\s*(\d+):?\s*([^\*\n]*)?(?:\*\*)?\n?([\s\S]*?)(?=(?:\*\*)?(?:##?\s*)?Step\s*\d+|$)/gi;
+  // Match titled sections: "**Title**\nContent" or "## Title\nContent"
+  // Also match legacy "Step N:" patterns from model output
+  const sectionPattern = /(?:\*\*)?(?:##?\s*)?(?:Step\s*\d+:?\s*)?([^\*\n]+)?(?:\*\*)?\n([\s\S]*?)(?=(?:\*\*)|(?:##?\s)|$)/gi;
   
   let match;
-  while ((match = stepPattern.exec(solution)) !== null && steps.length < maxSteps) {
-    const stepNum = parseInt(match[1]);
-    const title = match[2]?.trim() || `Step ${stepNum}`;
-    const content = match[3]?.trim() || "";
+  while ((match = sectionPattern.exec(solution)) !== null && sections.length < maxSections) {
+    const title = match[1]?.trim() || `Part ${sections.length + 1}`;
+    const content = match[2]?.trim() || "";
     
     if (content) {
-      steps.push({ title, content });
+      sections.push({ title, content });
     }
   }
   
-  // If no structured steps found, create a single step with the full content
-  if (steps.length === 0 && solution.trim()) {
-    steps.push({ title: "Solution", content: solution.trim() });
+  // If no structured sections found, create a single one with the full content
+  if (sections.length === 0 && solution.trim()) {
+    sections.push({ title: "Solution", content: solution.trim() });
   }
   
-  return steps.slice(0, maxSteps);
+  return sections.slice(0, maxSections);
 }
 
 // Parse graph data from raw JSON response (OpenRouter returns raw JSON)
@@ -563,7 +563,7 @@ serve(async (req) => {
     // Add breakdown sections if requested
     if (animatedSteps) {
       const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
-      responseData.steps = parseAnimatedSteps(solution, maxSections);
+      responseData.steps = parseAnimatedSections(solution, maxSections);
       responseData.maxSteps = maxSections;
     }
     

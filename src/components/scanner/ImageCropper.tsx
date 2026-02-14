@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from "react-image-crop";
+import ReactCrop, { type Crop, type PixelCrop, centerCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
 import { Check, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
@@ -12,13 +12,10 @@ interface ImageCropperProps {
 }
 
 function createInitialCrop(mediaWidth: number, mediaHeight: number): Crop {
+  // Use the image's natural aspect ratio — no forced 4:3.
+  // Start with 90% coverage so the full image (including graphs) is captured.
   return centerCrop(
-    makeAspectCrop(
-      { unit: "%", width: 85 },
-      4 / 3,
-      mediaWidth,
-      mediaHeight
-    ),
+    { unit: "%", width: 90, height: 90, x: 5, y: 5 },
     mediaWidth,
     mediaHeight
   );
