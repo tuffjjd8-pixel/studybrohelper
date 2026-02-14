@@ -21,8 +21,8 @@ const OPENROUTER_GRAPH_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 // ============================================================
 // TIER LIMITS
 // ============================================================
-const FREE_MAX_STEPS = 5;     // Simplified steps for free users
-const PREMIUM_MAX_STEPS = 16; // Detailed steps for premium users
+const FREE_MAX_SECTIONS = 5;     // Max breakdown sections for free users
+const PREMIUM_MAX_SECTIONS = 16; // Max breakdown sections for premium users
 const FREE_GRAPHS_PER_DAY = 4;
 const PREMIUM_GRAPHS_PER_DAY = 15;
 
@@ -54,13 +54,10 @@ const SHARED_FORMATTING_RULES = `
 ## CRITICAL: Fraction Conversion Rule (Math)
 - When subtracting fractions from whole numbers, ALWAYS convert the whole number to a fraction first
 - Example: $10 - \\frac{1}{2}$ → First write $10 = \\frac{20}{2}$, then $\\frac{20}{2} - \\frac{1}{2} = \\frac{19}{2}$
-- NEVER skip the conversion step. Show it explicitly every time.
 
 ## Pattern-Based Equations (Non-Standard Arithmetic)
 For equations like "a + b = result" where the result is NOT standard addition:
-1. Find a SINGLE simple pattern that fits ALL given examples
-2. Explain the pattern in 1-3 short sentences
-3. Show a quick check for each equation`;
+- Find a SINGLE simple pattern that fits ALL given examples and explain it in 1-3 short sentences`;
 
 // System prompt for free users (INSTANT MODE — final answer only)
 const FREE_SYSTEM_PROMPT = `You are StudyBro — a fast, clean, founder-built homework solver. Calm, sharp, zero fluff. Like a smart friend who just gives you the answer.
@@ -153,47 +150,41 @@ ${SHARED_FORMATTING_RULES}
 - Use proper syntax highlighting
 - Brief explanation of the logic`;
 
-// Prompt to generate structured animated steps (ANIMATED STEPS MODE)
-// Free users get simplified steps, premium users get detailed steps
-function getAnimatedStepsPrompt(maxSteps: number, isPremium: boolean): string {
+// Prompt to generate structured breakdown sections (no numbered steps)
+// Free users get a condensed view, premium users get detailed reasoning
+function getAnimatedSectionsPrompt(maxSections: number, isPremium: boolean): string {
   if (isPremium) {
     return `
 
-ANIMATED STEPS MODE — PREMIUM (DETAILED):
+BREAKDOWN MODE — PREMIUM (DETAILED):
 - You are NOT allowed to recompute the answer.
 - You MUST follow the solver's final answer exactly.
-- You MUST NOT contradict the solver.
-- You MUST NOT introduce new numbers.
-- You MUST NOT reinterpret the problem.
-- Explain the reasoning in 4-8 smooth, detailed, human-like steps.
-- Each step should include WHY the operation is performed, not just WHAT.
-- Include helpful context and connections between steps.
+- You MUST NOT contradict the solver or introduce new numbers.
+- Break the reasoning into 3-6 titled sections. Each section is a short paragraph (2-4 sentences).
+- NEVER use numbered lists, bullet reasoning, or the word "steps".
 - End with: "Final Answer: {answer}"
 
-Use ${maxSteps} steps as the MAXIMUM, not the target.
-- Simple problems: 3-4 steps. Medium: 5-6 steps. Complex: up to ${maxSteps} steps.
+Use ${maxSections} sections as the MAXIMUM, not the target.
 
-Format each step as:
-**Step N: [Title]**
-[Detailed content with LaTeX formatting and explanation of reasoning]`;
+Format each section as:
+**[Section Title]**
+[Content with LaTeX formatting and natural explanation]`;
   }
 
-  // Free users get simplified steps
+  // Free users get condensed sections
   return `
 
-ANIMATED STEPS MODE — SIMPLIFIED:
+BREAKDOWN MODE — SIMPLIFIED:
 - You are NOT allowed to recompute the answer.
 - You MUST follow the solver's final answer exactly.
-- You MUST NOT contradict the solver.
-- Give brief, condensed steps. Keep each step to 1-2 sentences max.
-- Do NOT explain WHY — just show WHAT is done.
+- Break the reasoning into 2-4 titled sections. Keep each to 1-2 sentences.
+- NEVER use numbered lists, bullet reasoning, or the word "steps".
 - End with: "Final Answer: {answer}"
 
-Use ${maxSteps} steps as the MAXIMUM.
-- Simple problems: 2-3 steps. Medium: 3-4 steps. Complex: up to ${maxSteps} steps.
+Use ${maxSections} sections as the MAXIMUM.
 
-Format each step as:
-**Step N: [Title]**
+Format each section as:
+**[Section Title]**
 [Brief content with LaTeX formatting]`;
 }
 
@@ -300,10 +291,10 @@ async function callGroqText(
   // Select prompt based on effective mode, not just tier
   let systemPrompt = solveMode === "deep" ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
-  // Add animated steps instruction
+  // Add breakdown sections instruction
   if (animatedSteps) {
-    const maxSteps = isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS;
-    systemPrompt += getAnimatedStepsPrompt(maxSteps, isPremium);
+    const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
+    systemPrompt += getAnimatedSectionsPrompt(maxSections, isPremium);
   }
   
   const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
@@ -348,13 +339,13 @@ async function callGroqVision(
 - If the image quality is poor, state what you can read and any uncertainties`;
   }
   
-  // Add animated steps instruction
+  // Add breakdown sections instruction
   if (animatedSteps) {
-    const maxSteps = isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS;
-    systemPrompt += getAnimatedStepsPrompt(maxSteps, isPremium);
+    const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
+    systemPrompt += getAnimatedSectionsPrompt(maxSections, isPremium);
   }
 
-  const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide a step-by-step solution.";
+  const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide the answer.";
   
   console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
@@ -569,11 +560,11 @@ serve(async (req) => {
       }
     };
     
-    // Add animated steps if requested
+    // Add breakdown sections if requested
     if (animatedSteps) {
-      const maxSteps = isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS;
-      responseData.steps = parseAnimatedSteps(solution, maxSteps);
-      responseData.maxSteps = maxSteps;
+      const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
+      responseData.steps = parseAnimatedSteps(solution, maxSections);
+      responseData.maxSteps = maxSections;
     }
     
     // Add graph data if generated (from OpenRouter/Mistral)
@@ -587,7 +578,7 @@ serve(async (req) => {
     
     // Add tier info for frontend
     responseData.limits = {
-      animatedSteps: isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS,
+      animatedSteps: isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS,
       graphsPerDay: maxGraphs,
       graphsUsed: canGenerateGraph && responseData.graph ? userGraphCount + 1 : userGraphCount,
       hasEnhancedOCR: isPremium,
