@@ -12,10 +12,10 @@ interface ImageCropperProps {
 }
 
 function createInitialCrop(mediaWidth: number, mediaHeight: number): Crop {
-  // Use the image's natural aspect ratio — no forced 4:3.
-  // Start with 90% coverage so the full image (including graphs) is captured.
+  // Free-form crop with ~95% coverage so the full image is captured.
+  // No forced aspect ratio — adapts to portrait, landscape, or square.
   return centerCrop(
-    { unit: "%", width: 90, height: 90, x: 5, y: 5 },
+    { unit: "%", width: 95, height: 95, x: 2.5, y: 2.5 },
     mediaWidth,
     mediaHeight
   );
@@ -146,15 +146,15 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
       </div>
 
       {/* Crop container — fills all remaining space */}
-      <div className="relative flex-1 min-h-0 w-full overflow-hidden">
+      <div className="relative flex-1 min-h-0 w-full overflow-hidden flex items-center justify-center">
         <ReactCrop
           crop={crop}
           onChange={(c) => setCrop(c)}
           onComplete={(c) => setCompletedCrop(c)}
           style={{
             "--ReactCrop-crop-border": "2px solid hsl(82 100% 67%)",
-            width: "100%",
-            height: "100%",
+            maxWidth: "100%",
+            maxHeight: "100%",
           } as React.CSSProperties}
         >
           <img
@@ -162,8 +162,10 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
             src={imageSrc}
             alt="Crop preview"
             onLoad={onImageLoad}
-            className="w-full h-full"
             style={{
+              display: "block",
+              maxWidth: "100%",
+              maxHeight: "calc(100vh - 180px)",
               objectFit: "contain",
               transform: `scale(${zoom})`,
               transformOrigin: "center",
