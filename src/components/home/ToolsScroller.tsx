@@ -12,10 +12,10 @@ export const ToolsScroller = () => {
   const location = useLocation();
 
   return (
-    <div className="w-full max-w-lg">
+    <div className="w-full px-4 py-2">
       <div
-        className="flex gap-3 px-2 py-2 overflow-x-auto whitespace-nowrap scroll-smooth"
-        style={{ WebkitOverflowScrolling: "touch" }}
+        className="flex items-center gap-3 overflow-x-auto whitespace-nowrap scroll-smooth no-scrollbar"
+        style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
       >
         {tools.map((tool) => {
           const isActive = location.pathname === tool.path;
@@ -23,16 +23,14 @@ export const ToolsScroller = () => {
             <button
               key={tool.label}
               onClick={() => navigate(tool.path)}
-              className={`flex flex-col items-center gap-1.5 px-4 py-2.5 min-w-[68px] rounded-xl border transition-all duration-200 shrink-0 ${
+              className={`flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-full border shrink-0 transition-colors duration-150 ${
                 isActive
                   ? "bg-primary/10 border-primary/50 text-primary"
-                  : "bg-card border-border hover:border-primary/50 hover:bg-accent/50"
+                  : "bg-card border-border text-muted-foreground hover:bg-accent/30 active:bg-accent/50"
               }`}
             >
-              <tool.icon className={`w-5 h-5 ${isActive ? "text-primary" : "text-primary"}`} />
-              <span className={`text-xs font-medium whitespace-nowrap ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                {tool.label}
-              </span>
+              <tool.icon className="w-5 h-5" />
+              <span className="text-xs font-medium">{tool.label}</span>
             </button>
           );
         })}
