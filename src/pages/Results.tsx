@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/Header";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Trophy, CheckCircle2, XCircle, Crown, TrendingUp, Lightbulb, BookOpen, Lock, Sparkles } from "lucide-react";
@@ -161,7 +161,7 @@ const Results = () => {
             </motion.div>
           </div>
         </main>
-        <BottomNav />
+        <ToolsScroller />
       </div>
     );
   }
@@ -474,7 +474,7 @@ const Results = () => {
         </div>
       </main>
 
-      <BottomNav />
+      <ToolsScroller />
     </div>
   );
 };

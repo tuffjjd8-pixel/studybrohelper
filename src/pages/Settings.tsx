@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -330,7 +330,7 @@ const Settings = () => {
         </div>
       </main>
 
-      <BottomNav />
+      <ToolsScroller />
     </div>
   );
 };
