@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
-import { BottomNav } from '@/components/layout/BottomNav';
+import { ToolsScroller } from '@/components/home/ToolsScroller';
 import { useBadges, BadgeWithStatus } from '@/hooks/useBadges';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -107,7 +107,7 @@ const BadgeCollection = () => {
             <Button onClick={() => navigate('/auth')}>Sign In</Button>
           </div>
         </main>
-        <BottomNav />
+        <ToolsScroller />
       </div>
     );
   }
@@ -259,7 +259,7 @@ const BadgeCollection = () => {
         )}
       </AnimatePresence>
 
-      <BottomNav />
+      <ToolsScroller />
     </div>
   );
 };

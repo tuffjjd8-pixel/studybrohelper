@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { FollowUpInput } from "@/components/chat/FollowUpInput";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -347,7 +347,7 @@ const Chat = () => {
         </div>
       </div>
 
-      <BottomNav />
+      <ToolsScroller />
     </div>
   );
 };

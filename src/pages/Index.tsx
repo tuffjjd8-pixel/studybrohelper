@@ -10,7 +10,6 @@ import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
 import { Header } from "@/components/layout/Header";
-import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarTrigger } from "@/components/layout/SidebarTrigger";
@@ -405,7 +404,7 @@ const Index = () => {
         </div>
       </main>
 
-      <BottomNav />
+      <ToolsScroller />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
       <TopSharerPopup />
       
