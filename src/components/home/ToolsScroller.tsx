@@ -1,41 +1,34 @@
-import { Link, useLocation } from "react-router-dom";
-import { Home, Clock, Brain, Trophy, BarChart3, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Brain, Trophy, BarChart3, Calculator } from "lucide-react";
 
 const tools = [
-  { name: "Home", path: "/", icon: Home },
-  { name: "History", path: "/history", icon: Clock },
-  { name: "Quiz", path: "/quiz", icon: Brain },
-  { name: "Results", path: "/results", icon: Trophy },
-  { name: "Polls", path: "/polls", icon: BarChart3 },
-  { name: "Profile", path: "/profile", icon: User },
+  { icon: Brain, label: "Quiz", path: "/quiz" },
+  { icon: Calculator, label: "Calc", path: "/results" },
+  { icon: BarChart3, label: "Polls", path: "/polls" },
 ];
 
-export function ToolsScroller() {
-  const location = useLocation();
+export const ToolsScroller = () => {
+  const navigate = useNavigate();
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 w-full border-t border-border bg-card/80 backdrop-blur-xl px-4 py-3 pb-safe">
-      <div className="flex items-center justify-around gap-2 overflow-x-auto whitespace-nowrap scroll-smooth touch-pan-x max-w-md mx-auto">
-        {tools.map((tool) => {
-          const Icon = tool.icon;
-          const active = location.pathname === tool.path;
-
-          return (
-            <Link
-              key={tool.name}
-              to={tool.path}
-              className={`flex flex-col items-center justify-center px-3 py-1.5 rounded-full border transition min-w-[48px]
-                ${active
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card text-muted-foreground border-border hover:bg-accent"}
-              `}
-            >
-              <Icon size={18} />
-              <span className="text-[10px] mt-0.5">{tool.name}</span>
-            </Link>
-          );
-        })}
+    <div className="w-full max-w-lg mt-4">
+      <div
+        className="flex gap-3 px-2 py-3 overflow-x-auto whitespace-nowrap scroll-smooth"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        {tools.map((tool) => (
+          <button
+            key={tool.label}
+            onClick={() => navigate(tool.path)}
+            className="flex flex-col items-center gap-2 px-5 py-3 min-w-[72px] rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-accent/50 transition-all duration-200 shrink-0"
+          >
+            <tool.icon className="w-5 h-5 text-primary" />
+            <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+              {tool.label}
+            </span>
+          </button>
+        ))}
       </div>
     </div>
   );
-}
+};
