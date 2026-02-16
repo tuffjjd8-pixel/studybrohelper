@@ -337,9 +337,6 @@ const Index = () => {
                 </motion.p>
               </div>
 
-              {/* Tools scroller */}
-              <ToolsScroller />
-
               {/* Camera button */}
               <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
 
