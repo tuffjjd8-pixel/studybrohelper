@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
-import { ToolsScroller } from "@/components/home/ToolsScroller";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { PollsSection } from "@/components/settings/PollsSection";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BarChart3 } from "lucide-react";
@@ -48,7 +48,7 @@ const Polls = () => {
         </div>
       </main>
 
-      <ToolsScroller />
+      <BottomNav />
     </div>
   );
 };

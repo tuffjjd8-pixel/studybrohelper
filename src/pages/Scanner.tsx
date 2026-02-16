@@ -4,7 +4,7 @@ import { ArrowLeft, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { Header } from "@/components/layout/Header";
-import { ToolsScroller } from "@/components/home/ToolsScroller";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { ScannerDropZone } from "@/components/scanner/ScannerDropZone";
 import { CustomCamera } from "@/components/scanner/CustomCamera";
@@ -309,7 +309,7 @@ const Scanner = () => {
         </div>
       </main>
 
-      <ToolsScroller />
+      <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
     </div>
   );

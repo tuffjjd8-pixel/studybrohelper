@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
-import { ToolsScroller } from "@/components/home/ToolsScroller";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
@@ -293,7 +293,7 @@ const History = () => {
         </div>
       </main>
 
-      <ToolsScroller />
+      <BottomNav />
     </div>;
 };
 export default History;

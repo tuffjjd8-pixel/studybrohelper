@@ -1,57 +1,34 @@
-import { Home, Clock, User, BarChart3, Brain, Trophy } from "lucide-react";
-import { useLocation, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { Brain, Trophy, BarChart3, Calculator } from "lucide-react";
 
-const navItems = [
-  { icon: Home, label: "Home", path: "/" },
-  { icon: Clock, label: "History", path: "/history" },
+const tools = [
   { icon: Brain, label: "Quiz", path: "/quiz" },
-  { icon: Trophy, label: "Results", path: "/results" },
+  { icon: Calculator, label: "Calc", path: "/results" },
   { icon: BarChart3, label: "Polls", path: "/polls" },
-  { icon: User, label: "Profile", path: "/profile" },
 ];
 
-export function ToolsScroller() {
-  const location = useLocation();
+export const ToolsScroller = () => {
+  const navigate = useNavigate();
 
   return (
-    <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap scroll-smooth touch-pan-x px-4 py-3"
-      style={{ WebkitOverflowScrolling: "touch" }}
-    >
-      {navItems.map((item) => {
-        const isActive = location.pathname === item.path;
-        return (
-          <Link
-            key={item.path}
-            to={item.path}
-            className="
-              relative flex flex-col items-center justify-center gap-0.5 sm:gap-1
-              min-w-[48px] min-h-[48px] p-1.5 sm:p-2
-              touch-manipulation select-none
-              flex-shrink-0
-            "
-            style={{
-              WebkitTapHighlightColor: "transparent",
-              touchAction: "manipulation",
-            }}
+    <div className="w-full max-w-lg mt-4">
+      <div
+        className="flex gap-3 px-2 py-3 overflow-x-auto whitespace-nowrap scroll-smooth"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        {tools.map((tool) => (
+          <button
+            key={tool.label}
+            onClick={() => navigate(tool.path)}
+            className="flex flex-col items-center gap-2 px-5 py-3 min-w-[72px] rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-accent/50 transition-all duration-200 shrink-0"
           >
-            {isActive && (
-              <div className="absolute inset-0 bg-primary/10 rounded-xl" />
-            )}
-            <item.icon
-              className={`w-5 h-5 sm:w-6 sm:h-6 transition-colors relative z-10 flex-shrink-0 ${
-                isActive ? "text-primary" : "text-muted-foreground"
-              }`}
-            />
-            <span
-              className={`text-[10px] sm:text-xs transition-colors relative z-10 whitespace-nowrap truncate max-w-[48px] sm:max-w-[56px] text-center ${
-                isActive ? "text-primary font-medium" : "text-muted-foreground"
-              }`}
-            >
-              {item.label}
+            <tool.icon className="w-5 h-5 text-primary" />
+            <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+              {tool.label}
             </span>
-          </Link>
-        );
-      })}
+          </button>
+        ))}
+      </div>
     </div>
   );
-}
+};
