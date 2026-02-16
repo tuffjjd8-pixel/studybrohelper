@@ -1,34 +1,38 @@
-import { useNavigate } from "react-router-dom";
-import { Brain, Trophy, BarChart3, Calculator } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Brain, Trophy, BarChart3 } from "lucide-react";
 
 const tools = [
   { icon: Brain, label: "Quiz", path: "/quiz" },
-  { icon: Calculator, label: "Calc", path: "/results" },
+  { icon: Trophy, label: "Results", path: "/results" },
   { icon: BarChart3, label: "Polls", path: "/polls" },
 ];
 
 export const ToolsScroller = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   return (
-    <div className="w-full max-w-lg mt-4">
-      <div
-        className="flex gap-3 px-2 py-3 overflow-x-auto whitespace-nowrap scroll-smooth"
-        style={{ WebkitOverflowScrolling: "touch" }}
-      >
-        {tools.map((tool) => (
+    <div
+      className="flex items-center gap-3 overflow-x-auto whitespace-nowrap scroll-smooth px-4 py-2"
+      style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
+    >
+      {tools.map((tool) => {
+        const isActive = location.pathname === tool.path;
+        return (
           <button
             key={tool.label}
             onClick={() => navigate(tool.path)}
-            className="flex flex-col items-center gap-2 px-5 py-3 min-w-[72px] rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-accent/50 transition-all duration-200 shrink-0"
+            className={`flex flex-col items-center justify-center rounded-full px-4 py-2 border shrink-0 transition-colors ${
+              isActive
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground hover:bg-accent active:bg-accent/80"
+            }`}
           >
-            <tool.icon className="w-5 h-5 text-primary" />
-            <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-              {tool.label}
-            </span>
+            <tool.icon className="w-5 h-5" />
+            <span className="text-xs font-medium mt-0.5">{tool.label}</span>
           </button>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 };
