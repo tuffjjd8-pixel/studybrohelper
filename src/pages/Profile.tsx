@@ -466,7 +466,7 @@ const Profile = () => {
                     <Heart className="w-6 h-6 text-pink-500" />
                   </div>
                   <div className="text-left flex-1">
-                    <div className="font-heading font-bold">​Refferal Rewards </div>
+                    <div className="font-heading font-bold">​Referral Rewards </div>
                     <div className="text-xs text-muted-foreground">
                       {totalConfirmedLikes} confirmed likes
                     </div>
