@@ -592,6 +592,66 @@ export type Database = {
         }
         Relationships: []
       }
+      user_entitlements: {
+        Row: {
+          community_rewards: boolean
+          created_at: string
+          deep_mode: boolean
+          id: string
+          is_premium: boolean
+          no_ads: boolean
+          premium_badge: boolean
+          priority_speed: boolean
+          unlimited_followups: boolean
+          unlimited_history: boolean
+          unlimited_humanize: boolean
+          unlimited_regenerations: boolean
+          unlimited_solves: boolean
+          unlimited_speech: boolean
+          unlimited_steps: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          community_rewards?: boolean
+          created_at?: string
+          deep_mode?: boolean
+          id?: string
+          is_premium?: boolean
+          no_ads?: boolean
+          premium_badge?: boolean
+          priority_speed?: boolean
+          unlimited_followups?: boolean
+          unlimited_history?: boolean
+          unlimited_humanize?: boolean
+          unlimited_regenerations?: boolean
+          unlimited_solves?: boolean
+          unlimited_speech?: boolean
+          unlimited_steps?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          community_rewards?: boolean
+          created_at?: string
+          deep_mode?: boolean
+          id?: string
+          is_premium?: boolean
+          no_ads?: boolean
+          premium_badge?: boolean
+          priority_speed?: boolean
+          unlimited_followups?: boolean
+          unlimited_history?: boolean
+          unlimited_humanize?: boolean
+          unlimited_regenerations?: boolean
+          unlimited_solves?: boolean
+          unlimited_speech?: boolean
+          unlimited_steps?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

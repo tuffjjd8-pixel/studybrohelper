@@ -1,8 +1,7 @@
 import { Home, Clock, User, BarChart3, Brain, Trophy } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
-import { useIsMobile } from "@/hooks/use-mobile";
 
-const allNavItems = [
+const navItems = [
   { icon: Home, label: "Home", path: "/" },
   { icon: Clock, label: "History", path: "/history" },
   { icon: Brain, label: "Quiz", path: "/quiz" },
@@ -11,21 +10,8 @@ const allNavItems = [
   { icon: User, label: "Profile", path: "/profile" },
 ];
 
-// Mobile: only show Home, History, Profile
-const mobileNavItems = allNavItems.filter(item => 
-  ["/", "/history", "/profile"].includes(item.path)
-);
-
 export function BottomNav() {
   const location = useLocation();
-  const isMobile = useIsMobile();
-
-  // Wait for mobile detection to complete before rendering
-  if (isMobile === undefined) {
-    return null;
-  }
-
-  const navItems = isMobile ? mobileNavItems : allNavItems;
 
   return (
     <nav
