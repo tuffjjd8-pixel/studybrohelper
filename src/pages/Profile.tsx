@@ -475,6 +475,31 @@ const Profile = () => {
               </Button>
             </motion.div>
 
+            {/* Community Reward Button */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.34 }}
+            >
+              <Button
+                onClick={() => navigate('/community-reward')}
+                variant="outline"
+                className="w-full h-auto py-4 border-yellow-500/30 hover:border-yellow-500/50"
+              >
+                <div className="flex items-center gap-4 w-full">
+                  <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                    <Crown className="w-6 h-6 text-yellow-500" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <div className="font-heading font-bold">Community Reward</div>
+                    <div className="text-xs text-muted-foreground">
+                      Claim your community goal reward
+                    </div>
+                  </div>
+                </div>
+              </Button>
+            </motion.div>
+
             {/* Big Badges Button */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
