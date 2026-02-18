@@ -18,9 +18,27 @@ const CommunityGoalReward = () => {
   const [selectedPlan, setSelectedPlan] = useState<CommunityPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [goalVisible, setGoalVisible] = useState<boolean | null>(null);
+  const [rewardScreenEnabled, setRewardScreenEnabled] = useState<boolean | null>(null);
+  const [rewardClaimingEnabled, setRewardClaimingEnabled] = useState(true);
+  const [isPremium, setIsPremium] = useState(false);
 
-  // Check if community goal is completed (visible)
   useEffect(() => {
+    const fetchSettings = async () => {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("key, value")
+        .in("key", ["enable_reward_screen", "reward_claiming_enabled"]);
+
+      if (data) {
+        const rewardScreen = data.find((r) => r.key === "enable_reward_screen");
+        const rewardClaiming = data.find((r) => r.key === "reward_claiming_enabled");
+        setRewardScreenEnabled(rewardScreen?.value !== "false");
+        setRewardClaimingEnabled(rewardClaiming?.value !== "false");
+      } else {
+        setRewardScreenEnabled(true);
+      }
+    };
+
     const checkGoal = async () => {
       const { data } = await supabase
         .from("community_goal_content")
@@ -29,18 +47,40 @@ const CommunityGoalReward = () => {
         .single();
       setGoalVisible(data?.visible ?? false);
     };
-    checkGoal();
-  }, []);
 
-  // If goal not completed, redirect away
+    const checkPremium = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_premium")
+        .eq("user_id", user.id)
+        .single();
+      setIsPremium(data?.is_premium ?? false);
+    };
+
+    fetchSettings();
+    checkGoal();
+    checkPremium();
+  }, [user]);
+
   useEffect(() => {
+    if (rewardScreenEnabled === false) {
+      toast.error("Reward screen is currently disabled");
+      navigate("/");
+      return;
+    }
     if (goalVisible === false) {
       toast.error("Community goal not yet reached");
       navigate("/");
     }
-  }, [goalVisible, navigate]);
+  }, [goalVisible, rewardScreenEnabled, navigate]);
 
   const handleCheckout = async (plan: CommunityPlan) => {
+    if (!rewardClaimingEnabled) {
+      toast.error("Reward claiming is currently disabled");
+      return;
+    }
+
     if (isMobileApp()) {
       toast.error("Please complete your purchase on our website");
       return;
@@ -80,7 +120,7 @@ const CommunityGoalReward = () => {
     }
   };
 
-  if (goalVisible === null) {
+  if (goalVisible === null || rewardScreenEnabled === null) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -108,6 +148,19 @@ const CommunityGoalReward = () => {
               Back
             </button>
 
+            {/* Premium reward unlocked message */}
+            {isPremium && goalVisible && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-4 rounded-xl bg-primary/10 border border-primary/30 text-center"
+              >
+                <p className="text-sm font-medium text-foreground">
+                  You unlocked a reward! Find out what it is in Premium 🎉
+                </p>
+              </motion.div>
+            )}
+
             {/* Hero */}
             <div className="text-center py-6">
               <motion.div
@@ -131,7 +184,7 @@ const CommunityGoalReward = () => {
               {/* Monthly Plan */}
               <motion.button
                 onClick={() => handleCheckout("monthly")}
-                disabled={isLoading}
+                disabled={isLoading || !rewardClaimingEnabled}
                 whileTap={{ scale: 0.98 }}
                 className="w-full p-5 rounded-2xl border-2 border-border bg-card hover:border-primary/50 transition-all text-left relative overflow-hidden"
               >
@@ -157,7 +210,7 @@ const CommunityGoalReward = () => {
               {/* Lifetime Plan — Premium gold style */}
               <motion.button
                 onClick={() => handleCheckout("lifetime")}
-                disabled={isLoading}
+                disabled={isLoading || !rewardClaimingEnabled}
                 whileTap={{ scale: 0.98 }}
                 className="w-full p-5 rounded-2xl border-2 border-yellow-500/60 bg-gradient-to-br from-card via-card to-yellow-500/5 hover:border-yellow-400 transition-all text-left relative overflow-hidden shadow-[0_0_20px_rgba(251,191,36,0.1)]"
               >
@@ -185,6 +238,12 @@ const CommunityGoalReward = () => {
                 </div>
               </motion.button>
             </div>
+
+            {!rewardClaimingEnabled && (
+              <p className="text-xs text-orange-500 text-center">
+                ⚠️ Reward claiming is currently disabled by admin
+              </p>
+            )}
 
             {/* Cancel anytime */}
             <p className="text-xs text-muted-foreground text-center">

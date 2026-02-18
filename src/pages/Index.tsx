@@ -37,6 +37,28 @@ const Index = () => {
   const {
     user
   } = useAuth();
+
+  // Custom community goal prompt from admin settings
+  const [customPrompt, setCustomPrompt] = useState<string | null>(null);
+  const [customPromptEnabled, setCustomPromptEnabled] = useState(false);
+
+  useEffect(() => {
+    const fetchPromptSettings = async () => {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("key, value")
+        .in("key", ["enable_custom_community_goal_prompt", "community_goal_prompt"]);
+
+      if (data) {
+        const enabledRow = data.find((r) => r.key === "enable_custom_community_goal_prompt");
+        const promptRow = data.find((r) => r.key === "community_goal_prompt");
+        const enabled = enabledRow?.value === "true";
+        setCustomPromptEnabled(enabled);
+        setCustomPrompt(enabled && promptRow?.value ? promptRow.value : null);
+      }
+    };
+    fetchPromptSettings();
+  }, []);
   const [searchParams] = useSearchParams();
 
   // Capture referral code from URL and store it
@@ -313,6 +335,17 @@ const Index = () => {
         }} animate={{
           opacity: 1
         }} className="flex flex-col items-center gap-8 py-8">
+              {/* Custom Community Goal Prompt */}
+              {customPromptEnabled && customPrompt && customPrompt.trim() !== "" && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="w-full max-w-md p-3 rounded-xl bg-primary/10 border border-primary/20 text-center"
+                >
+                  <p className="text-sm text-foreground whitespace-pre-wrap break-words">{customPrompt}</p>
+                </motion.div>
+              )}
+
               {/* Hero text */}
               <div className="text-center space-y-2">
                 <motion.h2 initial={{
