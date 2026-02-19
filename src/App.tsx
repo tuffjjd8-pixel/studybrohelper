@@ -20,9 +20,6 @@ import Settings from "./pages/Settings";
 import Polls from "./pages/Polls";
 import BadgeCollection from "./pages/BadgeCollection";
 import AdminUsage from "./pages/AdminUsage";
-import CommunityGoalReward from "./pages/CommunityGoalReward";
-import ShareLikes from "./pages/ShareLikes";
-import AdminShareLikes from "./pages/AdminShareLikes";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -50,9 +47,6 @@ const App = () => (
             <Route path="/polls" element={<Polls />} />
             <Route path="/badges" element={<BadgeCollection />} />
             <Route path="/admin/usage" element={<AdminUsage />} />
-            <Route path="/community-reward" element={<CommunityGoalReward />} />
-            <Route path="/share-likes" element={<ShareLikes />} />
-            <Route path="/admin/share-likes" element={<AdminShareLikes />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

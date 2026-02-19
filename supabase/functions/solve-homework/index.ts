@@ -8,25 +8,28 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// Free tier:  llama-3.1-8b-instant (fast, lightweight)
-// Pro tier:   llama-3.3-70b-versatile (full reasoning)
-// Vision:     llama-4-scout (image processing) — Pro only
-// Graph:      LLaMA 3.3 70B via OpenRouter (free tier, structured JSON)
+// Text model: "llama-3.3-70b-versatile" - Primary for ALL text/reasoning tasks
+// Vision model: "meta-llama/llama-4-scout-17b-16e-instruct" - For image processing
+// Graph model: LLaMA 3.3 70B via OpenRouter (free tier, structured JSON)
 // ============================================================
-const FREE_TEXT_MODEL = "llama-3.1-8b-instant";
-const PRO_TEXT_MODEL = "llama-3.3-70b-versatile";
+const GROQ_TEXT_MODEL = "llama-3.3-70b-versatile";
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const OPENROUTER_GRAPH_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 // ============================================================
 // TIER LIMITS
 // ============================================================
-const FREE_MAX_SECTIONS = 5;     // Max breakdown sections for free users
-const PREMIUM_MAX_SECTIONS = 16; // Max breakdown sections for premium users
+const FREE_MAX_STEPS = 5;     // Simplified steps for free users
+const PREMIUM_MAX_STEPS = 16; // Detailed steps for premium users
 const FREE_GRAPHS_PER_DAY = 4;
 const PREMIUM_GRAPHS_PER_DAY = 15;
 
-// No greeting — answers are delivered instantly without preamble
+// Simple greeting based on tier
+function getGreeting(isPremium: boolean): string {
+  return isPremium 
+    ? "I'm StudyBro AI Premium." 
+    : "I'm StudyBro AI, your homework helper.";
+}
 
 // Shared formatting rules used by both tiers
 const SHARED_FORMATTING_RULES = `
@@ -54,38 +57,38 @@ const SHARED_FORMATTING_RULES = `
 ## CRITICAL: Fraction Conversion Rule (Math)
 - When subtracting fractions from whole numbers, ALWAYS convert the whole number to a fraction first
 - Example: $10 - \\frac{1}{2}$ → First write $10 = \\frac{20}{2}$, then $\\frac{20}{2} - \\frac{1}{2} = \\frac{19}{2}$
+- NEVER skip the conversion step. Show it explicitly every time.
 
 ## Pattern-Based Equations (Non-Standard Arithmetic)
 For equations like "a + b = result" where the result is NOT standard addition:
-- Find a SINGLE simple pattern that fits ALL given examples and explain it in 1-3 short sentences`;
+1. Find a SINGLE simple pattern that fits ALL given examples
+2. Explain the pattern in 1-3 short sentences
+3. Show a quick check for each equation`;
 
-// System prompt for free users (INSTANT MODE — final answer only)
-const FREE_SYSTEM_PROMPT = `You are StudyBro — a fast, clean, founder-built homework solver. Calm, sharp, zero fluff. Like a smart friend who just gives you the answer.
+// System prompt for free users (SOLVER MODE — final answer only)
+const FREE_SYSTEM_PROMPT = `You are StudyBro — a fast, clean, founder-built homework solver. Calm, sharp, founder-level clarity. No fluff, no filler. Sounds like a smart friend explaining things clearly.
 
-## QUESTION DETECTION:
-- If the user message does NOT contain a solvable question, equation, prompt, or task, respond ONLY with: "I need a clear question to solve."
-- Do NOT invent a question. Do NOT answer random text or statements.
+## RESPONSE FORMAT (CRITICAL):
+Your response MUST follow this EXACT structure:
 
-## MODE: INSTANT
-- Output ONLY the final answer. Nothing else.
-- No explanation. No reasoning. No derivation. No commentary.
-- No numbered lists. No bullet points describing how to solve it.
-- Never use the word "steps" or number your reasoning.
-- If the question is vague or has blanks, auto-fill with the most likely interpretation and answer immediately.
+[GREETING_PLACEHOLDER]
 
-## GRAPH / WORD PROBLEMS:
-- For graph questions: give only the final result (intercepts, slope, key points). No steps.
-- For word problems: give only the final answer. No steps.
-
-## NON-MATH QUESTIONS:
-- Treat all subjects the same: Instant = answer only. Never produce steps for ANY subject.
-
-## ESSAY / WRITING EXCEPTION:
-- If the user asks for an essay, paragraph, story, letter, speech, or any writing task, produce FULL-LENGTH writing as requested.
-- Do NOT shorten or summarize writing tasks. Give the complete output.
-- Instant Mode rules (no explanation) do NOT apply to writing tasks.
+[ONLY the final answer. Nothing else.]
 
 ## STRICT RULES:
+- You ALWAYS output ONLY the final answer.
+- You NEVER output steps.
+- You NEVER output explanations.
+- You NEVER output reasoning.
+- You NEVER output commentary.
+- You NEVER describe how to solve the problem.
+- You NEVER include derivations.
+- You NEVER include definitions.
+- You NEVER include physics or math explanations.
+- You NEVER output multiple steps.
+- You NEVER output any reasoning text.
+- No matter how complex the question is, you output ONLY the final answer.
+- If the question cannot be answered with a single final answer, still provide the best possible concise answer.
 - Never hallucinate formulas.
 - Never output JSON.
 - Never mention internal logic, limits, modes, or tiers.
@@ -96,34 +99,23 @@ const FREE_SYSTEM_PROMPT = `You are StudyBro — a fast, clean, founder-built ho
 - No upsells or mention of Premium features
 ${SHARED_FORMATTING_RULES}`;
 
-// System prompt for premium users (DEEP MODE — answer + short explanation)
-const PREMIUM_SYSTEM_PROMPT = `You are StudyBro Premium — a fast, clean, founder-built homework solver. Calm, sharp, zero fluff. Like a smart friend explaining things clearly.
+// System prompt for premium users (SOLVER MODE + connected reasoning steps)
+const PREMIUM_SYSTEM_PROMPT = `You are StudyBro Premium — a fast, clean, founder-built homework solver. Calm, sharp, founder-level clarity. No fluff, no filler. Sounds like a smart friend explaining things clearly.
 
-## QUESTION DETECTION:
-- If the user message does NOT contain a solvable question, equation, prompt, or task, respond ONLY with: "I need a clear question to solve."
-- Do NOT invent a question. Do NOT answer random text or statements.
+## RESPONSE FORMAT (CRITICAL):
+Your response MUST follow this EXACT structure:
 
-## MODE: DEEP
-- First, give the correct final answer clearly.
-- Then, provide a short, natural explanation (2–4 sentences max).
-- The explanation should feel like a smart friend casually explaining — not a textbook.
-- Never use the word "steps" or number your reasoning.
-- Never produce long breakdowns, numbered lists, or multi-paragraph explanations.
-- If the question is vague or has blanks, auto-fill with the most likely interpretation and answer immediately.
+[GREETING_PLACEHOLDER]
 
-## GRAPH / WORD PROBLEMS:
-- For graph questions: give the result (intercepts, slope, key points) + short 2-4 sentence explanation. No steps.
-- For word problems: give the answer + short explanation. No steps.
+[Your clear, correct, student-friendly answer]
 
-## NON-MATH QUESTIONS:
-- Treat all subjects the same: answer + short explanation. Never produce steps for ANY subject.
+[Then provide connected, logical steps that fully explain the reasoning and clearly lead to the answer]
 
-## ESSAY / WRITING EXCEPTION:
-- If the user asks for an essay, paragraph, story, letter, speech, or any writing task, produce FULL-LENGTH writing as requested.
-- Do NOT shorten or summarize writing tasks. Give the complete output.
-- Deep Mode rules do NOT apply to writing tasks — just write the full piece.
-
-## STRICT RULES:
+## Core Rules:
+- Always give correct, clean, human-like answers.
+- Never hallucinate or invent steps.
+- Never add unnecessary commentary.
+- Never contradict yourself across steps and final answer.
 - Never hallucinate formulas.
 - Never output JSON.
 - Never mention internal logic, limits, or modes.
@@ -134,57 +126,84 @@ const PREMIUM_SYSTEM_PROMPT = `You are StudyBro Premium — a fast, clean, found
 - Verify all work before responding
 ${SHARED_FORMATTING_RULES}
 
+## ERROR-FREE ALGEBRAIC SOLUTIONS (Math):
+1. **Domain Restrictions First** - Identify values that make denominators zero
+2. **Step-by-Step Transformations** - Show every algebraic step
+3. **Extraneous Solution Check** - Substitute solutions back into original equation
+4. **Final Answer Format** - Domain restrictions, valid solutions, extraneous if any
+
 ## Subject-Specific Guidelines:
 
 ### Science (Physics, Chemistry, Biology):
 - Include relevant formulas with units
-- Explain concepts with real-world examples in 2-4 sentences
+- Explain concepts with real-world examples
+- Show calculations step by step
 
 ### History:
-- Provide key dates and significance concisely
+- Provide historical context
+- Include key dates and figures
+- Explain significance and impact
 
 ### Literature/Writing:
-- Give original, well-structured content with a clear thesis
+- Give original, well-structured content
+- Include clear thesis statements
+- Analyze themes, characters, and literary devices
 
 ### Coding:
 - Use proper syntax highlighting
-- Brief explanation of the logic`;
+- Explain the logic behind the code
+- Include comments for clarity
 
-// Prompt to generate structured breakdown sections (no numbered steps)
-// Free users get a condensed view, premium users get detailed reasoning
-function getAnimatedSectionsPrompt(maxSections: number, isPremium: boolean): string {
+## Steps Rules:
+- Steps MUST follow the solver's final answer exactly.
+- Steps MUST NOT recompute the answer.
+- Steps MUST NOT contradict the solver.
+- Steps MUST NOT introduce new numbers.
+- Steps MUST NOT reinterpret the problem.
+- Steps must be connected and logical, 4-8 clean human-like steps.
+- Steps must clearly lead to the final answer.`;
+
+// Prompt to generate structured animated steps (ANIMATED STEPS MODE)
+// Free users get simplified steps, premium users get detailed steps
+function getAnimatedStepsPrompt(maxSteps: number, isPremium: boolean): string {
   if (isPremium) {
     return `
 
-BREAKDOWN MODE — PREMIUM (DETAILED):
+ANIMATED STEPS MODE — PREMIUM (DETAILED):
 - You are NOT allowed to recompute the answer.
 - You MUST follow the solver's final answer exactly.
-- You MUST NOT contradict the solver or introduce new numbers.
-- Break the reasoning into 3-6 titled sections. Each section is a short paragraph (2-4 sentences).
-- NEVER use numbered lists, bullet reasoning, or the word "steps".
+- You MUST NOT contradict the solver.
+- You MUST NOT introduce new numbers.
+- You MUST NOT reinterpret the problem.
+- Explain the reasoning in 4-8 smooth, detailed, human-like steps.
+- Each step should include WHY the operation is performed, not just WHAT.
+- Include helpful context and connections between steps.
 - End with: "Final Answer: {answer}"
 
-Use ${maxSections} sections as the MAXIMUM, not the target.
+Use ${maxSteps} steps as the MAXIMUM, not the target.
+- Simple problems: 3-4 steps. Medium: 5-6 steps. Complex: up to ${maxSteps} steps.
 
-Format each section as:
-**[Section Title]**
-[Content with LaTeX formatting and natural explanation]`;
+Format each step as:
+**Step N: [Title]**
+[Detailed content with LaTeX formatting and explanation of reasoning]`;
   }
 
-  // Free users get condensed sections
+  // Free users get simplified steps
   return `
 
-BREAKDOWN MODE — SIMPLIFIED:
+ANIMATED STEPS MODE — SIMPLIFIED:
 - You are NOT allowed to recompute the answer.
 - You MUST follow the solver's final answer exactly.
-- Break the reasoning into 2-4 titled sections. Keep each to 1-2 sentences.
-- NEVER use numbered lists, bullet reasoning, or the word "steps".
+- You MUST NOT contradict the solver.
+- Give brief, condensed steps. Keep each step to 1-2 sentences max.
+- Do NOT explain WHY — just show WHAT is done.
 - End with: "Final Answer: {answer}"
 
-Use ${maxSections} sections as the MAXIMUM.
+Use ${maxSteps} steps as the MAXIMUM.
+- Simple problems: 2-3 steps. Medium: 3-4 steps. Complex: up to ${maxSteps} steps.
 
-Format each section as:
-**[Section Title]**
+Format each step as:
+**Step N: [Title]**
 [Brief content with LaTeX formatting]`;
 }
 
@@ -279,31 +298,27 @@ import {
   markKeyFailed,
   callGroqWithRotation 
 } from "../_shared/groq-key-manager.ts";
-import { logUsage } from "../_shared/usage-logger.ts";
 
 // Call Groq API for text-only input with key rotation
 async function callGroqText(
   question: string, 
   isPremium: boolean,
-  animatedSteps: boolean,
-  solveMode: string = "instant"
+  animatedSteps: boolean
 ): Promise<string> {
-  // Select prompt based on effective mode, not just tier
-  let systemPrompt = solveMode === "deep" ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
+  let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
-  // Add breakdown sections instruction
+  // Add animated steps instruction
   if (animatedSteps) {
-    const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
-    systemPrompt += getAnimatedSectionsPrompt(maxSections, isPremium);
+    const maxSteps = isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS;
+    systemPrompt += getAnimatedStepsPrompt(maxSteps, isPremium);
   }
   
-  const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-  console.log("Calling Groq Text API with model:", textModel, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
+  console.log("Calling Groq Text API with model:", GROQ_TEXT_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
   const response = await callGroqWithRotation(
     "https://api.groq.com/openai/v1/chat/completions",
     {
-      model: textModel,
+      model: GROQ_TEXT_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: question }
@@ -323,10 +338,9 @@ async function callGroqVision(
   imageBase64: string, 
   mimeType: string, 
   isPremium: boolean,
-  animatedSteps: boolean,
-  solveMode: string = "instant"
+  animatedSteps: boolean
 ): Promise<string> {
-  let systemPrompt = solveMode === "deep" ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
+  let systemPrompt = isPremium ? PREMIUM_SYSTEM_PROMPT : FREE_SYSTEM_PROMPT;
   
   // Premium gets enhanced OCR instructions
   if (isPremium) {
@@ -339,13 +353,13 @@ async function callGroqVision(
 - If the image quality is poor, state what you can read and any uncertainties`;
   }
   
-  // Add breakdown sections instruction
+  // Add animated steps instruction
   if (animatedSteps) {
-    const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
-    systemPrompt += getAnimatedSectionsPrompt(maxSections, isPremium);
+    const maxSteps = isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS;
+    systemPrompt += getAnimatedStepsPrompt(maxSteps, isPremium);
   }
 
-  const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide the answer.";
+  const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide a step-by-step solution.";
   
   console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
 
@@ -377,30 +391,30 @@ async function callGroqVision(
   return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
 }
 
-// Parse structured sections from solution (used only for Animated Steps feature)
-function parseAnimatedSections(solution: string, maxSections: number): Array<{ title: string; content: string }> {
-  const sections: Array<{ title: string; content: string }> = [];
+// Parse structured steps from solution
+function parseAnimatedSteps(solution: string, maxSteps: number): Array<{ title: string; content: string }> {
+  const steps: Array<{ title: string; content: string }> = [];
   
-  // Match titled sections: "**Title**\nContent" or "## Title\nContent"
-  // Also match legacy "Step N:" patterns from model output
-  const sectionPattern = /(?:\*\*)?(?:##?\s*)?(?:Step\s*\d+:?\s*)?([^\*\n]+)?(?:\*\*)?\n([\s\S]*?)(?=(?:\*\*)|(?:##?\s)|$)/gi;
+  // Match patterns like "**Step 1: Title**" or "Step 1:" or "## Step 1"
+  const stepPattern = /(?:\*\*)?(?:##?\s*)?Step\s*(\d+):?\s*([^\*\n]*)?(?:\*\*)?\n?([\s\S]*?)(?=(?:\*\*)?(?:##?\s*)?Step\s*\d+|$)/gi;
   
   let match;
-  while ((match = sectionPattern.exec(solution)) !== null && sections.length < maxSections) {
-    const title = match[1]?.trim() || `Part ${sections.length + 1}`;
-    const content = match[2]?.trim() || "";
+  while ((match = stepPattern.exec(solution)) !== null && steps.length < maxSteps) {
+    const stepNum = parseInt(match[1]);
+    const title = match[2]?.trim() || `Step ${stepNum}`;
+    const content = match[3]?.trim() || "";
     
     if (content) {
-      sections.push({ title, content });
+      steps.push({ title, content });
     }
   }
   
-  // If no structured sections found, create a single one with the full content
-  if (sections.length === 0 && solution.trim()) {
-    sections.push({ title: "Solution", content: solution.trim() });
+  // If no structured steps found, create a single step with the full content
+  if (steps.length === 0 && solution.trim()) {
+    steps.push({ title: "Solution", content: solution.trim() });
   }
   
-  return sections.slice(0, maxSections);
+  return steps.slice(0, maxSteps);
 }
 
 // Parse graph data from raw JSON response (OpenRouter returns raw JSON)
@@ -446,9 +460,12 @@ function parseGraphData(response: string): { type: string; data: Record<string, 
   }
 }
 
-// Remove graph blocks from solution text
-function cleanSolutionText(solution: string, _isPremium: boolean): string {
-  let cleaned = solution;
+// Remove graph block and inject greeting into solution text
+function cleanSolutionText(solution: string, isPremium: boolean): string {
+  const greeting = getGreeting(isPremium);
+  
+  // Replace the placeholder with the actual greeting
+  let cleaned = solution.replace(/\[GREETING_PLACEHOLDER\]/g, greeting);
   
   // Remove graph code blocks
   cleaned = cleaned.replace(/```graph\n?[\s\S]*?\n?```/g, "");
@@ -468,13 +485,8 @@ serve(async (req) => {
       isPremium = false,
       animatedSteps = false,
       generateGraph = false,
-      userGraphCount = 0,
-      solveMode = "instant",
-      deviceType = "web"
+      userGraphCount = 0 // Current graph count for the day
     } = await req.json();
-    
-    // Enforce: free users are ALWAYS instant, regardless of what's sent
-    const effectiveMode = isPremium ? solveMode : "instant";
     
     // Check graph limit
     const maxGraphs = isPremium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
@@ -485,22 +497,10 @@ serve(async (req) => {
     }
     
     let solution: string;
-    let modelUsed: string;
-    let ocrEngineUsed: string = "none";
 
-    // Route to appropriate model based on input type and tier
+    // Route to appropriate model based on input type
     if (image) {
-      if (!isPremium) {
-        // Free users: no vision model, extract text concept only via text model
-        // Still use vision for basic OCR but log as free tier
-        ocrEngineUsed = "free_groq_vision";
-        modelUsed = GROQ_VISION_MODEL;
-      } else {
-        // Pro users: full enhanced vision OCR
-        ocrEngineUsed = "pro_groq_vision_enhanced";
-        modelUsed = GROQ_VISION_MODEL;
-      }
-      
+      // Image input → use Groq Vision (Enhanced OCR for premium)
       const matches = image.match(/^data:([^;]+);base64,(.+)$/);
       if (!matches) {
         throw new Error("Invalid image format");
@@ -512,13 +512,11 @@ serve(async (req) => {
         base64Data, 
         mimeType, 
         isPremium, 
-        animatedSteps,
-        effectiveMode
+        animatedSteps
       );
     } else if (question) {
-      // Text-only input → route to tier-appropriate text model
-      modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-      solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode);
+      // Text-only input → use Groq Text
+      solution = await callGroqText(question, isPremium, animatedSteps);
     } else {
       throw new Error("Please provide a question or image");
     }
@@ -551,20 +549,14 @@ serve(async (req) => {
     const responseData: Record<string, unknown> = {
       solution: cleanSolutionText(solution, isPremium),
       subject,
-      tier: isPremium ? "premium" : "free",
-      debug: {
-        model_used: modelUsed!,
-        ocr_engine_used: ocrEngineUsed,
-        device_type: deviceType,
-        solve_mode: effectiveMode,
-      }
+      tier: isPremium ? "premium" : "free"
     };
     
-    // Add breakdown sections if requested
+    // Add animated steps if requested
     if (animatedSteps) {
-      const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
-      responseData.steps = parseAnimatedSections(solution, maxSections);
-      responseData.maxSteps = maxSections;
+      const maxSteps = isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS;
+      responseData.steps = parseAnimatedSteps(solution, maxSteps);
+      responseData.maxSteps = maxSteps;
     }
     
     // Add graph data if generated (from OpenRouter/Mistral)
@@ -578,7 +570,7 @@ serve(async (req) => {
     
     // Add tier info for frontend
     responseData.limits = {
-      animatedSteps: isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS,
+      animatedSteps: isPremium ? PREMIUM_MAX_STEPS : FREE_MAX_STEPS,
       graphsPerDay: maxGraphs,
       graphsUsed: canGenerateGraph && responseData.graph ? userGraphCount + 1 : userGraphCount,
       hasEnhancedOCR: isPremium,
@@ -586,20 +578,30 @@ serve(async (req) => {
       hasModelSelection: isPremium
     };
 
-    console.log("Solution generated, subject:", subject, "model:", modelUsed!, "ocr:", ocrEngineUsed, "device:", deviceType, "steps:", responseData.steps ? (responseData.steps as Array<unknown>).length : 0, "hasGraph:", !!responseData.graph);
+    console.log("Solution generated, subject:", subject, "steps:", responseData.steps ? (responseData.steps as Array<unknown>).length : 0, "hasGraph:", !!responseData.graph);
 
-    // Log usage (fire-and-forget)
-    const authHeader = req.headers.get("Authorization");
-    let logUserId: string | null = null;
-    if (authHeader) {
-      try {
-        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
-        const { data: { user: u } } = await sb.auth.getUser();
-        logUserId = u?.id || null;
-      } catch (_) {}
+    // Log usage for admin dashboard (fire-and-forget, non-blocking)
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+      const adminClient = createClient(supabaseUrl, serviceKey);
+      const authHeader = req.headers.get("Authorization");
+      let logUserId: string | null = null;
+      if (authHeader) {
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await adminClient.auth.getUser(token);
+        logUserId = user?.id || null;
+      }
+      await adminClient.from("api_usage_logs").insert({
+        user_id: logUserId,
+        device_id: null,
+        request_type: "solve",
+        estimated_cost: 0.004,
+      });
+    } catch (logErr) {
+      console.error("Usage log error (non-blocking):", logErr);
     }
-    logUsage("solve", 0.0012, logUserId);
 
     return new Response(
       JSON.stringify(responseData),

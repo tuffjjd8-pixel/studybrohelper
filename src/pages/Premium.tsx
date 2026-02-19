@@ -50,6 +50,14 @@ const PLANS: PlanOption[] = [
     description: "Full premium access",
   },
   {
+    id: "weekend",
+    name: "Weekend Special",
+    price: 4.99,
+    period: "/month",
+    description: "Limited time offer",
+    badge: "🎉 SAVE $1",
+  },
+  {
     id: "yearly",
     name: "Yearly",
     price: 40,
@@ -90,6 +98,11 @@ const Premium = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectingPlan, setIsSelectingPlan] = useState(false);
 
+  // Check if it's Friday (5) or Saturday (6) for weekend discount visibility
+  const isWeekendDiscount = useMemo(() => {
+    const today = new Date().getDay();
+    return today === 5 || today === 6;
+  }, []);
 
   // Lock/unlock scroll based on overlay state
   useEffect(() => {
@@ -203,6 +216,7 @@ const Premium = () => {
               <div className="space-y-3">
                 {PLANS.map((plan) => {
                   const isSelected = selectedPlan === plan.id;
+                  const isWeekendPlan = plan.id === "weekend";
                   
                   return (
                     <motion.button
@@ -213,7 +227,8 @@ const Premium = () => {
                         isSelected
                           ? "border-primary bg-primary/10 shadow-lg"
                           : "border-border bg-card hover:border-muted-foreground/50"
-                      }`}
+                      } ${isWeekendPlan && !isWeekendDiscount ? "opacity-60" : ""}`}
+                      disabled={isWeekendPlan && !isWeekendDiscount}
                     >
                       {/* Badge */}
                       {plan.badge && (
@@ -245,6 +260,11 @@ const Premium = () => {
                           <div className="text-xs text-muted-foreground">{plan.description}</div>
                           {plan.savings && (
                             <div className="text-xs text-primary font-medium mt-1">{plan.savings}</div>
+                          )}
+                          {isWeekendPlan && !isWeekendDiscount && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Available Fri-Sat only
+                            </div>
                           )}
                         </div>
                       </div>
