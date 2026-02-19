@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, CreditCard, BarChart3, Activity, Heart, RefreshCw, RotateCcw, Loader2, X } from "lucide-react";
+import { Settings, CreditCard, BarChart3, Activity, Heart, Loader2, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { CommunityGoalEditor } from "@/components/community/CommunityGoalEditor";
 
 interface AdminSettingsProps {
   userEmail: string | undefined;
@@ -324,27 +325,8 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         </div>
       )}
 
-      {/* Reset & Sync */}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          onClick={handleResetCommunityGoal}
-          disabled={isResetting}
-          className="flex-1 gap-2"
-        >
-          {isResetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
-          Reset Community Goal
-        </Button>
-        <Button
-          variant="outline"
-          onClick={handleSyncNow}
-          disabled={isSyncing}
-          className="flex-1 gap-2"
-        >
-          {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          Sync Now
-        </Button>
-      </div>
+      {/* Community Goal Editor */}
+      <CommunityGoalEditor userEmail={userEmail} />
 
       {/* Usage & Cost Dashboard */}
       <Button
