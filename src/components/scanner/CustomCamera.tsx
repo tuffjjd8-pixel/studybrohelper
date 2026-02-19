@@ -9,52 +9,71 @@ interface CustomCameraProps {
   onClose: () => void;
 }
 
+// Module-level stream cache so reopening doesn't reinitialize the sensor
+let cachedStream: MediaStream | null = null;
+
 export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
+  // Use refs for perf-sensitive state to avoid layout thrashing
+  const isReadyRef = useRef(false);
   const [isReady, setIsReady] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isCapturing, setIsCapturing] = useState(false);
+  const isCapturingRef = useRef(false);
 
-  const stopStream = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
+  const stopStream = useCallback((releaseCache = false) => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
+    if (releaseCache && cachedStream) {
+      cachedStream.getTracks().forEach((track) => track.stop());
+      cachedStream = null;
+    }
+    isReadyRef.current = false;
     setIsReady(false);
   }, []);
 
   const startCamera = useCallback(async () => {
     setError(null);
-    stopStream();
+    isReadyRef.current = false;
+    setIsReady(false);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 },
-        },
-        audio: false,
-      });
-      streamRef.current = stream;
+      // Reuse cached stream if tracks are still live
+      let stream = cachedStream;
+      if (!stream || stream.getTracks().some((t) => t.readyState === "ended")) {
+        if (cachedStream) {
+          cachedStream.getTracks().forEach((t) => t.stop());
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            // Preview at 720p for fast startup; capture uses full resolution
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
+          },
+          audio: false,
+        });
+        cachedStream = stream;
+      }
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(() => {});
 
-        // Mark ready as soon as first frame arrives — no blocking waits
+        // Mark ready as soon as first frame has non-zero dimensions
         const onFrame = () => {
-          if (videoRef.current && videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
+          const v = videoRef.current;
+          if (v && v.videoWidth > 0 && v.videoHeight > 0) {
+            isReadyRef.current = true;
             setIsReady(true);
-            // Check torch after ready (non-blocking)
-            const track = stream.getVideoTracks()[0];
+            // Non-blocking torch check
+            const track = stream!.getVideoTracks()[0];
             const caps = track.getCapabilities?.() as MediaTrackCapabilities & { torch?: boolean };
             setTorchSupported(caps?.torch === true);
           } else {
@@ -71,21 +90,23 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
           : "Could not access camera. Please use gallery instead."
       );
     }
-  }, [stopStream]);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
       startCamera();
     } else {
-      stopStream();
+      // Don't release the cached stream on close — just detach video
+      stopStream(false);
       setTorchEnabled(false);
     }
-    return () => stopStream();
+    // On unmount, release everything
+    return () => stopStream(true);
   }, [isOpen, startCamera, stopStream]);
 
   const toggleTorch = useCallback(async () => {
-    if (!streamRef.current || !torchSupported) return;
-    const track = streamRef.current.getVideoTracks()[0];
+    if (!cachedStream || !torchSupported) return;
+    const track = cachedStream.getVideoTracks()[0];
     try {
       await track.applyConstraints({
         advanced: [{ torch: !torchEnabled } as MediaTrackConstraintSet],
@@ -97,8 +118,8 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
   }, [torchEnabled, torchSupported]);
 
   const capturePhoto = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || !isReady || isCapturing) return;
-    setIsCapturing(true);
+    if (!videoRef.current || !canvasRef.current || !isReadyRef.current || isCapturingRef.current) return;
+    isCapturingRef.current = true;
 
     try {
       const video = videoRef.current;
@@ -108,7 +129,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
         throw new Error("Video not ready");
       }
 
-      // Full resolution capture — no cropping
+      // Full resolution capture from the sensor
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
@@ -126,15 +147,16 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
       });
 
       const objectUrl = URL.createObjectURL(blob);
-      stopStream();
+      // Don't release the cached stream — just detach
+      stopStream(false);
       onCapture(objectUrl);
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
     } finally {
-      setIsCapturing(false);
+      isCapturingRef.current = false;
     }
-  }, [isReady, isCapturing, stopStream, onCapture]);
+  }, [stopStream, onCapture]);
 
   const handleGalleryPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -143,18 +165,32 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
       const optimized = await fileToOptimizedDataUrl(file, {
         maxDimension: 2048,
         quality: 0.92,
-        mimeType: "image/webp",
+        // Use jpeg for max compatibility (older Safari, Android WebView)
+        mimeType: "image/jpeg",
       });
-      stopStream();
+      stopStream(false);
       onCapture(optimized);
     } catch (err) {
       console.error("Gallery error:", err);
+      // Ultimate fallback: just pass the raw file as data URL
+      try {
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        stopStream(false);
+        onCapture(dataUrl);
+      } catch {
+        console.error("Gallery fallback also failed");
+      }
     }
     if (e.target) e.target.value = "";
   }, [stopStream, onCapture]);
 
   const handleClose = useCallback(() => {
-    stopStream();
+    stopStream(true); // Release cache on explicit close
     onClose();
   }, [stopStream, onClose]);
 
@@ -174,9 +210,10 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,image/heic,image/heif"
           onChange={handleGalleryPick}
           className="hidden"
+          style={{ position: "absolute", top: -9999, left: -9999, opacity: 0 }}
         />
 
         {/* Full-screen edge-to-edge camera feed */}
@@ -186,7 +223,8 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
             autoPlay
             playsInline
             muted
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: "cover" }}
           />
 
           {/* Loading spinner */}
@@ -258,7 +296,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
             {/* Shutter button */}
             <button
               onClick={capturePhoto}
-              disabled={!isReady || isCapturing}
+              disabled={!isReady}
               className="relative w-[76px] h-[76px] flex items-center justify-center"
             >
               {/* Outer ring */}
@@ -266,7 +304,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
               {/* Inner button */}
               <div
                 className={`w-[64px] h-[64px] rounded-full transition-all duration-150 ${
-                  isReady && !isCapturing
+                  isReady
                     ? "bg-white active:bg-white/70 active:scale-90"
                     : "bg-white/30"
                 }`}

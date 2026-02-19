@@ -11,6 +11,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
+import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider";
+import { useNavigate } from "react-router-dom";
 
 interface SolutionStepsProps {
   subject: string;
@@ -23,7 +25,6 @@ interface SolutionStepsProps {
   isHistory?: boolean;
   followUpCount?: number;
   maxFollowUps?: number;
-  showFollowUps?: boolean;
 }
 
 const subjectIcons: Record<string, React.ReactNode> = {
@@ -42,17 +43,19 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, showFollowUps = true }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2 }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const [followUpResponse, setFollowUpResponse] = useState<string | null>(null);
   const [displayedSolution, setDisplayedSolution] = useState(solution);
   const [localFollowUpCount, setLocalFollowUpCount] = useState(followUpCount);
+  const [humanizeStrength, setHumanizeStrength] = useState<HumanizeStrength>("auto");
   const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium });
+  const navigate = useNavigate();
 
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
-  const showFollowUp = showFollowUps && (!isHistory || isPremium);
+  const showFollowUp = !isHistory || isPremium;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(solution);
@@ -115,12 +118,17 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   };
 
   const handleHumanize = async () => {
-    const result = await humanize(displayedSolution, subject);
+    if (!isPremium) {
+      toast("Humanize is a Premium feature", {
+        description: "Upgrade to Pro to humanize your answers.",
+        action: { label: "Upgrade", onClick: () => navigate("/premium") },
+      });
+      return;
+    }
+    const result = await humanize(displayedSolution, subject, humanizeStrength);
     if (result) {
       setDisplayedSolution(result);
       toast.success("Answer humanized! ✨");
-    } else if (limitReached) {
-      toast.error("Daily humanize limit reached. Upgrade to Pro for unlimited!");
     }
   };
 
@@ -242,36 +250,46 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           </ReactMarkdown>
         </div>
 
-        {/* Humanize button - shown after solution */}
+        {/* Humanize section */}
         {!isHistory || isPremium ? (
-          <div className="mt-4 pt-4 border-t border-border/50 flex items-center gap-3">
-            {isHumanized ? (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary bg-secondary/10 px-3 py-1.5 rounded-full">
-                <Sparkles className="w-3 h-3" />
-                Humanized ✨
-              </span>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleHumanize}
-                disabled={isHumanizing || limitReached}
-                className="gap-2"
-              >
-                {isHumanizing ? (
-                  <AIBrainIcon size="sm" animate glowIntensity="strong" />
+          <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                {isHumanized ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary bg-secondary/10 px-3 py-1.5 rounded-full">
+                    <Sparkles className="w-3 h-3" />
+                    Humanized ✨
+                  </span>
                 ) : (
-                  <Sparkles className="w-4 h-4" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleHumanize}
+                    disabled={isHumanizing}
+                    className="gap-2"
+                  >
+                    {isHumanizing ? (
+                      <AIBrainIcon size="sm" animate glowIntensity="strong" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                    {isHumanizing ? "Humanizing..." : !isPremium ? (
+                      <span className="flex items-center gap-1">
+                        Humanize <Crown className="w-3 h-3 text-amber-400" />
+                      </span>
+                    ) : "Humanize"}
+                  </Button>
                 )}
-                {isHumanizing ? "Humanizing..." : limitReached ? "Limit Reached" : "Humanize"}
-              </Button>
-            )}
-            {limitReached && !isPremium && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Crown className="w-3 h-3" />
-                Upgrade to Pro for unlimited
-              </span>
-            )}
+              </div>
+              {!isHumanized && (
+                <HumanizeStrengthSlider
+                  value={humanizeStrength}
+                  onChange={setHumanizeStrength}
+                  isPremium={isPremium}
+                  onUpgradeClick={() => navigate("/premium")}
+                />
+              )}
+            </div>
           </div>
         ) : null}
       </motion.div>

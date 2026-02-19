@@ -127,7 +127,8 @@ export const CommunityGoalEditor = ({ userEmail }: CommunityGoalEditorProps) => 
         .from("avatars")
         .getPublicUrl(path);
 
-      setGoal({ ...goal, image_url: publicUrl });
+      const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
+      setGoal({ ...goal, image_url: cacheBustedUrl });
       toast.success("Image uploaded");
     } catch {
       toast.error("Upload failed");
@@ -138,7 +139,7 @@ export const CommunityGoalEditor = ({ userEmail }: CommunityGoalEditorProps) => 
 
   if (loading) {
     return (
-      <div className="p-4 bg-card rounded-xl border border-border text-center text-muted-foreground text-sm">
+      <div className="p-4 bg-card rounded-xl border border-border text-center text-muted-foreground">
         Loading community goal...
       </div>
     );
@@ -146,27 +147,27 @@ export const CommunityGoalEditor = ({ userEmail }: CommunityGoalEditorProps) => 
 
   if (!goal) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <Button onClick={handleCreate} variant="outline" className="w-full">
-          <Target className="w-4 h-4 mr-2" />
+      <div>
+        <Button variant="outline" onClick={handleCreate} className="w-full gap-2">
+          <Target className="w-4 h-4" />
           Create Community Goal
         </Button>
-      </motion.div>
+      </div>
     );
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-3"
+      className="p-4 bg-card rounded-xl border border-border space-y-4"
     >
-      <div className="flex items-center gap-2 text-primary">
-        <Target className="w-5 h-5" />
-        <h3 className="font-heading font-bold text-lg">Community Goal Editor</h3>
+      <div className="flex items-center gap-2">
+        <Target className="w-5 h-5 text-primary" />
+        <h4 className="font-heading font-bold">Community Goal Editor</h4>
       </div>
 
-      <div className="p-4 bg-card rounded-xl border border-border space-y-3">
+      <div className="space-y-3">
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Title (emoji-friendly)</label>
           <Input
