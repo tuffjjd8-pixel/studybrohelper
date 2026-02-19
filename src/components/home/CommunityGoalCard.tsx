@@ -31,16 +31,20 @@ export function CommunityGoalCard() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-md"
+      className="w-full max-w-md mx-auto"
     >
-      <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-center space-y-2">
-        <p className="text-sm font-medium text-foreground">{goal.title}</p>
+      <div className="p-5 bg-card rounded-2xl border border-border shadow-sm space-y-3">
+        <h3 className="text-lg font-heading font-bold">{goal.title}</h3>
         {goal.image_url && (
-          <img src={goal.image_url} alt="Goal" className="rounded-lg max-h-32 object-cover mx-auto" />
+          <img
+            src={goal.image_url}
+            alt="Community goal"
+            className="w-full rounded-xl object-cover max-h-48"
+          />
         )}
-        <p className="text-sm text-foreground whitespace-pre-wrap break-words">
+        <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
           {goal.body}
         </p>
       </div>

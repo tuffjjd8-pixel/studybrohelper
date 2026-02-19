@@ -6,6 +6,8 @@ import { CameraButton } from "@/components/home/CameraButton";
 import { TextInputBox } from "@/components/home/TextInputBox";
 import { RecentSolves } from "@/components/home/RecentSolves";
 import { ToolsScroller } from "@/components/home/ToolsScroller";
+import { CommunityGoalCard } from "@/components/home/CommunityGoalCard";
+import { useAdminControls } from "@/hooks/useAdminControls";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
@@ -15,8 +17,6 @@ import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarTrigger } from "@/components/layout/SidebarTrigger";
 import { ScannerModal } from "@/components/scanner/ScannerModal";
-import { TopSharerPopup } from "@/components/share/TopSharerPopup";
-import { CommunityGoalCard } from "@/components/community/CommunityGoalCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
@@ -38,7 +38,7 @@ const Index = () => {
   const {
     user
   } = useAuth();
-
+  const { isVisible } = useAdminControls(user?.email);
   const [searchParams] = useSearchParams();
 
   // Capture referral code from URL and store it
@@ -85,10 +85,6 @@ const Index = () => {
     const saved = localStorage.getItem("speech_language");
     return saved ?? "auto";
   });
-  const [solveMode, setSolveMode] = useState<"instant" | "deep">(() => {
-    const saved = localStorage.getItem("solve_mode");
-    return (saved === "deep" ? "deep" : "instant");
-  });
 
   // Persist toggles
   useEffect(() => {
@@ -100,9 +96,6 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem("speech_language", speechLanguage);
   }, [speechLanguage]);
-  useEffect(() => {
-    localStorage.setItem("solve_mode", solveMode);
-  }, [solveMode]);
   const isPremium = profile?.is_premium || false;
 
   // Persistent solve usage tracking (backend-backed, not localStorage)
@@ -176,9 +169,7 @@ const Index = () => {
           image: imageData,
           isPremium,
           animatedSteps,
-          generateGraph: false,
-          solveMode: isPremium ? solveMode : "instant",
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
+          generateGraph: false
         }
       });
       if (error) throw error;
@@ -315,9 +306,6 @@ const Index = () => {
         }} animate={{
           opacity: 1
         }} className="flex flex-col items-center gap-8 py-8">
-              {/* Community Goal Card */}
-              <CommunityGoalCard />
-
               {/* Hero text */}
               <div className="text-center space-y-2">
                 <motion.h2 initial={{
@@ -362,8 +350,8 @@ const Index = () => {
                   </p>
                 </motion.div>}
 
-              {/* Solve Toggles */}
-              <SolveToggles animatedSteps={animatedSteps} onAnimatedStepsChange={setAnimatedSteps} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={setSolveMode} />
+              {/* Solve Toggles - respect admin controls */}
+              <SolveToggles animatedSteps={isVisible('home_animated_steps') ? animatedSteps : false} onAnimatedStepsChange={setAnimatedSteps} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={isVisible('home_speech_to_text') ? speechInput : false} onSpeechInputChange={isVisible('home_speech_to_text') ? setSpeechInput : undefined} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} showAnimatedStepsToggle={isVisible('home_animated_steps')} showSpeechToggle={isVisible('home_speech_to_text')} />
 
               {/* Divider */}
               <div className="flex items-center gap-4 w-full max-w-md">
@@ -377,6 +365,8 @@ const Index = () => {
               {/* Text input */}
               <TextInputBox onSubmit={handleTextSubmit} onEmptySubmit={handleSolveWithPendingImage} onImagePaste={handleImageCapture} isLoading={isLoading} hasPendingImage={!!pendingImage} placeholder={pendingImage ? "Add details or press Enter to solve..." : "Paste or type your homework question..."} speechInputEnabled={speechInput} isPremium={isPremium} speechLanguage={speechLanguage} onSpeechUsed={handleSpeechUsed} isAuthenticated={!!user} canUseSpeechClip={speechClips.canUseClip} speechClipsRemaining={speechClips.clipsRemaining} maxSpeechClips={speechClips.maxClips} hoursUntilReset={speechClips.hoursUntilReset} />
 
+              {/* Community Goal Card */}
+              {isVisible('community_goal') && <CommunityGoalCard />}
 
               {/* Recent solves */}
               <RecentSolves solves={recentSolves} />
@@ -402,7 +392,7 @@ const Index = () => {
 
                   {/* Animated steps */}
                   <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} />}
+                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} showFollowUps={isVisible('solve_followups')} />}
 
               {/* Solve usage banner below solution */}
               {!isPremium}
@@ -412,7 +402,6 @@ const Index = () => {
 
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
-      <TopSharerPopup />
       
       {/* Scanner Modal */}
       <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} />

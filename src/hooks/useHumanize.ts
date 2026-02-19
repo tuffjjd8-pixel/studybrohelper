@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider";
 
 interface UseHumanizeOptions {
   isPremium: boolean;
@@ -13,22 +12,19 @@ export function useHumanize({ isPremium }: UseHumanizeOptions) {
   const [limitReached, setLimitReached] = useState(false);
 
   const humanize = useCallback(
-    async (solution: string, subject: string, strength: HumanizeStrength = "auto"): Promise<string | null> => {
+    async (solution: string, subject: string): Promise<string | null> => {
       if (isHumanizing) return null;
-
-      if (!isPremium) {
-        setLimitReached(true);
-        return null;
-      }
-
       setIsHumanizing(true);
 
       try {
+        const deviceId = localStorage.getItem("studybro_device_id") || "unknown";
         const { data, error } = await supabase.functions.invoke("humanize-answer", {
-          body: { solution, subject, humanize_strength: strength },
+          body: { solution, subject },
+          headers: { "x-device-id": deviceId },
         });
 
         if (error) {
+          // Check for limit reached (429 from function)
           if (error.message?.includes("limit_reached") || error.message?.includes("429")) {
             setLimitReached(true);
             return null;
@@ -55,7 +51,7 @@ export function useHumanize({ isPremium }: UseHumanizeOptions) {
         setIsHumanizing(false);
       }
     },
-    [isHumanizing, isPremium]
+    [isHumanizing]
   );
 
   const reset = useCallback(() => {
