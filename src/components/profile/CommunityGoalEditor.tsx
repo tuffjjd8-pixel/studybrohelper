@@ -127,7 +127,8 @@ export const CommunityGoalEditor = ({ userEmail }: CommunityGoalEditorProps) => 
         .from("avatars")
         .getPublicUrl(path);
 
-      setGoal({ ...goal, image_url: publicUrl });
+      const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
+      setGoal({ ...goal, image_url: cacheBustedUrl });
       toast.success("Image uploaded");
     } catch {
       toast.error("Upload failed");
