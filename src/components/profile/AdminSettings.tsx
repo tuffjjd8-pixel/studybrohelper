@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { CommunityGoalEditor } from "@/components/community/CommunityGoalEditor";
 
 interface AdminSettingsProps {
   userEmail: string | undefined;
@@ -385,6 +386,9 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         <Settings className="w-4 h-4" />
         App Settings
       </Button>
+
+      {/* Community Goal Editor */}
+      <CommunityGoalEditor userEmail={userEmail} />
     </motion.div>
   );
 };

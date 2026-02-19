@@ -16,6 +16,7 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarTrigger } from "@/components/layout/SidebarTrigger";
 import { ScannerModal } from "@/components/scanner/ScannerModal";
 import { TopSharerPopup } from "@/components/share/TopSharerPopup";
+import { CommunityGoalCard } from "@/components/community/CommunityGoalCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
@@ -335,6 +336,9 @@ const Index = () => {
         }} animate={{
           opacity: 1
         }} className="flex flex-col items-center gap-8 py-8">
+              {/* Community Goal Card */}
+              <CommunityGoalCard />
+
               {/* Custom Community Goal Prompt */}
               {customPromptEnabled && customPrompt && customPrompt.trim() !== "" && (
                 <motion.div
