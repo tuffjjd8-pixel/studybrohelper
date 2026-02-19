@@ -469,6 +469,42 @@ export type Database = {
         }
         Relationships: []
       }
+      share_likes: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          id: string
+          likes_claimed: number
+          likes_confirmed: number
+          reviewed_at: string | null
+          screenshot_url: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          id?: string
+          likes_claimed?: number
+          likes_confirmed?: number
+          reviewed_at?: string | null
+          screenshot_url: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          id?: string
+          likes_claimed?: number
+          likes_confirmed?: number
+          reviewed_at?: string | null
+          screenshot_url?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       solve_usage: {
         Row: {
           created_at: string
@@ -552,6 +588,66 @@ export type Database = {
           id?: string
           progress?: number | null
           unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_entitlements: {
+        Row: {
+          community_rewards: boolean
+          created_at: string
+          deep_mode: boolean
+          id: string
+          is_premium: boolean
+          no_ads: boolean
+          premium_badge: boolean
+          priority_speed: boolean
+          unlimited_followups: boolean
+          unlimited_history: boolean
+          unlimited_humanize: boolean
+          unlimited_regenerations: boolean
+          unlimited_solves: boolean
+          unlimited_speech: boolean
+          unlimited_steps: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          community_rewards?: boolean
+          created_at?: string
+          deep_mode?: boolean
+          id?: string
+          is_premium?: boolean
+          no_ads?: boolean
+          premium_badge?: boolean
+          priority_speed?: boolean
+          unlimited_followups?: boolean
+          unlimited_history?: boolean
+          unlimited_humanize?: boolean
+          unlimited_regenerations?: boolean
+          unlimited_solves?: boolean
+          unlimited_speech?: boolean
+          unlimited_steps?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          community_rewards?: boolean
+          created_at?: string
+          deep_mode?: boolean
+          id?: string
+          is_premium?: boolean
+          no_ads?: boolean
+          premium_badge?: boolean
+          priority_speed?: boolean
+          unlimited_followups?: boolean
+          unlimited_history?: boolean
+          unlimited_humanize?: boolean
+          unlimited_regenerations?: boolean
+          unlimited_solves?: boolean
+          unlimited_speech?: boolean
+          unlimited_steps?: boolean
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
