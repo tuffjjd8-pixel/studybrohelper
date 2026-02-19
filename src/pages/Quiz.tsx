@@ -56,35 +56,6 @@ const getTopicFromSubject = (subject: string) => {
   return subject.charAt(0).toUpperCase() + subject.slice(1) || "General";
 };
 
-const TOPIC_KEYWORDS: Record<string, string[]> = {
-  "Grammar": ["grammar", "sentence", "punctuation", "clause", "syntax"],
-  "Verb Tense": ["tense", "past", "present", "future", "verb form", "conjugat"],
-  "Vocabulary": ["vocabulary", "synonym", "antonym", "definition", "meaning"],
-  "Sentence Structure": ["sentence structure", "subject", "predicate", "fragment", "run-on"],
-  "Algebra": ["equation", "variable", "solve for", "factor", "polynomial", "linear"],
-  "Geometry": ["angle", "triangle", "circle", "area", "perimeter", "volume"],
-  "Calculus": ["derivative", "integral", "limit", "differentiat", "rate of change"],
-  "Fractions": ["fraction", "numerator", "denominator", "simplif"],
-  "Word Problems": ["word problem", "how many", "how much", "total cost"],
-};
-
-const extractWeakTopics = (wrongQuestionTexts: string[], subject: string): string[] => {
-  const topics = new Set<string>();
-  const combined = wrongQuestionTexts.join(" ").toLowerCase();
-
-  for (const [topic, keywords] of Object.entries(TOPIC_KEYWORDS)) {
-    if (keywords.some(kw => combined.includes(kw))) {
-      topics.add(topic);
-    }
-  }
-
-  if (topics.size === 0) {
-    topics.add(getTopicFromSubject(subject));
-  }
-
-  return Array.from(topics).slice(0, 3);
-};
-
 const Quiz = () => {
   const navigate = useNavigate();
   const {
@@ -318,41 +289,35 @@ const Quiz = () => {
     setSubmitted(true);
     toast.success("Quiz submitted!");
 
-    // Store rich quiz results for the Results page
+    // Store real quiz results for the Results page
     const quizScore = calculateScore();
-
-    // Build per-question results with correctness
-    const questionResults = quizResult.map((q, idx) => {
-      const userAnswer = selectedAnswers[idx] || "";
-      const userLetter = getOptionLetter(userAnswer);
-      const correctLetter = q.answer.toUpperCase();
-      const correct = userLetter === correctLetter;
-      return {
-        question: q.question,
-        userAnswer,
-        correctAnswer: q.options.find(o => getOptionLetter(o) === correctLetter) || "",
-        correct,
-        explanation: q.explanation,
-      };
+    const topicMap: Record<string, { total: number; correct: number }> = {};
+    quizResult.forEach((q, idx) => {
+      const topic = getTopicFromSubject(selectedSolve?.subject || "General");
+      if (!topicMap[topic]) topicMap[topic] = { total: 0, correct: 0 };
+      topicMap[topic].total++;
+      const selectedOption = selectedAnswers[idx];
+      if (selectedOption && isCorrectAnswer(idx, selectedOption)) {
+        topicMap[topic].correct++;
+      }
     });
 
-    const correctCount = questionResults.filter(q => q.correct).length;
-    const totalCount = questionResults.length;
-    const pct = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+    const topicBreakdown = Object.entries(topicMap).map(([name, d]) => ({
+      name,
+      total: d.total,
+      correct: d.correct,
+      pct: Math.round((d.correct / d.total) * 100),
+    }));
 
-    // Extract weak topics from wrong answers (use question text keywords)
-    const wrongQuestions = questionResults.filter(q => !q.correct);
-    const weakTopics = wrongQuestions.length > 0
-      ? extractWeakTopics(wrongQuestions.map(q => q.question), selectedSolve?.subject || "General")
-      : [];
+    const weakTopics = topicBreakdown.filter((t) => t.pct < 80).map((t) => t.name);
 
     const quizResultData = {
-      totalQuestions: totalCount,
-      correctAnswers: correctCount,
-      wrongAnswers: totalCount - correctCount,
-      scorePercentage: pct,
+      totalQuestions: quizScore.total,
+      correctAnswers: quizScore.correct,
+      wrongAnswers: quizScore.total - quizScore.correct,
+      scorePercentage: Math.round((quizScore.correct / quizScore.total) * 100),
       weakTopics,
-      questionResults,
+      topicBreakdown,
       subject: selectedSolve?.subject || "General",
       quizName: selectedSolve?.question_text || selectedSolve?.subject || "Quiz",
       timestamp: Date.now(),

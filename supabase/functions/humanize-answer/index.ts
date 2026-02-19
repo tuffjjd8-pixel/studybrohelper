@@ -9,7 +9,30 @@ const corsHeaders = {
 };
 
 const GROQ_MODEL = "llama-3.3-70b-versatile";
-const FREE_HUMANIZE_PER_DAY = 5;
+
+const BASE_PROMPT = `Rewrite the text to sound fully human and natural.
+
+Keep the original meaning exactly.
+Do not add new information.
+Do not remove important details.
+Do NOT shorten full essays — keep the full original length.
+Only shorten overly long internal explanations.
+Avoid robotic, academic, or AI-style phrasing.
+Remove patterns like "It is important to note that", "Furthermore", "In conclusion", "This demonstrates that".
+Use natural flow, varied sentence length, and realistic tone.
+Break up long paragraphs into shorter natural ones.
+Make it sound like a real student wrote it.
+Keep all LaTeX math formatting exactly the same ($$...$$ and $...$).
+Do not add errors or change math.
+
+OUTPUT: Return ONLY the rewritten text. No commentary.`;
+
+const MODE_MODIFIERS: Record<string, string> = {
+  soft: "Light rewrite. Keep structure mostly the same. Fix robotic phrasing and awkward flow. Minimal structural changes.",
+  medium: "Rewrite more naturally. Improve sentence flow, clarity, and structure. Restructure some sentences but keep overall organization.",
+  strong: "Fully rewrite in a natural human style. Restructure paragraphs and simplify explanations without losing meaning. Maximum naturalness.",
+  auto: "Automatically choose the best rewriting strength based on text length: Short answers (under 300 words) → use Strong rewriting. Medium length (300-800 words) → use Medium rewriting. Long essays (over 800 words) → use Soft to Medium rewriting to preserve structure.",
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,9 +40,9 @@ serve(async (req) => {
   }
 
   try {
-    const { solution, subject, action } = await req.json();
+    const { solution, subject, action, humanize_strength } = await req.json();
 
-    // Auth check (optional - guests can humanize too)
+    // Auth check
     const authHeader = req.headers.get("Authorization");
     let userId: string | null = null;
     let isPremium = false;
@@ -44,35 +67,18 @@ serve(async (req) => {
 
     // Action: check usage
     if (action === "check") {
-      if (isPremium) {
-        return new Response(
-          JSON.stringify({ canHumanize: true, used: 0, max: -1 }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const deviceId = req.headers.get("x-device-id");
-      const used = getUsageFromMemory(userId, deviceId);
       return new Response(
-        JSON.stringify({
-          canHumanize: used < FREE_HUMANIZE_PER_DAY,
-          used,
-          max: FREE_HUMANIZE_PER_DAY,
-        }),
+        JSON.stringify({ canHumanize: isPremium, isPremiumRequired: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check limits for free users
+    // Premium-only gate
     if (!isPremium) {
-      const deviceId = req.headers.get("x-device-id");
-      const used = getUsageFromMemory(userId, deviceId);
-      if (used >= FREE_HUMANIZE_PER_DAY) {
-        return new Response(
-          JSON.stringify({ error: "limit_reached", used, max: FREE_HUMANIZE_PER_DAY }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      incrementUsage(userId, deviceId);
+      return new Response(
+        JSON.stringify({ error: "premium_required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (!solution) {
@@ -84,18 +90,15 @@ serve(async (req) => {
 
     const { callGroqWithRotation } = await import("../_shared/groq-key-manager.ts");
 
-    console.log("Humanize request for subject:", subject);
+    const strength: string = humanize_strength && MODE_MODIFIERS[humanize_strength] ? humanize_strength : "auto";
+    console.log("Humanize request — subject:", subject, "strength:", strength);
 
-    const systemPrompt = `You are a student rewriting an AI-generated homework solution to sound like a real student wrote it. Keep the same meaning, math, and accuracy but:
-- Use casual, natural language a student would use
-- Add small filler words or transitions ("so basically", "then we just", "which gives us")
-- Vary sentence length naturally
-- Keep all LaTeX math formatting exactly the same ($$...$$ and $...$)
-- Keep all steps and logic intact
-- Don't add errors or change the math
-- Don't say "I" too much
-- Make it sound like handwritten notes converted to text
-- Keep it roughly the same length`;
+    const systemPrompt = `${BASE_PROMPT}
+
+Mode: ${strength}
+
+Instructions:
+${MODE_MODIFIERS[strength]}`;
 
     const response = await callGroqWithRotation(
       "https://api.groq.com/openai/v1/chat/completions",
@@ -103,10 +106,10 @@ serve(async (req) => {
         model: GROQ_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Rewrite this ${subject || "homework"} solution in a natural student voice:\n\n${solution}` },
+          { role: "user", content: `Rewrite this ${subject || "homework"} solution:\n\n${solution}` },
         ],
-        temperature: 0.8,
-        max_tokens: 3000,
+        temperature: strength === "strong" ? 0.9 : strength === "soft" ? 0.6 : 0.75,
+        max_tokens: 4000,
       }
     );
 
@@ -115,14 +118,9 @@ serve(async (req) => {
 
     console.log("Humanize completed successfully");
 
-    // Log usage for admin dashboard
-    try {
-      const { createClient: createAdminClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-      const adminClient = createAdminClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      await adminClient.from("api_usage_logs").insert({
-        user_id: userId, request_type: "humanize", estimated_cost: 0.002,
-      });
-    } catch (logErr) { console.error("Usage log error:", logErr); }
+    // Log usage (fire-and-forget)
+    const { logUsage } = await import("../_shared/usage-logger.ts");
+    logUsage("humanize", 0.0010, userId);
 
     return new Response(
       JSON.stringify({ humanized }),
@@ -137,35 +135,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Simple in-memory usage tracking (resets on cold start, but sufficient for rate limiting)
-const usageMap = new Map<string, { count: number; date: string }>();
-
-function getTodayCST(): string {
-  const now = new Date();
-  const cst = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-  return cst.toISOString().split("T")[0];
-}
-
-function getUsageKey(userId: string | null, deviceId: string | null): string {
-  return userId || deviceId || "anonymous";
-}
-
-function getUsageFromMemory(userId: string | null, deviceId: string | null): number {
-  const key = getUsageKey(userId, deviceId);
-  const today = getTodayCST();
-  const entry = usageMap.get(key);
-  if (!entry || entry.date !== today) return 0;
-  return entry.count;
-}
-
-function incrementUsage(userId: string | null, deviceId: string | null): void {
-  const key = getUsageKey(userId, deviceId);
-  const today = getTodayCST();
-  const entry = usageMap.get(key);
-  if (!entry || entry.date !== today) {
-    usageMap.set(key, { count: 1, date: today });
-  } else {
-    entry.count++;
-  }
-}

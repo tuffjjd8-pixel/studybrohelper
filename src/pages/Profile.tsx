@@ -19,11 +19,10 @@ import {
   Mic,
   Settings,
   Award,
+  Heart,
 } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
-import { AdminControlsPanel } from "@/components/profile/AdminControlsPanel";
-import { CommunityGoalEditor } from "@/components/profile/CommunityGoalEditor";
 import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
 import { openPremiumPage } from "@/lib/mobileDetection";
 
@@ -59,6 +58,7 @@ const Profile = () => {
   const [displayName, setDisplayName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [totalConfirmedLikes, setTotalConfirmedLikes] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // No redirect - profile is accessible, but shows sign-in prompt for guests
@@ -66,8 +66,25 @@ const Profile = () => {
   useEffect(() => {
     if (user) {
       fetchProfile();
+      fetchConfirmedLikes();
     }
   }, [user]);
+
+  const fetchConfirmedLikes = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from("share_likes")
+        .select("likes_confirmed")
+        .eq("user_id", user.id)
+        .eq("status", "approved");
+      if (error) throw error;
+      const total = (data || []).reduce((sum, row) => sum + (row.likes_confirmed || 0), 0);
+      setTotalConfirmedLikes(total);
+    } catch (error) {
+      console.error("Error fetching confirmed likes:", error);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -433,6 +450,56 @@ const Profile = () => {
               </div>
             </motion.div>
 
+            {/* Share Likes Button */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.33 }}
+            >
+              <Button
+                onClick={() => navigate('/share-likes')}
+                variant="outline"
+                className="w-full h-auto py-4 border-pink-500/30 hover:border-pink-500/50"
+              >
+                <div className="flex items-center gap-4 w-full">
+                  <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center flex-shrink-0">
+                    <Heart className="w-6 h-6 text-pink-500" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <div className="font-heading font-bold">Share Likes</div>
+                    <div className="text-xs text-muted-foreground">
+                      {totalConfirmedLikes} confirmed likes
+                    </div>
+                  </div>
+                </div>
+              </Button>
+            </motion.div>
+
+            {/* Community Reward Button */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.34 }}
+            >
+              <Button
+                onClick={() => navigate('/community-reward')}
+                variant="outline"
+                className="w-full h-auto py-4 border-yellow-500/30 hover:border-yellow-500/50"
+              >
+                <div className="flex items-center gap-4 w-full">
+                  <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                    <Crown className="w-6 h-6 text-yellow-500" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <div className="font-heading font-bold">Community Reward</div>
+                    <div className="text-xs text-muted-foreground">
+                      Claim your community goal reward
+                    </div>
+                  </div>
+                </div>
+              </Button>
+            </motion.div>
+
             {/* Big Badges Button */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -491,13 +558,8 @@ const Profile = () => {
               subscriptionId={profile?.subscription_id}
             />
 
+            {/* Admin Settings - only visible to admin */}
             <AdminSettings userEmail={user?.email} />
-
-            {/* Admin Controls Panel - only visible to admin */}
-            <AdminControlsPanel userEmail={user?.email} />
-
-            {/* Community Goal Editor - only visible to admin */}
-            <CommunityGoalEditor userEmail={user?.email} />
 
             {/* Settings button for all users */}
             <motion.div

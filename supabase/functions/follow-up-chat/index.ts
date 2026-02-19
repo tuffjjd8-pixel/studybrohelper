@@ -73,21 +73,19 @@ Now help with follow-up questions. Be friendly, clear, and educational. Use mark
 
     console.log("Follow-up response generated successfully");
 
-    // Log usage for admin dashboard
-    try {
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      const authHeader2 = req.headers.get("Authorization");
-      let logUserId: string | null = null;
-      if (authHeader2) {
-        const token = authHeader2.replace("Bearer ", "");
-        const { data: { user } } = await adminClient.auth.getUser(token);
-        logUserId = user?.id || null;
-      }
-      await adminClient.from("api_usage_logs").insert({
-        user_id: logUserId, request_type: "follow_up", estimated_cost: 0.003,
-      });
-    } catch (logErr) { console.error("Usage log error:", logErr); }
+    // Log usage (fire-and-forget)
+    const { logUsage } = await import("../_shared/usage-logger.ts");
+    const authHeader = req.headers.get("Authorization");
+    let logUserId: string | null = null;
+    if (authHeader) {
+      try {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
+        const { data: { user: u } } = await sb.auth.getUser();
+        logUserId = u?.id || null;
+      } catch (_) {}
+    }
+    logUsage("follow-up", 0.0008, logUserId);
 
     return new Response(
       JSON.stringify({ response: aiResponse }),

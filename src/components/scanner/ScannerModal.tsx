@@ -76,6 +76,7 @@ export function ScannerModal({
           isPremium,
           animatedSteps: false,
           generateGraph: false,
+          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
         },
       });
 
@@ -121,13 +122,11 @@ export function ScannerModal({
 
       {/* Manual crop screen */}
       {state === "cropping" && capturedImage && (
-        <div className="fixed inset-0 z-50 bg-background flex flex-col">
-          <ImageCropper
-            imageSrc={capturedImage}
-            onCropComplete={handleCropComplete}
-            onCancel={handleCropCancel}
-          />
-        </div>
+        <ImageCropper
+          imageSrc={capturedImage}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+        />
       )}
 
       {/* Processing / scanning dialog */}
