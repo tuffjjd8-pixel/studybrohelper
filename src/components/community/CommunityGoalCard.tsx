@@ -10,8 +10,14 @@ interface GoalContent {
   visible: boolean;
 }
 
+const PARTICIPATION_KEY = "community_goal_participate";
+
 export function CommunityGoalCard() {
   const [goal, setGoal] = useState<GoalContent | null>(null);
+  const [participate, setParticipate] = useState<boolean>(() => {
+    const saved = localStorage.getItem(PARTICIPATION_KEY);
+    return saved !== null ? saved === "true" : true;
+  });
 
   useEffect(() => {
     const fetchGoal = async () => {
@@ -26,6 +32,11 @@ export function CommunityGoalCard() {
     };
     fetchGoal();
   }, []);
+
+  const handleParticipationChange = (value: boolean) => {
+    setParticipate(value);
+    localStorage.setItem(PARTICIPATION_KEY, String(value));
+  };
 
   if (!goal) return null;
 
@@ -43,6 +54,33 @@ export function CommunityGoalCard() {
         <p className="text-sm text-foreground whitespace-pre-wrap break-words">
           {goal.body}
         </p>
+
+        {/* User participation selector */}
+        <div className="pt-2 border-t border-primary/10">
+          <p className="text-xs text-muted-foreground mb-1.5">Participate in this Community Goal?</p>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={() => handleParticipationChange(true)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                participate
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => handleParticipationChange(false)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                !participate
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              No
+            </button>
+          </div>
+        </div>
       </div>
     </motion.div>
   );

@@ -16,22 +16,18 @@ interface AdminSettingsProps {
 const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
 
 type ToggleKey =
-  | "community_goal_enabled"
   | "reward_claiming_enabled"
   | "gifting_enabled"
   | "sync_enabled"
-  | "show_community_goal_home"
   | "enable_reward_screen"
   | "enable_progress_bar"
   | "participate_in_community_goal"
   ;
 
 const TOGGLE_DEFS: { key: ToggleKey; label: string }[] = [
-  { key: "community_goal_enabled", label: "Enable Community Goal" },
   { key: "reward_claiming_enabled", label: "Enable Reward Claiming" },
   { key: "gifting_enabled", label: "Enable Gifting" },
   { key: "sync_enabled", label: "Enable Auto-Sync" },
-  { key: "show_community_goal_home", label: "Show Community Goal on Home" },
   { key: "enable_reward_screen", label: "Enable Reward Screen" },
   { key: "enable_progress_bar", label: "Enable Progress Bar" },
   { key: "participate_in_community_goal", label: "Participate in Community Goal" },
@@ -43,11 +39,9 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [toggles, setToggles] = useState<Record<ToggleKey, boolean>>({
-    community_goal_enabled: false,
     reward_claiming_enabled: false,
     gifting_enabled: false,
     sync_enabled: false,
-    show_community_goal_home: false,
     enable_reward_screen: false,
     enable_progress_bar: false,
     participate_in_community_goal: true,
