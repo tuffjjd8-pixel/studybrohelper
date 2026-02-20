@@ -310,13 +310,16 @@ const Index = () => {
       
       <main className="pt-20 pb-24 px-4">
         <div className="max-w-4xl mx-auto">
+          {/* Community Goal Card - pinned to top of feed */}
+          <div className="mb-6">
+            <CommunityGoalCard />
+          </div>
+
           {!solution ? <motion.div initial={{
           opacity: 0
         }} animate={{
           opacity: 1
         }} className="flex flex-col items-center gap-8 py-8">
-              {/* Community Goal Card */}
-              <CommunityGoalCard />
 
               {/* Hero text */}
               <div className="text-center space-y-2">
