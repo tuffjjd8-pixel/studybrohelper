@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, CreditCard, BarChart3, Activity, Heart, Loader2, X } from "lucide-react";
+import { Settings, CreditCard, BarChart3, Activity, Heart } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -23,7 +23,7 @@ type ToggleKey =
   | "show_community_goal_home"
   | "enable_reward_screen"
   | "enable_progress_bar"
-  | "enable_custom_community_goal_prompt";
+  ;
 
 const TOGGLE_DEFS: { key: ToggleKey; label: string }[] = [
   { key: "community_goal_enabled", label: "Enable Community Goal" },
@@ -33,7 +33,7 @@ const TOGGLE_DEFS: { key: ToggleKey; label: string }[] = [
   { key: "show_community_goal_home", label: "Show Community Goal on Home" },
   { key: "enable_reward_screen", label: "Enable Reward Screen" },
   { key: "enable_progress_bar", label: "Enable Progress Bar" },
-  { key: "enable_custom_community_goal_prompt", label: "Enable Custom Community Goal Prompt" },
+  
 ];
 
 export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
@@ -49,11 +49,10 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
     show_community_goal_home: false,
     enable_reward_screen: false,
     enable_progress_bar: false,
-    enable_custom_community_goal_prompt: false,
+    
   });
   const [savingToggle, setSavingToggle] = useState<string | null>(null);
-  const [promptText, setPromptText] = useState("");
-  const [savingPrompt, setSavingPrompt] = useState(false);
+  
   const [isResetting, setIsResetting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -76,13 +75,11 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
 
       const newToggles = { ...toggles };
       let loadedStripeMode: "test" | "live" = "live";
-      let loadedPrompt = "";
+      
 
       data?.forEach((row) => {
         if (row.key === "stripe_mode") {
           loadedStripeMode = row.value as "test" | "live";
-        } else if (row.key === "community_goal_prompt") {
-          loadedPrompt = row.value || "";
         } else if (row.key in newToggles) {
           newToggles[row.key as ToggleKey] = row.value === "true";
         }
@@ -90,7 +87,7 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
 
       setStripeMode(loadedStripeMode);
       setToggles(newToggles);
-      setPromptText(loadedPrompt);
+      
       console.log("[Admin] Settings loaded successfully", { toggles: newToggles, stripeMode: loadedStripeMode });
     } catch (error) {
       console.error("[Admin] Failed to load settings:", error);
@@ -144,50 +141,6 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
     }
   };
 
-  const handleSavePrompt = async () => {
-    console.log("[Admin] Saving community goal prompt...");
-    setSavingPrompt(true);
-
-    try {
-      const { error } = await supabase
-        .from("app_settings")
-        .update({ value: promptText, updated_at: new Date().toISOString() })
-        .eq("key", "community_goal_prompt");
-
-      if (error) throw error;
-
-      console.log("[Admin] Prompt saved successfully");
-      toast.success("Community goal prompt saved");
-    } catch (error) {
-      console.error("[Admin] Prompt save failed:", error);
-      toast.error("Failed to save prompt");
-    } finally {
-      setSavingPrompt(false);
-    }
-  };
-
-  const handleRemovePrompt = async () => {
-    console.log("[Admin] Removing community goal prompt...");
-    setSavingPrompt(true);
-
-    try {
-      const { error } = await supabase
-        .from("app_settings")
-        .update({ value: "", updated_at: new Date().toISOString() })
-        .eq("key", "community_goal_prompt");
-
-      if (error) throw error;
-
-      setPromptText("");
-      console.log("[Admin] Prompt removed successfully");
-      toast.success("Community goal prompt removed");
-    } catch (error) {
-      console.error("[Admin] Prompt remove failed:", error);
-      toast.error("Failed to remove prompt");
-    } finally {
-      setSavingPrompt(false);
-    }
-  };
 
   const handleResetCommunityGoal = async () => {
     console.log("[Admin] Resetting community goal...");
@@ -292,38 +245,6 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
           </div>
         ))}
       </div>
-
-      {/* Custom Community Goal Prompt Text Box */}
-      {toggles.enable_custom_community_goal_prompt && (
-        <div className="p-4 bg-card rounded-xl border border-border space-y-3">
-          <p className="font-medium text-sm">Custom Community Goal Prompt</p>
-          <Textarea
-            value={promptText}
-            onChange={(e) => setPromptText(e.target.value)}
-            placeholder="Enter custom community goal prompt (supports emojis, URLs, image URLs)..."
-            className="min-h-[80px]"
-          />
-          <div className="flex gap-2">
-            <Button
-              onClick={handleSavePrompt}
-              disabled={savingPrompt}
-              size="sm"
-            >
-              {savingPrompt ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-              Save Prompt
-            </Button>
-            <Button
-              onClick={handleRemovePrompt}
-              disabled={savingPrompt}
-              variant="destructive"
-              size="sm"
-            >
-              <X className="w-4 h-4 mr-1" />
-              Remove / Hide
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Community Goal Editor */}
       <CommunityGoalEditor userEmail={userEmail} />
