@@ -33,9 +33,9 @@ export function CommunityGoalCard() {
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full"
+      className="w-full max-w-md"
     >
-      <div className="p-5 bg-[#131316] rounded-2xl border border-border shadow-sm space-y-3">
+      <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-center space-y-2">
         <p className="text-sm font-medium text-foreground">{goal.title}</p>
         {goal.image_url && (
           <img src={goal.image_url} alt="Goal" className="rounded-lg max-h-32 object-cover mx-auto" />
