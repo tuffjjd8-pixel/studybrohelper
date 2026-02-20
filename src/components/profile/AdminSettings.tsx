@@ -23,6 +23,7 @@ type ToggleKey =
   | "show_community_goal_home"
   | "enable_reward_screen"
   | "enable_progress_bar"
+  | "participate_in_community_goal"
   ;
 
 const TOGGLE_DEFS: { key: ToggleKey; label: string }[] = [
@@ -33,7 +34,7 @@ const TOGGLE_DEFS: { key: ToggleKey; label: string }[] = [
   { key: "show_community_goal_home", label: "Show Community Goal on Home" },
   { key: "enable_reward_screen", label: "Enable Reward Screen" },
   { key: "enable_progress_bar", label: "Enable Progress Bar" },
-  
+  { key: "participate_in_community_goal", label: "Participate in Community Goal" },
 ];
 
 export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
@@ -49,7 +50,7 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
     show_community_goal_home: false,
     enable_reward_screen: false,
     enable_progress_bar: false,
-    
+    participate_in_community_goal: true,
   });
   const [savingToggle, setSavingToggle] = useState<string | null>(null);
   
