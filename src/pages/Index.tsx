@@ -315,9 +315,6 @@ const Index = () => {
         }} animate={{
           opacity: 1
         }} className="flex flex-col items-center gap-8 py-8">
-              {/* Community Goal Card */}
-              <CommunityGoalCard />
-
               {/* Hero text */}
               <div className="text-center space-y-2">
                 <motion.h2 initial={{
@@ -341,6 +338,9 @@ const Index = () => {
                   Your AI homework bro – instant step-by-step solutions
                 </motion.p>
               </div>
+
+              {/* Community Goal Card - below hero, above camera */}
+              <CommunityGoalCard />
 
               {/* Camera button */}
               <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
