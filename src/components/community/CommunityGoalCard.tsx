@@ -51,6 +51,9 @@ export function CommunityGoalCard({ onParticipationChange }: CommunityGoalCardPr
 
   if (!goal) return null;
 
+  // If user chose NO, hide entire card
+  if (participate === false) return null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -66,32 +69,26 @@ export function CommunityGoalCard({ onParticipationChange }: CommunityGoalCardPr
           {goal.body}
         </p>
 
-        {/* User participation selector */}
-        <div className="pt-2 border-t border-primary/10">
-          <p className="text-xs text-muted-foreground mb-1.5">Participate in this Community Goal?</p>
-          <div className="flex items-center justify-center gap-2">
-            <button
-              onClick={() => handleParticipationChange(true)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                participate === true
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              Yes
-            </button>
-            <button
-              onClick={() => handleParticipationChange(false)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                participate === false
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              No
-            </button>
+        {/* User participation selector - only show when no choice made yet */}
+        {participate === null && (
+          <div className="pt-2 border-t border-primary/10">
+            <p className="text-xs text-muted-foreground mb-1.5">Participate in this Community Goal?</p>
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={() => handleParticipationChange(true)}
+                className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-muted text-muted-foreground hover:bg-muted/80"
+              >
+                Yes
+              </button>
+              <button
+                onClick={() => handleParticipationChange(false)}
+                className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-muted text-muted-foreground hover:bg-muted/80"
+              >
+                No
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </motion.div>
   );
