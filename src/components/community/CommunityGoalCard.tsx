@@ -10,13 +10,18 @@ interface GoalContent {
   visible: boolean;
 }
 
-const PARTICIPATION_KEY = "community_goal_participate";
+const PARTICIPATION_KEY = "community_goal_participation";
 
-export function CommunityGoalCard() {
+interface CommunityGoalCardProps {
+  onParticipationChange?: (participating: boolean | null) => void;
+}
+
+export function CommunityGoalCard({ onParticipationChange }: CommunityGoalCardProps) {
   const [goal, setGoal] = useState<GoalContent | null>(null);
-  const [participate, setParticipate] = useState<boolean>(() => {
+  const [participate, setParticipate] = useState<boolean | null>(() => {
     const saved = localStorage.getItem(PARTICIPATION_KEY);
-    return saved !== null ? saved === "true" : true;
+    if (saved === null) return null;
+    return saved === "true";
   });
 
   useEffect(() => {
@@ -36,7 +41,13 @@ export function CommunityGoalCard() {
   const handleParticipationChange = (value: boolean) => {
     setParticipate(value);
     localStorage.setItem(PARTICIPATION_KEY, String(value));
+    onParticipationChange?.(value);
   };
+
+  // Notify parent of initial state
+  useEffect(() => {
+    onParticipationChange?.(participate);
+  }, []);
 
   if (!goal) return null;
 
@@ -62,7 +73,7 @@ export function CommunityGoalCard() {
             <button
               onClick={() => handleParticipationChange(true)}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                participate
+                participate === true
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
@@ -72,7 +83,7 @@ export function CommunityGoalCard() {
             <button
               onClick={() => handleParticipationChange(false)}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                !participate
+                participate === false
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}

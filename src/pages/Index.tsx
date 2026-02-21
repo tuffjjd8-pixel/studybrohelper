@@ -72,6 +72,13 @@ const Index = () => {
   // Pending image state
   const [pendingImage, setPendingImage] = useState<string | null>(null);
 
+  // Community goal participation
+  const [goalParticipation, setGoalParticipation] = useState<boolean | null>(() => {
+    const saved = localStorage.getItem("community_goal_participation");
+    if (saved === null) return null;
+    return saved === "true";
+  });
+
   // Solve toggles - persist in localStorage
   const [animatedSteps, setAnimatedSteps] = useState(() => {
     const saved = localStorage.getItem("toggle_animated_steps");
@@ -340,7 +347,7 @@ const Index = () => {
               </div>
 
               {/* Community Goal Card - below hero, above camera */}
-              <CommunityGoalCard />
+              <CommunityGoalCard onParticipationChange={setGoalParticipation} />
 
               {/* Camera button */}
               <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
