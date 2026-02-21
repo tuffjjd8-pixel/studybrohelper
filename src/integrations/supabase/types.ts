@@ -124,29 +124,82 @@ export type Database = {
       community_goal_content: {
         Row: {
           body: string
+          current_count: number
           id: string
           image_url: string | null
+          target_count: number
           title: string
           updated_at: string
           visible: boolean
         }
         Insert: {
           body?: string
+          current_count?: number
           id?: string
           image_url?: string | null
+          target_count?: number
           title?: string
           updated_at?: string
           visible?: boolean
         }
         Update: {
           body?: string
+          current_count?: number
           id?: string
           image_url?: string | null
+          target_count?: number
           title?: string
           updated_at?: string
           visible?: boolean
         }
         Relationships: []
+      }
+      community_goal_submissions: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          disqualified: boolean
+          downloads_count: number
+          goal_id: string
+          id: string
+          reviewed_at: string | null
+          screenshot_urls: string[]
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          disqualified?: boolean
+          downloads_count?: number
+          goal_id: string
+          id?: string
+          reviewed_at?: string | null
+          screenshot_urls?: string[]
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          disqualified?: boolean
+          downloads_count?: number
+          goal_id?: string
+          id?: string
+          reviewed_at?: string | null
+          screenshot_urls?: string[]
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_goal_submissions_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "community_goal_content"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_verification_codes: {
         Row: {
