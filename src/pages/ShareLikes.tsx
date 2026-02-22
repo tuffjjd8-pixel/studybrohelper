@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Camera, Upload, Heart, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Camera, Upload, Target, Clock, CheckCircle, XCircle } from "lucide-react";
 
 interface Submission {
   id: string;
@@ -147,9 +147,9 @@ const ShareLikes = () => {
           {/* Header */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-red-500 flex items-center justify-center mx-auto mb-3">
-              <Heart className="w-8 h-8 text-primary-foreground" />
+              <Target className="w-8 h-8 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-heading font-bold">Share Likes</h1>
+            <h1 className="text-2xl font-heading font-bold">Community Goal Submissions</h1>
             <p className="text-muted-foreground text-sm mt-1">
               Share StudyBro, screenshot your likes, and earn rewards!
             </p>
@@ -162,7 +162,7 @@ const ShareLikes = () => {
             transition={{ delay: 0.1 }}
             className="p-4 bg-card rounded-xl border border-border text-center"
           >
-            <Heart className="w-8 h-8 text-pink-500 mx-auto mb-2" />
+            <Target className="w-8 h-8 text-pink-500 mx-auto mb-2" />
             <div className="text-3xl font-bold">{totalConfirmed}</div>
             <div className="text-xs text-muted-foreground">Confirmed Likes</div>
           </motion.div>
