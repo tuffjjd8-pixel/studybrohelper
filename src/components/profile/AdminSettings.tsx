@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, CreditCard, BarChart3, Activity, Target } from "lucide-react";
+import { Settings, CreditCard, BarChart3, Activity } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
@@ -264,15 +264,6 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         Manage Polls
       </Button>
 
-      {/* Community Goal Submissions */}
-      <Button
-        variant="outline"
-        onClick={() => navigate("/admin/share-likes")}
-        className="w-full justify-start gap-2"
-      >
-        <Target className="w-4 h-4" />
-        Community Goal Submissions
-      </Button>
 
       {/* Settings Button */}
       <Button
