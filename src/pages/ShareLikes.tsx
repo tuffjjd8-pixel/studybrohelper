@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Camera, Upload, Target, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Camera, Upload, Target, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 
 interface Submission {
   id: string;
@@ -125,9 +125,10 @@ const ShareLikes = () => {
 
   const statusIcon = (status: string) => {
     switch (status) {
-      case "approved": return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case "approved": return <CheckCircle className="w-5 h-5 text-primary" />;
       case "rejected": return <XCircle className="w-5 h-5 text-destructive" />;
-      default: return <Clock className="w-5 h-5 text-yellow-500" />;
+      case "disqualified": return <AlertTriangle className="w-5 h-5 text-destructive" />;
+      default: return <Clock className="w-5 h-5 text-primary/60" />;
     }
   };
 
@@ -146,8 +147,8 @@ const ShareLikes = () => {
         <div className="max-w-lg mx-auto space-y-6">
           {/* Header */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-red-500 flex items-center justify-center mx-auto mb-3">
-              <Target className="w-8 h-8 text-primary-foreground" />
+            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-3">
+              <Target className="w-8 h-8 text-primary" />
             </div>
             <h1 className="text-2xl font-heading font-bold">Community Goal Submissions</h1>
             <p className="text-muted-foreground text-sm mt-1">
@@ -160,11 +161,36 @@ const ShareLikes = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 }}
-            className="p-4 bg-card rounded-xl border border-border text-center"
+            className="p-4 bg-card rounded-xl border border-primary/20 text-center"
           >
-            <Target className="w-8 h-8 text-pink-500 mx-auto mb-2" />
-            <div className="text-3xl font-bold">{totalConfirmed}</div>
+            <Target className="w-8 h-8 text-primary mx-auto mb-2" />
+            <div className="text-3xl font-bold text-primary">{totalConfirmed}</div>
             <div className="text-xs text-muted-foreground">Confirmed Likes</div>
+          </motion.div>
+
+          {/* Rules section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12 }}
+            className="p-5 bg-card rounded-xl border border-primary/20 space-y-3"
+          >
+            <h3 className="font-heading font-bold text-primary">Rules & Requirements</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              To be counted, your post must have:
+            </p>
+            <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
+              <li>At least <span className="font-semibold text-foreground">100 real views</span></li>
+              <li>At least <span className="font-semibold text-foreground">10 real likes</span></li>
+              <li>A <span className="font-semibold text-foreground">real, public profile</span> (no AI-generated accounts)</li>
+              <li>Screenshot proof of the post, views, and likes</li>
+            </ul>
+            <p className="text-xs text-muted-foreground mt-1">
+              Fake or AI-generated posts will be disqualified.
+            </p>
+            <p className="text-xs text-destructive font-medium mt-1">
+              Disqualified users cannot claim rewards or join the next community goal.
+            </p>
           </motion.div>
 
           {/* Upload form */}
@@ -172,9 +198,9 @@ const ShareLikes = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="p-5 bg-card rounded-xl border border-border space-y-4"
+            className="p-5 bg-card rounded-xl border border-primary/20 space-y-4"
           >
-            <h3 className="font-heading font-bold">Submit a Screenshot</h3>
+            <h3 className="font-heading font-bold text-primary">Submit Proof Screenshot</h3>
             <p className="text-xs text-muted-foreground">
               Share a post about StudyBro, then screenshot the likes and submit here.
             </p>
@@ -192,9 +218,9 @@ const ShareLikes = () => {
             ) : (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors"
+                className="w-full h-32 border-2 border-dashed border-primary/30 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors"
               >
-                <Camera className="w-8 h-8 text-muted-foreground" />
+                <Camera className="w-8 h-8 text-primary/60" />
                 <span className="text-sm text-muted-foreground">Tap to upload screenshot</span>
               </button>
             )}
@@ -249,7 +275,9 @@ const ShareLikes = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       {statusIcon(sub.status)}
-                      <span className="text-sm font-medium capitalize">{sub.status}</span>
+                      <span className={`text-sm font-medium capitalize ${sub.status === "disqualified" || sub.status === "rejected" ? "text-destructive" : sub.status === "approved" ? "text-primary" : "text-muted-foreground"}`}>
+                        {sub.status === "disqualified" ? "DISQUALIFIED" : sub.status}
+                      </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       Claimed: {sub.likes_claimed} • Confirmed: {sub.likes_confirmed}
