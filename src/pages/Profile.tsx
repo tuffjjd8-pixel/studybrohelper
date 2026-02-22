@@ -19,7 +19,7 @@ import {
   Mic,
   Settings,
   Award,
-  Heart,
+  Target,
 } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
@@ -450,7 +450,7 @@ const Profile = () => {
               </div>
             </motion.div>
 
-            {/* Share Likes Button */}
+            {/* Community Goal Submissions Button */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -463,10 +463,10 @@ const Profile = () => {
               >
                 <div className="flex items-center gap-4 w-full">
                   <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                    <Heart className="w-6 h-6 text-pink-500" />
+                    <Target className="w-6 h-6 text-pink-500" />
                   </div>
                   <div className="text-left flex-1">
-                    <div className="font-heading font-bold">Share Likes</div>
+                    <div className="font-heading font-bold">Community Goal Submissions</div>
                     <div className="text-xs text-muted-foreground">
                       {totalConfirmedLikes} confirmed likes
                     </div>

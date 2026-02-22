@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CheckCircle, XCircle, Clock, ArrowLeft, Heart, Eye } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ArrowLeft, Target, Eye } from "lucide-react";
 
 const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
 
@@ -136,7 +136,7 @@ const AdminShareLikes = () => {
             <Button variant="ghost" size="icon" onClick={() => navigate("/profile")}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <h1 className="text-xl font-heading font-bold">Share Likes Admin</h1>
+            <h1 className="text-xl font-heading font-bold">Community Goal Submissions</h1>
           </div>
 
           {/* Filter tabs */}
