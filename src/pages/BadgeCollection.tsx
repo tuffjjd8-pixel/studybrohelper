@@ -23,10 +23,10 @@ const BadgeCard = ({ badge, onClick }: { badge: BadgeWithStatus; onClick: () => 
       onClick={isCompleted ? onClick : undefined}
       className={`relative p-4 rounded-2xl border transition-all duration-300 ${
         isCompleted
-          ? 'bg-gradient-to-br from-primary/20 via-secondary/10 to-primary/20 border-primary/50 cursor-pointer shadow-lg shadow-primary/20'
+          ? 'bg-gradient-to-br from-primary/20 via-secondary/10 to-primary/20 border-primary/50 cursor-pointer shadow-lg shadow-primary/20 badge-pop-in badge-glow-pulse badge-shine'
           : isPremiumLocked
-          ? 'bg-card/50 border-border/50 opacity-60'
-          : 'bg-card border-border'
+          ? 'bg-card/50 border-border/50 opacity-60 badge-pop-in'
+          : 'bg-card border-border badge-pop-in'
       }`}
     >
       {/* Premium lock indicator */}
@@ -231,7 +231,7 @@ const BadgeCollection = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full text-center"
+              className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full text-center badge-unlock-enter badge-shine"
               onClick={e => e.stopPropagation()}
             >
               <motion.div
