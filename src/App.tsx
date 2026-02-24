@@ -24,6 +24,7 @@ import CommunityGoalReward from "./pages/CommunityGoalReward";
 import ShareLikes from "./pages/ShareLikes";
 import AdminShareLikes from "./pages/AdminShareLikes";
 import AdminCommunityGoal from "./pages/AdminCommunityGoal";
+import CommunityGoalSubmissions from "./pages/CommunityGoalSubmissions";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/share-likes" element={<ShareLikes />} />
             <Route path="/admin/share-likes" element={<AdminShareLikes />} />
             <Route path="/admin/community-goal" element={<AdminCommunityGoal />} />
+            <Route path="/community-goal-submissions" element={<CommunityGoalSubmissions />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
