@@ -215,6 +215,58 @@
   }
 }
 
+  /* Badge Animations */
+  .badge-pop-in {
+    animation: badgePopIn 300ms ease-out forwards;
+  }
+
+  @keyframes badgePopIn {
+    0% { transform: scale(0.8); opacity: 0; }
+    70% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .badge-glow-pulse {
+    animation: badgeGlowPulse 600ms ease-in-out;
+  }
+
+  @keyframes badgeGlowPulse {
+    0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+    25% { box-shadow: 0 0 16px 4px hsl(var(--primary) / 0.45); }
+    50% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+    75% { box-shadow: 0 0 16px 4px hsl(var(--primary) / 0.45); }
+  }
+
+  .badge-shine {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .badge-shine::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      120deg,
+      transparent 30%,
+      hsl(0 0% 100% / 0.25) 50%,
+      transparent 70%
+    );
+    transform: translateX(-100%);
+    animation: badgeShineSweep 700ms 300ms ease-in-out forwards;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  @keyframes badgeShineSweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .badge-unlock-enter {
+    animation: badgePopIn 300ms ease-out forwards, badgeGlowPulse 600ms 300ms ease-in-out;
+  }
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
