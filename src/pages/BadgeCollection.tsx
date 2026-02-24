@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
@@ -7,9 +7,20 @@ import { useBadges, BadgeWithStatus } from '@/hooks/useBadges';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Lock, Crown, Sparkles } from 'lucide-react';
+import { ArrowLeft, Lock, Crown, Sparkles, Check } from 'lucide-react';
+import { toast } from 'sonner';
 
-const BadgeCard = ({ badge, onClick }: { badge: BadgeWithStatus; onClick: () => void }) => {
+const BadgeCard = ({
+  badge,
+  onClick,
+  isEquipped,
+  onEquip,
+}: {
+  badge: BadgeWithStatus;
+  onClick: () => void;
+  isEquipped: boolean;
+  onEquip: () => void;
+}) => {
   const progressPercent = (badge.progress / badge.requirement) * 100;
   const isCompleted = badge.isUnlocked;
   const isPremiumLocked = badge.isLocked;
@@ -22,14 +33,15 @@ const BadgeCard = ({ badge, onClick }: { badge: BadgeWithStatus; onClick: () => 
       whileTap={isCompleted ? { scale: 0.95 } : undefined}
       onClick={isCompleted ? onClick : undefined}
       className={`relative p-4 rounded-2xl border transition-all duration-300 ${
-        isCompleted
+        isEquipped
+          ? 'bg-gradient-to-br from-primary/30 via-secondary/20 to-primary/30 border-primary shadow-lg shadow-primary/30 badge-pop-in badge-glow-pulse badge-shine ring-2 ring-primary'
+          : isCompleted
           ? 'bg-gradient-to-br from-primary/20 via-secondary/10 to-primary/20 border-primary/50 cursor-pointer shadow-lg shadow-primary/20 badge-pop-in badge-glow-pulse badge-shine'
           : isPremiumLocked
           ? 'bg-card/50 border-border/50 opacity-60 badge-pop-in'
           : 'bg-card border-border badge-pop-in'
       }`}
     >
-      {/* Premium lock indicator */}
       {isPremiumLocked && (
         <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 bg-primary/20 rounded-full">
           <Crown className="w-3 h-3 text-primary" />
@@ -37,7 +49,13 @@ const BadgeCard = ({ badge, onClick }: { badge: BadgeWithStatus; onClick: () => 
         </div>
       )}
 
-      {/* Badge icon */}
+      {isEquipped && (
+        <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 bg-primary rounded-full">
+          <Check className="w-3 h-3 text-primary-foreground" />
+          <span className="text-[10px] text-primary-foreground font-medium">Equipped</span>
+        </div>
+      )}
+
       <div
         className={`text-4xl mb-3 ${
           isCompleted ? '' : isPremiumLocked ? 'grayscale opacity-50' : 'grayscale opacity-70'
@@ -46,7 +64,6 @@ const BadgeCard = ({ badge, onClick }: { badge: BadgeWithStatus; onClick: () => 
         {badge.icon}
       </div>
 
-      {/* Badge name */}
       <h3
         className={`font-heading font-bold text-sm mb-1 ${
           isCompleted ? 'text-foreground' : 'text-muted-foreground'
@@ -55,14 +72,25 @@ const BadgeCard = ({ badge, onClick }: { badge: BadgeWithStatus; onClick: () => 
         {badge.name}
       </h3>
 
-      {/* Badge description */}
       <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{badge.description}</p>
 
-      {/* Progress bar or completed indicator */}
       {isCompleted ? (
-        <div className="flex items-center gap-1 text-xs text-primary">
-          <Sparkles className="w-3 h-3" />
-          <span>Unlocked!</span>
+        <div className="space-y-2">
+          <div className="flex items-center gap-1 text-xs text-primary">
+            <Sparkles className="w-3 h-3" />
+            <span>Unlocked!</span>
+          </div>
+          <Button
+            size="sm"
+            variant={isEquipped ? "secondary" : "outline"}
+            className="w-full text-xs h-7"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEquip();
+            }}
+          >
+            {isEquipped ? 'Equipped ✓' : 'Equip Badge'}
+          </Button>
         </div>
       ) : isPremiumLocked ? (
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -84,8 +112,17 @@ const BadgeCard = ({ badge, onClick }: { badge: BadgeWithStatus; onClick: () => 
 const BadgeCollection = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { badges, loading, profile } = useBadges();
+  const { badges, loading, profile, equippedBadge, equipBadge } = useBadges();
   const [selectedBadge, setSelectedBadge] = useState<BadgeWithStatus | null>(null);
+
+  const handleEquip = useCallback(
+    async (badgeKey: string) => {
+      const newKey = equippedBadge === badgeKey ? null : badgeKey;
+      await equipBadge(newKey);
+      toast.success(newKey ? 'Badge Equipped!' : 'Badge Unequipped');
+    },
+    [equippedBadge, equipBadge]
+  );
 
   if (authLoading || loading) {
     return (
@@ -123,23 +160,12 @@ const BadgeCollection = () => {
 
       <main className="pt-20 pb-24 px-4">
         <div className="max-w-lg mx-auto">
-          {/* Back button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/profile')}
-            className="mb-4 -ml-2"
-          >
+          <Button variant="ghost" size="sm" onClick={() => navigate('/profile')} className="mb-4 -ml-2">
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back to Profile
           </Button>
 
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
             <div className="text-5xl mb-3">🏅</div>
             <h1 className="text-2xl font-heading font-bold mb-2">Badge Collection</h1>
             <p className="text-muted-foreground">
@@ -147,71 +173,50 @@ const BadgeCollection = () => {
             </p>
           </motion.div>
 
-          {/* Free Badges Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mb-8"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-8">
             <h2 className="text-lg font-heading font-bold mb-4 flex items-center gap-2">
               <span className="text-xl">⭐</span>
               Free Badges
             </h2>
             <div className="grid grid-cols-2 gap-3">
               {freeBadges.map((badge, index) => (
-                <motion.div
-                  key={badge.key}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + index * 0.05 }}
-                >
-                  <BadgeCard badge={badge} onClick={() => setSelectedBadge(badge)} />
+                <motion.div key={badge.key} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + index * 0.05 }}>
+                  <BadgeCard
+                    badge={badge}
+                    onClick={() => setSelectedBadge(badge)}
+                    isEquipped={equippedBadge === badge.key}
+                    onEquip={() => handleEquip(badge.key)}
+                  />
                 </motion.div>
               ))}
             </div>
           </motion.div>
 
-          {/* Premium Badges Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
             <h2 className="text-lg font-heading font-bold mb-4 flex items-center gap-2">
               <Crown className="w-5 h-5 text-primary" />
               Premium Badges
             </h2>
             <div className="grid grid-cols-2 gap-3">
               {premiumBadges.map((badge, index) => (
-                <motion.div
-                  key={badge.key}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 + index * 0.05 }}
-                >
-                  <BadgeCard badge={badge} onClick={() => setSelectedBadge(badge)} />
+                <motion.div key={badge.key} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + index * 0.05 }}>
+                  <BadgeCard
+                    badge={badge}
+                    onClick={() => setSelectedBadge(badge)}
+                    isEquipped={equippedBadge === badge.key}
+                    onEquip={() => handleEquip(badge.key)}
+                  />
                 </motion.div>
               ))}
             </div>
           </motion.div>
 
-          {/* Premium upsell for free users */}
           {!profile?.is_premium && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="mt-8 p-4 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 rounded-xl border border-primary/30 text-center"
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-8 p-4 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 rounded-xl border border-primary/30 text-center">
               <Crown className="w-8 h-8 text-primary mx-auto mb-2" />
               <h3 className="font-heading font-bold mb-1">Unlock Premium Badges</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Upgrade to access exclusive premium badges!
-              </p>
-              <Button onClick={() => navigate('/premium')} size="sm">
-                Go Premium
-              </Button>
+              <p className="text-sm text-muted-foreground mb-3">Upgrade to access exclusive premium badges!</p>
+              <Button onClick={() => navigate('/premium')} size="sm">Go Premium</Button>
             </motion.div>
           )}
         </div>
@@ -231,17 +236,10 @@ const BadgeCollection = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full text-center badge-unlock-enter badge-shine"
+              className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full text-center badge-pop-in badge-shine"
               onClick={e => e.stopPropagation()}
             >
-              <motion.div
-                animate={{
-                  scale: [1, 1.2, 1],
-                  rotate: [0, 10, -10, 0],
-                }}
-                transition={{ duration: 0.5 }}
-                className="text-6xl mb-4"
-              >
+              <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }} transition={{ duration: 0.5 }} className="text-6xl mb-4">
                 {selectedBadge.icon}
               </motion.div>
               <h2 className="text-xl font-heading font-bold mb-2">{selectedBadge.name}</h2>
@@ -251,9 +249,21 @@ const BadgeCollection = () => {
                   Unlocked on {new Date(selectedBadge.unlockedAt).toLocaleDateString()}
                 </p>
               )}
-              <Button className="mt-4" onClick={() => setSelectedBadge(null)}>
-                Close
-              </Button>
+              <div className="flex gap-2 mt-4 justify-center">
+                {selectedBadge.isUnlocked && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      handleEquip(selectedBadge.key);
+                      setSelectedBadge(null);
+                    }}
+                  >
+                    {equippedBadge === selectedBadge.key ? 'Unequip' : 'Equip Badge'}
+                  </Button>
+                )}
+                <Button size="sm" onClick={() => setSelectedBadge(null)}>Close</Button>
+              </div>
             </motion.div>
           </motion.div>
         )}

@@ -25,6 +25,7 @@ import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
 import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
 import { openPremiumPage } from "@/lib/mobileDetection";
+import { getBadgeByKey } from "@/lib/badgeDefinitions";
 
 interface Profile {
   id: string;
@@ -41,6 +42,7 @@ interface Profile {
   last_speech_reset: string | null;
   premium_until: string | null;
   subscription_id: string | null;
+  equipped_badge: string | null;
 }
 
 // Speech clips reset daily (24 hours)
@@ -90,7 +92,7 @@ const Profile = () => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, display_name, streak_count, total_solves, is_premium, daily_solves_used, referral_code, created_at, avatar_url, animated_steps_used_today, speech_clips_used, last_speech_reset, premium_until, subscription_id")
+        .select("id, display_name, streak_count, total_solves, is_premium, daily_solves_used, referral_code, created_at, avatar_url, animated_steps_used_today, speech_clips_used, last_speech_reset, premium_until, subscription_id, equipped_badge")
         .eq("user_id", user?.id)
         .maybeSingle();
 
@@ -341,9 +343,16 @@ const Profile = () => {
                 />
               </div>
               
-              <h1 className="text-2xl font-heading font-bold mt-4">
-                {profile?.display_name || "Study Bro"}
-              </h1>
+              <div className="flex items-center justify-center gap-2 mt-4">
+                <h1 className="text-2xl font-heading font-bold">
+                  {profile?.display_name || "Study Bro"}
+                </h1>
+                {profile?.equipped_badge && getBadgeByKey(profile.equipped_badge) && (
+                  <span className="text-2xl" title={getBadgeByKey(profile.equipped_badge)!.name}>
+                    {getBadgeByKey(profile.equipped_badge)!.icon}
+                  </span>
+                )}
+              </div>
               <p className="text-muted-foreground text-sm">{user.email}</p>
               {profile?.is_premium && (
                 <div className="inline-flex items-center gap-1 mt-2 px-3 py-1 bg-primary/20 text-primary rounded-full text-sm">

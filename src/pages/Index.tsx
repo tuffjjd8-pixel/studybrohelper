@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
 import { useSolveUsage } from "@/hooks/useSolveUsage";
+import { useBadges } from "@/hooks/useBadges";
 import { toast } from "sonner";
 interface SolutionData {
   subject: string;
@@ -117,6 +118,7 @@ const Index = () => {
 
   // Speech clips hook
   const speechClips = useSpeechClips(user?.id, isPremium);
+  const { refetch: refetchBadges } = useBadges();
 
   // Fetch profile for authenticated users
   useEffect(() => {
@@ -229,9 +231,10 @@ const Index = () => {
             } catch (_) {}
           }
 
-          // Refresh recent solves and profile in background (non-blocking)
+          // Refresh recent solves, profile, and badges in background
           fetchRecentSolves();
           fetchProfile();
+          refetchBadges();
         }
       } else {
         solveId = `guest-${Date.now()}`;
