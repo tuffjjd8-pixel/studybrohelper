@@ -459,11 +459,11 @@ const Profile = () => {
               <Button
                 onClick={() => navigate('/share-likes')}
                 variant="outline"
-                className="w-full h-auto py-4 border-pink-500/30 hover:border-pink-500/50"
+                className="w-full h-auto py-4 border-primary/30 hover:border-primary/50"
               >
                 <div className="flex items-center gap-4 w-full">
-                  <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                    <Target className="w-6 h-6 text-pink-500" />
+                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <Target className="w-6 h-6 text-primary" />
                   </div>
                   <div className="text-left flex-1">
                     <div className="font-heading font-bold">Community Goal Submissions</div>
