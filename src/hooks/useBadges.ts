@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { BADGE_DEFINITIONS, BadgeDefinition } from '@/lib/badgeDefinitions';
-import { toast } from 'sonner';
+import { BADGE_DEFINITIONS, BadgeDefinition, getBadgeByKey } from '@/lib/badgeDefinitions';
 
 export interface UserBadge {
   badge_key: string;
@@ -14,13 +13,17 @@ export interface BadgeWithStatus extends BadgeDefinition {
   isUnlocked: boolean;
   unlockedAt?: string;
   progress: number;
-  isLocked: boolean; // Premium badge for free user
+  isLocked: boolean;
 }
+
+// Global event for badge unlocks so any page can listen
+export const badgeUnlockEvent = new EventTarget();
 
 export const useBadges = () => {
   const { user } = useAuth();
   const [badges, setBadges] = useState<BadgeWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [equippedBadge, setEquippedBadge] = useState<string | null>(null);
   const [profile, setProfile] = useState<{
     total_solves: number;
     streak_count: number;
@@ -28,6 +31,7 @@ export const useBadges = () => {
     speed_solves: number;
     is_premium: boolean;
   } | null>(null);
+  const hasCheckedRef = useRef(false);
 
   const fetchBadgesAndProfile = useCallback(async () => {
     if (!user) {
@@ -36,22 +40,23 @@ export const useBadges = () => {
     }
 
     try {
-      // Fetch user's unlocked badges
-      const { data: unlockedBadges, error: badgesError } = await supabase
-        .from('user_badges')
-        .select('badge_key, unlocked_at, progress')
-        .eq('user_id', user.id);
+      const [badgesResult, profileResult] = await Promise.all([
+        supabase
+          .from('user_badges')
+          .select('badge_key, unlocked_at, progress')
+          .eq('user_id', user.id),
+        supabase
+          .from('profiles')
+          .select('total_solves, streak_count, subject_solves, speed_solves, is_premium, equipped_badge')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+      ]);
 
-      if (badgesError) throw badgesError;
+      if (badgesResult.error) throw badgesResult.error;
+      if (profileResult.error) throw profileResult.error;
 
-      // Fetch profile data for progress calculation
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('total_solves, streak_count, subject_solves, speed_solves, is_premium')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (profileError) throw profileError;
+      const unlockedBadges = badgesResult.data;
+      const profileData = profileResult.data;
 
       const userProfile = profileData || {
         total_solves: 0,
@@ -61,23 +66,18 @@ export const useBadges = () => {
         is_premium: false,
       };
 
-      // Parse subject_solves if it's a string
-      const subjectSolves = typeof userProfile.subject_solves === 'string' 
-        ? JSON.parse(userProfile.subject_solves) 
+      const subjectSolves = typeof userProfile.subject_solves === 'string'
+        ? JSON.parse(userProfile.subject_solves)
         : (userProfile.subject_solves || {});
 
-      setProfile({
-        ...userProfile,
-        subject_solves: subjectSolves,
-      });
+      setProfile({ ...userProfile, subject_solves: subjectSolves });
+      setEquippedBadge((profileData as any)?.equipped_badge || null);
 
-      // Map badges with their unlock status and progress
       const badgesWithStatus: BadgeWithStatus[] = BADGE_DEFINITIONS.map(badge => {
         const unlockedBadge = unlockedBadges?.find(ub => ub.badge_key === badge.key);
         const isUnlocked = !!unlockedBadge;
         const isLocked = badge.isPremiumOnly && !userProfile.is_premium;
 
-        // Calculate progress based on requirement type
         let progress = 0;
         switch (badge.requirementType) {
           case 'total_solves':
@@ -87,7 +87,6 @@ export const useBadges = () => {
             progress = Math.min(userProfile.streak_count || 0, badge.requirement);
             break;
           case 'subject_solves':
-            // Get max solves from any subject
             const maxSubjectSolves = Math.max(0, ...Object.values(subjectSolves as Record<string, number>));
             progress = Math.min(maxSubjectSolves, badge.requirement);
             break;
@@ -106,6 +105,9 @@ export const useBadges = () => {
       });
 
       setBadges(badgesWithStatus);
+
+      // Check and unlock badges after fetching
+      await checkAndUnlockBadgesInternal(badgesWithStatus, userProfile, user.id);
     } catch (error) {
       console.error('Error fetching badges:', error);
     } finally {
@@ -113,29 +115,32 @@ export const useBadges = () => {
     }
   }, [user]);
 
-  const checkAndUnlockBadges = useCallback(async () => {
-    if (!user || !profile) return;
-
-    for (const badge of badges) {
+  const checkAndUnlockBadgesInternal = async (
+    badgeList: BadgeWithStatus[],
+    userProfile: any,
+    userId: string
+  ) => {
+    for (const badge of badgeList) {
       if (badge.isUnlocked || badge.isLocked) continue;
-
-      const shouldUnlock = badge.progress >= badge.requirement;
-
-      if (shouldUnlock) {
+      if (badge.progress >= badge.requirement) {
         try {
           const { error } = await supabase
             .from('user_badges')
             .insert({
-              user_id: user.id,
+              user_id: userId,
               badge_key: badge.key,
               progress: badge.progress,
             });
 
           if (!error) {
-            toast.success(`🎉 Badge Unlocked: ${badge.name}!`, {
-              description: badge.description,
-            });
-            // Refresh badges
+            // Dispatch global event for the unlock toast
+            const def = getBadgeByKey(badge.key);
+            if (def) {
+              badgeUnlockEvent.dispatchEvent(
+                new CustomEvent('badge-unlocked', { detail: def })
+              );
+            }
+            // Re-fetch to update UI
             fetchBadgesAndProfile();
           }
         } catch (error) {
@@ -143,22 +148,33 @@ export const useBadges = () => {
         }
       }
     }
-  }, [user, profile, badges, fetchBadgesAndProfile]);
+  };
+
+  const equipBadge = useCallback(async (badgeKey: string | null) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ equipped_badge: badgeKey })
+        .eq('user_id', user.id);
+      if (!error) {
+        setEquippedBadge(badgeKey);
+      }
+    } catch (error) {
+      console.error('Error equipping badge:', error);
+    }
+  }, [user]);
 
   useEffect(() => {
     fetchBadgesAndProfile();
   }, [fetchBadgesAndProfile]);
 
-  useEffect(() => {
-    if (badges.length > 0 && profile) {
-      checkAndUnlockBadges();
-    }
-  }, [profile, checkAndUnlockBadges]);
-
   return {
     badges,
     loading,
     profile,
+    equippedBadge,
+    equipBadge,
     refetch: fetchBadgesAndProfile,
   };
 };

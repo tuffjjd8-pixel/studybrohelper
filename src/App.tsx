@@ -26,6 +26,7 @@ import AdminShareLikes from "./pages/AdminShareLikes";
 import AdminCommunityGoal from "./pages/AdminCommunityGoal";
 import CommunityGoalSubmissions from "./pages/CommunityGoalSubmissions";
 import NotFound from "./pages/NotFound";
+import { GlobalBadgeUnlock } from "./components/badges/GlobalBadgeUnlock";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -34,6 +35,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <GlobalBadgeUnlock />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
