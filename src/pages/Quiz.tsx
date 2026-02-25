@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -358,17 +358,52 @@ const Quiz = () => {
     };
   };
   const allQuestionsAnswered = quizResult ? Object.keys(selectedAnswers).length === quizResult.length : false;
+  const [activeTab, setActiveTab] = useState<"practice" | "results">("practice");
+  const ResultsPage = lazy(() => import("@/pages/Results"));
+
   if (authLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>;
   }
   const score = calculateScore();
+
   return <div className="min-h-screen bg-background">
       <Header streak={0} totalSolves={solves.length} />
 
       <main className="pt-20 pb-24 px-4">
         <div className="max-w-2xl mx-auto">
+          {/* Tab Switcher */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setActiveTab("practice")}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === "practice"
+                  ? "bg-primary text-primary-foreground shadow-button"
+                  : "bg-card border border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Practice
+            </button>
+            <button
+              onClick={() => setActiveTab("results")}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === "results"
+                  ? "bg-primary text-primary-foreground shadow-button"
+                  : "bg-card border border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Trophy className="w-4 h-4" />
+              Results
+            </button>
+          </div>
+
+          {activeTab === "results" ? (
+            <Suspense fallback={<div className="text-center py-12 text-muted-foreground">Loading results...</div>}>
+              <ResultsPage embedded />
+            </Suspense>
+          ) : (
+          <>
           <motion.div initial={{
           opacity: 0,
           y: 20
@@ -871,6 +906,8 @@ const Quiz = () => {
                 No solved problems yet. Solve some homework first!
               </p>
             </motion.div>}
+        </>
+          )}
         </div>
       </main>
 

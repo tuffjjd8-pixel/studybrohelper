@@ -94,7 +94,7 @@ const LockedCard = ({ title, icon: Icon, children }: { title: string; icon: Reac
   </Card>
 );
 
-const Results = () => {
+const Results = ({ embedded }: { embedded?: boolean }) => {
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizData, setQuizData] = useState<QuizResultData | null>(null);
@@ -136,7 +136,9 @@ const Results = () => {
   const isPremium = profile?.is_premium === true;
 
   if (authLoading || loading) {
-    return (
+    return embedded ? (
+      <div className="text-center py-12 text-muted-foreground">Loading...</div>
+    ) : (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
@@ -144,22 +146,24 @@ const Results = () => {
   }
 
   if (!user) {
+    const signInContent = (
+      <div className="text-center py-16 space-y-6">
+        <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto">
+          <Trophy className="w-10 h-10 text-muted-foreground" />
+        </div>
+        <h1 className="text-2xl font-heading font-bold">Results</h1>
+        <p className="text-muted-foreground">Sign in to track your performance and improvement.</p>
+        <Link to="/auth">
+          <Button size="lg" variant="outline">Sign In</Button>
+        </Link>
+      </div>
+    );
+    if (embedded) return signInContent;
     return (
       <div className="min-h-screen bg-background">
         <Header streak={0} totalSolves={0} />
         <main className="pt-20 pb-24 px-4">
-          <div className="max-w-md mx-auto text-center py-16">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
-              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto">
-                <Trophy className="w-10 h-10 text-muted-foreground" />
-              </div>
-              <h1 className="text-2xl font-heading font-bold">Results</h1>
-              <p className="text-muted-foreground">Sign in to track your performance and improvement.</p>
-              <Link to="/auth">
-                <Button size="lg" variant="outline">Sign In</Button>
-              </Link>
-            </motion.div>
-          </div>
+          <div className="max-w-md mx-auto">{signInContent}</div>
         </main>
         <BottomNav />
       </div>
@@ -176,6 +180,183 @@ const Results = () => {
   const quizName = quizData?.quizName || quizData?.subject || "Quiz";
   const subject = quizData?.subject || "General";
 
+  const resultsContent = (
+    <div className={embedded ? "space-y-5" : "max-w-md mx-auto space-y-5"}>
+      {/* Page Title with Quiz Name */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+          <Trophy className="w-6 h-6 text-primary" />
+          Quiz Results
+        </h1>
+        {hasData && (
+          <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
+            {quizName}
+          </p>
+        )}
+      </motion.div>
+
+      {!hasData ? (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16 space-y-4">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
+            <BookOpen className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <p className="text-muted-foreground">Take a quiz to see your results!</p>
+          {!embedded && (
+            <Link to="/quiz">
+              <Button variant="outline">Go to Quiz</Button>
+            </Link>
+          )}
+        </motion.div>
+      ) : (
+        <>
+          {/* Score Card */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <Card className="border-primary/30 overflow-hidden">
+              <div className="bg-primary/5 border-b border-primary/20 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Your Score</p>
+                  <p className="text-4xl font-heading font-bold text-primary">{pct}%</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-heading font-bold">{getLetterGrade(pct)}</div>
+                  <p className="text-xs text-muted-foreground">Grade</p>
+                </div>
+              </div>
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary" />
+                    <span>Correct: {correct}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <XCircle className="w-4 h-4 text-destructive" />
+                    <span>Wrong: {wrong}</span>
+                  </div>
+                  <div className="text-muted-foreground">Total: {total}</div>
+                </div>
+                <Progress value={pct} className="h-2" />
+                <p className="text-sm text-muted-foreground">{getEncouragement(pct)}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* AI Summary */}
+          {isPremium ? (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    AI Summary
+                    <Badge variant="secondary" className="text-[10px]">
+                      <Crown className="w-3 h-3 mr-1" />
+                      Pro
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {getSummary(pct, subject, correct, total, weakTopics)}
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <LockedCard title="AI Summary" icon={Sparkles}>
+                <div className="space-y-2 blur-sm select-none pointer-events-none">
+                  <p className="text-sm text-muted-foreground">Personalized AI analysis of your quiz performance with actionable study recommendations...</p>
+                </div>
+              </LockedCard>
+            </motion.div>
+          )}
+
+          {/* Topic Breakdown */}
+          {topicBreakdown.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-primary" />
+                    Topic Breakdown
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {topicBreakdown.map((topic, i) => (
+                    <div key={i} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>{topic.name}</span>
+                        <span className="text-muted-foreground">{topic.correct}/{topic.total} ({topic.pct}%)</span>
+                      </div>
+                      <Progress value={topic.pct} className="h-1.5" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Weak Topics */}
+          {weakTopics.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+              {isPremium ? (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Lightbulb className="w-4 h-4 text-primary" />
+                      Focus Areas
+                      <Badge variant="secondary" className="text-[10px]">
+                        <Crown className="w-3 h-3 mr-1" />
+                        Pro
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2">
+                      {weakTopics.map((topic, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <div className="w-1.5 h-1.5 rounded-full bg-destructive mt-1.5 shrink-0" />
+                          <span className="text-muted-foreground">{topic} — needs more practice</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              ) : (
+                <LockedCard title="Focus Areas" icon={Lightbulb}>
+                  <div className="space-y-2 blur-sm select-none pointer-events-none">
+                    <p className="text-sm text-muted-foreground">AI-identified weak topics that need more study...</p>
+                  </div>
+                </LockedCard>
+              )}
+            </motion.div>
+          )}
+
+          {/* Upgrade CTA */}
+          {!isPremium && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+              <Link to="/premium">
+                <Card className="border-primary/30 hover:border-primary/60 transition-colors cursor-pointer">
+                  <CardContent className="pt-6 flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-primary/10">
+                      <Crown className="w-6 h-6 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">Unlock Full Results</p>
+                      <p className="text-xs text-muted-foreground">Get AI summaries, focus areas & performance tracking</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  if (embedded) return resultsContent;
+
   return (
     <div className="min-h-screen bg-background">
       <Header
@@ -183,297 +364,9 @@ const Results = () => {
         totalSolves={profile?.total_solves || 0}
         isPremium={isPremium}
       />
-
       <main className="pt-20 pb-24 px-4">
-        <div className="max-w-md mx-auto space-y-5">
-          {/* Page Title with Quiz Name */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
-              <Trophy className="w-6 h-6 text-primary" />
-              Quiz Results
-            </h1>
-            {hasData && (
-              <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
-                {quizName}
-              </p>
-            )}
-          </motion.div>
-
-          {!hasData ? (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
-                <BookOpen className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <p className="text-muted-foreground">Take a quiz to see your results!</p>
-              <Link to="/quiz">
-                <Button variant="outline">Go to Quiz</Button>
-              </Link>
-            </motion.div>
-          ) : (
-            <>
-              {/* Score Display */}
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
-                <Card className="overflow-hidden">
-                  <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6 text-center">
-                    <div className="text-6xl font-bold font-heading text-primary mb-1">{pct}%</div>
-                    <div className="text-3xl font-bold text-foreground mb-2">{getLetterGrade(pct)}</div>
-                    <p className="text-sm text-muted-foreground">{getEncouragement(pct)}</p>
-                  </div>
-                </Card>
-              </motion.div>
-
-              {/* Quick Stats */}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="grid grid-cols-3 gap-3">
-                <Card className="text-center p-4">
-                  <CheckCircle2 className="w-5 h-5 text-primary mx-auto mb-1" />
-                  <div className="text-xl font-bold">{correct}</div>
-                  <div className="text-xs text-muted-foreground">Correct</div>
-                </Card>
-                <Card className="text-center p-4">
-                  <XCircle className="w-5 h-5 text-destructive mx-auto mb-1" />
-                  <div className="text-xl font-bold">{wrong}</div>
-                  <div className="text-xs text-muted-foreground">Incorrect</div>
-                </Card>
-                <Card className="text-center p-4">
-                  <BookOpen className="w-5 h-5 text-primary mx-auto mb-1" />
-                  <div className="text-xl font-bold">{total}</div>
-                  <div className="text-xs text-muted-foreground">Total</div>
-                </Card>
-              </motion.div>
-
-              {/* Quiz Summary (Free) */}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      Summary
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {getSummary(pct, subject, correct, total, weakTopics)}
-                    </p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Areas to Improve (Free) */}
-              {weakTopics.length > 0 && (
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Lightbulb className="w-4 h-4 text-accent-foreground" />
-                        Areas to Improve
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">
-                        Focus on: <span className="font-medium text-foreground">{weakTopics.join(", ")}</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        💡 Practice these topics to boost your score!
-                      </p>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-
-              {/* How to Improve (Free) */}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-primary" />
-                      How to Get Better
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {pct < 100 && (
-                      <div className="flex items-start gap-2 text-sm">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Review the questions you got wrong and understand <strong>why</strong> the correct answer is right.</span>
-                      </div>
-                    )}
-                    <div className="flex items-start gap-2 text-sm">
-                      <span className="text-primary mt-0.5">•</span>
-                      <span>Retake the quiz after studying — repetition builds mastery.</span>
-                    </div>
-                    <div className="flex items-start gap-2 text-sm">
-                      <span className="text-primary mt-0.5">•</span>
-                      <span>Try solving similar problems on your own before checking the answer.</span>
-                    </div>
-                    {weakTopics.length > 0 && (
-                      <div className="flex items-start gap-2 text-sm">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Spend extra time on <strong>{weakTopics.join(" and ")}</strong> — these are your biggest growth areas.</span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Premium sections */}
-              {isPremium ? (
-                <>
-                  {/* Topic Breakdown — Premium unlocked */}
-                  {topicBreakdown.length > 0 && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4 text-primary" />
-                            Topic Breakdown
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          {topicBreakdown.map((topic) => (
-                            <div key={topic.name}>
-                              <div className="flex justify-between text-sm mb-1">
-                                <span className="font-medium">{topic.name}</span>
-                                <span className="text-muted-foreground">
-                                  {topic.correct}/{topic.total} ({topic.pct}%)
-                                </span>
-                              </div>
-                              <Progress value={topic.pct} className="h-2" />
-                            </div>
-                          ))}
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  )}
-
-                  {/* Personalized Improvement Plan — Premium */}
-                  {weakTopics.length > 0 && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Lightbulb className="w-4 h-4 text-accent-foreground" />
-                            Personalized Improvement Plan
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                          {weakTopics.map((topic) => (
-                            <div key={topic} className="flex items-start gap-2 text-sm">
-                              <span className="text-primary mt-0.5">•</span>
-                              <span>
-                                Practice more <strong>{topic}</strong> problems — try breaking them into smaller steps and checking each part.
-                              </span>
-                            </div>
-                          ))}
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  )}
-
-                  {/* Recommended Practice — Premium */}
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-primary" />
-                          Recommended Practice
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        {(weakTopics.length > 0 ? weakTopics : topicBreakdown.map((t) => t.name).slice(0, 2)).map((topic) => (
-                          <Link key={topic} to="/quiz">
-                            <div className="flex items-center justify-between p-2.5 rounded-lg bg-accent/50 hover:bg-accent transition-colors mb-1.5">
-                              <span className="text-sm font-medium">{topic} Quiz</span>
-                              <span className="text-xs text-muted-foreground">Practice →</span>
-                            </div>
-                          </Link>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                </>
-              ) : (
-                /* Free users: blurred locked cards + upsell */
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="space-y-4">
-                  {/* Locked Topic Breakdown */}
-                  <LockedCard title="Detailed Topic Breakdown" icon={TrendingUp}>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">Algebra</span>
-                          <span className="text-muted-foreground">4/5 (80%)</span>
-                        </div>
-                        <Progress value={80} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">Geometry</span>
-                          <span className="text-muted-foreground">2/3 (67%)</span>
-                        </div>
-                        <Progress value={67} className="h-2" />
-                      </div>
-                    </div>
-                  </LockedCard>
-
-                  {/* Locked Mistake Explanations */}
-                  <LockedCard title="Mistake Explanations" icon={Lightbulb}>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-start gap-2">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Q3: You confused the formula for area with perimeter...</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Q7: The negative sign was dropped when distributing...</span>
-                      </div>
-                    </div>
-                  </LockedCard>
-
-                  {/* Locked Improvement Plan */}
-                  <LockedCard title="Personalized Improvement Plan" icon={Sparkles}>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-start gap-2">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Focus on word problems by identifying key variables first.</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Review formulas for area and perimeter calculations.</span>
-                      </div>
-                    </div>
-                  </LockedCard>
-
-                  {/* Locked Recommended Practice */}
-                  <LockedCard title="Recommended Practice" icon={BookOpen}>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-accent/50">
-                        <span className="text-sm font-medium">Algebra Quiz</span>
-                        <span className="text-xs text-muted-foreground">Practice →</span>
-                      </div>
-                    </div>
-                  </LockedCard>
-
-                  {/* Upsell Card */}
-                  <Link to="/premium">
-                    <Card className="border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors cursor-pointer">
-                      <CardContent className="p-5 flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                          <Crown className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="space-y-1">
-                          <h3 className="font-semibold text-sm">Unlock full insights with StudyBro Pro</h3>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            Get detailed topic breakdowns, mistake explanations, personalized improvement plans & recommended practice.
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                </motion.div>
-              )}
-            </>
-          )}
-        </div>
+        {resultsContent}
       </main>
-
       <BottomNav />
     </div>
   );
