@@ -1,22 +1,37 @@
-let audioCache: HTMLAudioElement | null = null;
 let audioCtx: AudioContext | null = null;
 
 const createClickBuffer = () => {
   if (!audioCtx) audioCtx = new AudioContext();
-  // Generate a very short click: 100ms, subtle tick sound
   const sampleRate = audioCtx.sampleRate;
-  const duration = 0.08;
+  const duration = 0.06;
   const length = Math.floor(sampleRate * duration);
   const buffer = audioCtx.createBuffer(1, length, sampleRate);
   const data = buffer.getChannelData(0);
 
+  const fadeIn = 0.008; // 8ms soft attack
+  const fadeOut = 0.025; // 25ms smooth fade-out
+
   for (let i = 0; i < length; i++) {
     const t = i / sampleRate;
-    // Quick attack, fast decay tick
-    const envelope = Math.exp(-t * 80);
-    data[i] = envelope * (Math.random() * 2 - 1) * 0.3;
-    // Add a subtle tonal component
-    data[i] += envelope * Math.sin(2 * Math.PI * 1800 * t) * 0.15;
+
+    // Smooth envelope: soft fade-in, body, then gentle fade-out
+    let envelope = 1;
+    if (t < fadeIn) {
+      envelope = t / fadeIn; // linear fade-in
+    } else {
+      envelope = Math.exp(-(t - fadeIn) * 45); // gentle exponential decay
+    }
+    // Extra fade-out ramp at the tail to avoid any click
+    const tailStart = duration - fadeOut;
+    if (t > tailStart) {
+      envelope *= 1 - ((t - tailStart) / fadeOut);
+    }
+
+    // Warm tone: low-mid fundamental (~520Hz) + soft sub-harmonic
+    const tone = Math.sin(2 * Math.PI * 520 * t) * 0.5
+               + Math.sin(2 * Math.PI * 340 * t) * 0.3;
+
+    data[i] = envelope * tone * 0.22;
   }
   return buffer;
 };
@@ -33,7 +48,7 @@ export const playClickSound = () => {
     source.buffer = clickBuffer;
 
     const gain = audioCtx.createGain();
-    gain.gain.value = 0.25;
+    gain.gain.value = 0.22;
     source.connect(gain);
     gain.connect(audioCtx.destination);
     source.start();
