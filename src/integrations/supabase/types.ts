@@ -412,6 +412,7 @@ export type Database = {
           created_at: string
           daily_solves_used: number
           display_name: string | null
+          early_solves: number | null
           email_verified: boolean
           equipped_badge: string | null
           graphs_used_today: number | null
@@ -442,6 +443,7 @@ export type Database = {
           created_at?: string
           daily_solves_used?: number
           display_name?: string | null
+          early_solves?: number | null
           email_verified?: boolean
           equipped_badge?: string | null
           graphs_used_today?: number | null
@@ -472,6 +474,7 @@ export type Database = {
           created_at?: string
           daily_solves_used?: number
           display_name?: string | null
+          early_solves?: number | null
           email_verified?: boolean
           equipped_badge?: string | null
           graphs_used_today?: number | null

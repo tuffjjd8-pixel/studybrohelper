@@ -198,6 +198,7 @@ const Index = () => {
         // Single combined insert + profile update (fire in parallel)
         const solveTimeSeconds = (Date.now() - startTime) / 1000;
         const isSpeedSolve = solveTimeSeconds <= 120;
+        const isEarlySolve = new Date().getHours() < 8;
         const insertPromise = supabase.from("solves").insert({
           user_id: user.id,
           subject: data.subject || "other",
@@ -213,7 +214,10 @@ const Index = () => {
           last_solve_date: new Date().toISOString().split('T')[0]
         };
         if (isSpeedSolve) {
-          profileUpdates.speed_solves = (profile?.total_solves !== undefined ? (profile as any).speed_solves || 0 : 0) + 1;
+          profileUpdates.speed_solves = ((profile as any)?.speed_solves || 0) + 1;
+        }
+        if (isEarlySolve) {
+          profileUpdates.early_solves = ((profile as any)?.early_solves || 0) + 1;
         }
         const updatePromise = supabase.from("profiles").update(profileUpdates).eq("user_id", user.id);
         const [solveResult, _profileResult] = await Promise.all([insertPromise, updatePromise]);

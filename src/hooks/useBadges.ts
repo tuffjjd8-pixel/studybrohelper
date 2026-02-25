@@ -93,6 +93,12 @@ export const useBadges = () => {
           case 'speed_solves':
             progress = Math.min(userProfile.speed_solves || 0, badge.requirement);
             break;
+          case 'early_solves': {
+            // Check if user has ever solved before 8 AM
+            const earlyCount = (userProfile as any).early_solves || 0;
+            progress = Math.min(earlyCount, badge.requirement);
+            break;
+          }
         }
 
         return {
