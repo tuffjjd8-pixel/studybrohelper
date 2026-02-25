@@ -18,7 +18,6 @@ import Quiz from "./pages/Quiz";
 import Results from "./pages/Results";
 import Settings from "./pages/Settings";
 import Polls from "./pages/Polls";
-import Hub from "./pages/Hub";
 import BadgeCollection from "./pages/BadgeCollection";
 import AdminUsage from "./pages/AdminUsage";
 import CommunityGoalReward from "./pages/CommunityGoalReward";
@@ -53,7 +52,6 @@ const App = () => (
             <Route path="/results" element={<Results />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/polls" element={<Polls />} />
-            <Route path="/hub" element={<Hub />} />
             <Route path="/badges" element={<BadgeCollection />} />
             <Route path="/admin/usage" element={<AdminUsage />} />
             <Route path="/community-reward" element={<CommunityGoalReward />} />
