@@ -1,12 +1,10 @@
-import { Home, Clock, User, BarChart3, Brain, Trophy } from "lucide-react";
+import { Home, Clock, User, LayoutGrid } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
 const navItems = [
   { icon: Home, label: "Home", path: "/" },
   { icon: Clock, label: "History", path: "/history" },
-  { icon: Brain, label: "Quiz", path: "/quiz" },
-  { icon: Trophy, label: "Results", path: "/results" },
-  { icon: BarChart3, label: "Polls", path: "/polls" },
+  { icon: LayoutGrid, label: "Hub", path: "/hub" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
 
@@ -28,7 +26,8 @@ export function BottomNav() {
         style={{ minWidth: 'min-content' }}
       >
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive = location.pathname === item.path || 
+            (item.path === "/hub" && ["/quiz", "/results", "/polls"].includes(location.pathname));
           return (
             <Link
               key={item.path}
