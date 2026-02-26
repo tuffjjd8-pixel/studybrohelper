@@ -6,7 +6,7 @@ const navItems = [
   { icon: Clock, label: "History", path: "/history" },
   { icon: Brain, label: "Quiz", path: "/quiz" },
   { icon: User, label: "Profile", path: "/profile" },
-];
+] as const;
 
 export function BottomNav() {
   const location = useLocation();
@@ -22,8 +22,7 @@ export function BottomNav() {
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
       <div 
-        className="flex items-center justify-around max-w-md mx-auto min-w-[320px]"
-        style={{ minWidth: 'min-content' }}
+        className="flex items-center justify-around max-w-md mx-auto"
       >
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;

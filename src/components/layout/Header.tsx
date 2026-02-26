@@ -28,10 +28,10 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
       className="
         fixed top-0 left-0 right-0 z-50
         bg-background/80 backdrop-blur-xl border-b border-border/50
-        px-4 py-3
+        px-4 py-4
       "
     >
-      <div className="flex items-center justify-between max-w-4xl mx-auto">
+      <div className="flex items-center justify-between max-w-4xl mx-auto gap-3">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
           <motion.div
@@ -49,7 +49,7 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
         </Link>
 
         {/* Stats & Premium & Auth */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <Link to="/polls">
             <Button variant="ghost" size="icon" className="w-9 h-9 text-muted-foreground hover:text-foreground">
               <BarChart3 className="w-4 h-4" />
