@@ -91,9 +91,9 @@ export function SolveToggles({
                 {isPremium ? (
                   solveMode === "deep" ? "Answer + short explanation" : "Final answer only"
                 ) : (
-                  <span className="flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1.5 pr-1">
                     Final answer only
-                    <Crown className="w-3 h-3 text-amber-400 inline" />
+                    <Crown className="w-3 h-3 text-amber-400 shrink-0" />
                   </span>
                 )}
               </p>

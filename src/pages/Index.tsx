@@ -322,13 +322,13 @@ const Index = () => {
       
       <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
       
-      <main className="pt-20 pb-24 px-4">
+      <main className="pt-[72px] pb-24 px-4">
         <div className="max-w-4xl mx-auto">
           {!solution ? <motion.div initial={{
           opacity: 0
         }} animate={{
           opacity: 1
-        }} className="flex flex-col items-center gap-8 py-8">
+        }} className="flex flex-col items-center gap-6 py-8">
               {/* Hero text */}
               <div className="text-center space-y-2">
                 <motion.h2 initial={{
