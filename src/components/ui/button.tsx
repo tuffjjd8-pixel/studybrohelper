@@ -38,6 +38,7 @@ const buttonVariants = cva(
     defaultVariants: {
       variant: "default",
       size: "default",
+      <Button className="mx-auto flex items-center justify-center" ...>
     },
   },
 );
