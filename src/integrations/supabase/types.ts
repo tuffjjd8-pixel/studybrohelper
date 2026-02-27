@@ -89,6 +89,27 @@ export type Database = {
         }
         Relationships: []
       }
+      banned_users: {
+        Row: {
+          banned_at: string
+          created_by: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          banned_at?: string
+          created_by?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          banned_at?: string
+          created_by?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
@@ -744,6 +765,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_limits: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -828,6 +873,7 @@ export type Database = {
         Returns: boolean
       }
       is_poll_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_user_blocked: { Args: { target_user_id: string }; Returns: Json }
       record_poll_view: {
         Args: {
           device_id_param: string

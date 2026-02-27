@@ -5,8 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Shield, Trash2 } from "lucide-react";
+import { ArrowLeft, Shield, Trash2, Ban, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
@@ -26,6 +25,7 @@ const SecurityEventsLog = () => {
   const { user, loading: authLoading } = useAuth();
   const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
 
@@ -70,6 +70,36 @@ const SecurityEventsLog = () => {
     }
   };
 
+  const handleModerate = async (userId: string | null, action: "ban" | "limit") => {
+    if (!userId) {
+      toast.error("No user ID associated with this event");
+      return;
+    }
+
+    setActionLoading(`${action}-${userId}`);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      const res = await supabase.functions.invoke("moderate-user", {
+        body: { action, target_user_id: userId, duration_hours: 24 },
+      });
+
+      if (res.error) throw res.error;
+
+      toast.success(
+        action === "ban"
+          ? "User has been banned."
+          : "User has been temporarily limited."
+      );
+    } catch (error) {
+      console.error(`${action} error:`, error);
+      toast.error(`Failed to ${action} user`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const severityColor = (s: string) => {
     switch (s) {
       case "high": return "text-red-500 bg-red-500/10";
@@ -90,7 +120,7 @@ const SecurityEventsLog = () => {
     <div className="min-h-screen bg-background">
       <Header streak={0} totalSolves={0} />
       <main className="pt-20 pb-24 px-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <button
               onClick={() => navigate("/profile")}
@@ -118,7 +148,7 @@ const SecurityEventsLog = () => {
                       <th className="py-3 px-3">Type</th>
                       <th className="py-3 px-3">Severity</th>
                       <th className="py-3 px-3">User Message</th>
-                      <th className="py-3 px-3 w-10"></th>
+                      <th className="py-3 px-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -137,12 +167,33 @@ const SecurityEventsLog = () => {
                           {event.user_message || "—"}
                         </td>
                         <td className="py-3 px-3">
-                          <button
-                            onClick={() => handleDelete(event.id)}
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleModerate(event.user_id, "limit")}
+                              disabled={!event.user_id || actionLoading === `limit-${event.user_id}`}
+                              className="text-xs px-2 py-1 rounded bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                              title="Limit user for 24 hours"
+                            >
+                              <Clock className="w-3 h-3" />
+                              Limit
+                            </button>
+                            <button
+                              onClick={() => handleModerate(event.user_id, "ban")}
+                              disabled={!event.user_id || actionLoading === `ban-${event.user_id}`}
+                              className="text-xs px-2 py-1 rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                              title="Ban user permanently"
+                            >
+                              <Ban className="w-3 h-3" />
+                              Ban
+                            </button>
+                            <button
+                              onClick={() => handleDelete(event.id)}
+                              className="text-muted-foreground hover:text-destructive transition-colors ml-1"
+                              title="Delete event"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

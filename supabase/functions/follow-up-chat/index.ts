@@ -25,24 +25,31 @@ serve(async (req) => {
     // Import key rotation and security
     const { callGroqWithRotation } = await import("../_shared/groq-key-manager.ts");
     const { detectInjection, logSecurityEvent } = await import("../_shared/security-logger.ts");
+    const { checkUserBlocked, blockedResponse } = await import("../_shared/ban-check.ts");
 
     console.log("Follow-up chat request:", { message, subject: context?.subject });
+
+    // Check if user is banned or limited
+    let requestUserId: string | null = null;
+    const authH = req.headers.get("Authorization");
+    if (authH) {
+      try {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authH } } });
+        const { data: { user: u } } = await sb.auth.getUser();
+        requestUserId = u?.id || null;
+      } catch (_) {}
+    }
+
+    const blockStatus = await checkUserBlocked(requestUserId);
+    const blocked = blockedResponse(blockStatus, corsHeaders);
+    if (blocked) return blocked;
 
     // Injection detection (fire-and-forget)
     if (message) {
       const injection = detectInjection(message);
       if (injection.detected) {
-        let injUserId: string | null = null;
-        const authH = req.headers.get("Authorization");
-        if (authH) {
-          try {
-            const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-            const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authH } } });
-            const { data: { user: u } } = await sb.auth.getUser();
-            injUserId = u?.id || null;
-          } catch (_) {}
-        }
-        logSecurityEvent(injection.type, injection.severity, message, injUserId);
+        logSecurityEvent(injection.type, injection.severity, message, requestUserId);
         console.log(`[Security] Follow-up injection detected: ${injection.type}`);
       }
     }
@@ -100,17 +107,7 @@ Now help with follow-up questions. Be friendly, clear, and educational. Use mark
 
     // Log usage (fire-and-forget)
     const { logUsage } = await import("../_shared/usage-logger.ts");
-    const authHeader = req.headers.get("Authorization");
-    let logUserId: string | null = null;
-    if (authHeader) {
-      try {
-        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
-        const { data: { user: u } } = await sb.auth.getUser();
-        logUserId = u?.id || null;
-      } catch (_) {}
-    }
-    logUsage("follow-up", 0.0008, logUserId);
+    logUsage("follow-up", 0.0008, requestUserId);
 
     return new Response(
       JSON.stringify({ response: aiResponse }),
