@@ -528,6 +528,39 @@ export type Database = {
         }
         Relationships: []
       }
+      security_events: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          severity: string
+          user_id: string | null
+          user_message: string | null
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          severity?: string
+          user_id?: string | null
+          user_message?: string | null
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          severity?: string
+          user_id?: string | null
+          user_message?: string | null
+        }
+        Relationships: []
+      }
       share_likes: {
         Row: {
           admin_note: string | null
