@@ -365,6 +365,7 @@ import {
 } from "../_shared/groq-key-manager.ts";
 import { logUsage } from "../_shared/usage-logger.ts";
 import { detectInjection, logSecurityEvent } from "../_shared/security-logger.ts";
+import { checkUserBlocked, blockedResponse } from "../_shared/ban-check.ts";
 
 // Call Groq API for text-only input with key rotation
 async function callGroqText(
@@ -558,22 +559,27 @@ serve(async (req) => {
       deviceType = "web"
     } = await req.json();
 
+    // Check if user is banned or limited
+    let requestUserId: string | null = null;
+    const authH = req.headers.get("Authorization");
+    if (authH) {
+      try {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authH } } });
+        const { data: { user: u } } = await sb.auth.getUser();
+        requestUserId = u?.id || null;
+      } catch (_) {}
+    }
+
+    const blockStatus = await checkUserBlocked(requestUserId);
+    const blocked = blockedResponse(blockStatus, corsHeaders);
+    if (blocked) return blocked;
+
     // Injection detection (fire-and-forget)
     if (question) {
       const injection = detectInjection(question);
       if (injection.detected) {
-        // Extract user ID for logging
-        let injUserId: string | null = null;
-        const authH = req.headers.get("Authorization");
-        if (authH) {
-          try {
-            const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-            const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authH } } });
-            const { data: { user: u } } = await sb.auth.getUser();
-            injUserId = u?.id || null;
-          } catch (_) {}
-        }
-        logSecurityEvent(injection.type, injection.severity, question, injUserId);
+        logSecurityEvent(injection.type, injection.severity, question, requestUserId);
         console.log(`[Security] Injection detected: ${injection.type} (${injection.severity})`);
       }
     }
