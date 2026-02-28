@@ -55,7 +55,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const navigate = useNavigate();
 
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
-  const showFollowUp = !isHistory || isPremium;
+  const showFollowUp = !isHistory;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(solution);
@@ -385,19 +385,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         </motion.div>
       )}
 
-      {/* History: no follow-ups for free users */}
-      {isHistory && !isPremium && (
-        <div className="glass-card p-4 text-center">
-          <Lock className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-          <p className="text-xs text-muted-foreground">
-            Follow-ups and humanize are not available in history for free users.
-          </p>
-          <span className="text-xs text-primary flex items-center justify-center gap-1 mt-1">
-            <Crown className="w-3 h-3" />
-            Upgrade to Pro for full access
-          </span>
-        </div>
-      )}
 
     </motion.div>
   );
