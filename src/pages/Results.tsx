@@ -4,8 +4,8 @@ import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Trophy, CheckCircle2, XCircle, Crown, TrendingUp, Lightbulb, BookOpen, Lock, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Trophy, CheckCircle2, XCircle, Crown, TrendingUp, Lightbulb, BookOpen, Lock, Sparkles, Target } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -94,17 +94,61 @@ const LockedCard = ({ title, icon: Icon, children }: { title: string; icon: Reac
   </Card>
 );
 
+const getRecommendedTopic = (): string | null => {
+  try {
+    const history: QuizResultData[] = JSON.parse(localStorage.getItem("quiz_result_history") || "[]");
+    if (history.length === 0) return null;
+
+    // Aggregate per-topic performance across all quiz history
+    const topicStats: Record<string, { total: number; correct: number }> = {};
+    history.forEach((result) => {
+      (result.topicBreakdown || []).forEach((t) => {
+        if (!topicStats[t.name]) topicStats[t.name] = { total: 0, correct: 0 };
+        topicStats[t.name].total += t.total;
+        topicStats[t.name].correct += t.correct;
+      });
+    });
+
+    // Find the topic with the lowest accuracy
+    let worstTopic: string | null = null;
+    let worstPct = 101;
+    Object.entries(topicStats).forEach(([name, d]) => {
+      const pct = d.total > 0 ? (d.correct / d.total) * 100 : 100;
+      if (pct < worstPct) {
+        worstPct = pct;
+        worstTopic = name;
+      }
+    });
+    return worstTopic;
+  } catch {
+    return null;
+  }
+};
+
 const Results = ({ embedded }: { embedded?: boolean }) => {
   const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizData, setQuizData] = useState<QuizResultData | null>(null);
   const [loading, setLoading] = useState(true);
+  const recommendedTopic = getRecommendedTopic();
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem("last_quiz_result");
       if (stored) {
-        setQuizData(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        setQuizData(parsed);
+
+        // Accumulate quiz history for recommendation engine
+        try {
+          const history: QuizResultData[] = JSON.parse(localStorage.getItem("quiz_result_history") || "[]");
+          // Avoid duplicates by timestamp
+          if (!history.some((h) => h.timestamp === parsed.timestamp)) {
+            history.unshift(parsed);
+            localStorage.setItem("quiz_result_history", JSON.stringify(history.slice(0, 20)));
+          }
+        } catch {}
       }
     } catch (err) {
       console.error("Error reading quiz result:", err);
@@ -329,6 +373,28 @@ const Results = ({ embedded }: { embedded?: boolean }) => {
                   </div>
                 </LockedCard>
               )}
+            </motion.div>
+          )}
+
+          {/* Recommended Quiz */}
+          {recommendedTopic && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+              <Card
+                className="border-primary/30 hover:border-primary/60 transition-colors cursor-pointer"
+                onClick={() => navigate("/quiz", { state: { recommendedTopic } })}
+              >
+                <CardContent className="pt-6 flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-primary/10">
+                    <Target className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">Recommended Quiz</p>
+                    <p className="text-xs text-muted-foreground">
+                      Practice your weakest topic: <span className="font-medium text-foreground">{recommendedTopic}</span>
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
           )}
 
