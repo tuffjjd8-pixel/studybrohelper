@@ -5,14 +5,14 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle, Crown, AlertCircle, Calculator, RefreshCw } from "lucide-react";
+import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle, Crown, AlertCircle, Calculator, RefreshCw, Target } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -58,6 +58,8 @@ const getTopicFromSubject = (subject: string) => {
 
 const Quiz = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const recommendedTopic = (location.state as any)?.recommendedTopic as string | undefined;
   const {
     user,
     loading: authLoading
@@ -71,6 +73,7 @@ const Quiz = () => {
   const [showShimmer, setShowShimmer] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [quizResult, setQuizResult] = useState<QuizQuestion[] | null>(null);
+  const [topicInput, setTopicInput] = useState(recommendedTopic || "");
   const [searchQuery, setSearchQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
@@ -152,8 +155,8 @@ const Quiz = () => {
   const canGenerateQuiz = quizzesRemaining > 0;
   const usagePercent = quizzesUsedToday / dailyLimit * 100;
   const handleGenerate = async () => {
-    if (!selectedSolve) {
-      toast.error("Please select a conversation first");
+    if (!selectedSolve && !topicInput.trim()) {
+      toast.error("Please select a conversation or enter a topic");
       return;
     }
 
@@ -189,7 +192,13 @@ const Quiz = () => {
     }, 1500);
     try {
       const validCount = Math.min(Math.max(count, 1), maxQuestions);
-      const conversationText = `Question: ${selectedSolve.question_text || "Image-based question"}\n\nSolution: ${selectedSolve.solution_markdown}`;
+      
+      // Build context: use selected conversation if available, otherwise use topic
+      const conversationText = selectedSolve
+        ? `Question: ${selectedSolve.question_text || "Image-based question"}\n\nSolution: ${selectedSolve.solution_markdown}`
+        : `Topic: ${topicInput.trim()}\n\nGenerate quiz questions about this topic.`;
+      const subject = selectedSolve?.subject || topicInput.trim();
+
       const {
         data,
         error
@@ -197,7 +206,7 @@ const Quiz = () => {
         body: {
           conversationText,
           questionCount: validCount,
-          subject: selectedSolve.subject,
+          subject,
           strictCountMode: isPremium ? strictCountMode : false
         }
       });
@@ -293,7 +302,7 @@ const Quiz = () => {
     const quizScore = calculateScore();
     const topicMap: Record<string, { total: number; correct: number }> = {};
     quizResult.forEach((q, idx) => {
-      const topic = getTopicFromSubject(selectedSolve?.subject || "General");
+      const topic = getTopicFromSubject(selectedSolve?.subject || topicInput || "General");
       if (!topicMap[topic]) topicMap[topic] = { total: 0, correct: 0 };
       topicMap[topic].total++;
       const selectedOption = selectedAnswers[idx];
@@ -318,8 +327,8 @@ const Quiz = () => {
       scorePercentage: Math.round((quizScore.correct / quizScore.total) * 100),
       weakTopics,
       topicBreakdown,
-      subject: selectedSolve?.subject || "General",
-      quizName: selectedSolve?.question_text || selectedSolve?.subject || "Quiz",
+      subject: selectedSolve?.subject || topicInput || "General",
+      quizName: selectedSolve?.question_text || topicInput || selectedSolve?.subject || "Quiz",
       timestamp: Date.now(),
     };
     localStorage.setItem("last_quiz_result", JSON.stringify(quizResultData));
@@ -461,9 +470,35 @@ const Quiz = () => {
         }} transition={{
           delay: 0.1
         }} className="bg-card border border-border rounded-xl p-6 mb-6">
+              {/* Recommended Topic Banner */}
+              {recommendedTopic && (
+                <div className="mb-6 p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center gap-3">
+                  <Target className="w-5 h-5 text-primary shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold">Recommended: {recommendedTopic}</p>
+                    <p className="text-xs text-muted-foreground">Based on your weakest quiz performance</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Topic Input */}
+              <div className="space-y-2 mb-6">
+                <Label htmlFor="topicInput">Topic</Label>
+                <Input
+                  id="topicInput"
+                  placeholder="Enter a topic (e.g. Fractions, Photosynthesis)..."
+                  value={topicInput}
+                  onChange={(e) => setTopicInput(e.target.value)}
+                  className="bg-background"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Enter a topic directly, or select a conversation below for more targeted questions
+                </p>
+              </div>
+
               {/* Conversation Selector */}
               <div className="space-y-2 mb-6">
-                <Label>Select a conversation</Label>
+                <Label>Select a conversation <span className="text-muted-foreground">(optional)</span></Label>
                 <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between text-left font-normal h-auto min-h-11 py-2">
@@ -593,7 +628,7 @@ const Quiz = () => {
                 </motion.div>}
 
               {/* Generate Button */}
-              <Button onClick={() => handleGenerate()} disabled={!selectedSolve || generating || !canGenerateQuiz} className="w-full gap-2" variant="neon" size="lg">
+              <Button onClick={() => handleGenerate()} disabled={(!selectedSolve && !topicInput.trim()) || generating || !canGenerateQuiz} className="w-full gap-2" variant="neon" size="lg">
                 {generating ? <>
                     <Loader2 className="w-5 h-5 animate-spin" />
                     Generating...
