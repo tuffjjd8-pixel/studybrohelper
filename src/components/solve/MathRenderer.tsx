@@ -48,6 +48,14 @@ export function MathRenderer({ content }: MathRendererProps) {
       return renderDisplayMath(math);
     });
 
+    // Fallback: bare [ ... ] on its own line containing math-like content
+    processed = processed.replace(/^\[\s*([\s\S]*?)\s*\]$/gm, (match, inner) => {
+      if (/[\\{}^_=\d]/.test(inner)) {
+        return renderDisplayMath(inner);
+      }
+      return match;
+    });
+
     // Replace inline math $...$ with rendered HTML (but not escaped \$)
     processed = processed.replace(/(?<!\\)\$([^\$\n]+?)\$/g, (_, math) => {
       return renderInlineMath(math);
