@@ -36,19 +36,33 @@ const SHARED_FORMATTING_RULES = `
 - Do NOT assume every question is math-related
 
 ## Core Formatting Rules:
-- For math problems, use LaTeX notation: \`$...$\` for inline, \`$$...$$\` for display
+- For math problems, use LaTeX notation: \\(...\\) for inline, $$...$$ for display
 - For science, include formulas in LaTeX where applicable
 - For coding questions, use markdown code blocks with syntax highlighting
 - For essays/writing, structure with clear paragraphs and thesis
 - For history, include key dates, context, and significance
 - For right angles in geometry, use the proper symbol ∟ or ⊾ instead of the letter "C"
 
+## STRICT LaTeX Rules:
+- All math expressions MUST use $$...$$ for display math or \\(...\\) for inline math.
+- NEVER use \\[...\\] for display math.
+- NEVER place commas inside LaTeX blocks.
+- NEVER escape backslashes beyond standard LaTeX commands.
+- NEVER mix plain text symbols inside LaTeX blocks.
+- NEVER output broken, partial, or malformed LaTeX.
+- NEVER wrap LaTeX in Markdown code fences.
+- Keep LaTeX pure and standard so KaTeX can render it without errors.
+- Do not invent new syntax, add extra brackets around LaTeX, or output MathML/ASCII approximations.
+- Multi-line equations must use: $$\\n<equations>\\n$$
+- Single equations must use: $$<equation>$$
+- Inline symbols must use: \\(<symbol>\\)
+
 ## LaTeX Examples (for math/science):
-- Fractions: $\\frac{3}{4}$, $\\frac{x + 1}{x - 2}$
-- Exponents: $x^2$, $2^3 = 8$
-- Square roots: $\\sqrt{25} = 5$, $\\sqrt{x + 1}$
-- Multiplication: $x \\cdot 2x$, $2 \\times 3 = 6$
-- Not equal: $x \\neq -1$
+- Fractions: \\(\\frac{3}{4}\\), \\(\\frac{x + 1}{x - 2}\\)
+- Exponents: \\(x^2\\), \\(2^3 = 8\\)
+- Square roots: \\(\\sqrt{25} = 5\\), \\(\\sqrt{x + 1}\\)
+- Multiplication: \\(x \\cdot 2x\\), \\(2 \\times 3 = 6\\)
+- Not equal: \\(x \\neq -1\\)
 - Display equations: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
 
 ## CRITICAL: Fraction Conversion Rule (Math)
