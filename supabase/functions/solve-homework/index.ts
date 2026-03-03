@@ -43,19 +43,39 @@ const SHARED_FORMATTING_RULES = `
 - For history, include key dates, context, and significance
 - For right angles in geometry, use the proper symbol ∟ or ⊾ instead of the letter "C"
 
-## STRICT LaTeX Rules:
-- All math expressions MUST use $$...$$ for display math or \\(...\\) for inline math.
-- NEVER use \\[...\\] for display math.
-- NEVER place commas inside LaTeX blocks.
+## STRICT LaTeX Output Rules (ZERO EXCEPTIONS):
+- All display math MUST use $$ ... $$ ONLY.
+- All inline math MUST use \\(...\\) ONLY.
+- NEVER use \\[...\\], [ ... ], (...), or any bracket-based math delimiters.
+- NEVER output bare brackets around math expressions.
 - NEVER escape backslashes beyond standard LaTeX commands.
+- NEVER insert commas inside LaTeX blocks.
 - NEVER mix plain text symbols inside LaTeX blocks.
-- NEVER output broken, partial, or malformed LaTeX.
+- NEVER output partial, malformed, or incomplete LaTeX.
+- NEVER output MathML or ASCII approximations of symbols.
+- NEVER invent new LaTeX syntax.
 - NEVER wrap LaTeX in Markdown code fences.
-- Keep LaTeX pure and standard so KaTeX can render it without errors.
-- Do not invent new syntax, add extra brackets around LaTeX, or output MathML/ASCII approximations.
-- Multi-line equations must use: $$\\n<equations>\\n$$
-- Single equations must use: $$<equation>$$
-- Inline symbols must use: \\(<symbol>\\)
+- NEVER output LaTeX inside quotes, JSON, or square brackets.
+- Multi-line equations: $$\\n<equations>\\n$$
+- Single equations: $$<equation>$$
+- Inline symbols: \\(<symbol>\\)
+
+## Allowed LaTeX Structures:
+- Fractions: \\frac{a}{b}
+- Exponents: x^{n}
+- Subscripts: x_{n}
+- Greek letters: \\alpha, \\beta, \\psi, \\hbar, etc.
+- Vectors: \\mathbf{v}
+- Derivatives: \\frac{d}{dx} or \\frac{\\partial}{\\partial x}
+- Integrals: \\int ... dx
+- Limits: \\lim_{x \\to a}
+- Matrices: \\begin{bmatrix} ... \\end{bmatrix}
+- Square roots: \\sqrt{x}
+- Boxed answers: \\boxed{answer}
+
+## Self-Verification:
+- After generating LaTeX, mentally verify: no missing braces, no missing backslashes, no invalid delimiters, no stray commas, no malformed fractions/integrals/superscripts.
+- If any issue exists, regenerate the LaTeX cleanly before outputting.
 
 ## LaTeX Examples (for math/science):
 - Fractions: \\(\\frac{3}{4}\\), \\(\\frac{x + 1}{x - 2}\\)
@@ -506,6 +526,26 @@ function parseGraphData(response: string): { type: string; data: Record<string, 
   }
 }
 
+// Fix LaTeX delimiters: \[...\] → $$...$$ and bare [...] → $$...$$
+function fixLatexDelimiters(text: string): string {
+  let result = text;
+  
+  // Fix \[...\] display math → $$...$$
+  result = result.replace(/\\\[([\s\S]*?)\\\]/g, (_match, inner) => {
+    return `$$\n${inner.trim()}\n$$`;
+  });
+
+  // Fix bare [ ... ] display math → $$ ... $$
+  result = result.replace(/^\[\s*([\s\S]*?)\s*\]$/gm, (match, inner) => {
+    if (/[\\{}^_=+\-×÷\d]/.test(inner)) {
+      return `$$${inner.trim()}$$`;
+    }
+    return match;
+  });
+  
+  return result;
+}
+
 // Remove graph blocks from solution text
 function cleanSolutionText(solution: string, _isPremium: boolean): string {
   let cleaned = solution;
@@ -513,15 +553,8 @@ function cleanSolutionText(solution: string, _isPremium: boolean): string {
   // Remove graph code blocks
   cleaned = cleaned.replace(/```graph\n?[\s\S]*?\n?```/g, "");
   
-  // Fix bare [ ... ] display math → $$ ... $$
-  // Matches lines starting with [ and ending with ] that contain math-like content
-  cleaned = cleaned.replace(/^\[\s*([\s\S]*?)\s*\]$/gm, (match, inner) => {
-    // Only convert if it looks like math (contains backslashes, numbers, operators, etc.)
-    if (/[\\{}^_=+\-×÷\d]/.test(inner)) {
-      return `$$${inner.trim()}$$`;
-    }
-    return match;
-  });
+  // Fix LaTeX delimiters
+  cleaned = fixLatexDelimiters(cleaned);
   
   return cleaned.trim();
 }
@@ -658,7 +691,9 @@ serve(async (req) => {
     // Add breakdown sections if requested
     if (animatedSteps) {
       const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
-      responseData.steps = parseAnimatedSections(solution, maxSections);
+      const rawSteps = parseAnimatedSections(solution, maxSections);
+      // Fix LaTeX delimiters in each step's content
+      responseData.steps = rawSteps.map(s => ({ ...s, content: fixLatexDelimiters(s.content) }));
       responseData.maxSteps = maxSections;
     }
     
