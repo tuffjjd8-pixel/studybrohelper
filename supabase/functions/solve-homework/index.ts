@@ -107,7 +107,20 @@ For equations like "a + b = result" where the result is NOT standard addition:
 ### Verification:
 17. After every major derivation, perform a sanity check: units consistent, signs correct, result does not violate constraints.
 18. If something seems physically impossible (negative population, infinite oscillation, etc.), state it.
-19. All final answers must follow from the work shown — no skipping.`;
+19. All final answers must follow from the work shown — no skipping.
+
+### MATH SAFETY — NUMBER INTEGRITY:
+20. You MUST restate all numbers from the problem exactly before using them.
+21. You MUST NEVER change, split, merge, or reinterpret numbers.
+22. You MUST NEVER invent digits or modify values.
+23. You MUST compute using the exact numbers given.
+24. You MUST show the multiplication step explicitly.
+25. You MUST verify the multiplication before giving the final answer.
+26. If the numbers appear ambiguous, treat them as whole integers exactly as written.
+27. If the problem gives "1818", treat it as ONE number: 1818. Never as "18 and 18", "18×18", or "18 18".
+28. If the problem gives "1010", treat it as ONE number: 1010. Never as "10 and 10".
+29. If the problem gives "1919", treat it as ONE number: 1919. Never as "19 and 19".
+30. Never skip steps. Never output a final answer without verifying it.`;
 
 // Injection protection rules shared by all prompts
 const INJECTION_PROTECTION = `
