@@ -500,6 +500,16 @@ function cleanSolutionText(solution: string, _isPremium: boolean): string {
   // Remove graph code blocks
   cleaned = cleaned.replace(/```graph\n?[\s\S]*?\n?```/g, "");
   
+  // Fix bare [ ... ] display math → $$ ... $$
+  // Matches lines starting with [ and ending with ] that contain math-like content
+  cleaned = cleaned.replace(/^\[\s*([\s\S]*?)\s*\]$/gm, (match, inner) => {
+    // Only convert if it looks like math (contains backslashes, numbers, operators, etc.)
+    if (/[\\{}^_=+\-×÷\d]/.test(inner)) {
+      return `$$${inner.trim()}$$`;
+    }
+    return match;
+  });
+  
   return cleaned.trim();
 }
 
