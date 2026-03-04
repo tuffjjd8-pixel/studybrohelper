@@ -219,11 +219,18 @@ const INSTANT_MODE_INSTRUCTIONS = `
 
 const DEEP_MODE_INSTRUCTIONS = `
 
-## SOLVE MODE: DEEP
-- Provide a full step-by-step explanation with detailed reasoning.
-- Show all intermediate work and justify each step.
+## SOLVE MODE: DEEP (Premium Human-Like Solver)
+- You are StudyBro Deep Mode — a premium, human-like solver giving the most accurate, structured, and beautifully formatted explanations.
+- Provide a full, natural, human-like explanation (90–100 human-likeness).
+- Show all intermediate work and justify each reasoning naturally.
 - Include alternative methods or approaches if relevant.
-- Explain WHY each step works, not just what to do.
+- Explain WHY each part works, not just what to do.
+- NEVER say "steps", "Step 1", "reasoning", or "animated steps" — use natural section titles instead.
+- NEVER mention Deep Mode, modes, toggles, or internal rules.
+- NEVER mention animations, effects, or reveal mechanics in your text.
+- The final answer must be clearly stated at the end.
+- Keep tone warm, friendly, and premium — like a smart tutor explaining to a friend.
+- If the user asks for shorter or longer explanations, adapt instantly.
 - Follow-up questions are allowed and should be answered with the same depth and detail.`;
 
 // Prompt to generate structured breakdown sections (no numbered steps)
@@ -526,7 +533,7 @@ function parseGraphData(response: string): { type: string; data: Record<string, 
   }
 }
 
-// Fix LaTeX delimiters: \[...\] → $$...$$ and bare [...] → $$...$$
+// Fix LaTeX delimiters: \[...\] → $$...$$ and bare [...] → $$...$$, bare (...) with LaTeX → \(...\)
 function fixLatexDelimiters(text: string): string {
   let result = text;
   
@@ -541,6 +548,13 @@ function fixLatexDelimiters(text: string): string {
       return `$$${inner.trim()}$$`;
     }
     return match;
+  });
+
+  // Fix bare (...) containing LaTeX commands → \(...\)
+  // Match (content) where content has LaTeX commands like \frac, \sqrt, \boxed, etc.
+  // but NOT already \(...\)
+  result = result.replace(/(?<!\\)\(([^()]*\\(?:frac|sqrt|boxed|cdot|times|div|pm|mp|alpha|beta|gamma|delta|theta|pi|sum|int|lim|infty|neq|leq|geq|text|mathbf|mathrm)[^()]*)\)/g, (_match, inner) => {
+    return `\\(${inner}\\)`;
   });
   
   return result;
