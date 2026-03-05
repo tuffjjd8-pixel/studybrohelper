@@ -8,7 +8,16 @@ interface MathRendererProps {
 
 export function MathRenderer({ content }: MathRendererProps) {
   const renderedContent = useMemo(() => {
+    // Frontend safety net: fix sizing+escaped-paren combos before rendering
     let processed = content;
+    const sizingCmds = ["\\biggl", "\\biggr", "\\Biggl", "\\Biggr", "\\bigl", "\\bigr", "\\Bigl", "\\Bigr", "\\left", "\\right", "\\big", "\\Big"];
+    const mathFnCmds = ["\\sin", "\\cos", "\\tan", "\\log", "\\ln", "\\Gamma", "\\operatorname", "\\text"];
+    for (const cmd of [...sizingCmds, ...mathFnCmds]) {
+      while (processed.includes(cmd + "\\(")) processed = processed.split(cmd + "\\(").join(cmd + "(");
+      while (processed.includes(cmd + "\\)")) processed = processed.split(cmd + "\\)").join(cmd + ")");
+      while (processed.includes(cmd + "\\!\\(")) processed = processed.split(cmd + "\\!\\(").join(cmd + "\\!(");
+      while (processed.includes(cmd + "\\!\\)")) processed = processed.split(cmd + "\\!\\)").join(cmd + "\\!)");
+    }
 
     // Helper function to render display math
     const renderDisplayMath = (math: string): string => {
