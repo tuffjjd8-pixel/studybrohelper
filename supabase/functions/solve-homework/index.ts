@@ -50,9 +50,6 @@ const SHARED_FORMATTING_RULES = `
 - NEVER use $ ... $ for inline math.
 - NEVER use bare brackets [ ... ] or bare parentheses ( ... ) as math delimiters.
 - NEVER escape parentheses in LaTeX grouping. Use \\left( and \\right), NEVER \\left\\( or \\right\\).
-- NEVER use \\bigl\\( or \\bigr\\). Use \\bigl( and \\bigr) instead.
-- NEVER use \\Bigl\\( or \\Bigr\\). Use \\Bigl( and \\Bigr) instead.
-- Inside display math (\\[...\\]), NEVER use \\( or \\) as parentheses. Use plain ( and ) or \\left( and \\right).
 - NEVER break a LaTeX block across lines.
 - NEVER put LaTeX inside backticks or code blocks.
 - NEVER use MathJax-only syntax (no \\begin{equation}, no \\tag{}, etc.).
@@ -588,21 +585,8 @@ function parseGraphData(response: string): { type: string; data: Record<string, 
 // Fix LaTeX delimiters: normalize all display/inline math to \[...\] and \(...\)
 function fixLatexDelimiters(text: string): string {
   let result = text;
-
-  // ============================================================
-  // Phase 1: Inside display math \[...\], replace ALL \( → ( and \) → )
-  // Inside display math, \( and \) can NEVER be inline-math delimiters;
-  // they are always intended as parentheses.
-  // ============================================================
-  result = result.replace(/\\\[([\s\S]*?)\\\]/g, (_match, inner: string) => {
-    // Replace every \( with ( and every \) with ) inside display math
-    const fixed = inner.replace(/\\\(/g, "(").replace(/\\\)/g, ")");
-    return `\\[${fixed}\\]`;
-  });
   
-  // ============================================================
-  // Phase 2: Fix $$...$$ display math → \[...\]
-  // ============================================================
+  // Fix $$...$$ display math → \[...\]
   result = result.replace(/\$\$([\s\S]*?)\$\$/g, (_match, inner) => {
     return `\\[\n${inner.trim()}\n\\]`;
   });
