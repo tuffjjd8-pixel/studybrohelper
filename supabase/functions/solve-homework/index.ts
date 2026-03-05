@@ -36,7 +36,7 @@ const SHARED_FORMATTING_RULES = `
 - Do NOT assume every question is math-related
 
 ## Core Formatting Rules:
-- For math problems, use LaTeX notation: \\(...\\) for inline, $$...$$ for display
+- For math problems, use LaTeX notation: \\(...\\) for inline, \\[...\\] for display
 - For science, include formulas in LaTeX where applicable
 - For coding questions, use markdown code blocks with syntax highlighting
 - For essays/writing, structure with clear paragraphs and thesis
@@ -44,20 +44,21 @@ const SHARED_FORMATTING_RULES = `
 - For right angles in geometry, use the proper symbol ∟ or ⊾ instead of the letter "C"
 
 ## STRICT LaTeX Output Rules (ZERO EXCEPTIONS):
-- All display math MUST use $$ ... $$ ONLY.
-- All inline math MUST use \\(...\\) ONLY.
-- NEVER use \\[...\\], [ ... ], (...), or any bracket-based math delimiters.
-- NEVER output bare brackets around math expressions.
-- NEVER escape backslashes beyond standard LaTeX commands.
-- NEVER insert commas inside LaTeX blocks.
-- NEVER mix plain text symbols inside LaTeX blocks.
+- All display math MUST use \\[ ... \\] ONLY.
+- All inline math MUST use \\( ... \\) ONLY.
+- NEVER use $$ ... $$ for display math.
+- NEVER use $ ... $ for inline math.
+- NEVER use bare brackets [ ... ] or bare parentheses ( ... ) as math delimiters.
+- NEVER escape parentheses in LaTeX grouping. Use \\left( and \\right), NEVER \\left\\( or \\right\\).
+- NEVER break a LaTeX block across lines.
+- NEVER put LaTeX inside backticks or code blocks.
+- NEVER use MathJax-only syntax (no \\begin{equation}, no \\tag{}, etc.).
+- NEVER output HTML entities inside LaTeX.
 - NEVER output partial, malformed, or incomplete LaTeX.
-- NEVER output MathML or ASCII approximations of symbols.
 - NEVER invent new LaTeX syntax.
-- NEVER wrap LaTeX in Markdown code fences.
-- NEVER output LaTeX inside quotes, JSON, or square brackets.
-- Multi-line equations: $$\\n<equations>\\n$$
-- Single equations: $$<equation>$$
+- NEVER mix plain text symbols inside LaTeX blocks.
+- Display equations: \\[<equation>\\]
+- Multi-line display: \\[\\n<equations>\\n\\]
 - Inline symbols: \\(<symbol>\\)
 
 ## Allowed LaTeX Structures:
@@ -73,9 +74,17 @@ const SHARED_FORMATTING_RULES = `
 - Square roots: \\sqrt{x}
 - Boxed answers: \\boxed{answer}
 
-## Self-Verification:
-- After generating LaTeX, mentally verify: no missing braces, no missing backslashes, no invalid delimiters, no stray commas, no malformed fractions/integrals/superscripts.
-- If any issue exists, regenerate the LaTeX cleanly before outputting.
+## Self-Check (MANDATORY before responding):
+1. Are all inline math expressions wrapped in \\( ... \\)?
+2. Are all display equations wrapped in \\[ ... \\]?
+3. Did you avoid $$ ... $$ completely?
+4. Did you avoid \\left\\( and \\right\\)? (Use \\left( and \\right) only.)
+5. Are all { and } balanced?
+6. Are all \\left matched with \\right?
+7. Did you avoid putting LaTeX inside code blocks or backticks?
+8. Did you avoid MathJax-only environments (equation, align, etc.)?
+9. Does every LaTeX block look complete and renderable as-is?
+- If you find ANY issue, FIX IT before sending the answer.
 
 ## LaTeX Examples (for math/science):
 - Fractions: \\(\\frac{3}{4}\\), \\(\\frac{x + 1}{x - 2}\\)
@@ -83,11 +92,11 @@ const SHARED_FORMATTING_RULES = `
 - Square roots: \\(\\sqrt{25} = 5\\), \\(\\sqrt{x + 1}\\)
 - Multiplication: \\(x \\cdot 2x\\), \\(2 \\times 3 = 6\\)
 - Not equal: \\(x \\neq -1\\)
-- Display equations: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
+- Display equations: \\[x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\\]
 
 ## CRITICAL: Fraction Conversion Rule (Math)
 - When subtracting fractions from whole numbers, ALWAYS convert the whole number to a fraction first
-- Example: $10 - \\frac{1}{2}$ → First write $10 = \\frac{20}{2}$, then $\\frac{20}{2} - \\frac{1}{2} = \\frac{19}{2}$
+- Example: \\(10 - \\frac{1}{2}\\) → First write \\(10 = \\frac{20}{2}\\), then \\(\\frac{20}{2} - \\frac{1}{2} = \\frac{19}{2}\\)
 
 ## Pattern-Based Equations (Non-Standard Arithmetic)
 For equations like "a + b = result" where the result is NOT standard addition:
@@ -573,26 +582,29 @@ function parseGraphData(response: string): { type: string; data: Record<string, 
   }
 }
 
-// Fix LaTeX delimiters: \[...\] → $$...$$ and bare [...] → $$...$$, bare (...) with LaTeX → \(...\)
+// Fix LaTeX delimiters: normalize all display/inline math to \[...\] and \(...\)
 function fixLatexDelimiters(text: string): string {
   let result = text;
   
-  // Fix \[...\] display math → $$...$$
-  result = result.replace(/\\\[([\s\S]*?)\\\]/g, (_match, inner) => {
-    return `$$\n${inner.trim()}\n$$`;
+  // Fix $$...$$ display math → \[...\]
+  result = result.replace(/\$\$([\s\S]*?)\$\$/g, (_match, inner) => {
+    return `\\[\n${inner.trim()}\n\\]`;
   });
 
-  // Fix bare [ ... ] display math → $$ ... $$
+  // Fix bare [ ... ] display math → \[ ... \]
   result = result.replace(/^\[\s*([\s\S]*?)\s*\]$/gm, (match, inner) => {
     if (/[\\{}^_=+\-×÷\d]/.test(inner)) {
-      return `$$${inner.trim()}$$`;
+      return `\\[${inner.trim()}\\]`;
     }
     return match;
   });
 
+  // Fix $...$ inline math → \(...\) (but not escaped \$ or already $$)
+  result = result.replace(/(?<!\$)(?<!\\)\$([^\$\n]+?)\$(?!\$)/g, (_match, inner) => {
+    return `\\(${inner}\\)`;
+  });
+
   // Fix bare (...) containing LaTeX commands → \(...\)
-  // Match (content) where content has LaTeX commands like \frac, \sqrt, \boxed, etc.
-  // but NOT already \(...\)
   result = result.replace(/(?<!\\)\(([^()]*\\(?:frac|sqrt|boxed|cdot|times|div|pm|mp|alpha|beta|gamma|delta|theta|pi|sum|int|lim|infty|neq|leq|geq|text|mathbf|mathrm)[^()]*)\)/g, (_match, inner) => {
     return `\\(${inner}\\)`;
   });
