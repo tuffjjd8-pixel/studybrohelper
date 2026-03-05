@@ -47,16 +47,31 @@ function computeSafePoints(content: string): number[] {
   return points;
 }
 
+// Frontend safety: fix sizing+escaped-paren combos (\bigl\( → \bigl( etc.)
+function fixSizingParens(text: string): string {
+  let result = text;
+  const sizingCmds = ["\\biggl", "\\biggr", "\\Biggl", "\\Biggr", "\\bigl", "\\bigr", "\\Bigl", "\\Bigr", "\\left", "\\right", "\\big", "\\Big"];
+  const mathFnCmds = ["\\sin", "\\cos", "\\tan", "\\log", "\\ln", "\\Gamma", "\\operatorname", "\\text"];
+  for (const cmd of [...sizingCmds, ...mathFnCmds]) {
+    while (result.includes(cmd + "\\(")) result = result.split(cmd + "\\(").join(cmd + "(");
+    while (result.includes(cmd + "\\)")) result = result.split(cmd + "\\)").join(cmd + ")");
+    while (result.includes(cmd + "\\!\\(")) result = result.split(cmd + "\\!\\(").join(cmd + "\\!(");
+    while (result.includes(cmd + "\\!\\)")) result = result.split(cmd + "\\!\\)").join(cmd + "\\!)");
+  }
+  return result;
+}
+
 export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealProps) {
+  const sanitizedContent = fixSizingParens(content);
   const [displayedContent, setDisplayedContent] = useState("");
   const [isComplete, setIsComplete] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!content) return;
+    if (!sanitizedContent) return;
 
-    const safePoints = computeSafePoints(content);
+    const safePoints = computeSafePoints(sanitizedContent);
     let pointIndex = 0;
     let lastTime = 0;
 
@@ -78,7 +93,7 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
       if (!lastTime) lastTime = timestamp;
       const elapsed = timestamp - lastTime;
 
-      const currentChar = content[safePoints[pointIndex]] || "";
+    const currentChar = sanitizedContent[safePoints[pointIndex]] || "";
       const delay = isParagraphBreak(safePoints[pointIndex])
         ? 200
         : getDelay(currentChar);
@@ -86,7 +101,7 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
       if (elapsed >= delay) {
         // Advance by one safe point (could be a whole LaTeX block)
         pointIndex = Math.min(pointIndex + 1, safePoints.length - 1);
-        setDisplayedContent(content.slice(0, safePoints[pointIndex]));
+        setDisplayedContent(sanitizedContent.slice(0, safePoints[pointIndex]));
         lastTime = timestamp;
 
         if (pointIndex >= safePoints.length - 1) {
@@ -106,15 +121,15 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [content, onComplete]);
+  }, [sanitizedContent, onComplete]);
 
   // Skip animation on click
   const handleSkip = useCallback(() => {
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    setDisplayedContent(content);
+    setDisplayedContent(sanitizedContent);
     setIsComplete(true);
     onComplete?.();
-  }, [content, onComplete]);
+  }, [sanitizedContent, onComplete]);
 
   const effectClass = getEffectClass(effect);
 
