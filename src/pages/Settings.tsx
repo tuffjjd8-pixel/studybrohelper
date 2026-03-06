@@ -23,12 +23,12 @@ import {
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
 
-const FREE_ANIMATED_STEPS_PER_DAY = 5;
-const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
+const FREE_SOLVE_FLOW_PER_DAY = 5;
+const PREMIUM_SOLVE_FLOW_PER_DAY = 16;
 
 interface Profile {
   is_premium: boolean;
-  animated_steps_used_today: number;
+  animated_steps_used_today: number; // DB column name unchanged
 }
 
 // Helper to get current date in user's local timezone
@@ -120,10 +120,10 @@ const Settings = () => {
     { icon: HelpCircle, label: "Help & Support", description: "FAQs and contact support" },
   ];
 
-  const maxAnimatedSteps = isPremium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
-  const animatedStepsUsed = profile?.animated_steps_used_today || 0;
-  const animatedStepsRemaining = maxAnimatedSteps - animatedStepsUsed;
-  const usagePercent = (animatedStepsUsed / maxAnimatedSteps) * 100;
+  const maxSolveFlow = isPremium ? PREMIUM_SOLVE_FLOW_PER_DAY : FREE_SOLVE_FLOW_PER_DAY;
+  const solveFlowUsed = profile?.animated_steps_used_today || 0;
+  const solveFlowRemaining = maxSolveFlow - solveFlowUsed;
+  const usagePercent = (solveFlowUsed / maxSolveFlow) * 100;
   const speechUsagePercent = ((speechClips.maxClips - speechClips.clipsRemaining) / speechClips.maxClips) * 100;
 
   return (
@@ -207,16 +207,16 @@ const Settings = () => {
                   <AIBrainIcon size="md" glowIntensity="medium" />
                   <div className="flex-1">
                     <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">Animated Steps</span>
+                      <span className="text-sm font-medium">Solve Flow</span>
                       <span className="text-sm text-muted-foreground">
-                        {animatedStepsUsed}/{maxAnimatedSteps}
+                        {solveFlowUsed}/{maxSolveFlow}
                       </span>
                     </div>
                     <Progress value={usagePercent} className="h-2" />
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {animatedStepsRemaining} remaining today
+                  {solveFlowRemaining} remaining today
                   {!isPremium && " • Upgrade for 16/day"}
                 </p>
               </motion.div>
