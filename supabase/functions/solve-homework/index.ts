@@ -582,30 +582,17 @@ function parseGraphData(response: string): { type: string; data: Record<string, 
   }
 }
 
-// Fix LaTeX delimiters: normalize all display/inline math to \[...\] and \(...\)
+// Fix LaTeX delimiters: minimal safe normalization only
 function fixLatexDelimiters(text: string): string {
   let result = text;
   
-  // Fix $$...$$ display math → \[...\]
+  // Convert $$...$$ display math → \[...\]
   result = result.replace(/\$\$([\s\S]*?)\$\$/g, (_match, inner) => {
-    return `\\[\n${inner.trim()}\n\\]`;
+    return `\\[${inner.trim()}\\]`;
   });
 
-  // Fix bare [ ... ] display math → \[ ... \]
-  result = result.replace(/^\[\s*([\s\S]*?)\s*\]$/gm, (match, inner) => {
-    if (/[\\{}^_=+\-×÷\d]/.test(inner)) {
-      return `\\[${inner.trim()}\\]`;
-    }
-    return match;
-  });
-
-  // Fix $...$ inline math → \(...\) (but not escaped \$ or already $$)
+  // Convert $...$ inline math → \(...\) (but not escaped \$ or already $$)
   result = result.replace(/(?<!\$)(?<!\\)\$([^\$\n]+?)\$(?!\$)/g, (_match, inner) => {
-    return `\\(${inner}\\)`;
-  });
-
-  // Fix bare (...) containing LaTeX commands → \(...\)
-  result = result.replace(/(?<!\\)\(([^()]*\\(?:frac|sqrt|boxed|cdot|times|div|pm|mp|alpha|beta|gamma|delta|theta|pi|sum|int|lim|infty|neq|leq|geq|text|mathbf|mathrm)[^()]*)\)/g, (_match, inner) => {
     return `\\(${inner}\\)`;
   });
   
