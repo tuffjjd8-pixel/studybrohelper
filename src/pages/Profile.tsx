@@ -37,7 +37,7 @@ interface Profile {
   referral_code: string | null;
   created_at: string;
   avatar_url: string | null;
-  animated_steps_used_today: number; // DB column name unchanged
+  animated_steps_used_today: number;
   speech_clips_used: number;
   last_speech_reset: string | null;
   premium_until: string | null;
@@ -49,8 +49,8 @@ interface Profile {
 const FREE_SPEECH_CLIPS = 3;
 const PREMIUM_SPEECH_CLIPS = 15; // Daily limit for premium
 const SPEECH_RESET_HOURS = 24;
-const FREE_SOLVE_FLOW_PER_DAY = 5;
-const PREMIUM_SOLVE_FLOW_PER_DAY = 16;
+const FREE_ANIMATED_STEPS_PER_DAY = 5;
+const PREMIUM_ANIMATED_STEPS_PER_DAY = 16;
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -271,8 +271,8 @@ const Profile = () => {
   }
 
   const maxSpeechClips = profile?.is_premium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS;
-  const maxSolveFlow = profile?.is_premium ? PREMIUM_SOLVE_FLOW_PER_DAY : FREE_SOLVE_FLOW_PER_DAY;
-  const solveFlowUsed = profile?.animated_steps_used_today || 0;
+  const maxAnimatedSteps = profile?.is_premium ? PREMIUM_ANIMATED_STEPS_PER_DAY : FREE_ANIMATED_STEPS_PER_DAY;
+  const animatedStepsUsed = profile?.animated_steps_used_today || 0;
   
   // Calculate speech clips with 72h reset logic
   const getSpeechClipsRemaining = () => {
@@ -393,8 +393,8 @@ const Profile = () => {
                 className="p-4 bg-card rounded-xl border border-border text-center"
               >
                 <div className="mx-auto mb-2"><AIBrainIcon size="xl" glowIntensity="strong" /></div>
-                <div className="text-2xl font-bold">{solveFlowUsed}/{maxSolveFlow}</div>
-                <div className="text-xs text-muted-foreground">Solve Flow Today</div>
+                <div className="text-2xl font-bold">{animatedStepsUsed}/{maxAnimatedSteps}</div>
+                <div className="text-xs text-muted-foreground">Animated Steps Today</div>
               </motion.div>
 
               <motion.div
@@ -546,7 +546,7 @@ const Profile = () => {
                   Go Premium, Bro!
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  16 Solve Flows, 15 speech clips/day, enhanced solving
+                  16 animated steps, 15 speech clips/day, enhanced solving
                 </p>
                 <Button 
                   onClick={() => openPremiumPage(navigate)} 

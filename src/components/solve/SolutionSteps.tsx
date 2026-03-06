@@ -13,7 +13,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
 import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider";
 import { useNavigate } from "react-router-dom";
-import { DeepModeReveal, type DeepModeEffect } from "@/components/solve/DeepModeReveal";
 
 interface SolutionStepsProps {
   subject: string;
@@ -26,8 +25,6 @@ interface SolutionStepsProps {
   isHistory?: boolean;
   followUpCount?: number;
   maxFollowUps?: number;
-  isDeepMode?: boolean;
-  deepModeEffect?: DeepModeEffect;
 }
 
 const subjectIcons: Record<string, React.ReactNode> = {
@@ -46,7 +43,7 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, deepModeEffect = "none" }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2 }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -203,62 +200,55 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </Button>
           </div>
         </div>
-        {isDeepMode && !isHistory ? (
-          <DeepModeReveal
-            content={displayedSolution}
-            effect={deepModeEffect}
-          />
-        ) : (
-          <div className="prose prose-invert prose-sm max-w-none math-solution">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                h1: ({ children }) => <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>,
-                h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>,
-                h3: ({ children }) => <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>,
-                p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
-                ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-foreground/90">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-foreground/90">{children}</ol>,
-                li: ({ children }) => <li className="text-foreground/90">{children}</li>,
-                strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
-                em: ({ children }) => <em className="text-secondary italic">{children}</em>,
-                code: ({ children }) => (
-                  <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">
+        <div className="prose prose-invert prose-sm max-w-none math-solution">
+          <ReactMarkdown
+            remarkPlugins={[remarkMath]}
+            rehypePlugins={[rehypeKatex]}
+            components={{
+              h1: ({ children }) => <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>,
+              h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>,
+              h3: ({ children }) => <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>,
+              p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
+              ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-foreground/90">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-foreground/90">{children}</ol>,
+              li: ({ children }) => <li className="text-foreground/90">{children}</li>,
+              strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
+              em: ({ children }) => <em className="text-secondary italic">{children}</em>,
+              code: ({ children }) => (
+                <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">
+                  {children}
+                </code>
+              ),
+              pre: ({ children }) => (
+                <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-3">
+                  {children}
+                </pre>
+              ),
+              table: ({ children }) => (
+                <div className="overflow-x-auto my-4">
+                  <table className="min-w-full border border-border rounded-lg">
                     {children}
-                  </code>
-                ),
-                pre: ({ children }) => (
-                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-3">
-                    {children}
-                  </pre>
-                ),
-                table: ({ children }) => (
-                  <div className="overflow-x-auto my-4">
-                    <table className="min-w-full border border-border rounded-lg">
-                      {children}
-                    </table>
-                  </div>
-                ),
-                thead: ({ children }) => (
-                  <thead className="bg-primary/10">{children}</thead>
-                ),
-                th: ({ children }) => (
-                  <th className="px-4 py-2 text-left font-semibold text-foreground border-b border-border">
-                    {children}
-                  </th>
-                ),
-                td: ({ children }) => (
-                  <td className="px-4 py-2 text-foreground/90 border-b border-border/50">
-                    {children}
-                  </td>
-                ),
-              }}
-            >
-              {displayedSolution}
-            </ReactMarkdown>
-          </div>
-        )}
+                  </table>
+                </div>
+              ),
+              thead: ({ children }) => (
+                <thead className="bg-primary/10">{children}</thead>
+              ),
+              th: ({ children }) => (
+                <th className="px-4 py-2 text-left font-semibold text-foreground border-b border-border">
+                  {children}
+                </th>
+              ),
+              td: ({ children }) => (
+                <td className="px-4 py-2 text-foreground/90 border-b border-border/50">
+                  {children}
+                </td>
+              ),
+            }}
+          >
+            {displayedSolution}
+          </ReactMarkdown>
+        </div>
 
         {/* Humanize section */}
         {!isHistory || isPremium ? (

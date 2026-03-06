@@ -9,8 +9,6 @@ import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
-import { DeepModeEffectPicker } from "@/components/solve/DeepModeEffectPicker";
-import type { DeepModeEffect } from "@/components/solve/DeepModeReveal";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
@@ -83,12 +81,9 @@ const Index = () => {
   });
 
   // Solve toggles - persist in localStorage
-  const [solveFlow, setSolveFlow] = useState(() => {
-    const saved = localStorage.getItem("toggle_solve_flow");
-    if (saved !== null) return JSON.parse(saved);
-    // Migrate from old key
-    const old = localStorage.getItem("toggle_animated_steps");
-    return old !== null ? JSON.parse(old) : true;
+  const [animatedSteps, setAnimatedSteps] = useState(() => {
+    const saved = localStorage.getItem("toggle_animated_steps");
+    return saved !== null ? JSON.parse(saved) : true;
   });
   const [speechInput, setSpeechInput] = useState(() => {
     const saved = localStorage.getItem("toggle_speech_input");
@@ -102,16 +97,11 @@ const Index = () => {
     const saved = localStorage.getItem("solve_mode");
     return (saved === "deep" ? "deep" : "instant");
   });
-  const [deepEffect, setDeepEffect] = useState<DeepModeEffect>(() => {
-    const saved = localStorage.getItem("deep_mode_effect");
-    return (saved as DeepModeEffect) || "neon";
-  });
-  const [showEffectPicker, setShowEffectPicker] = useState(false);
 
   // Persist toggles
   useEffect(() => {
-    localStorage.setItem("toggle_solve_flow", JSON.stringify(solveFlow));
-  }, [solveFlow]);
+    localStorage.setItem("toggle_animated_steps", JSON.stringify(animatedSteps));
+  }, [animatedSteps]);
   useEffect(() => {
     localStorage.setItem("toggle_speech_input", JSON.stringify(speechInput));
   }, [speechInput]);
@@ -121,21 +111,6 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem("solve_mode", solveMode);
   }, [solveMode]);
-  useEffect(() => {
-    localStorage.setItem("deep_mode_effect", deepEffect);
-  }, [deepEffect]);
-
-  // Show effect picker on first Deep Mode toggle
-  const handleSolveModeChange = (mode: "instant" | "deep") => {
-    setSolveMode(mode);
-    if (mode === "deep") {
-      const hasChosen = localStorage.getItem("deep_effect_chosen");
-      if (!hasChosen) {
-        setShowEffectPicker(true);
-        localStorage.setItem("deep_effect_chosen", "true");
-      }
-    }
-  };
   const isPremium = profile?.is_premium || false;
 
   // Persistent solve usage tracking (backend-backed, not localStorage)
@@ -209,7 +184,7 @@ const Index = () => {
           question: input,
           image: imageData,
           isPremium,
-          animatedSteps: solveFlow,
+          animatedSteps,
           generateGraph: false,
           solveMode: isPremium ? solveMode : "instant",
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
@@ -339,7 +314,7 @@ const Index = () => {
   const handleClearPendingImage = () => {
     setPendingImage(null);
   };
-  const showSolveFlow = solveFlow && solution?.steps && solution.steps.length > 0;
+  const showAnimatedSteps = animatedSteps && solution?.steps && solution.steps.length > 0;
   return <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -402,16 +377,7 @@ const Index = () => {
                 </motion.div>}
 
               {/* Solve Toggles */}
-              <SolveToggles solveFlow={solveFlow} onSolveFlowChange={setSolveFlow} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={handleSolveModeChange} />
-
-              {/* Effect Picker - shown when Deep Mode first toggled or user wants to change */}
-              {showEffectPicker && isPremium && solveMode === "deep" && (
-                <DeepModeEffectPicker
-                  selectedEffect={deepEffect}
-                  onSelect={(fx) => setDeepEffect(fx)}
-                  onClose={() => setShowEffectPicker(false)}
-                />
-              )}
+              <SolveToggles animatedSteps={animatedSteps} onAnimatedStepsChange={setAnimatedSteps} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={setSolveMode} />
 
               {/* Divider */}
               <div className="flex items-center gap-4 w-full max-w-md">
@@ -437,8 +403,8 @@ const Index = () => {
                 ← Solve another
               </button>
 
-              {/* Show Solve Flow if enabled and available */}
-              {showSolveFlow ? <div className="space-y-6">
+              {/* Show animated steps if enabled and available */}
+              {showAnimatedSteps ? <div className="space-y-6">
                   {/* Question card */}
                   <div className="glass-card p-4">
                     <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
@@ -448,9 +414,9 @@ const Index = () => {
                     <p className="text-foreground">{solution.question}</p>
                   </div>
 
-                  {/* Solve Flow */}
+                  {/* Animated steps */}
                   <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isPremium && solveMode === "deep"} deepModeEffect={deepEffect} />}
+                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} />}
 
               {/* Solve usage banner below solution */}
               {!isPremium}
