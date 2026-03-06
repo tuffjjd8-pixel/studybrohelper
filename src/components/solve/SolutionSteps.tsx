@@ -14,6 +14,7 @@ import { useHumanize } from "@/hooks/useHumanize";
 import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider";
 import { useNavigate } from "react-router-dom";
 import { DeepModeReveal, type DeepModeEffect } from "@/components/solve/DeepModeReveal";
+import { preprocessMath } from "@/lib/mathPreprocess";
 
 interface SolutionStepsProps {
   subject: string;
@@ -255,7 +256,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                 ),
               }}
             >
-              {displayedSolution}
+              {preprocessMath(displayedSolution)}
             </ReactMarkdown>
           </div>
         )}
@@ -323,7 +324,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                 strong: ({ children }) => <strong className="font-bold text-secondary">{children}</strong>,
               }}
             >
-              {followUpResponse}
+              {preprocessMath(followUpResponse)}
             </ReactMarkdown>
           </div>
         </motion.div>
