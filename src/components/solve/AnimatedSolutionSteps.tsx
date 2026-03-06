@@ -8,6 +8,7 @@ import { ChevronRight, ChevronLeft, Play, Pause, SkipForward, CheckCircle2, Part
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
+import { preprocessMath } from "@/lib/mathPreprocess";
 
 interface Step {
   title: string;
@@ -62,7 +63,14 @@ export function AnimatedSolutionSteps({
         safePoints.push(i);
         continue;
       }
-      // Skip over \(...\) blocks
+      // Skip over \[...\] display math blocks
+      if (content[i] === '\\' && content[i + 1] === '[') {
+        const end = content.indexOf('\\]', i + 2);
+        i = end !== -1 ? end + 2 : content.length;
+        safePoints.push(i);
+        continue;
+      }
+      // Skip over \(...\) inline math blocks
       if (content[i] === '\\' && content[i + 1] === '(') {
         const end = content.indexOf('\\)', i + 2);
         i = end !== -1 ? end + 2 : content.length;
@@ -312,7 +320,7 @@ export function AnimatedSolutionSteps({
                 ),
               }}
             >
-              {displayedContent}
+              {preprocessMath(displayedContent)}
             </ReactMarkdown>
           </div>
         </motion.div>
@@ -395,7 +403,7 @@ export function AnimatedSolutionSteps({
                 ),
               }}
             >
-              {fullSolution}
+              {preprocessMath(fullSolution)}
             </ReactMarkdown>
           </div>
         </motion.div>

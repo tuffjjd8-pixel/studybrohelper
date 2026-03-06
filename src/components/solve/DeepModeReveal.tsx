@@ -4,6 +4,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { motion, AnimatePresence } from "framer-motion";
+import { preprocessMath } from "@/lib/mathPreprocess";
 
 export type DeepModeEffect = "fire" | "water" | "neon" | "glitch" | "sparkle" | "none";
 
@@ -155,7 +156,7 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
             ),
           }}
         >
-          {displayedContent}
+          {preprocessMath(displayedContent)}
         </ReactMarkdown>
       </div>
 
