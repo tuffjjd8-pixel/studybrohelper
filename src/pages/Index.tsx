@@ -25,6 +25,7 @@ import { useSpeechClips } from "@/hooks/useSpeechClips";
 import { useSolveUsage } from "@/hooks/useSolveUsage";
 import { useBadges } from "@/hooks/useBadges";
 import { toast } from "sonner";
+import { getCachedSolve, setCachedSolve } from "@/lib/solveCache";
 interface SolutionData {
   subject: string;
   question: string;
