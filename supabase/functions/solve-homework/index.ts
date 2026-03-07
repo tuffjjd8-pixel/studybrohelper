@@ -760,6 +760,7 @@ serve(async (req) => {
         ocr_engine_used: ocrEngineUsed,
         device_type: deviceType,
         solve_mode: effectiveMode,
+        symbolic_used: !!symbolicResult,
       }
     };
     
