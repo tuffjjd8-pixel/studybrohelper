@@ -91,11 +91,11 @@ export function AnimatedSolutionSteps({
     }
 
     let pointIndex = 0;
-    const speed = isPremium ? 8 : 15;
+    const speed = isPremium ? 6 : 10;
+    const charsPerTick = isPremium ? 3 : 2;
 
     const timer = setInterval(() => {
-      // Advance by a few safe points at a time for speed
-      pointIndex = Math.min(pointIndex + 1, safePoints.length - 1);
+      pointIndex = Math.min(pointIndex + charsPerTick, safePoints.length - 1);
       setDisplayedContent(content.slice(0, safePoints[pointIndex]));
       if (pointIndex >= safePoints.length - 1) {
         setIsTypewriting(false);
