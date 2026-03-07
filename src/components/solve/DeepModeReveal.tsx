@@ -61,32 +61,16 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
     let pointIndex = 0;
     let lastTime = 0;
 
-    // Base speed: ~20ms per char, faster for punctuation, jitter
-    const getDelay = (char: string): number => {
-      const isPunctuation = /[.,;:!?]/.test(char);
-      const isNewline = char === "\n";
-      const base = isPunctuation ? 7 : isNewline ? 80 : 20;
-      const jitter = (Math.random() - 0.5) * 6; // ±3ms
-      return Math.max(5, base + jitter);
-    };
-
-    // Paragraph pause detection
-    const isParagraphBreak = (idx: number): boolean => {
-      return content[idx] === "\n" && content[idx + 1] === "\n";
-    };
+    // Fast, consistent speed: advance multiple safe points per frame
+    const CHARS_PER_FRAME = 3; // ~3 chars per 16ms frame = ~180 chars/sec
 
     const animate = (timestamp: number) => {
       if (!lastTime) lastTime = timestamp;
       const elapsed = timestamp - lastTime;
 
-      const currentChar = content[safePoints[pointIndex]] || "";
-      const delay = isParagraphBreak(safePoints[pointIndex])
-        ? 200
-        : getDelay(currentChar);
-
-      if (elapsed >= delay) {
-        // Advance by one safe point (could be a whole LaTeX block)
-        pointIndex = Math.min(pointIndex + 1, safePoints.length - 1);
+      if (elapsed >= 12) {
+        // Advance by multiple safe points for speed
+        pointIndex = Math.min(pointIndex + CHARS_PER_FRAME, safePoints.length - 1);
         setDisplayedContent(content.slice(0, safePoints[pointIndex]));
         lastTime = timestamp;
 

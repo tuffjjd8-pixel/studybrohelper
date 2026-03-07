@@ -178,7 +178,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ duration: 0.15 }}
         className="glass-card p-6 neon-border"
       >
         <div className="flex items-center justify-between mb-4">
