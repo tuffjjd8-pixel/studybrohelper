@@ -59,26 +59,19 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
 
     const safePoints = computeSafePoints(content);
     let pointIndex = 0;
-    let lastTime = 0;
 
-    // Fast, consistent speed: advance multiple safe points per frame
-    const CHARS_PER_FRAME = 3; // ~3 chars per 16ms frame = ~180 chars/sec
+    // 2–3 chars per RAF frame (~16ms) = ~120–180 chars/sec
+    // No timestamp gating — advance every single frame for smoothness
+    const CHARS_PER_FRAME = 3;
 
-    const animate = (timestamp: number) => {
-      if (!lastTime) lastTime = timestamp;
-      const elapsed = timestamp - lastTime;
+    const animate = () => {
+      pointIndex = Math.min(pointIndex + CHARS_PER_FRAME, safePoints.length - 1);
+      setDisplayedContent(content.slice(0, safePoints[pointIndex]));
 
-      if (elapsed >= 12) {
-        // Advance by multiple safe points for speed
-        pointIndex = Math.min(pointIndex + CHARS_PER_FRAME, safePoints.length - 1);
-        setDisplayedContent(content.slice(0, safePoints[pointIndex]));
-        lastTime = timestamp;
-
-        if (pointIndex >= safePoints.length - 1) {
-          setIsComplete(true);
-          onComplete?.();
-          return;
-        }
+      if (pointIndex >= safePoints.length - 1) {
+        setIsComplete(true);
+        onComplete?.();
+        return;
       }
 
       animationRef.current = requestAnimationFrame(animate);
@@ -91,7 +84,8 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [content, onComplete]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content]);
 
   // Skip animation on click
   const handleSkip = useCallback(() => {
