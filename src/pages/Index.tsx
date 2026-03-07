@@ -202,21 +202,35 @@ const Index = () => {
       }
     }
     try {
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke("solve-homework", {
-        body: {
-          question: input,
-          image: imageData,
-          isPremium,
-          animatedSteps: solveFlow,
-          generateGraph: false,
-          solveMode: isPremium ? solveMode : "instant",
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
-        }
-      });
-      if (error) throw error;
+      // Check session cache first
+      const cacheKey = input || (imageData ? "image" : "");
+      const cachedResult = getCachedSolve(cacheKey, !!imageData, isPremium, isPremium ? solveMode : "instant");
+      
+      let data: any;
+      if (cachedResult && !imageData) {
+        // Use cached result (skip for image solves since images differ)
+        data = cachedResult;
+      } else {
+        const {
+          data: freshData,
+          error
+        } = await supabase.functions.invoke("solve-homework", {
+          body: {
+            question: input,
+            image: imageData,
+            isPremium,
+            animatedSteps: solveFlow,
+            generateGraph: false,
+            solveMode: isPremium ? solveMode : "instant",
+            deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
+          }
+        });
+        if (error) throw error;
+        data = freshData;
+        
+        // Cache the result
+        setCachedSolve(cacheKey, !!imageData, isPremium, isPremium ? solveMode : "instant", data);
+      }
       let solveId: string | undefined;
 
       // Save to database if logged in
