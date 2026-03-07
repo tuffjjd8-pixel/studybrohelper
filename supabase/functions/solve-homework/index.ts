@@ -414,6 +414,7 @@ import {
 import { logUsage } from "../_shared/usage-logger.ts";
 import { detectInjection, logSecurityEvent } from "../_shared/security-logger.ts";
 import { checkUserBlocked, blockedResponse } from "../_shared/ban-check.ts";
+import { needsSymbolicVerification, verifySymbolic } from "../_shared/symbolic-engine.ts";
 
 // Call Groq API for text-only input with key rotation
 async function callGroqText(
