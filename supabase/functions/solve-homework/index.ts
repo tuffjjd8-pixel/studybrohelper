@@ -414,6 +414,7 @@ import {
 import { logUsage } from "../_shared/usage-logger.ts";
 import { detectInjection, logSecurityEvent } from "../_shared/security-logger.ts";
 import { checkUserBlocked, blockedResponse } from "../_shared/ban-check.ts";
+import { needsSymbolicVerification, verifySymbolic } from "../_shared/symbolic-engine.ts";
 
 // Call Groq API for text-only input with key rotation
 async function callGroqText(
@@ -668,16 +669,17 @@ serve(async (req) => {
     let solution: string;
     let modelUsed: string;
     let ocrEngineUsed: string = "none";
+    let symbolicResult: string | null = null;
+
+    // Determine if we should run symbolic verification (Deep Mode + algebra-like question)
+    const shouldRunSymbolic = effectiveMode === "deep" && question && needsSymbolicVerification(question);
 
     // Route to appropriate model based on input type and tier
     if (image) {
       if (!isPremium) {
-        // Free users: no vision model, extract text concept only via text model
-        // Still use vision for basic OCR but log as free tier
         ocrEngineUsed = "free_groq_vision";
         modelUsed = GROQ_VISION_MODEL;
       } else {
-        // Pro users: full enhanced vision OCR
         ocrEngineUsed = "pro_groq_vision_enhanced";
         modelUsed = GROQ_VISION_MODEL;
       }
@@ -688,20 +690,40 @@ serve(async (req) => {
       }
       const mimeType = matches[1];
       const base64Data = matches[2];
-      solution = await callGroqVision(
-        question || "", 
-        base64Data, 
-        mimeType, 
-        isPremium, 
-        animatedSteps,
-        effectiveMode
-      );
+      
+      // Run vision + symbolic in parallel when applicable
+      if (shouldRunSymbolic) {
+        const [visionResult, symResult] = await Promise.all([
+          callGroqVision(question || "", base64Data, mimeType, isPremium, animatedSteps, effectiveMode),
+          verifySymbolic(question).catch(() => null),
+        ]);
+        solution = visionResult;
+        symbolicResult = symResult;
+      } else {
+        solution = await callGroqVision(question || "", base64Data, mimeType, isPremium, animatedSteps, effectiveMode);
+      }
     } else if (question) {
-      // Text-only input → route to tier-appropriate text model
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-      solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode);
+      
+      // Run text model + symbolic in parallel when applicable
+      if (shouldRunSymbolic) {
+        const [textResult, symResult] = await Promise.all([
+          callGroqText(question, isPremium, animatedSteps, effectiveMode),
+          verifySymbolic(question).catch(() => null),
+        ]);
+        solution = textResult;
+        symbolicResult = symResult;
+      } else {
+        solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode);
+      }
     } else {
       throw new Error("Please provide a question or image");
+    }
+    
+    // If symbolic engine returned a result, append it to strengthen the answer
+    if (symbolicResult) {
+      solution += `\n\n---\n**${symbolicResult}**`;
+      console.log("[SymbolicEngine] Appended verification:", symbolicResult);
     }
     
     // If graph generation is enabled, call OpenRouter separately for graph data
@@ -738,6 +760,7 @@ serve(async (req) => {
         ocr_engine_used: ocrEngineUsed,
         device_type: deviceType,
         solve_mode: effectiveMode,
+        symbolic_used: !!symbolicResult,
       }
     };
     
