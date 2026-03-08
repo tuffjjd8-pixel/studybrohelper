@@ -152,10 +152,11 @@ const Quiz = () => {
   const filteredSolves = solves.filter(solve => solve.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) || solve.subject.toLowerCase().includes(searchQuery.toLowerCase()));
   const isAdmin = user?.email === ADMIN_EMAIL;
   const isPremium = profile?.is_premium === true;
+  const hasUnlimitedQuizzes = isPremium || isAdmin;
   const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
   const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
   const quizzesRemaining = dailyLimit - quizzesUsedToday;
-  const canGenerateQuiz = quizzesRemaining > 0;
+  const canGenerateQuiz = hasUnlimitedQuizzes || quizzesRemaining > 0;
   const usagePercent = quizzesUsedToday / dailyLimit * 100;
   const handleGenerate = async () => {
     if (!selectedSolve && !topicInput.trim()) {
