@@ -56,6 +56,8 @@ const getTopicFromSubject = (subject: string) => {
   return subject.charAt(0).toUpperCase() + subject.slice(1) || "General";
 };
 
+const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
+
 const Quiz = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -148,6 +150,7 @@ const Quiz = () => {
     }
   };
   const filteredSolves = solves.filter(solve => solve.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) || solve.subject.toLowerCase().includes(searchQuery.toLowerCase()));
+  const isAdmin = user?.email === ADMIN_EMAIL;
   const isPremium = profile?.is_premium === true;
   const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
   const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
@@ -470,8 +473,8 @@ const Quiz = () => {
         }} transition={{
           delay: 0.1
         }} className="bg-card border border-border rounded-xl p-6 mb-6">
-              {/* Recommended Topic Banner */}
-              {recommendedTopic && (
+              {/* Recommended Topic Banner — Admin only */}
+              {isAdmin && recommendedTopic && (
                 <div className="mb-6 p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center gap-3">
                   <Target className="w-5 h-5 text-primary shrink-0" />
                   <div>
@@ -481,7 +484,8 @@ const Quiz = () => {
                 </div>
               )}
 
-              {/* Topic Input */}
+              {/* Topic Input — Admin only */}
+              {isAdmin && (
               <div className="space-y-2 mb-6">
                 <Label htmlFor="topicInput">Topic</Label>
                 <Input
@@ -495,6 +499,7 @@ const Quiz = () => {
                   Enter a topic directly, or select a conversation below for more targeted questions
                 </p>
               </div>
+              )}
 
               {/* Conversation Selector */}
               <div className="space-y-2 mb-6">
