@@ -484,7 +484,8 @@ const Quiz = () => {
                 </div>
               )}
 
-              {/* Topic Input */}
+              {/* Topic Input — Admin only */}
+              {isAdmin && (
               <div className="space-y-2 mb-6">
                 <Label htmlFor="topicInput">Topic</Label>
                 <Input
@@ -498,6 +499,7 @@ const Quiz = () => {
                   Enter a topic directly, or select a conversation below for more targeted questions
                 </p>
               </div>
+              )}
 
               {/* Conversation Selector */}
               <div className="space-y-2 mb-6">
