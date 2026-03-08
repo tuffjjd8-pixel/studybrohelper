@@ -514,7 +514,7 @@ const Quiz = () => {
 
               {/* Conversation Selector */}
               <div className="space-y-2 mb-6">
-                <Label>Select a conversation <span className="text-muted-foreground">(optional)</span></Label>
+                <Label>​ <span className="text-muted-foreground">(optional)</span></Label>
                 <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between text-left font-normal h-auto min-h-11 py-2">
