@@ -56,6 +56,8 @@ const getTopicFromSubject = (subject: string) => {
   return subject.charAt(0).toUpperCase() + subject.slice(1) || "General";
 };
 
+const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
+
 const Quiz = () => {
   const navigate = useNavigate();
   const location = useLocation();
