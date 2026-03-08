@@ -164,8 +164,8 @@ const Quiz = () => {
       return;
     }
 
-    // Check daily limit
-    if (!canGenerateQuiz) {
+    // Check daily limit (skip for unlimited users)
+    if (!hasUnlimitedQuizzes && !canGenerateQuiz) {
       toast.error("Daily quiz limit reached. Try again tomorrow or upgrade for more.");
       return;
     }
