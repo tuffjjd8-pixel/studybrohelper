@@ -62,6 +62,14 @@ function sanitizeQuizOutput(questions: any[]): any[] {
   }).filter(q => q.question && q.options.length === 4);
 }
 
+// Fix LaTeX backslashes that break JSON parsing
+// \( \) \frac \sqrt \pm \cdot \theta etc. are invalid JSON escapes
+function fixLatexInJSON(raw: string): string {
+  // Replace backslash followed by characters that are NOT valid JSON escapes (n, t, r, ", \\, /, b, f, u)
+  // This turns \( into \\( , \frac into \\frac, etc., making them valid JSON strings
+  return raw.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+}
+
 // Parse JSON with multiple fallback strategies
 function parseQuizJSON(content: string): any {
   let cleanContent = content.trim();
@@ -81,36 +89,44 @@ function parseQuizJSON(content: string): any {
   try {
     return JSON.parse(cleanContent);
   } catch (e) {
-    console.log("Direct parse failed, trying fallbacks...");
+    console.log("Direct parse failed, trying LaTeX fix...");
   }
 
-  // Strategy 3: Find JSON object pattern
+  // Strategy 3: Fix LaTeX backslashes then parse
+  const latexFixed = fixLatexInJSON(cleanContent);
+  try {
+    return JSON.parse(latexFixed);
+  } catch (e) {
+    console.log("LaTeX-fixed parse failed, trying pattern extraction...");
+  }
+
+  // Strategy 4: Find JSON object pattern + LaTeX fix
   const jsonObjectMatch = cleanContent.match(/\{[\s\S]*\}/);
   if (jsonObjectMatch) {
     try {
-      return JSON.parse(jsonObjectMatch[0]);
+      return JSON.parse(fixLatexInJSON(jsonObjectMatch[0]));
     } catch (e) {
       console.log("Object pattern parse failed");
     }
   }
 
-  // Strategy 4: Find JSON array pattern
+  // Strategy 5: Find JSON array pattern + LaTeX fix
   const jsonArrayMatch = cleanContent.match(/\[[\s\S]*\]/);
   if (jsonArrayMatch) {
     try {
-      const arr = JSON.parse(jsonArrayMatch[0]);
+      const arr = JSON.parse(fixLatexInJSON(jsonArrayMatch[0]));
       return { questions: arr };
     } catch (e) {
       console.log("Array pattern parse failed");
     }
   }
 
-  // Strategy 5: Fix common JSON issues
-  let fixedContent = cleanContent
-    .replace(/,\s*}/g, '}')  // Remove trailing commas in objects
-    .replace(/,\s*\]/g, ']') // Remove trailing commas in arrays
-    .replace(/'/g, '"')       // Replace single quotes with double
-    .replace(/(\w+):/g, '"$1":'); // Add quotes to unquoted keys
+  // Strategy 6: Fix common JSON issues
+  let fixedContent = latexFixed
+    .replace(/,\s*}/g, '}')
+    .replace(/,\s*\]/g, ']')
+    .replace(/'/g, '"')
+    .replace(/(\w+):/g, '"$1":');
   
   try {
     return JSON.parse(fixedContent);
