@@ -443,21 +443,29 @@ const Quiz = () => {
         }} transition={{
           delay: 0.05
         }} className="bg-card border border-border rounded-xl p-4 mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Quizzes Remaining</span>
-              <span className="text-sm text-muted-foreground">
-                {quizzesUsedToday}/{dailyLimit} used today
-              </span>
-            </div>
-            <Progress value={usagePercent} className="h-2 mb-2" />
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{quizzesRemaining} remaining</span>
-              <span>Resets at midnight</span>
-            </div>
-            
-            {!canGenerateQuiz && <div className="mt-3 p-3 bg-destructive/10 border border-destructive/30 rounded-lg flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-destructive" />
-                <span className="text-sm text-destructive">
+            {hasUnlimitedQuizzes && !isAdmin ? (
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Quizzes</span>
+                <span className="text-sm font-semibold text-primary flex items-center gap-1">
+                  <Crown className="w-3.5 h-3.5" /> Unlimited
+                </span>
+              </div>
+            ) : !isAdmin ? (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Quizzes Remaining</span>
+                  <span className="text-sm text-muted-foreground">
+                    {quizzesUsedToday}/{dailyLimit} used today
+                  </span>
+                </div>
+                <Progress value={usagePercent} className="h-2 mb-2" />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{quizzesRemaining} remaining</span>
+                  <span>Resets at midnight</span>
+                </div>
+                {!canGenerateQuiz && <div className="mt-3 p-3 bg-destructive/10 border border-destructive/30 rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-destructive" />
+                    <span className="text-sm text-destructive">
                   Daily limit reached. 
                   {!isPremium && <Link to="/premium" className="ml-1 underline">Upgrade for more</Link>}
                 </span>
