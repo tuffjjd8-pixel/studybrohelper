@@ -30,6 +30,14 @@ const PREMIUM_GRAPHS_PER_DAY = 15;
 
 // Shared formatting rules used by both tiers
 const SHARED_FORMATTING_RULES = `
+## PLAIN TEXT OUTPUT (MANDATORY):
+- Output plain text ONLY. No HTML tags (no <p>, <div>, <span>, <br>, <strong>, <em>, etc.).
+- No inline styles, no background colors, no rich-text formatting.
+- No markdown formatting except headers (**bold**) and inline math delimiters.
+- Never wrap text in code blocks or backticks (except for actual code questions).
+- Never include hidden characters or zero-width spaces.
+- Your output must paste cleanly into Google Docs, Canvas, Notes with ZERO styling artifacts.
+
 ## Subject Detection:
 - First, identify what subject the question is about
 - Respond using the appropriate format and conventions for that subject
