@@ -292,6 +292,15 @@ OUTPUT RULES:
 - All fields MUST be present. No null, undefined, or empty fields.
 - The JSON MUST be valid and parseable on the first try.
 
+PLAIN TEXT RULES:
+- All question text, options, and explanations MUST be plain text only.
+- NEVER output HTML tags (no <p>, <div>, <span>, <br>, <strong>, <em>, etc.).
+- NEVER output inline styles, background colors, or any rich-text formatting.
+- NEVER wrap text in code blocks or backticks.
+- NEVER include hidden characters or zero-width spaces.
+- The ONLY special formatting allowed is KaTeX inline math: \\( ... \\)
+- Text must paste cleanly into Google Docs, Canvas, Notes with zero styling artifacts.
+
 QUIZ FORMAT:
 Generate EXACTLY ${validCount} questions. Difficulty context: ${subject || "general"}.
 ${effectiveStrictMode ? `STRICT COUNT MODE: You MUST generate exactly ${validCount} questions. If content is limited, expand using well-known factual information related to the topic.` : `ADAPTIVE MODE: Target ${validCount} questions, but generate FEWER if content is too limited. Do NOT hallucinate.`}
