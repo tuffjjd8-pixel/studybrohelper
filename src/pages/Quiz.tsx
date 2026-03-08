@@ -473,8 +473,8 @@ const Quiz = () => {
         }} transition={{
           delay: 0.1
         }} className="bg-card border border-border rounded-xl p-6 mb-6">
-              {/* Recommended Topic Banner */}
-              {recommendedTopic && (
+              {/* Recommended Topic Banner — Admin only */}
+              {isAdmin && recommendedTopic && (
                 <div className="mb-6 p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center gap-3">
                   <Target className="w-5 h-5 text-primary shrink-0" />
                   <div>
