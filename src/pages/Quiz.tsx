@@ -150,6 +150,7 @@ const Quiz = () => {
     }
   };
   const filteredSolves = solves.filter(solve => solve.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) || solve.subject.toLowerCase().includes(searchQuery.toLowerCase()));
+  const isAdmin = user?.email === ADMIN_EMAIL;
   const isPremium = profile?.is_premium === true;
   const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
   const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
