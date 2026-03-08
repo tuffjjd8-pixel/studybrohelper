@@ -470,6 +470,8 @@ const Quiz = () => {
                   {!isPremium && <Link to="/premium" className="ml-1 underline">Upgrade for more</Link>}
                 </span>
               </div>}
+              </>
+            ) : null}
           </motion.div>
 
           {/* Configuration Card - Hide when quiz is active */}
