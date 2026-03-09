@@ -879,7 +879,7 @@ const Quiz = () => {
                       const isCorrectOption = getOptionLetter(option) === q.answer;
                       const isUserSelection = userAnswer === option;
                       return <div key={optIdx} className={cn("p-3 rounded-xl border text-sm break-words", isCorrectOption ? "bg-green-500/10 border-green-500/50 text-foreground" : isUserSelection ? "bg-destructive/10 border-destructive/50 text-foreground" : "bg-muted/30 border-border text-muted-foreground")}>
-                                <span className="break-words">{option}</span>
+                                <span className="break-words"><MathText>{option}</MathText></span>
                                 {isCorrectOption && <span className="ml-2 text-green-500 text-xs font-medium">✓ Correct</span>}
                                 {isUserSelection && !isCorrectOption && <span className="ml-2 text-destructive text-xs font-medium">Your answer</span>}
                               </div>;
