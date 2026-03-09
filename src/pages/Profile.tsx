@@ -20,7 +20,8 @@ import {
   Settings,
   Award,
   Target,
-  BarChart3 } from
+  BarChart3,
+  ClipboardList } from
 "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";

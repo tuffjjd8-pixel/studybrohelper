@@ -44,6 +44,7 @@ const CommunityGoalSubmissions = () => {
       const { data, error } = await supabase
         .from("community_goal_submissions")
         .select("*")
+        .neq("screenshot_urls", "{}")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
