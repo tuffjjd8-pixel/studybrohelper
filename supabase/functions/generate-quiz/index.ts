@@ -62,12 +62,36 @@ function sanitizeQuizOutput(questions: any[]): any[] {
   }).filter(q => q.question && q.options.length === 4);
 }
 
-// Fix LaTeX backslashes that break JSON parsing
-// \( \) \frac \sqrt \pm \cdot \theta etc. are invalid JSON escapes
+// Fix LaTeX backslashes and common errors
 function fixLatexInJSON(raw: string): string {
-  // Replace backslash followed by characters that are NOT valid JSON escapes (n, t, r, ", \\, /, b, f, u)
-  // This turns \( into \\( , \frac into \\frac, etc., making them valid JSON strings
-  return raw.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+  // First, fix backslash escaping for JSON parsing
+  let fixed = raw.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+  
+  // Then fix common LaTeX errors after JSON parsing
+  return fixed;
+}
+
+// Post-process quiz to fix common LaTeX errors
+function fixCommonLatexErrors(content: string): string {
+  return content
+    // Fix missing backslash in \frac
+    .replace(/([^\\])rac\{/g, '$1\\frac{')
+    .replace(/^rac\{/g, '\\frac{')
+    // Fix missing opening delimiter \(
+    .replace(/\(([^)]*(?:\\[a-zA-Z]+[^)]*)*)\)/g, (match, inner) => {
+      // Only replace if it contains LaTeX commands
+      if (inner.includes('\\') || inner.includes('{') || inner.includes('^') || inner.includes('_')) {
+        return `\\(${inner}\\)`;
+      }
+      return match;
+    })
+    // Fix standalone math expressions missing delimiters
+    .replace(/([A-Za-z]\))\s*([\\][a-zA-Z]+|[\\][()]|[\\]\[|[\\]\]|\{[^}]*\})/g, '$1 \\($2\\)')
+    // Ensure proper spacing around delimiters
+    .replace(/\\\(\s*/g, '\\(')
+    .replace(/\s*\\\)/g, '\\)')
+    .replace(/\\\[\s*/g, '\\[')
+    .replace(/\s*\\\]/g, '\\]');
 }
 
 // Parse JSON with multiple fallback strategies
