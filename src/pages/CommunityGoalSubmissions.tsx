@@ -48,8 +48,11 @@ const CommunityGoalSubmissions = () => {
 
       if (error) throw error;
 
+      // Only show submissions where proof was uploaded (screenshot_urls not empty)
+      const withProof = (data || []).filter((s) => s.screenshot_urls?.length > 0);
+
       // Fetch display names for all user_ids
-      const userIds = [...new Set((data || []).map((s) => s.user_id))];
+      const userIds = [...new Set(withProof.map((s) => s.user_id))];
       let profileMap: Record<string, string> = {};
 
       if (userIds.length > 0) {
@@ -64,7 +67,7 @@ const CommunityGoalSubmissions = () => {
       }
 
       setSubmissions(
-        (data || []).map((s) => ({
+        withProof.map((s) => ({
           ...s,
           display_name: profileMap[s.user_id] || "Unknown User",
         }))

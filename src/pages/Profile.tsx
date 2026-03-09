@@ -20,7 +20,8 @@ import {
   Settings,
   Award,
   Target,
-  BarChart3 } from
+  BarChart3,
+  ClipboardList } from
 "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
@@ -270,6 +271,9 @@ const Profile = () => {
       </div>);
 
   }
+
+  const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   const maxSpeechClips = profile?.is_premium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS;
   const maxSolveFlow = profile?.is_premium ? PREMIUM_SOLVE_FLOW_PER_DAY : FREE_SOLVE_FLOW_PER_DAY;
@@ -590,6 +594,29 @@ const Profile = () => {
               premiumSince={profile?.premium_until ? new Date(new Date(profile.premium_until).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() : null}
               subscriptionId={profile?.subscription_id} />
             
+
+            {/* Admin-only: Review Community Goal Submissions */}
+            {isAdmin && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.48 }}>
+                <Button
+                  onClick={() => navigate('/community-goal-submissions')}
+                  variant="outline"
+                  className="w-full h-auto py-4 border-primary/30 hover:border-primary/50">
+                  <div className="flex items-center gap-4 w-full">
+                    <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                      <ClipboardList className="w-6 h-6 text-primary" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="font-heading font-bold">Community Goal Submissions</div>
+                      <div className="text-xs text-muted-foreground">Review and approve proof</div>
+                    </div>
+                  </div>
+                </Button>
+              </motion.div>
+            )}
 
             {/* Admin Settings - only visible to admin */}
             <AdminSettings userEmail={user?.email} />
