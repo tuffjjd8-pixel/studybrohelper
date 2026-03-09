@@ -51,23 +51,73 @@ function sanitizeQuizOutput(questions: any[]): any[] {
 
     return {
       question: typeof q.question === 'string' && q.question.trim() 
-        ? q.question.trim() 
+        ? fixCommonLatexErrors(q.question.trim())
         : `Question ${i + 1}`,
-      options,
+      options: options.map(opt => fixCommonLatexErrors(opt)),
       answer,
       explanation: typeof q.explanation === 'string' && q.explanation.trim()
-        ? q.explanation.trim()
+        ? fixCommonLatexErrors(q.explanation.trim())
         : "This is the correct answer based on the material.",
     };
   }).filter(q => q.question && q.options.length === 4);
 }
 
-// Fix LaTeX backslashes that break JSON parsing
-// \( \) \frac \sqrt \pm \cdot \theta etc. are invalid JSON escapes
+// Fix LaTeX backslashes and common errors before JSON parsing
 function fixLatexInJSON(raw: string): string {
-  // Replace backslash followed by characters that are NOT valid JSON escapes (n, t, r, ", \\, /, b, f, u)
-  // This turns \( into \\( , \frac into \\frac, etc., making them valid JSON strings
-  return raw.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+  // First, fix backslash escaping for JSON parsing
+  // LLMs often output \frac instead of \\frac, \theta instead of \\theta, etc.
+  // The standard JSON parser treats \f as form feed, \t as tab, \n as newline, \r as carriage return, \b as backspace
+  let fixed = raw
+    .replace(/\\frac/g, '\\\\frac')
+    .replace(/\\theta/g, '\\\\theta')
+    .replace(/\\times/g, '\\\\times')
+    .replace(/\\text/g, '\\\\text')
+    .replace(/\\tau/g, '\\\\tau')
+    .replace(/\\to/g, '\\\\to')
+    .replace(/\\right/g, '\\\\right')
+    .replace(/\\ne/g, '\\\\ne')
+    .replace(/\\nabla/g, '\\\\nabla')
+    .replace(/\\nu/g, '\\\\nu')
+    .replace(/\\beta/g, '\\\\beta')
+    .replace(/\\bar/g, '\\\\bar')
+    .replace(/\\binom/g, '\\\\binom');
+
+  // Then replace backslash followed by characters that are NOT valid JSON escapes
+  return fixed.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+}
+
+// Post-process quiz to fix common LaTeX errors
+function fixCommonLatexErrors(content: string): string {
+  if (typeof content !== 'string') return content;
+  
+  return content
+    // Fix missing backslash in \frac and clean up any form feeds (\f -> \x0c) parsed by accident
+    .replace(/\x0crac\{/g, '\\frac{')
+    .replace(/([^\\])rac\{/g, '$1\\frac{')
+    .replace(/^rac\{/g, '\\frac{')
+    
+    // Fix \theta which might have been parsed as tab (\t -> \x09) + heta
+    .replace(/\x09heta/g, '\\theta')
+    
+    // Fix \times which might have been parsed as tab (\t -> \x09) + imes
+    .replace(/\x09imes/g, '\\times')
+    
+    // Fix \right which might have been parsed as carriage return (\r -> \x0d) + ight
+    .replace(/\x0dight/g, '\\right')
+
+    // Fix missing delimiters ( ... ) -> \( ... \) if it contains LaTeX commands and isn't already escaped
+    .replace(/(^|[^\\])\(([^)]*(?:\\[a-zA-Z]+|\^|_|\\{)[^)]*)\)(?!\S)/g, (match, before, inner) => {
+      return `${before}\\(${inner}\\)`;
+    })
+    
+    // Fix standalone math expressions missing delimiters
+    .replace(/([A-Za-z]\))\s*([\\][a-zA-Z]+|[\\][()]|[\\]\[|[\\]\]|\{[^}]*\})/g, '$1 \\($2\\)')
+    
+    // Ensure proper spacing around delimiters
+    .replace(/\\\(\s*/g, '\\(')
+    .replace(/\s*\\\)/g, '\\)')
+    .replace(/\\\[\s*/g, '\\[')
+    .replace(/\s*\\\]/g, '\\]');
 }
 
 // Parse JSON with multiple fallback strategies

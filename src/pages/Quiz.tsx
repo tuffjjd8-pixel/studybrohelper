@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import { MathText } from "@/components/quiz/MathText";
 import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -727,7 +728,7 @@ const Quiz = () => {
                 x: -20
               }} className="bg-card border border-border rounded-xl p-6">
                   <h2 className="text-lg font-medium mb-6">
-                    {quizResult[currentQuestion].question}
+                    <MathText>{quizResult[currentQuestion].question}</MathText>
                   </h2>
 
                   {/* Options */}
@@ -747,7 +748,7 @@ const Quiz = () => {
                     submitted && isCorrect ? "bg-green-500/10 border-green-500 text-foreground" : submitted && isSelected && !isCorrect ? "bg-destructive/10 border-destructive text-foreground"
                     // During quiz after selection: show if user was correct/wrong
                     : isSelected && userSelectedCorrect ? "bg-green-500/10 border-green-500 text-foreground" : isSelected && userSelectedWrong ? "bg-destructive/10 border-destructive text-foreground" : isSelected ? "bg-primary/10 border-primary text-foreground" : hasAnswered ? "bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60" : "bg-card border-border hover:border-primary/50 text-foreground", (hasAnswered || submitted) && "cursor-default")}>
-                          <span className="font-medium">{option}</span>
+                          <span className="font-medium"><MathText>{option}</MathText></span>
                         </motion.button>;
                   })}
                   </div>
@@ -762,7 +763,7 @@ const Quiz = () => {
                 }} className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
                       <p className="text-sm text-green-400 flex items-start gap-2">
                         <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
-                        <span className="font-medium">Correct! {quizResult[currentQuestion].explanation}</span>
+                        <span className="font-medium">Correct! <MathText>{quizResult[currentQuestion].explanation}</MathText></span>
                       </p>
                     </motion.div>}
 
@@ -868,7 +869,7 @@ const Quiz = () => {
                         </span>
                       </div>
                       
-                      <h3 className="font-medium mb-4 text-sm sm:text-base break-words">{q.question}</h3>
+                      <h3 className="font-medium mb-4 text-sm sm:text-base break-words"><MathText>{q.question}</MathText></h3>
 
                       {/* Options - Different view for Free vs Premium */}
                       <div className="space-y-2 mb-4">
@@ -878,7 +879,7 @@ const Quiz = () => {
                       const isCorrectOption = getOptionLetter(option) === q.answer;
                       const isUserSelection = userAnswer === option;
                       return <div key={optIdx} className={cn("p-3 rounded-xl border text-sm break-words", isCorrectOption ? "bg-green-500/10 border-green-500/50 text-foreground" : isUserSelection ? "bg-destructive/10 border-destructive/50 text-foreground" : "bg-muted/30 border-border text-muted-foreground")}>
-                                <span className="break-words">{option}</span>
+                                <span className="break-words"><MathText>{option}</MathText></span>
                                 {isCorrectOption && <span className="ml-2 text-green-500 text-xs font-medium">✓ Correct</span>}
                                 {isUserSelection && !isCorrectOption && <span className="ml-2 text-destructive text-xs font-medium">Your answer</span>}
                               </div>;
@@ -887,7 +888,7 @@ const Quiz = () => {
                     <div className="space-y-2">
                             <div className={cn("p-3 rounded-xl border text-sm", isCorrect ? "bg-green-500/10 border-green-500/50" : "bg-destructive/10 border-destructive/50")}>
                               <span className="text-xs text-muted-foreground block mb-1">Your answer:</span>
-                              <span className="break-words">{userAnswer || "Not answered"}</span>
+                              <span className="break-words"><MathText>{typeof userAnswer === 'string' ? userAnswer : "Not answered"}</MathText></span>
                             </div>
                             {!isCorrect && <div className="p-3 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 text-sm">
                                 <Lock className="w-3 h-3 inline mr-1.5 text-muted-foreground" />
@@ -902,7 +903,7 @@ const Quiz = () => {
                       {isPremium ? <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
                           <p className="text-sm">
                             <span className="font-medium text-primary block mb-1">Why this is correct:</span>
-                            <span className="text-muted-foreground break-words">{q.explanation}</span>
+                            <span className="text-muted-foreground break-words"><MathText>{q.explanation}</MathText></span>
                           </p>
                         </div> : <div className="p-3 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-xl text-center">
                           <Lock className="w-4 h-4 inline mr-1.5 text-muted-foreground" />
