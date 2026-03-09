@@ -341,6 +341,8 @@ serve(async (req) => {
 
 OUTPUT RULES:
 - Output ONLY valid JSON. No markdown fences. No explanations outside the JSON.
+- Do NOT add any commentary before/after the JSON (no "Note:", no apologies, no extra text).
+- Because you are outputting JSON, every LaTeX backslash MUST be written as \\ in the JSON text (examples: \\frac, \\lambda, \\( ... \\), \\[ ... \\]).
 - Never include backslashes outside LaTeX math mode.
 - All fields MUST be present. No null, undefined, or empty fields.
 - The JSON MUST be valid and parseable on the first try.
