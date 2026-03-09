@@ -888,7 +888,7 @@ const Quiz = () => {
                     <div className="space-y-2">
                             <div className={cn("p-3 rounded-xl border text-sm", isCorrect ? "bg-green-500/10 border-green-500/50" : "bg-destructive/10 border-destructive/50")}>
                               <span className="text-xs text-muted-foreground block mb-1">Your answer:</span>
-                              <span className="break-words">{userAnswer || "Not answered"}</span>
+                              <span className="break-words"><MathText>{typeof userAnswer === 'string' ? userAnswer : "Not answered"}</MathText></span>
                             </div>
                             {!isCorrect && <div className="p-3 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 text-sm">
                                 <Lock className="w-3 h-3 inline mr-1.5 text-muted-foreground" />
