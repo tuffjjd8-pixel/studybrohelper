@@ -62,28 +62,31 @@ function sanitizeQuizOutput(questions: any[]): any[] {
   }).filter(q => q.question && q.options.length === 4);
 }
 
-// Fix LaTeX backslashes and common errors before JSON parsing
+// Fix LaTeX inside JSON returned by the LLM.
+// IMPORTANT: The Groq API response itself is JSON; sequences like "\frac" may already have been
+// decoded into control characters (e.g. \f form-feed) *before* we ever see `content`.
+// We must first restore those into backslash-commands, then make the JSON parseable.
 function fixLatexInJSON(raw: string): string {
-  // First, fix backslash escaping for JSON parsing
-  // LLMs often output \frac instead of \\frac, \theta instead of \\theta, etc.
-  // The standard JSON parser treats \f as form feed, \t as tab, \n as newline, \r as carriage return, \b as backspace
-  let fixed = raw
-    .replace(/\\frac/g, '\\\\frac')
-    .replace(/\\theta/g, '\\\\theta')
-    .replace(/\\times/g, '\\\\times')
-    .replace(/\\text/g, '\\\\text')
-    .replace(/\\tau/g, '\\\\tau')
-    .replace(/\\to/g, '\\\\to')
-    .replace(/\\right/g, '\\\\right')
-    .replace(/\\ne/g, '\\\\ne')
-    .replace(/\\nabla/g, '\\\\nabla')
-    .replace(/\\nu/g, '\\\\nu')
-    .replace(/\\beta/g, '\\\\beta')
-    .replace(/\\bar/g, '\\\\bar')
-    .replace(/\\binom/g, '\\\\binom');
+  const restored = raw
+    // Restore control characters that commonly come from JSON-decoding LaTeX commands
+    // \f in "\frac" -> form feed (0x0c) + "rac"; restore to "\\frac" in the JSON text
+    .replace(/\x0c(?=[A-Za-z])/g, "\\\\f")
+    // \t in "\theta", "\times", "\to" -> tab (0x09)
+    .replace(/\x09(?=[A-Za-z])/g, "\\\\t")
+    // \n in "\nabla", etc. -> newline (0x0a)
+    .replace(/\x0a(?=[A-Za-z])/g, "\\\\n")
+    // \r in "\rho", "\right" -> carriage return (0x0d)
+    .replace(/\x0d(?=[A-Za-z])/g, "\\\\r")
+    // \b in "\beta", "\bar", etc. -> backspace (0x08)
+    .replace(/\x08(?=[A-Za-z])/g, "\\\\b");
 
-  // Then replace backslash followed by characters that are NOT valid JSON escapes
-  return fixed.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+  return restored
+    // \u is a JSON unicode escape; escape it unless it's followed by 4 hex digits
+    .replace(/(?<!\\)\\u(?![0-9a-fA-F]{4})/g, "\\\\u")
+    // \f, \t, \n, \r, \b are JSON escapes; escape them when they start LaTeX commands
+    .replace(/(?<!\\)\\([bfnrt])(?=[A-Za-z])/g, "\\\\$1")
+    // Escape every other backslash that isn't a valid JSON escape start
+    .replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
 }
 
 // Post-process quiz to fix common LaTeX errors
@@ -147,7 +150,11 @@ function parseQuizJSON(content: string): any {
   try {
     return JSON.parse(latexFixed);
   } catch (e) {
-    console.log("LaTeX-fixed parse failed, trying pattern extraction...");
+    console.log(
+      "LaTeX-fixed parse failed:",
+      e instanceof Error ? e.message : String(e),
+      "— trying pattern extraction..."
+    );
   }
 
   // Strategy 4: Find JSON object pattern + LaTeX fix
@@ -156,7 +163,7 @@ function parseQuizJSON(content: string): any {
     try {
       return JSON.parse(fixLatexInJSON(jsonObjectMatch[0]));
     } catch (e) {
-      console.log("Object pattern parse failed");
+      console.log("Object pattern parse failed:", e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -167,7 +174,7 @@ function parseQuizJSON(content: string): any {
       const arr = JSON.parse(fixLatexInJSON(jsonArrayMatch[0]));
       return { questions: arr };
     } catch (e) {
-      console.log("Array pattern parse failed");
+      console.log("Array pattern parse failed:", e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -181,7 +188,7 @@ function parseQuizJSON(content: string): any {
   try {
     return JSON.parse(fixedContent);
   } catch (e) {
-    console.log("Fixed content parse failed");
+    console.log("Fixed content parse failed:", e instanceof Error ? e.message : String(e));
   }
 
   throw new Error("Unable to parse quiz JSON after all strategies");
@@ -338,6 +345,8 @@ serve(async (req) => {
 
 OUTPUT RULES:
 - Output ONLY valid JSON. No markdown fences. No explanations outside the JSON.
+- Do NOT add any commentary before/after the JSON (no "Note:", no apologies, no extra text).
+- Because you are outputting JSON, every LaTeX backslash MUST be written as \\ in the JSON text (examples: \\frac, \\lambda, \\( ... \\), \\[ ... \\]).
 - Never include backslashes outside LaTeX math mode.
 - All fields MUST be present. No null, undefined, or empty fields.
 - The JSON MUST be valid and parseable on the first try.
