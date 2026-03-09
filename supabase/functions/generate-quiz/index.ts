@@ -174,7 +174,7 @@ function parseQuizJSON(content: string): any {
       const arr = JSON.parse(fixLatexInJSON(jsonArrayMatch[0]));
       return { questions: arr };
     } catch (e) {
-      console.log("Array pattern parse failed");
+      console.log("Array pattern parse failed:", e instanceof Error ? e.message : String(e));
     }
   }
 
