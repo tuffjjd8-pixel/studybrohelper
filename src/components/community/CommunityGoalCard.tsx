@@ -74,6 +74,15 @@ export function CommunityGoalCard({ onParticipationChange }: CommunityGoalCardPr
     fetchGoal().then(() => {});
   }, []);
 
+  // Sync participation state when goal loads
+  useEffect(() => {
+    if (goal) {
+      const saved = getParticipation(goal.id);
+      setParticipate(saved);
+      onParticipationChange?.(saved);
+    }
+  }, [goal]);
+
   // Check if user already submitted for this goal
   useEffect(() => {
     if (!user || !goal) return;
@@ -91,14 +100,11 @@ export function CommunityGoalCard({ onParticipationChange }: CommunityGoalCardPr
   }, [user, goal]);
 
   const handleParticipationChange = (value: boolean) => {
+    if (!goal) return;
     setParticipate(value);
-    localStorage.setItem(PARTICIPATION_KEY, String(value));
+    setParticipationForGoal(goal.id, value);
     onParticipationChange?.(value);
   };
-
-  useEffect(() => {
-    onParticipationChange?.(participate);
-  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
