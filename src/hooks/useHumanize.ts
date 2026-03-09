@@ -5,6 +5,7 @@ import type { HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider
 
 interface UseHumanizeOptions {
   isPremium: boolean;
+  isAuthenticated?: boolean;
 }
 
 export function useHumanize({ isPremium }: UseHumanizeOptions) {

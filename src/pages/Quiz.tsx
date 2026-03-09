@@ -159,6 +159,11 @@ const Quiz = () => {
   const canGenerateQuiz = hasUnlimitedQuizzes || quizzesRemaining > 0;
   const usagePercent = quizzesUsedToday / dailyLimit * 100;
   const handleGenerate = async () => {
+    // Auth guard: require sign-in for AI features
+    if (!user) {
+      toast.error("Please sign in to use AI features.");
+      return;
+    }
     if (!selectedSolve && !topicInput.trim()) {
       toast.error("Please select a conversation or enter a topic");
       return;

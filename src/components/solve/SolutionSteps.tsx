@@ -85,6 +85,11 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
   const handleFollowUpSubmit = async () => {
     if (!followUpText.trim() || isAsking) return;
+    // Auth guard: require sign-in for AI features
+    if (!solveId) {
+      toast.error("Please sign in to use AI features.");
+      return;
+    }
     if (followUpLimitReached) {
       toast.error("Follow-up limit reached. Upgrade to Pro for unlimited!");
       return;
