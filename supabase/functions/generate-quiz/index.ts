@@ -105,16 +105,14 @@ function fixCommonLatexErrors(content: string): string {
     // Fix \right which might have been parsed as carriage return (\r -> \x0d) + ight
     .replace(/\x0dight/g, '\\right')
 
-    // Fix missing opening delimiter \( (if the prompt generated them as ( ... ))
-    .replace(/\(([^)]*(?:\\[a-zA-Z]+[^)]*)*)\)/g, (match, inner) => {
-      // Only replace if it contains LaTeX commands
-      if (inner.includes('\\') || inner.includes('{') || inner.includes('^') || inner.includes('_')) {
-        return `\\(${inner}\\)`;
-      }
-      return match;
+    // Fix missing delimiters ( ... ) -> \( ... \) if it contains LaTeX commands and isn't already escaped
+    .replace(/(^|[^\\])\(([^)]*(?:\\[a-zA-Z]+|\^|_|\\{)[^)]*)\)(?!\S)/g, (match, before, inner) => {
+      return `${before}\\(${inner}\\)`;
     })
+    
     // Fix standalone math expressions missing delimiters
     .replace(/([A-Za-z]\))\s*([\\][a-zA-Z]+|[\\][()]|[\\]\[|[\\]\]|\{[^}]*\})/g, '$1 \\($2\\)')
+    
     // Ensure proper spacing around delimiters
     .replace(/\\\(\s*/g, '\\(')
     .replace(/\s*\\\)/g, '\\)')
