@@ -51,12 +51,12 @@ function sanitizeQuizOutput(questions: any[]): any[] {
 
     return {
       question: typeof q.question === 'string' && q.question.trim() 
-        ? q.question.trim() 
+        ? fixCommonLatexErrors(q.question.trim())
         : `Question ${i + 1}`,
-      options,
+      options: options.map(opt => fixCommonLatexErrors(opt)),
       answer,
       explanation: typeof q.explanation === 'string' && q.explanation.trim()
-        ? q.explanation.trim()
+        ? fixCommonLatexErrors(q.explanation.trim())
         : "This is the correct answer based on the material.",
     };
   }).filter(q => q.question && q.options.length === 4);
