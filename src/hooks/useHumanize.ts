@@ -61,7 +61,7 @@ export function useHumanize({ isPremium, isAuthenticated = true }: UseHumanizeOp
         setIsHumanizing(false);
       }
     },
-    [isHumanizing, isPremium]
+    [isHumanizing, isPremium, isAuthenticated]
   );
 
   const reset = useCallback(() => {
