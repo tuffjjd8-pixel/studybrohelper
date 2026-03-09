@@ -25,6 +25,7 @@ import ShareLikes from "./pages/ShareLikes";
 import AdminShareLikes from "./pages/AdminShareLikes";
 import AdminCommunityGoal from "./pages/AdminCommunityGoal";
 import CommunityGoalSubmissions from "./pages/CommunityGoalSubmissions";
+import ReviewCommunitySubmissions from "./pages/ReviewCommunitySubmissions";
 import SecurityEventsLog from "./pages/SecurityEventsLog";
 import NotFound from "./pages/NotFound";
 import { GlobalBadgeUnlock } from "./components/badges/GlobalBadgeUnlock";
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/admin/share-likes" element={<AdminShareLikes />} />
             <Route path="/admin/community-goal" element={<AdminCommunityGoal />} />
             <Route path="/community-goal-submissions" element={<CommunityGoalSubmissions />} />
+            <Route path="/review-community-submissions" element={<ReviewCommunitySubmissions />} />
             <Route path="/admin/security-events" element={<SecurityEventsLog />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -265,16 +265,6 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
       </Button>
 
 
-      {/* Review Community Goal Submissions */}
-      <Button
-        variant="outline"
-        onClick={() => navigate("/community-goal-submissions")}
-        className="w-full justify-start gap-2"
-      >
-        <BarChart3 className="w-4 h-4" />
-        Review Community Goal Submissions
-      </Button>
-
       {/* Security Events Log */}
       <Button
         variant="outline"
