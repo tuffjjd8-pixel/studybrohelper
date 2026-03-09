@@ -61,6 +61,7 @@ const App = () => (
             <Route path="/admin/share-likes" element={<AdminShareLikes />} />
             <Route path="/admin/community-goal" element={<AdminCommunityGoal />} />
             <Route path="/community-goal-submissions" element={<CommunityGoalSubmissions />} />
+            <Route path="/review-community-submissions" element={<ReviewCommunitySubmissions />} />
             <Route path="/admin/security-events" element={<SecurityEventsLog />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
