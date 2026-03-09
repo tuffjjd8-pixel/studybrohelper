@@ -188,7 +188,7 @@ function parseQuizJSON(content: string): any {
   try {
     return JSON.parse(fixedContent);
   } catch (e) {
-    console.log("Fixed content parse failed");
+    console.log("Fixed content parse failed:", e instanceof Error ? e.message : String(e));
   }
 
   throw new Error("Unable to parse quiz JSON after all strategies");
