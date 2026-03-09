@@ -44,10 +44,12 @@ const CommunityGoalSubmissions = () => {
       const { data, error } = await supabase
         .from("community_goal_submissions")
         .select("*")
-        .neq("screenshot_urls", "{}")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
+
+      // Only show submissions where proof was uploaded (screenshot_urls not empty)
+      const withProof = (data || []).filter((s) => s.screenshot_urls?.length > 0);
 
       // Fetch display names for all user_ids
       const userIds = [...new Set((data || []).map((s) => s.user_id))];
