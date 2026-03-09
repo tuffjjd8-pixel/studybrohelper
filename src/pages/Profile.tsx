@@ -471,7 +471,7 @@ const Profile = () => {
               transition={{ delay: 0.33 }}>
               
               <Button
-                onClick={() => navigate('/share-likes')}
+                onClick={() => navigate('/community-goal-submissions')}
                 variant="outline"
                 className="w-full h-auto py-4 border-primary/30 hover:border-primary/50">
                 
