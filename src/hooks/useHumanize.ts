@@ -8,7 +8,7 @@ interface UseHumanizeOptions {
   isAuthenticated?: boolean;
 }
 
-export function useHumanize({ isPremium }: UseHumanizeOptions) {
+export function useHumanize({ isPremium, isAuthenticated = true }: UseHumanizeOptions) {
   const [isHumanizing, setIsHumanizing] = useState(false);
   const [isHumanized, setIsHumanized] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
