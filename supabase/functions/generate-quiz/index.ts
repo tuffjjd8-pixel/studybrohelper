@@ -62,28 +62,15 @@ function sanitizeQuizOutput(questions: any[]): any[] {
   }).filter(q => q.question && q.options.length === 4);
 }
 
-// Fix LaTeX backslashes and common errors before JSON parsing
+// Fix LaTeX backslashes before JSON parsing (prevents JSON escape sequences like \f, \t, \n, \r, \b, \uXXXX from corrupting LaTeX)
 function fixLatexInJSON(raw: string): string {
-  // First, fix backslash escaping for JSON parsing
-  // LLMs often output \frac instead of \\frac, \theta instead of \\theta, etc.
-  // The standard JSON parser treats \f as form feed, \t as tab, \n as newline, \r as carriage return, \b as backspace
-  let fixed = raw
-    .replace(/\\frac/g, '\\\\frac')
-    .replace(/\\theta/g, '\\\\theta')
-    .replace(/\\times/g, '\\\\times')
-    .replace(/\\text/g, '\\\\text')
-    .replace(/\\tau/g, '\\\\tau')
-    .replace(/\\to/g, '\\\\to')
-    .replace(/\\right/g, '\\\\right')
-    .replace(/\\ne/g, '\\\\ne')
-    .replace(/\\nabla/g, '\\\\nabla')
-    .replace(/\\nu/g, '\\\\nu')
-    .replace(/\\beta/g, '\\\\beta')
-    .replace(/\\bar/g, '\\\\bar')
-    .replace(/\\binom/g, '\\\\binom');
-
-  // Then replace backslash followed by characters that are NOT valid JSON escapes
-  return fixed.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+  return raw
+    // \u is a JSON unicode escape; escape it unless it's followed by 4 hex digits
+    .replace(/(?<!\\)\\u(?![0-9a-fA-F]{4})/g, "\\\\u")
+    // \f, \t, \n, \r, \b are JSON escapes; escape them when they start LaTeX commands
+    .replace(/(?<!\\)\\([bfnrt])(?=[A-Za-z])/g, "\\\\$1")
+    // Escape every other backslash that isn't a valid JSON escape start
+    .replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
 }
 
 // Post-process quiz to fix common LaTeX errors
