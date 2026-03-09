@@ -869,7 +869,7 @@ const Quiz = () => {
                         </span>
                       </div>
                       
-                      <h3 className="font-medium mb-4 text-sm sm:text-base break-words">{q.question}</h3>
+                      <h3 className="font-medium mb-4 text-sm sm:text-base break-words"><MathText>{q.question}</MathText></h3>
 
                       {/* Options - Different view for Free vs Premium */}
                       <div className="space-y-2 mb-4">
