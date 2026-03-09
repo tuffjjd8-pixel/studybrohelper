@@ -3,7 +3,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
-import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send, Sparkles, Crown, Lock, GraduationCap } from "lucide-react";
+import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send, Sparkles, Crown, Lock } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -402,28 +402,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         </motion.div>
       )}
 
-      {/* Recommended Quiz button */}
-      {isAuthenticated ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="flex justify-center"
-        >
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => navigate("/quiz", { state: { recommendedTopic: subject || "math", recommendedQuestion: question } })}
-          >
-            <GraduationCap className="w-4 h-4" />
-            Recommended Quiz
-          </Button>
-        </motion.div>
-      ) : (
-        <p className="text-center text-sm text-muted-foreground">
-          Sign in to take a recommended quiz.
-        </p>
-      )}
 
     </motion.div>
   );
