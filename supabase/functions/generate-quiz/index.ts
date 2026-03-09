@@ -62,22 +62,50 @@ function sanitizeQuizOutput(questions: any[]): any[] {
   }).filter(q => q.question && q.options.length === 4);
 }
 
-// Fix LaTeX backslashes and common errors
+// Fix LaTeX backslashes and common errors before JSON parsing
 function fixLatexInJSON(raw: string): string {
   // First, fix backslash escaping for JSON parsing
-  let fixed = raw.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
-  
-  // Then fix common LaTeX errors after JSON parsing
-  return fixed;
+  // LLMs often output \frac instead of \\frac, \theta instead of \\theta, etc.
+  // The standard JSON parser treats \f as form feed, \t as tab, \n as newline, \r as carriage return, \b as backspace
+  let fixed = raw
+    .replace(/\\frac/g, '\\\\frac')
+    .replace(/\\theta/g, '\\\\theta')
+    .replace(/\\times/g, '\\\\times')
+    .replace(/\\text/g, '\\\\text')
+    .replace(/\\tau/g, '\\\\tau')
+    .replace(/\\to/g, '\\\\to')
+    .replace(/\\right/g, '\\\\right')
+    .replace(/\\ne/g, '\\\\ne')
+    .replace(/\\nabla/g, '\\\\nabla')
+    .replace(/\\nu/g, '\\\\nu')
+    .replace(/\\beta/g, '\\\\beta')
+    .replace(/\\bar/g, '\\\\bar')
+    .replace(/\\binom/g, '\\\\binom');
+
+  // Then replace backslash followed by characters that are NOT valid JSON escapes
+  return fixed.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
 }
 
 // Post-process quiz to fix common LaTeX errors
 function fixCommonLatexErrors(content: string): string {
+  if (typeof content !== 'string') return content;
+  
   return content
-    // Fix missing backslash in \frac
+    // Fix missing backslash in \frac and clean up any form feeds (\f -> \x0c) parsed by accident
+    .replace(/\x0crac\{/g, '\\frac{')
     .replace(/([^\\])rac\{/g, '$1\\frac{')
     .replace(/^rac\{/g, '\\frac{')
-    // Fix missing opening delimiter \(
+    
+    // Fix \theta which might have been parsed as tab (\t -> \x09) + heta
+    .replace(/\x09heta/g, '\\theta')
+    
+    // Fix \times which might have been parsed as tab (\t -> \x09) + imes
+    .replace(/\x09imes/g, '\\times')
+    
+    // Fix \right which might have been parsed as carriage return (\r -> \x0d) + ight
+    .replace(/\x0dight/g, '\\right')
+
+    // Fix missing opening delimiter \( (if the prompt generated them as ( ... ))
     .replace(/\(([^)]*(?:\\[a-zA-Z]+[^)]*)*)\)/g, (match, inner) => {
       // Only replace if it contains LaTeX commands
       if (inner.includes('\\') || inner.includes('{') || inner.includes('^') || inner.includes('_')) {
