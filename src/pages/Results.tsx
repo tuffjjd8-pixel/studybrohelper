@@ -346,25 +346,36 @@ const Results = ({ embedded }: { embedded?: boolean }) => {
             </motion.div>
           )}
 
-          {/* Recommended Quiz */}
-          {recommendedTopic && (
+          {/* Recommended Quiz — only after quiz completion */}
+          {subject && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
-              <Card
-                className="border-primary/30 hover:border-primary/60 transition-colors cursor-pointer"
-                onClick={() => navigate("/quiz", { state: { recommendedTopic } })}
-              >
-                <CardContent className="pt-6 flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-primary/10">
-                    <Target className="w-6 h-6 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">Recommended Quiz</p>
-                    <p className="text-xs text-muted-foreground">
-                      Practice your weakest topic: <span className="font-medium text-foreground">{recommendedTopic}</span>
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              {user ? (
+                <Card
+                  className="border-primary/30 hover:border-primary/60 transition-colors cursor-pointer"
+                  onClick={() => navigate("/quiz", { state: { recommendedTopic: subject } })}
+                >
+                  <CardContent className="pt-6 flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-primary/10">
+                      <Target className="w-6 h-6 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">Recommended Quiz</p>
+                      <p className="text-xs text-muted-foreground">
+                        Practice more: <span className="font-medium text-foreground">{subject}</span>
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-border">
+                  <CardContent className="pt-6 text-center">
+                    <p className="text-sm text-muted-foreground">Sign in to take a recommended quiz.</p>
+                    <Link to="/auth">
+                      <Button variant="outline" size="sm" className="mt-2">Sign In</Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              )}
             </motion.div>
           )}
 
