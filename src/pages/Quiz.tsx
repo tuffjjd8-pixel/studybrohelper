@@ -728,7 +728,7 @@ const Quiz = () => {
                 x: -20
               }} className="bg-card border border-border rounded-xl p-6">
                   <h2 className="text-lg font-medium mb-6">
-                    {quizResult[currentQuestion].question}
+                    <MathText>{quizResult[currentQuestion].question}</MathText>
                   </h2>
 
                   {/* Options */}
