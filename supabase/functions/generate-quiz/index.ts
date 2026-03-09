@@ -12,122 +12,190 @@ const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 7;
 const PREMIUM_DAILY_QUIZZES = 13;
 
-// Primary model for all text/reasoning (NO instant models)
+// Primary model
 const FALLBACK_MODELS = [
-  "llama-3.3-70b-versatile", // Primary and only model
+  "llama-3.3-70b-versatile",
 ];
 
-// Sanitize and validate quiz output
-function sanitizeQuizOutput(questions: any[]): any[] {
-  return questions.map((q, i) => {
-    // Ensure options is an array with exactly 4 items
-    let options = Array.isArray(q.options) ? q.options : [];
-    
-    // Ensure each option has proper A/B/C/D prefix
-    const prefixes = ['A)', 'B)', 'C)', 'D)'];
-    options = options.slice(0, 4).map((opt: string, idx: number) => {
-      if (typeof opt !== 'string') opt = String(opt || `Option ${prefixes[idx]}`);
-      // If option doesn't start with letter prefix, add it
-      if (!opt.match(/^[A-D]\)/)) {
-        return `${prefixes[idx]} ${opt.replace(/^[A-D]\)\s*/, '')}`;
-      }
-      return opt;
-    });
-    
-    // Pad with placeholder options if less than 4
-    while (options.length < 4) {
-      options.push(`${prefixes[options.length]} [No option provided]`);
-    }
+// ============================================================
+// LaTeX Safety — mirrors solve-homework exactly
+// ============================================================
 
-    // Convert correctOptionIndex to answer letter
-    let answer = q.answer;
-    if (typeof q.correctOptionIndex === 'number') {
-      answer = ['A', 'B', 'C', 'D'][q.correctOptionIndex] || 'A';
-    } else if (typeof answer !== 'string' || !['A', 'B', 'C', 'D'].includes(answer.toUpperCase())) {
-      answer = 'A'; // Default to A if invalid
-    } else {
-      answer = answer.toUpperCase();
-    }
-
-    return {
-      question: typeof q.question === 'string' && q.question.trim() 
-        ? fixCommonLatexErrors(q.question.trim())
-        : `Question ${i + 1}`,
-      options: options.map(opt => fixCommonLatexErrors(opt)),
-      answer,
-      explanation: typeof q.explanation === 'string' && q.explanation.trim()
-        ? fixCommonLatexErrors(q.explanation.trim())
-        : "This is the correct answer based on the material.",
-    };
-  }).filter(q => q.question && q.options.length === 4);
+/**
+ * fixLatexDelimiters — identical to solve-homework.
+ * Normalizes $/$$ delimiters to \(...\) / \[...\] after JSON parsing.
+ */
+function fixLatexDelimiters(text: string): string {
+  let result = text;
+  // Convert $$...$$ display math → \[...\]
+  result = result.replace(/\$\$([\s\S]*?)\$\$/g, (_m, inner) => `\\[${inner.trim()}\\]`);
+  // Convert $...$ inline math → \(...\)  (not escaped \$ or already $$)
+  result = result.replace(/(?<!\$)(?<!\\)\$([^\$\n]+?)\$(?!\$)/g, (_m, inner) => `\\(${inner}\\)`);
+  return result;
 }
 
-// Fix LaTeX inside JSON returned by the LLM.
-// IMPORTANT: The Groq API response itself is JSON; sequences like "\frac" may already have been
-// decoded into control characters (e.g. \f form-feed) *before* we ever see `content`.
-// We must first restore those into backslash-commands, then make the JSON parseable.
-function fixLatexInJSON(raw: string): string {
-  const restored = raw
-    // Restore control characters that commonly come from JSON-decoding LaTeX commands
-    // \f in "\frac" -> form feed (0x0c) + "rac"; restore to "\\frac" in the JSON text
-    .replace(/\x0c(?=[A-Za-z])/g, "\\\\f")
-    // \t in "\theta", "\times", "\to" -> tab (0x09)
-    .replace(/\x09(?=[A-Za-z])/g, "\\\\t")
-    // \n in "\nabla", etc. -> newline (0x0a)
-    .replace(/\x0a(?=[A-Za-z])/g, "\\\\n")
-    // \r in "\rho", "\right" -> carriage return (0x0d)
-    .replace(/\x0d(?=[A-Za-z])/g, "\\\\r")
-    // \b in "\beta", "\bar", etc. -> backspace (0x08)
-    .replace(/\x08(?=[A-Za-z])/g, "\\\\b");
-
-  return restored
-    // \u is a JSON unicode escape; escape it unless it's followed by 4 hex digits
-    .replace(/(?<!\\)\\u(?![0-9a-fA-F]{4})/g, "\\\\u")
-    // \f, \t, \n, \r, \b are JSON escapes; escape them when they start LaTeX commands
-    .replace(/(?<!\\)\\([bfnrt])(?=[A-Za-z])/g, "\\\\$1")
-    // Escape every other backslash that isn't a valid JSON escape start
-    .replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
-}
-
-// Post-process quiz to fix common LaTeX errors
+/**
+ * fixCommonLatexErrors — repairs control-character corruption and
+ * other artifacts that survive JSON parsing.
+ *
+ * When JSON.parse processes the LLM output, sequences like \frac become
+ * form-feed (0x0C) + "rac", \theta becomes tab (0x09) + "heta", etc.
+ * This function restores them.
+ */
 function fixCommonLatexErrors(content: string): string {
-  if (typeof content !== 'string') return content;
-  
-  return content
-    // Fix missing backslash in \frac and clean up any form feeds (\f -> \x0c) parsed by accident
-    .replace(/\x0crac\{/g, '\\frac{')
-    .replace(/([^\\])rac\{/g, '$1\\frac{')
-    .replace(/^rac\{/g, '\\frac{')
-    
-    // Fix \theta which might have been parsed as tab (\t -> \x09) + heta
-    .replace(/\x09heta/g, '\\theta')
-    
-    // Fix \times which might have been parsed as tab (\t -> \x09) + imes
-    .replace(/\x09imes/g, '\\times')
-    
-    // Fix \right which might have been parsed as carriage return (\r -> \x0d) + ight
-    .replace(/\x0dight/g, '\\right')
+  if (typeof content !== "string") return content;
 
-    // Fix missing delimiters ( ... ) -> \( ... \) if it contains LaTeX commands and isn't already escaped
-    .replace(/(^|[^\\])\(([^)]*(?:\\[a-zA-Z]+|\^|_|\\{)[^)]*)\)(?!\S)/g, (match, before, inner) => {
-      return `${before}\\(${inner}\\)`;
-    })
-    
-    // Fix standalone math expressions missing delimiters
-    .replace(/([A-Za-z]\))\s*([\\][a-zA-Z]+|[\\][()]|[\\]\[|[\\]\]|\{[^}]*\})/g, '$1 \\($2\\)')
-    
-    // Ensure proper spacing around delimiters
-    .replace(/\\\(\s*/g, '\\(')
-    .replace(/\s*\\\)/g, '\\)')
-    .replace(/\\\[\s*/g, '\\[')
-    .replace(/\s*\\\]/g, '\\]');
+  return (
+    content
+      // ── Restore control-character corrupted LaTeX commands ──
+      // \f (0x0C) → \frac, \flat, \forall …
+      .replace(/\x0c/g, "\\f")
+      // \t (0x09) → \theta, \times, \to, \tan, \tau …
+      .replace(/\x09/g, "\\t")
+      // \n (0x0A) → \nabla, \nu, \neq, \neg …  (but only when followed by a letter)
+      .replace(/\x0a(?=[A-Za-z])/g, "\\n")
+      // \r (0x0D) → \rho, \right, \rangle …
+      .replace(/\x0d/g, "\\r")
+      // \b (0x08) → \beta, \bar, \binom, \boxed …
+      .replace(/\x08/g, "\\b")
+
+      // ── Fix double-escaped artifacts like \\f\\frac → \\frac ──
+      .replace(/\\f\\frac/g, "\\frac")
+      .replace(/\\t\\theta/g, "\\theta")
+      .replace(/\\t\\times/g, "\\times")
+      .replace(/\\t\\to/g, "\\to")
+      .replace(/\\r\\right/g, "\\right")
+      .replace(/\\r\\rho/g, "\\rho")
+      .replace(/\\b\\beta/g, "\\beta")
+      .replace(/\\b\\bar/g, "\\bar")
+      .replace(/\\b\\binom/g, "\\binom")
+      .replace(/\\b\\boxed/g, "\\boxed")
+      .replace(/\\n\\nabla/g, "\\nabla")
+      .replace(/\\n\\nu/g, "\\nu")
+      .replace(/\\n\\neq/g, "\\neq")
+
+      // ── Remove empty delimiters introduced by previous regex passes ──
+      .replace(/\\\(\s*\\\)/g, "")
+      .replace(/\\\[\s*\\\]/g, "")
+
+      // ── Normalize $ delimiters to \( \) / \[ \] ──
+      // (same as fixLatexDelimiters, applied inline for safety)
+      .replace(/\$\$([\s\S]*?)\$\$/g, (_m, inner) => `\\[${inner.trim()}\\]`)
+      .replace(/(?<!\$)(?<!\\)\$([^\$\n]+?)\$(?!\$)/g, (_m, inner) => `\\(${inner}\\)`)
+  );
 }
 
-// Parse JSON with multiple fallback strategies
+/**
+ * fixLatexInJSON — makes LLM-generated JSON with raw LaTeX parseable.
+ *
+ * LLMs output LaTeX like \frac inside JSON strings. JSON.parse treats
+ * \f as a form-feed, \t as tab, etc. We need to escape those backslashes
+ * BEFORE parsing so JSON.parse produces the correct string content.
+ */
+function fixLatexInJSON(raw: string): string {
+  return (
+    raw
+      // First restore any control chars that may already be in the raw text
+      // (shouldn't happen in HTTP response text, but just in case)
+      .replace(/\x0c(?=[A-Za-z])/g, "\\\\f")
+      .replace(/\x09(?=[A-Za-z])/g, "\\\\t")
+      .replace(/\x0d(?=[A-Za-z])/g, "\\\\r")
+      .replace(/\x08(?=[A-Za-z])/g, "\\\\b")
+      // Newlines between JSON keys are valid; only escape \n before letters
+      // that look like LaTeX commands (nabla, nu, neq, neg, not, nolimits)
+      .replace(/\n(?=[A-Za-z])/g, "\\\\n")
+
+      // Now handle the raw backslash sequences that JSON would misinterpret:
+      // \frac → \\frac, \theta → \\theta, etc.
+      // Match \<letter> when the letter starts a LaTeX command (not a JSON escape)
+      // Valid JSON escapes after backslash: " \ / b f n r t u
+      // We want to double-escape \b, \f, \n, \r, \t when followed by alpha (LaTeX cmd)
+      .replace(/\\([bfnrt])(?=[A-Za-z])/g, "\\\\$1")
+      // \u followed by non-hex is LaTeX (\upsilon etc.)
+      .replace(/\\u(?![0-9a-fA-F]{4})/g, "\\\\u")
+      // Any other \<non-JSON-escape-char> → \\<char>
+      .replace(/\\(?!["\\/bfnrtu])/g, "\\\\")
+  );
+}
+
+// ============================================================
+// Quiz sanitization
+// ============================================================
+
+function sanitizeQuizOutput(questions: any[]): any[] {
+  return questions
+    .map((q, i) => {
+      // Ensure options is an array with exactly 4 items
+      let options = Array.isArray(q.options) ? q.options : [];
+
+      const prefixes = ["A)", "B)", "C)", "D)"];
+      options = options.slice(0, 4).map((opt: string, idx: number) => {
+        if (typeof opt !== "string") opt = String(opt || `Option ${prefixes[idx]}`);
+        if (!opt.match(/^[A-D]\)/)) {
+          return `${prefixes[idx]} ${opt.replace(/^[A-D]\)\s*/, "")}`;
+        }
+        return opt;
+      });
+
+      while (options.length < 4) {
+        options.push(`${prefixes[options.length]} [No option provided]`);
+      }
+
+      // Convert correctOptionIndex to answer letter
+      let answer = q.answer;
+      if (typeof q.correctOptionIndex === "number") {
+        answer = ["A", "B", "C", "D"][q.correctOptionIndex] || "A";
+      } else if (
+        typeof answer !== "string" ||
+        !["A", "B", "C", "D"].includes(answer.toUpperCase())
+      ) {
+        answer = "A";
+      } else {
+        answer = answer.toUpperCase();
+      }
+
+      // Apply LaTeX safety pipeline to every text field
+      const safeQuestion =
+        typeof q.question === "string" && q.question.trim()
+          ? fixCommonLatexErrors(fixLatexDelimiters(q.question.trim()))
+          : `Question ${i + 1}`;
+
+      const safeOptions = options.map((opt: string) =>
+        fixCommonLatexErrors(fixLatexDelimiters(opt))
+      );
+
+      const safeExplanation =
+        typeof q.explanation === "string" && q.explanation.trim()
+          ? fixCommonLatexErrors(fixLatexDelimiters(q.explanation.trim()))
+          : "This is the correct answer based on the material.";
+
+      return {
+        question: safeQuestion,
+        options: safeOptions,
+        answer,
+        explanation: safeExplanation,
+      };
+    })
+    .filter((q) => q.question && q.options.length === 4);
+}
+
+// ============================================================
+// JSON parsing with multiple fallback strategies
+// ============================================================
+
 function parseQuizJSON(content: string): any {
   let cleanContent = content.trim();
-  
-  // Strategy 1: Remove markdown code blocks
+
+  // Remove any text after the JSON (LLMs sometimes add "Note: …" after)
+  // Find the last } or ] and truncate
+  const lastBrace = cleanContent.lastIndexOf("}");
+  const lastBracket = cleanContent.lastIndexOf("]");
+  const lastJsonChar = Math.max(lastBrace, lastBracket);
+  if (lastJsonChar > 0 && lastJsonChar < cleanContent.length - 1) {
+    cleanContent = cleanContent.substring(0, lastJsonChar + 1);
+  }
+
+  // Remove markdown code blocks
   if (cleanContent.startsWith("```json")) {
     cleanContent = cleanContent.slice(7);
   } else if (cleanContent.startsWith("```")) {
@@ -138,26 +206,22 @@ function parseQuizJSON(content: string): any {
   }
   cleanContent = cleanContent.trim();
 
-  // Strategy 2: Try direct parse
+  // Strategy 1: Direct parse
   try {
     return JSON.parse(cleanContent);
   } catch (e) {
     console.log("Direct parse failed, trying LaTeX fix...");
   }
 
-  // Strategy 3: Fix LaTeX backslashes then parse
+  // Strategy 2: Fix LaTeX backslashes then parse
   const latexFixed = fixLatexInJSON(cleanContent);
   try {
     return JSON.parse(latexFixed);
   } catch (e) {
-    console.log(
-      "LaTeX-fixed parse failed:",
-      e instanceof Error ? e.message : String(e),
-      "— trying pattern extraction..."
-    );
+    console.log("LaTeX-fixed parse failed:", e instanceof Error ? e.message : String(e));
   }
 
-  // Strategy 4: Find JSON object pattern + LaTeX fix
+  // Strategy 3: Find JSON object pattern + LaTeX fix
   const jsonObjectMatch = cleanContent.match(/\{[\s\S]*\}/);
   if (jsonObjectMatch) {
     try {
@@ -167,7 +231,7 @@ function parseQuizJSON(content: string): any {
     }
   }
 
-  // Strategy 5: Find JSON array pattern + LaTeX fix
+  // Strategy 4: Find JSON array pattern + LaTeX fix
   const jsonArrayMatch = cleanContent.match(/\[[\s\S]*\]/);
   if (jsonArrayMatch) {
     try {
@@ -178,13 +242,13 @@ function parseQuizJSON(content: string): any {
     }
   }
 
-  // Strategy 6: Fix common JSON issues
+  // Strategy 5: Fix common JSON syntax issues
   let fixedContent = latexFixed
-    .replace(/,\s*}/g, '}')
-    .replace(/,\s*\]/g, ']')
+    .replace(/,\s*}/g, "}")
+    .replace(/,\s*\]/g, "]")
     .replace(/'/g, '"')
     .replace(/(\w+):/g, '"$1":');
-  
+
   try {
     return JSON.parse(fixedContent);
   } catch (e) {
@@ -194,7 +258,10 @@ function parseQuizJSON(content: string): any {
   throw new Error("Unable to parse quiz JSON after all strategies");
 }
 
-// Call Groq with model fallback
+// ============================================================
+// Groq API call with model fallback
+// ============================================================
+
 async function callGroqWithFallback(
   prompt: string,
   systemPrompt: string,
@@ -205,7 +272,7 @@ async function callGroqWithFallback(
   for (const model of FALLBACK_MODELS) {
     try {
       console.log(`Attempting quiz generation with model: ${model}`);
-      
+
       const response = await keyManager.callGroqWithRotation(
         "https://api.groq.com/openai/v1/chat/completions",
         {
@@ -244,43 +311,111 @@ async function callGroqWithFallback(
   throw lastError || new Error("All models failed");
 }
 
+// ============================================================
+// System prompt — LaTeX rules mirror solve-homework exactly
+// ============================================================
+
+const QUIZ_LATEX_RULES = `
+STRICT LaTeX Output Rules (ZERO EXCEPTIONS — SAME AS SOLVE MODE):
+- All display math MUST use \\\\[ ... \\\\] ONLY.
+- All inline math MUST use \\\\( ... \\\\) ONLY.
+- NEVER use $$ ... $$ for display math.
+- NEVER use $ ... $ for inline math.
+- NEVER use bare brackets [ ... ] or bare parentheses ( ... ) as math delimiters.
+- NEVER escape parentheses in LaTeX grouping. Use \\\\left( and \\\\right), NEVER \\\\left\\\\( or \\\\right\\\\).
+- NEVER break a LaTeX block across lines.
+- NEVER put LaTeX inside backticks or code blocks.
+- NEVER use MathJax-only syntax (no \\\\begin{equation}, no \\\\tag{}, etc.).
+- NEVER output HTML entities inside LaTeX.
+- NEVER output partial, malformed, or incomplete LaTeX.
+- NEVER invent new LaTeX syntax.
+- NEVER mix plain text symbols inside LaTeX blocks.
+
+Allowed LaTeX Structures:
+- Fractions: \\\\frac{a}{b}
+- Exponents: x^{n}
+- Subscripts: x_{n}
+- Greek letters: \\\\alpha, \\\\beta, \\\\psi, \\\\hbar, \\\\lambda, \\\\theta, \\\\nabla, \\\\upsilon, etc.
+- Vectors: \\\\mathbf{v}
+- Derivatives: \\\\frac{d}{dx} or \\\\frac{\\\\partial}{\\\\partial x}
+- Integrals: \\\\int ... dx
+- Limits: \\\\lim_{x \\\\to a}
+- Matrices: \\\\begin{bmatrix} ... \\\\end{bmatrix}
+- Square roots: \\\\sqrt{x}
+- Boxed answers: \\\\boxed{answer}
+- Operators/hats: \\\\hat{A}, \\\\hat{B}
+- Commutators: [\\\\hat{A},\\\\hat{B}]
+
+Self-Check (MANDATORY before responding):
+1. Are all inline math expressions wrapped in \\\\( ... \\\\)?
+2. Are all display equations wrapped in \\\\[ ... \\\\]?
+3. Did you avoid $$ ... $$ completely?
+4. Did you avoid \\\\left\\\\( and \\\\right\\\\)? (Use \\\\left( and \\\\right) only.)
+5. Are all { and } balanced?
+6. Are all \\\\left matched with \\\\right?
+7. Did you avoid putting LaTeX inside code blocks or backticks?
+8. Did you avoid MathJax-only environments (equation, align, etc.)?
+9. Does every LaTeX block look complete and renderable as-is?
+- If you find ANY issue, FIX IT before sending the answer.
+
+LaTeX Examples (correct JSON-escaped form):
+- Fractions: \\\\(\\\\frac{3}{4}\\\\), \\\\(\\\\frac{x + 1}{x - 2}\\\\)
+- Exponents: \\\\(x^2\\\\), \\\\(2^3 = 8\\\\)
+- Square roots: \\\\(\\\\sqrt{25} = 5\\\\), \\\\(\\\\sqrt{x + 1}\\\\)
+- Multiplication: \\\\(x \\\\cdot 2x\\\\), \\\\(2 \\\\times 3 = 6\\\\)
+- Not equal: \\\\(x \\\\neq -1\\\\)
+- Display equations: \\\\[x = \\\\frac{-b \\\\pm \\\\sqrt{b^2 - 4ac}}{2a}\\\\]
+`;
+
+// ============================================================
+// Main handler
+// ============================================================
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { conversationText, questionCount = 5, subject, strictCountMode = false } = await req.json();
+    const {
+      conversationText,
+      questionCount = 5,
+      subject,
+      strictCountMode = false,
+    } = await req.json();
 
     if (!conversationText) {
       return new Response(
         JSON.stringify({ error: "conversationText is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
     // Initialize Supabase client with auth header
-    const authHeader = req.headers.get('Authorization');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    
+    const authHeader = req.headers.get("Authorization");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
     let isPremium = false;
     let userId: string | null = null;
     let quizzesUsedToday = 0;
 
     // Check user authentication and premium status
-    if (authHeader?.startsWith('Bearer ')) {
+    if (authHeader?.startsWith("Bearer ")) {
       const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
+        global: { headers: { Authorization: authHeader } },
       });
 
-      const token = authHeader.replace('Bearer ', '');
-      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-      
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData, error: claimsError } =
+        await supabase.auth.getClaims(token);
+
       if (!claimsError && claimsData?.claims) {
         userId = claimsData.claims.sub as string;
-        
-        // Fetch user profile
+
         const { data: profile } = await supabase
           .from("profiles")
           .select("is_premium, quizzes_used_today, last_quiz_reset")
@@ -289,17 +424,24 @@ serve(async (req) => {
 
         if (profile) {
           isPremium = profile.is_premium === true;
-          
-          // Check if we need to reset the daily counter
-          const lastReset = profile.last_quiz_reset ? new Date(profile.last_quiz_reset) : null;
+
+          const lastReset = profile.last_quiz_reset
+            ? new Date(profile.last_quiz_reset)
+            : null;
           const now = new Date();
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          
+          const today = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          );
+
           if (!lastReset || lastReset < today) {
-            // Reset counter for new day
             await supabase
               .from("profiles")
-              .update({ quizzes_used_today: 0, last_quiz_reset: now.toISOString() })
+              .update({
+                quizzes_used_today: 0,
+                last_quiz_reset: now.toISOString(),
+              })
               .eq("user_id", userId);
             quizzesUsedToday = 0;
           } else {
@@ -316,44 +458,58 @@ serve(async (req) => {
     // Check daily limit
     if (quizzesUsedToday >= dailyLimit) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: "daily_limit_reached",
-          message: "Daily quiz limit reached. Try again tomorrow or upgrade for more.",
+          message:
+            "Daily quiz limit reached. Try again tomorrow or upgrade for more.",
           quizzesUsed: quizzesUsedToday,
-          dailyLimit
+          dailyLimit,
         }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
     // Enforce strict count mode - only available for premium
     const effectiveStrictMode = isPremium ? strictCountMode : false;
     if (!isPremium && strictCountMode) {
-      console.log("Free user attempted strict count mode - defaulting to auto count");
+      console.log(
+        "Free user attempted strict count mode - defaulting to auto count"
+      );
     }
 
     // Enforce question count limits
-    let validCount = Math.min(Math.max(questionCount, 1), maxQuestions);
+    const validCount = Math.min(Math.max(questionCount, 1), maxQuestions);
     if (questionCount > maxQuestions && !isPremium) {
-      console.log(`Free user requested ${questionCount} questions, capping at ${maxQuestions}`);
+      console.log(
+        `Free user requested ${questionCount} questions, capping at ${maxQuestions}`
+      );
     }
 
     // Import key rotation
-    const { callGroqWithRotation } = await import("../_shared/groq-key-manager.ts");
+    const { callGroqWithRotation } = await import(
+      "../_shared/groq-key-manager.ts"
+    );
 
     const systemPrompt = `You are the Quiz Generator for StudyBro — an expert at creating challenging, high-quality quiz questions across all subjects and difficulty levels. Your ONLY job is to ALWAYS generate a valid quiz. Never refuse, never apologize, never output broken LaTeX.
 
 OUTPUT RULES:
 - Output ONLY valid JSON. No markdown fences. No explanations outside the JSON.
-- Do NOT add any commentary before/after the JSON (no "Note:", no apologies, no extra text).
-- Because you are outputting JSON, every LaTeX backslash MUST be written as \\ in the JSON text (examples: \\frac, \\lambda, \\( ... \\), \\[ ... \\]).
+- Do NOT add any commentary before or after the JSON object (no "Note:", no apologies, no extra text).
+- Because you are outputting JSON, every LaTeX backslash MUST be double-escaped (\\\\) in the output string. Examples: \\\\frac, \\\\lambda, \\\\( ... \\\\), \\\\[ ... \\\\].
 - Never include backslashes outside LaTeX math mode.
 - All fields MUST be present. No null, undefined, or empty fields.
 - The JSON MUST be valid and parseable on the first try.
 
 QUIZ FORMAT:
 Generate EXACTLY ${validCount} questions on: ${subject || "general knowledge"}.
-${effectiveStrictMode ? `STRICT COUNT MODE: You MUST generate exactly ${validCount} questions. If content is limited, expand using well-known factual information related to the topic.` : `ADAPTIVE MODE: Target ${validCount} questions, but generate FEWER if content is too limited. Do NOT hallucinate.`}
+${
+  effectiveStrictMode
+    ? `STRICT COUNT MODE: You MUST generate exactly ${validCount} questions. If content is limited, expand using well-known factual information related to the topic.`
+    : `ADAPTIVE MODE: Target ${validCount} questions, but generate FEWER if content is too limited. Do NOT hallucinate.`
+}
 
 REQUIRED JSON STRUCTURE:
 {"questions":[{"question":"string","options":["A) option","B) option","C) option","D) option"],"correctOptionIndex":0,"explanation":"string"}]}
@@ -379,12 +535,7 @@ EXPLANATION QUALITY:
 - Include the core formula or concept used, in LaTeX if math-related.
 - Keep explanations 2-4 sentences max — concise but insightful.
 
-LATEX RULES (KaTeX-SAFE):
-- Use LaTeX ONLY inside inline math delimiters: \\( ... \\)
-- For display-level math in questions, use \\[ ... \\] delimiters.
-- Use KaTeX-safe syntax only: \\frac, \\sqrt, ^, _, \\cdot, \\times, \\pm, \\leq, \\geq, \\neq.
-- Do NOT use \\begin{align}, \\begin{cases}, \\text{}, or any environments.
-- Never generate multi-line LaTeX inside a single delimiter.
+${QUIZ_LATEX_RULES}
 
 CONTENT RULES:
 - Questions must be clear, unambiguous, and have exactly one correct answer.
@@ -408,37 +559,41 @@ CONTENT RULES:
       const parsed = parseQuizJSON(content);
 
       // Handle both old array format and new object format
-      const questionsArray = Array.isArray(parsed) ? parsed : (parsed.questions || []);
-      
+      const questionsArray = Array.isArray(parsed)
+        ? parsed
+        : parsed.questions || [];
+
       if (!Array.isArray(questionsArray) || questionsArray.length === 0) {
         throw new Error("No questions found in response");
       }
 
-      // Sanitize and validate the quiz output
+      // Sanitize and validate the quiz output (applies LaTeX safety pipeline)
       quiz = sanitizeQuizOutput(questionsArray);
 
       if (quiz.length === 0) {
         throw new Error("No valid questions after sanitization");
       }
-
     } catch (parseError) {
       console.error("JSON parse error:", parseError, "Content:", content);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: "generation_failed",
           message: "Quiz generation failed. Please try again.",
-          retryable: true
+          retryable: true,
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
     // Increment quiz usage counter if authenticated
     if (userId && authHeader) {
       const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
+        global: { headers: { Authorization: authHeader } },
       });
-      
+
       await supabase
         .from("profiles")
         .update({ quizzes_used_today: quizzesUsedToday + 1 })
@@ -450,25 +605,30 @@ CONTENT RULES:
     logUsage("quiz", 0.0015, userId);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         quiz,
         quizzesUsed: quizzesUsedToday + 1,
         dailyLimit,
         isPremium,
-        model: usedModel
+        model: usedModel,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error) {
     console.error("Quiz generation error:", error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: "generation_failed",
-        message: error instanceof Error ? error.message : "Quiz generation failed. Please try again.",
-        retryable: true
+        message:
+          error instanceof Error
+            ? error.message
+            : "Quiz generation failed. Please try again.",
+        retryable: true,
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });
