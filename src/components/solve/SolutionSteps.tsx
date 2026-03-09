@@ -29,6 +29,7 @@ interface SolutionStepsProps {
   maxFollowUps?: number;
   isDeepMode?: boolean;
   deepModeEffect?: DeepModeEffect;
+  isAuthenticated?: boolean;
 }
 
 const subjectIcons: Record<string, React.ReactNode> = {
