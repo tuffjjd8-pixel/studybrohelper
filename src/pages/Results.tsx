@@ -102,7 +102,6 @@ const Results = ({ embedded }: { embedded?: boolean }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizData, setQuizData] = useState<QuizResultData | null>(null);
   const [loading, setLoading] = useState(true);
-  const recommendedTopic = getRecommendedTopic();
 
   useEffect(() => {
     try {
