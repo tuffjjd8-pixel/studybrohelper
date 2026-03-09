@@ -748,7 +748,7 @@ const Quiz = () => {
                     submitted && isCorrect ? "bg-green-500/10 border-green-500 text-foreground" : submitted && isSelected && !isCorrect ? "bg-destructive/10 border-destructive text-foreground"
                     // During quiz after selection: show if user was correct/wrong
                     : isSelected && userSelectedCorrect ? "bg-green-500/10 border-green-500 text-foreground" : isSelected && userSelectedWrong ? "bg-destructive/10 border-destructive text-foreground" : isSelected ? "bg-primary/10 border-primary text-foreground" : hasAnswered ? "bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60" : "bg-card border-border hover:border-primary/50 text-foreground", (hasAnswered || submitted) && "cursor-default")}>
-                          <span className="font-medium">{option}</span>
+                          <span className="font-medium"><MathText>{option}</MathText></span>
                         </motion.button>;
                   })}
                   </div>
