@@ -491,12 +491,8 @@ const Quiz = () => {
           }} className="bg-card border border-border rounded-xl p-6 mb-6">
               {/* Recommended Topic Mode — shown when navigating from Results */}
               {recommendedTopic ? (
-                <div className="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-xl flex items-center gap-3">
-                  <Target className="w-5 h-5 text-primary shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-0.5">Recommended Topic</p>
-                    <p className="text-sm font-semibold">{recommendedTopic}</p>
-                  </div>
+                <div className="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-xl">
+                  <p className="text-sm font-semibold">Recommended Topic: <span className="text-primary">{recommendedTopic}</span></p>
                 </div>
               ) : (
                 <>
