@@ -5,9 +5,10 @@ import type { HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider
 
 interface UseHumanizeOptions {
   isPremium: boolean;
+  isAuthenticated?: boolean;
 }
 
-export function useHumanize({ isPremium }: UseHumanizeOptions) {
+export function useHumanize({ isPremium, isAuthenticated = true }: UseHumanizeOptions) {
   const [isHumanizing, setIsHumanizing] = useState(false);
   const [isHumanized, setIsHumanized] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
@@ -15,6 +16,11 @@ export function useHumanize({ isPremium }: UseHumanizeOptions) {
   const humanize = useCallback(
     async (solution: string, subject: string, strength: HumanizeStrength = "auto"): Promise<string | null> => {
       if (isHumanizing) return null;
+
+      if (!isAuthenticated) {
+        toast.error("Please sign in to use AI features.");
+        return null;
+      }
 
       if (!isPremium) {
         setLimitReached(true);
@@ -55,7 +61,7 @@ export function useHumanize({ isPremium }: UseHumanizeOptions) {
         setIsHumanizing(false);
       }
     },
-    [isHumanizing, isPremium]
+    [isHumanizing, isPremium, isAuthenticated]
   );
 
   const reset = useCallback(() => {

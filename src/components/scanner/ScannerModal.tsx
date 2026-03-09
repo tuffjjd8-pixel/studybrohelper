@@ -64,6 +64,11 @@ export function ScannerModal({
   }, [onClose]);
 
   const solveProblem = async (imageData: string) => {
+    // Auth guard: require sign-in for AI features
+    if (!userId) {
+      toast.error("Please sign in to use AI features.");
+      return;
+    }
     try {
       setLoadingStage("classifying");
       await new Promise((r) => setTimeout(r, 200));

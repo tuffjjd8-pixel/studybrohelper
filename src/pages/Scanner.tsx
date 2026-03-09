@@ -72,6 +72,11 @@ const Scanner = () => {
   }, [selectedImage]);
 
   const solveProblem = async (imageData: string) => {
+    // Auth guard: require sign-in for AI features
+    if (!user) {
+      toast.error("Please sign in to use AI features.");
+      return;
+    }
     try {
       // Stage 1: Extracting
       setLoadingStage("extracting");

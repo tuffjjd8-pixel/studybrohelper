@@ -112,6 +112,11 @@ const SolveDetail = () => {
 
   const handleFollowUp = async (question: string) => {
     if (!solve || !question.trim()) return;
+    // Auth guard: require sign-in for AI features
+    if (!user) {
+      toast.error("Please sign in to use AI features.");
+      return;
+    }
 
     setIsAsking(true);
     const userMessage: Message = {
@@ -214,6 +219,7 @@ const SolveDetail = () => {
               solveId={solve.id}
               isPremium={isPremium}
               isHistory={true}
+              isAuthenticated={!!user}
             />
 
           </motion.div>

@@ -29,6 +29,7 @@ interface SolutionStepsProps {
   maxFollowUps?: number;
   isDeepMode?: boolean;
   deepModeEffect?: DeepModeEffect;
+  isAuthenticated?: boolean;
 }
 
 const subjectIcons: Record<string, React.ReactNode> = {
@@ -47,7 +48,7 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, deepModeEffect = "none" }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, deepModeEffect = "none", isAuthenticated = false }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -55,7 +56,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const [displayedSolution, setDisplayedSolution] = useState(solution);
   const [localFollowUpCount, setLocalFollowUpCount] = useState(followUpCount);
   const [humanizeStrength, setHumanizeStrength] = useState<HumanizeStrength>("auto");
-  const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium });
+  const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
   const navigate = useNavigate();
 
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
@@ -85,6 +86,11 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
   const handleFollowUpSubmit = async () => {
     if (!followUpText.trim() || isAsking) return;
+    // Auth guard: require sign-in for AI features
+    if (!solveId) {
+      toast.error("Please sign in to use AI features.");
+      return;
+    }
     if (followUpLimitReached) {
       toast.error("Follow-up limit reached. Upgrade to Pro for unlimited!");
       return;

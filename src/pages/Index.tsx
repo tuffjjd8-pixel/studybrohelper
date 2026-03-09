@@ -180,6 +180,11 @@ const Index = () => {
     }
   };
   const handleSolve = async (input: string, imageData?: string) => {
+    // Auth guard: require sign-in for AI features
+    if (!user) {
+      toast.error("Please sign in to use AI features.");
+      return;
+    }
     // Quick client-side guard (cached state)
     if (!solveUsage.isPremium && !solveUsage.canSolve) {
       toast.error("You've used all 5 free solves today. Upgrade to Pro for unlimited solves!");
@@ -450,7 +455,7 @@ const Index = () => {
 
                   {/* Solve Flow */}
                   <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isPremium && solveMode === "deep"} deepModeEffect={deepEffect} />}
+                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isPremium && solveMode === "deep"} deepModeEffect={deepEffect} isAuthenticated={!!user} />}
 
               {/* Solve usage banner below solution */}
               {!isPremium}
