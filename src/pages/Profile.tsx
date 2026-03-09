@@ -602,7 +602,7 @@ const Profile = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.48 }}>
                 <Button
-                onClick={() => navigate('/community-goal-submissions')}
+                onClick={() => navigate('/review-community-submissions')}
                 variant="outline"
                 className="w-full h-auto py-4 border-primary/30 hover:border-primary/50">
                   <div className="flex items-center gap-4 w-full">
