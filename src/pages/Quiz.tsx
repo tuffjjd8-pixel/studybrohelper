@@ -489,95 +489,78 @@ const Quiz = () => {
           }} transition={{
             delay: 0.1
           }} className="bg-card border border-border rounded-xl p-6 mb-6">
-              {/* Recommended Topic Banner — Admin only */}
-              {isAdmin && recommendedTopic &&
-            <div className="mb-6 p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center gap-3">
+              {/* Recommended Topic Mode — shown when navigating from Results */}
+              {recommendedTopic ? (
+                <div className="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-xl flex items-center gap-3">
                   <Target className="w-5 h-5 text-primary shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold">Recommended: {recommendedTopic}</p>
-                    <p className="text-xs text-muted-foreground">Based on your weakest quiz performance</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-0.5">Recommended Topic</p>
+                    <p className="text-sm font-semibold">{recommendedTopic}</p>
                   </div>
                 </div>
-            }
+              ) : (
+                <>
+                  {/* Topic Input — Admin only */}
+                  {isAdmin &&
+                    <div className="space-y-2 mb-6">
+                      <Label htmlFor="topicInput">Topic</Label>
+                      <Input
+                        id="topicInput"
+                        placeholder="Enter a topic (e.g. Fractions, Photosynthesis)..."
+                        value={topicInput}
+                        onChange={(e) => setTopicInput(e.target.value)}
+                        className="bg-background" />
+                      <p className="text-xs text-muted-foreground">
+                        Enter a topic directly, or select a conversation below for more targeted questions
+                      </p>
+                    </div>
+                  }
 
-              {/* Topic Input — Admin only */}
-              {isAdmin &&
-            <div className="space-y-2 mb-6">
-                <Label htmlFor="topicInput">Topic</Label>
-                <Input
-                id="topicInput"
-                placeholder="Enter a topic (e.g. Fractions, Photosynthesis)..."
-                value={topicInput}
-                onChange={(e) => setTopicInput(e.target.value)}
-                className="bg-background" />
-              
-                <p className="text-xs text-muted-foreground">
-                  Enter a topic directly, or select a conversation below for more targeted questions
-                </p>
-              </div>
-            }
-
-              {/* Conversation Selector */}
-              <div className="space-y-2 mb-6">
-                <Label>Select a conversation <span className="text-muted-foreground">(optional)</span></Label>
-                <Popover open={open} onOpenChange={setOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between text-left font-normal h-auto min-h-11 py-2">
-                      {selectedSolve ? <span className="truncate">
-                          {selectedSolve.question_text || "Image question"} ({selectedSolve.subject})
-                        </span> : <span className="text-muted-foreground">Choose a solved problem...</span>}
-                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search conversations..." value={searchQuery} onValueChange={setSearchQuery} />
-                      <CommandList>
-                        {/* Show redirect message when user types equation-related terms */}
-                        {showSolveRedirect && <div className="p-3 border-b border-border bg-primary/5">
-                            <div className="flex items-start gap-2">
-                              <Calculator className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-primary">
-                                  Looking to solve equations?
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  Use Solve Homework for equations and calculations.
-                                </p>
-                                <Button size="sm" variant="outline" className="mt-2 h-7 text-xs" onClick={() => {
-                              setOpen(false);
-                              navigate("/");
-                            }}>
-                                  Go to Solve Homework
-                                </Button>
-                              </div>
-                            </div>
-                          </div>}
-                        <CommandEmpty>
-                          {loading ? "Loading..." : "No conversations found."}
-                        </CommandEmpty>
-                        <CommandGroup>
-                          {filteredSolves.map((solve) => <CommandItem key={solve.id} value={solve.id} onSelect={() => {
-                          setSelectedSolve(solve);
-                          setOpen(false);
-                          setSearchQuery("");
-                        }} className="cursor-pointer">
-                              <Check className={cn("mr-2 h-4 w-4", selectedSolve?.id === solve.id ? "opacity-100" : "opacity-0")} />
-                              <div className="flex-1 min-w-0">
-                                <p className="truncate text-sm">
-                                  {solve.question_text || "Image question"}
-                                </p>
-                                <p className="text-xs text-muted-foreground capitalize">
-                                  {solve.subject}
-                                </p>
-                              </div>
-                            </CommandItem>)}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
+                  {/* Conversation Selector */}
+                  <div className="space-y-2 mb-6">
+                    <Label>Select a conversation <span className="text-muted-foreground">(optional)</span></Label>
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between text-left font-normal h-auto min-h-11 py-2">
+                          {selectedSolve ? <span className="truncate">
+                              {selectedSolve.question_text || "Image question"} ({selectedSolve.subject})
+                            </span> : <span className="text-muted-foreground">Choose a solved problem...</span>}
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search conversations..." value={searchQuery} onValueChange={setSearchQuery} />
+                          <CommandList>
+                            {showSolveRedirect && <div className="p-3 border-b border-border bg-primary/5">
+                                <div className="flex items-start gap-2">
+                                  <Calculator className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-primary">Looking to solve equations?</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">Use Solve Homework for equations and calculations.</p>
+                                    <Button size="sm" variant="outline" className="mt-2 h-7 text-xs" onClick={() => { setOpen(false); navigate("/"); }}>
+                                      Go to Solve Homework
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>}
+                            <CommandEmpty>{loading ? "Loading..." : "No conversations found."}</CommandEmpty>
+                            <CommandGroup>
+                              {filteredSolves.map((solve) => <CommandItem key={solve.id} value={solve.id} onSelect={() => { setSelectedSolve(solve); setOpen(false); setSearchQuery(""); }} className="cursor-pointer">
+                                  <Check className={cn("mr-2 h-4 w-4", selectedSolve?.id === solve.id ? "opacity-100" : "opacity-0")} />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="truncate text-sm">{solve.question_text || "Image question"}</p>
+                                    <p className="text-xs text-muted-foreground capitalize">{solve.subject}</p>
+                                  </div>
+                                </CommandItem>)}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </>
+              )}
 
               {/* Question Count Input */}
               <div className="space-y-2 mb-6">
