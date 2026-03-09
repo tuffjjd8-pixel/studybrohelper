@@ -94,36 +94,7 @@ const LockedCard = ({ title, icon: Icon, children }: { title: string; icon: Reac
   </Card>
 );
 
-const getRecommendedTopic = (): string | null => {
-  try {
-    const history: QuizResultData[] = JSON.parse(localStorage.getItem("quiz_result_history") || "[]");
-    if (history.length === 0) return null;
-
-    // Aggregate per-topic performance across all quiz history
-    const topicStats: Record<string, { total: number; correct: number }> = {};
-    history.forEach((result) => {
-      (result.topicBreakdown || []).forEach((t) => {
-        if (!topicStats[t.name]) topicStats[t.name] = { total: 0, correct: 0 };
-        topicStats[t.name].total += t.total;
-        topicStats[t.name].correct += t.correct;
-      });
-    });
-
-    // Find the topic with the lowest accuracy
-    let worstTopic: string | null = null;
-    let worstPct = 101;
-    Object.entries(topicStats).forEach(([name, d]) => {
-      const pct = d.total > 0 ? (d.correct / d.total) * 100 : 100;
-      if (pct < worstPct) {
-        worstPct = pct;
-        worstTopic = name;
-      }
-    });
-    return worstTopic;
-  } catch {
-    return null;
-  }
-};
+// Recommended topic is simply the subject of the quiz just completed
 
 const Results = ({ embedded }: { embedded?: boolean }) => {
   const { user, loading: authLoading } = useAuth();
