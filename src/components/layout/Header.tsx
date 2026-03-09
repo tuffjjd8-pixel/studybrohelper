@@ -1,6 +1,6 @@
 import { StreakCounter } from "@/components/gamification/StreakCounter";
 import { motion } from "framer-motion";
-import { Crown, LogIn, BarChart3 } from "lucide-react";
+import { Crown, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
