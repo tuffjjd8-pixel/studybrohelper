@@ -56,7 +56,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const [displayedSolution, setDisplayedSolution] = useState(solution);
   const [localFollowUpCount, setLocalFollowUpCount] = useState(followUpCount);
   const [humanizeStrength, setHumanizeStrength] = useState<HumanizeStrength>("auto");
-  const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium });
+  const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
   const navigate = useNavigate();
 
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
