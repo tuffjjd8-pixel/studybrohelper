@@ -50,11 +50,6 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
 
         {/* Stats & Premium & Auth */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link to="/polls">
-            <Button variant="ghost" size="icon" className="w-9 h-9 text-muted-foreground hover:text-foreground">
-              <BarChart3 className="w-4 h-4" />
-            </Button>
-          </Link>
           <StreakCounter streak={streak} totalSolves={totalSolves} />
           
           {!isPremium && (
