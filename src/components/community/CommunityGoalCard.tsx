@@ -71,7 +71,7 @@ export function CommunityGoalCard({ onParticipationChange }: CommunityGoalCardPr
 
       if (data) setGoal(data as GoalContent);
     };
-    fetchGoal();
+    fetchGoal().then(() => {});
   }, []);
 
   // Check if user already submitted for this goal
