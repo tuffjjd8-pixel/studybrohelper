@@ -595,6 +595,29 @@ const Profile = () => {
               subscriptionId={profile?.subscription_id} />
             
 
+            {/* Admin-only: Review Community Goal Submissions */}
+            {isAdmin && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.48 }}>
+                <Button
+                  onClick={() => navigate('/community-goal-submissions')}
+                  variant="outline"
+                  className="w-full h-auto py-4 border-primary/30 hover:border-primary/50">
+                  <div className="flex items-center gap-4 w-full">
+                    <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                      <ClipboardList className="w-6 h-6 text-primary" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="font-heading font-bold">Community Goal Submissions</div>
+                      <div className="text-xs text-muted-foreground">Review and approve proof</div>
+                    </div>
+                  </div>
+                </Button>
+              </motion.div>
+            )}
+
             {/* Admin Settings - only visible to admin */}
             <AdminSettings userEmail={user?.email} />
 
