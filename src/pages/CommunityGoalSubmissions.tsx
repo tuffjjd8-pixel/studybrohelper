@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, X, Filter } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
 
@@ -31,6 +37,7 @@ const CommunityGoalSubmissions = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("pending");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
 
@@ -48,10 +55,8 @@ const CommunityGoalSubmissions = () => {
 
       if (error) throw error;
 
-      // Only show submissions where proof was uploaded (screenshot_urls not empty)
       const withProof = (data || []).filter((s) => s.screenshot_urls?.length > 0);
 
-      // Fetch display names for all user_ids
       const userIds = [...new Set(withProof.map((s) => s.user_id))];
       let profileMap: Record<string, string> = {};
 
@@ -96,7 +101,6 @@ const CommunityGoalSubmissions = () => {
       if (action === "approved") {
         const { error: goalError } = await supabase.rpc("increment_community_goal" as any, { goal_id_param: goalId });
         if (goalError) {
-          // Fallback: manual increment
           const { data: goal } = await supabase
             .from("community_goal_content")
             .select("current_count")
@@ -115,6 +119,8 @@ const CommunityGoalSubmissions = () => {
       setSubmissions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, status: action } : s))
       );
+      // Update selected sub status in modal too
+      setSelectedSub((prev) => (prev && prev.id === id ? { ...prev, status: action } : prev));
       toast.success(`Submission ${action}`);
     } catch (e) {
       console.error(`Failed to ${action} submission:`, e);
@@ -179,7 +185,11 @@ const CommunityGoalSubmissions = () => {
       ) : (
         <div className="space-y-4">
           {filtered.map((sub) => (
-            <div key={sub.id} className="bg-card rounded-xl border border-border p-4 space-y-3">
+            <div
+              key={sub.id}
+              className="bg-card rounded-xl border border-border p-4 space-y-3 cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => setSelectedSub(sub)}
+            >
               {/* User & time */}
               <div className="flex items-center justify-between">
                 <p className="font-semibold text-foreground">{sub.display_name}</p>
@@ -200,24 +210,23 @@ const CommunityGoalSubmissions = () => {
                 {format(new Date(sub.created_at), "MMM d, yyyy 'at' h:mm a")}
               </p>
 
-              {/* Screenshots */}
+              {/* Screenshot thumbnail */}
               {sub.screenshot_urls.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto">
                   {sub.screenshot_urls.map((url, i) => (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                      <img
-                        src={url}
-                        alt={`Proof ${i + 1}`}
-                        className="w-32 h-32 object-cover rounded-lg border border-border"
-                      />
-                    </a>
+                    <img
+                      key={i}
+                      src={url}
+                      alt={`Proof ${i + 1}`}
+                      className="w-32 h-32 object-cover rounded-lg border border-border"
+                    />
                   ))}
                 </div>
               )}
 
-              {/* Actions */}
+              {/* Quick actions for pending */}
               {sub.status === "pending" && (
-                <div className="flex gap-2 pt-1">
+                <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
                   <Button
                     size="sm"
                     onClick={() => handleAction(sub.id, sub.goal_id, "approved")}
@@ -241,6 +250,71 @@ const CommunityGoalSubmissions = () => {
           ))}
         </div>
       )}
+
+      {/* Detail Modal */}
+      <Dialog open={!!selectedSub} onOpenChange={(open) => { if (!open) setSelectedSub(null); }}>
+        <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3">
+            <DialogTitle className="flex items-center justify-between">
+              <span>{selectedSub?.display_name}</span>
+              <span
+                className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
+                  selectedSub?.status === "pending"
+                    ? "bg-yellow-500/20 text-yellow-500"
+                    : selectedSub?.status === "approved"
+                    ? "bg-primary/20 text-primary"
+                    : "bg-destructive/20 text-destructive"
+                }`}
+              >
+                {selectedSub?.status}
+              </span>
+            </DialogTitle>
+            {selectedSub && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {format(new Date(selectedSub.created_at), "MMM d, yyyy 'at' h:mm a")}
+              </p>
+            )}
+          </DialogHeader>
+
+          {/* Screenshots full view */}
+          {selectedSub && selectedSub.screenshot_urls.length > 0 && (
+            <div className="overflow-x-auto flex gap-3 px-5 pb-3">
+              {selectedSub.screenshot_urls.map((url, i) => (
+                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                  <img
+                    src={url}
+                    alt={`Proof ${i + 1}`}
+                    className="w-full max-w-sm rounded-xl border border-border object-contain max-h-72"
+                  />
+                </a>
+              ))}
+            </div>
+          )}
+
+          {/* Actions */}
+          {selectedSub?.status === "pending" && (
+            <div className="flex gap-3 px-5 pb-5 pt-2">
+              <Button
+                className="flex-1 gap-1"
+                onClick={() => handleAction(selectedSub.id, selectedSub.goal_id, "approved")}
+                disabled={actionLoading === selectedSub.id}
+              >
+                <Check className="w-4 h-4" /> Approve
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1 gap-1"
+                onClick={() => handleAction(selectedSub.id, selectedSub.goal_id, "rejected")}
+                disabled={actionLoading === selectedSub.id}
+              >
+                <X className="w-4 h-4" /> Reject
+              </Button>
+            </div>
+          )}
+
+          {selectedSub?.status !== "pending" && <div className="pb-5" />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
