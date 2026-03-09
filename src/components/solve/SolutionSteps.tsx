@@ -402,6 +402,28 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         </motion.div>
       )}
 
+      {/* Recommended Quiz button */}
+      {isAuthenticated ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="flex justify-center"
+        >
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => navigate("/quiz", { state: { recommendedTopic: subject || "math", recommendedQuestion: question } })}
+          >
+            <GraduationCap className="w-4 h-4" />
+            Recommended Quiz
+          </Button>
+        </motion.div>
+      ) : (
+        <p className="text-center text-sm text-muted-foreground">
+          Sign in to take a recommended quiz.
+        </p>
+      )}
 
     </motion.div>
   );
