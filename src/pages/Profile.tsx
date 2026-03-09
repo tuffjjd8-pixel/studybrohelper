@@ -471,7 +471,7 @@ const Profile = () => {
               transition={{ delay: 0.33 }}>
               
               <Button
-                onClick={() => navigate('/share-likes')}
+                onClick={() => navigate('/community-goal-submissions')}
                 variant="outline"
                 className="w-full h-auto py-4 border-primary/30 hover:border-primary/50">
                 
@@ -482,7 +482,7 @@ const Profile = () => {
                   <div className="text-left flex-1">
                     <div className="font-heading font-bold">Community Goal Submissions</div>
                     <div className="text-xs text-muted-foreground">
-                      {totalConfirmedLikes} confirmed likes
+                      Submit proof for the community goal
                     </div>
                   </div>
                 </div>
