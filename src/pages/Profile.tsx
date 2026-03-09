@@ -20,8 +20,8 @@ import {
   Settings,
   Award,
   Target,
-  BarChart3,
-} from "lucide-react";
+  BarChart3 } from
+"lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
 import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
@@ -76,11 +76,11 @@ const Profile = () => {
   const fetchConfirmedLikes = async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
-        .from("share_likes")
-        .select("likes_confirmed")
-        .eq("user_id", user.id)
-        .eq("status", "approved");
+      const { data, error } = await supabase.
+      from("share_likes").
+      select("likes_confirmed").
+      eq("user_id", user.id).
+      eq("status", "approved");
       if (error) throw error;
       const total = (data || []).reduce((sum, row) => sum + (row.likes_confirmed || 0), 0);
       setTotalConfirmedLikes(total);
@@ -91,11 +91,11 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, display_name, streak_count, total_solves, is_premium, daily_solves_used, referral_code, created_at, avatar_url, animated_steps_used_today, speech_clips_used, last_speech_reset, premium_until, subscription_id, equipped_badge")
-        .eq("user_id", user?.id)
-        .maybeSingle();
+      const { data, error } = await supabase.
+      from("profiles").
+      select("id, display_name, streak_count, total_solves, is_premium, daily_solves_used, referral_code, created_at, avatar_url, animated_steps_used_today, speech_clips_used, last_speech_reset, premium_until, subscription_id, equipped_badge").
+      eq("user_id", user?.id).
+      maybeSingle();
 
       if (error) throw error;
       if (data) {
@@ -114,10 +114,10 @@ const Profile = () => {
     setIsSaving(true);
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ display_name: displayName.trim() })
-        .eq("user_id", user?.id);
+      const { error } = await supabase.
+      from("profiles").
+      update({ display_name: displayName.trim() }).
+      eq("user_id", user?.id);
 
       if (error) throw error;
       toast.success("Name updated!");
@@ -152,22 +152,22 @@ const Profile = () => {
       const filePath = `${user.id}/avatar.${fileExt}`;
 
       // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage.
+      from('avatars').
+      upload(filePath, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+      const { data: { publicUrl } } = supabase.storage.
+      from('avatars').
+      getPublicUrl(filePath);
 
       // Update profile with avatar URL
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ avatar_url: publicUrl })
-        .eq("user_id", user.id);
+      const { error: updateError } = await supabase.
+      from("profiles").
+      update({ avatar_url: publicUrl }).
+      eq("user_id", user.id);
 
       if (updateError) throw updateError;
 
@@ -192,8 +192,8 @@ const Profile = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
-      </div>
-    );
+      </div>);
+
   }
 
   // Guest profile view
@@ -206,8 +206,8 @@ const Profile = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
+              className="space-y-6">
+              
               <div className="text-center py-6">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto">
                   <User className="w-10 h-10 text-primary-foreground" />
@@ -224,8 +224,8 @@ const Profile = () => {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.1 }}
-                  className="p-4 bg-card rounded-xl border border-border text-center"
-                >
+                  className="p-4 bg-card rounded-xl border border-border text-center">
+                  
                   <Flame className="w-8 h-8 text-orange-500 mx-auto mb-2" />
                   <div className="text-2xl font-bold">0</div>
                   <div className="text-xs text-muted-foreground">Day Streak</div>
@@ -235,8 +235,8 @@ const Profile = () => {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.15 }}
-                  className="p-4 bg-card rounded-xl border border-border text-center"
-                >
+                  className="p-4 bg-card rounded-xl border border-border text-center">
+                  
                   <Trophy className="w-8 h-8 text-primary mx-auto mb-2" />
                   <div className="text-2xl font-bold">
                     {JSON.parse(localStorage.getItem("guest_solves") || "[]").length}
@@ -250,8 +250,8 @@ const Profile = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="p-6 bg-card rounded-xl border border-border text-center"
-              >
+                className="p-6 bg-card rounded-xl border border-border text-center">
+                
                 <User className="w-10 h-10 text-primary mx-auto mb-3" />
                 <h3 className="font-heading font-bold text-lg mb-2">
                   Want to save your progress?
@@ -267,27 +267,27 @@ const Profile = () => {
           </div>
         </main>
         <BottomNav />
-      </div>
-    );
+      </div>);
+
   }
 
   const maxSpeechClips = profile?.is_premium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS;
   const maxSolveFlow = profile?.is_premium ? PREMIUM_SOLVE_FLOW_PER_DAY : FREE_SOLVE_FLOW_PER_DAY;
   const solveFlowUsed = profile?.animated_steps_used_today || 0;
-  
+
   // Calculate speech clips with 72h reset logic
   const getSpeechClipsRemaining = () => {
     if (!profile) return maxSpeechClips;
     const lastReset = profile.last_speech_reset ? new Date(profile.last_speech_reset) : null;
     if (!lastReset) return maxSpeechClips;
-    
+
     const hoursSinceReset = (Date.now() - lastReset.getTime()) / (1000 * 60 * 60);
     if (hoursSinceReset >= SPEECH_RESET_HOURS) {
       return maxSpeechClips; // Reset happened
     }
     return Math.max(0, maxSpeechClips - (profile.speech_clips_used || 0));
   };
-  
+
   const speechClipsRemaining = getSpeechClipsRemaining();
   const hoursUntilReset = () => {
     if (!profile?.last_speech_reset) return 0;
@@ -306,61 +306,61 @@ const Profile = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
+            className="space-y-6">
+            
             {/* Profile header with avatar */}
             <div className="text-center py-6">
               <div className="relative inline-block">
-                {profile?.avatar_url ? (
-                  <img 
-                    src={profile.avatar_url} 
-                    alt="Avatar" 
-                    className="w-20 h-20 rounded-full object-cover border-2 border-primary/50"
-                  />
-                ) : (
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                {profile?.avatar_url ?
+                <img
+                  src={profile.avatar_url}
+                  alt="Avatar"
+                  className="w-20 h-20 rounded-full object-cover border-2 border-primary/50" /> :
+
+
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
                     <User className="w-10 h-10 text-primary-foreground" />
                   </div>
-                )}
+                }
                 
                 {/* Upload button overlay */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploadingAvatar}
-                  className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center border-2 border-background hover:bg-primary/80 transition-colors"
-                >
-                  {isUploadingAvatar ? (
-                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Camera className="w-4 h-4 text-primary-foreground" />
-                  )}
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center border-2 border-background hover:bg-primary/80 transition-colors">
+                  
+                  {isUploadingAvatar ?
+                  <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> :
+
+                  <Camera className="w-4 h-4 text-primary-foreground" />
+                  }
                 </button>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   onChange={handleAvatarUpload}
-                  className="hidden"
-                />
+                  className="hidden" />
+                
               </div>
               
               <div className="flex items-center justify-center gap-2 mt-4">
                 <h1 className="text-2xl font-heading font-bold">
                   {profile?.display_name || "Study Bro"}
                 </h1>
-                {profile?.equipped_badge && getBadgeByKey(profile.equipped_badge) && (
-                  <span className="text-2xl" title={getBadgeByKey(profile.equipped_badge)!.name}>
+                {profile?.equipped_badge && getBadgeByKey(profile.equipped_badge) &&
+                <span className="text-2xl" title={getBadgeByKey(profile.equipped_badge)!.name}>
                     {getBadgeByKey(profile.equipped_badge)!.icon}
                   </span>
-                )}
+                }
               </div>
               <p className="text-muted-foreground text-sm">{user.email}</p>
-              {profile?.is_premium && (
-                <div className="inline-flex items-center gap-1 mt-2 px-3 py-1 bg-primary/20 text-primary rounded-full text-sm">
+              {profile?.is_premium &&
+              <div className="inline-flex items-center gap-1 mt-2 px-3 py-1 bg-primary/20 text-primary rounded-full text-sm">
                   <Crown className="w-4 h-4" />
                   Premium Bro
                 </div>
-              )}
+              }
             </div>
 
             {/* Stats grid */}
@@ -369,8 +369,8 @@ const Profile = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.1 }}
-                className="p-4 bg-card rounded-xl border border-border text-center"
-              >
+                className="p-4 bg-card rounded-xl border border-border text-center">
+                
                 <Flame className="w-8 h-8 text-orange-500 mx-auto mb-2" />
                 <div className="text-2xl font-bold">{profile?.streak_count || 0}</div>
                 <div className="text-xs text-muted-foreground">Day Streak</div>
@@ -380,8 +380,8 @@ const Profile = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.15 }}
-                className="p-4 bg-card rounded-xl border border-border text-center"
-              >
+                className="p-4 bg-card rounded-xl border border-border text-center">
+                
                 <Trophy className="w-8 h-8 text-primary mx-auto mb-2" />
                 <div className="text-2xl font-bold">{profile?.total_solves || 0}</div>
                 <div className="text-xs text-muted-foreground">Problems Solved</div>
@@ -391,8 +391,8 @@ const Profile = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 }}
-                className="p-4 bg-card rounded-xl border border-border text-center"
-              >
+                className="p-4 bg-card rounded-xl border border-border text-center">
+                
                 <div className="mx-auto mb-2"><AIBrainIcon size="xl" glowIntensity="strong" /></div>
                 <div className="text-2xl font-bold">{solveFlowUsed}/{maxSolveFlow}</div>
                 <div className="text-xs text-muted-foreground">Solve Flow Today</div>
@@ -402,14 +402,14 @@ const Profile = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.25 }}
-                className="p-4 bg-card rounded-xl border border-border text-center"
-              >
+                className="p-4 bg-card rounded-xl border border-border text-center">
+                
                 <Mic className="w-8 h-8 text-secondary mx-auto mb-2" />
                 <div className="text-2xl font-bold">{speechClipsRemaining}/{maxSpeechClips}</div>
                 <div className="text-xs text-muted-foreground">Speech Clips Left</div>
-                {speechClipsRemaining === 0 && (
-                  <div className="text-xs text-orange-500 mt-1">Resets in {hoursUntilReset()}h</div>
-                )}
+                {speechClipsRemaining === 0 &&
+                <div className="text-xs text-orange-500 mt-1">Resets in {hoursUntilReset()}h</div>
+                }
               </motion.div>
             </div>
 
@@ -418,17 +418,17 @@ const Profile = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3 }}
-              className="p-4 bg-card rounded-xl border border-border flex items-center gap-4"
-            >
+              className="p-4 bg-card rounded-xl border border-border flex items-center gap-4">
+              
               <Calendar className="w-8 h-8 text-violet-500" />
               <div>
                 <div className="text-lg font-bold">
-                  {profile?.created_at
-                    ? Math.floor(
-                        (Date.now() - new Date(profile.created_at).getTime()) /
-                          (1000 * 60 * 60 * 24)
-                      )
-                    : 0} days
+                  {profile?.created_at ?
+                  Math.floor(
+                    (Date.now() - new Date(profile.created_at).getTime()) / (
+                    1000 * 60 * 60 * 24)
+                  ) :
+                  0} days
                 </div>
                 <div className="text-xs text-muted-foreground">Member since joining</div>
               </div>
@@ -439,8 +439,8 @@ const Profile = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35 }}
-              className="p-4 bg-card rounded-xl border border-border"
-            >
+              className="p-4 bg-card rounded-xl border border-border">
+              
               <label className="text-sm text-muted-foreground mb-2 block">
                 Display Name
               </label>
@@ -449,12 +449,12 @@ const Profile = () => {
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Your name"
-                  className="bg-background"
-                />
+                  className="bg-background" />
+                
                 <Button
                   onClick={handleUpdateName}
-                  disabled={isSaving || displayName === profile?.display_name}
-                >
+                  disabled={isSaving || displayName === profile?.display_name}>
+                  
                   {isSaving ? "..." : "Save"}
                 </Button>
               </div>
@@ -464,13 +464,13 @@ const Profile = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.33 }}
-            >
+              transition={{ delay: 0.33 }}>
+              
               <Button
                 onClick={() => navigate('/share-likes')}
                 variant="outline"
-                className="w-full h-auto py-4 border-primary/30 hover:border-primary/50"
-              >
+                className="w-full h-auto py-4 border-primary/30 hover:border-primary/50">
+                
                 <div className="flex items-center gap-4 w-full">
                   <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
                     <Target className="w-6 h-6 text-primary" />
@@ -489,13 +489,13 @@ const Profile = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.34 }}
-            >
+              transition={{ delay: 0.34 }}>
+              
               <Button
                 onClick={() => navigate('/community-reward')}
                 variant="outline"
-                className="w-full h-auto py-4 border-yellow-500/30 hover:border-yellow-500/50"
-              >
+                className="w-full h-auto py-4 border-yellow-500/30 hover:border-yellow-500/50">
+                
                 <div className="flex items-center gap-4 w-full">
                   <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
                     <Crown className="w-6 h-6 text-yellow-500" />
@@ -503,7 +503,7 @@ const Profile = () => {
                   <div className="text-left flex-1">
                     <div className="font-heading font-bold">Community Reward</div>
                     <div className="text-xs text-muted-foreground">
-                      Claim your community goal reward
+                      Claim your community reward
                     </div>
                   </div>
                 </div>
@@ -514,13 +514,13 @@ const Profile = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.345 }}
-            >
+              transition={{ delay: 0.345 }}>
+              
               <Button
                 onClick={() => navigate('/polls')}
                 variant="outline"
-                className="w-full h-auto py-4 border-primary/30 hover:border-primary/50"
-              >
+                className="w-full h-auto py-4 border-primary/30 hover:border-primary/50">
+                
                 <div className="flex items-center gap-4 w-full">
                   <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
                     <BarChart3 className="w-6 h-6 text-primary" />
@@ -528,7 +528,7 @@ const Profile = () => {
                   <div className="text-left flex-1">
                     <div className="font-heading font-bold">Polls</div>
                     <div className="text-xs text-muted-foreground">
-                      See community votes and results
+                      See community votes 
                     </div>
                   </div>
                 </div>
@@ -537,12 +537,12 @@ const Profile = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
-            >
+              transition={{ delay: 0.35 }}>
+              
               <Button
                 onClick={() => navigate('/badges')}
-                className="w-full h-auto py-5 bg-gradient-to-r from-primary via-secondary to-primary bg-[length:200%_100%] hover:bg-[length:100%_100%] transition-all duration-500 border-0 shadow-[0_0_30px_hsl(var(--primary)/0.3)]"
-              >
+                className="w-full h-auto py-5 bg-gradient-to-r from-primary via-secondary to-primary bg-[length:200%_100%] hover:bg-[length:100%_100%] transition-all duration-500 border-0 shadow-[0_0_30px_hsl(var(--primary)/0.3)]">
+                
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-background/20 flex items-center justify-center">
                     <Award className="w-7 h-7 text-primary-foreground" />
@@ -558,13 +558,13 @@ const Profile = () => {
             </motion.div>
 
             {/* Premium upsell */}
-            {!profile?.is_premium && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="p-6 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl border border-primary/30 text-center"
-              >
+            {!profile?.is_premium &&
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="p-6 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl border border-primary/30 text-center">
+              
                 <Crown className="w-10 h-10 text-primary mx-auto mb-3" />
                 <h3 className="font-heading font-bold text-lg mb-2">
                   Go Premium, Bro!
@@ -572,24 +572,24 @@ const Profile = () => {
                 <p className="text-sm text-muted-foreground mb-4">
                   16 Solve Flows, 15 speech clips/day, enhanced solving
                 </p>
-                <Button 
-                  onClick={() => openPremiumPage(navigate)} 
-                  className="w-full"
-                >
+                <Button
+                onClick={() => openPremiumPage(navigate)}
+                className="w-full">
+                
                   Upgrade for $5.99/month
                 </Button>
                 <p className="text-xs text-muted-foreground mt-3">
                   Purchases are completed on our website to comply with App Store and Google Play policies.
                 </p>
               </motion.div>
-            )}
+            }
 
             {/* Subscription management buttons for premium users */}
-            <SubscriptionButtons 
+            <SubscriptionButtons
               isPremium={profile?.is_premium || false}
               premiumSince={profile?.premium_until ? new Date(new Date(profile.premium_until).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() : null}
-              subscriptionId={profile?.subscription_id}
-            />
+              subscriptionId={profile?.subscription_id} />
+            
 
             {/* Admin Settings - only visible to admin */}
             <AdminSettings userEmail={user?.email} />
@@ -598,13 +598,13 @@ const Profile = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-            >
+              transition={{ delay: 0.5 }}>
+              
               <Button
                 variant="outline"
                 onClick={() => navigate("/settings")}
-                className="w-full"
-              >
+                className="w-full">
+                
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
               </Button>
@@ -614,13 +614,13 @@ const Profile = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.55 }}
-            >
+              transition={{ delay: 0.55 }}>
+              
               <Button
                 variant="outline"
                 onClick={handleSignOut}
-                className="w-full text-muted-foreground hover:text-destructive"
-              >
+                className="w-full text-muted-foreground hover:text-destructive">
+                
                 <LogOut className="w-4 h-4 mr-2" />
                 Sign Out
               </Button>
@@ -630,8 +630,8 @@ const Profile = () => {
       </main>
 
       <BottomNav />
-    </div>
-  );
+    </div>);
+
 };
 
 export default Profile;
