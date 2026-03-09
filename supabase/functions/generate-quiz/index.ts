@@ -49,20 +49,27 @@ function fixCommonLatexErrors(content: string): string {
 
   // ── Restore control-character corrupted LaTeX commands ──
   // When JSON.parse decodes \frac it becomes form-feed (0x0C) + "rac", etc.
-  result = result.replace(/\x0c/g, "\\f");   // \f → restore
-  result = result.replace(/\x09/g, "\\t");   // \t → restore
-  result = result.replace(/\x0d/g, "\\r");   // \r → restore
-  result = result.replace(/\x08/g, "\\b");   // \b → restore
-  // \n before alpha (not real newlines between sentences)
-  result = result.replace(/\x0a(?=[A-Za-z])/g, "\\n");
+  // We need to restore these to proper backslash + letter sequences.
+  // IMPORTANT: In JS, "\f" IS the form-feed char. We must write the replacement
+  // as String.fromCharCode(92) + letter to get a literal backslash.
+  const BS = String.fromCharCode(92); // literal backslash character
 
-  // ── Fix double-escaped artifacts like \f\frac → \frac ──
+  result = result.replace(/\x0c/g, BS + "f");   // form-feed → \f
+  result = result.replace(/\x09/g, BS + "t");   // tab → \t
+  result = result.replace(/\x0d/g, BS + "r");   // carriage-return → \r
+  result = result.replace(/\x08/g, BS + "b");   // backspace → \b
+  // newline before alpha (LaTeX commands like \nabla, \nu, \neq)
+  result = result.replace(/\x0a(?=[A-Za-z])/g, BS + "n");
+
+  // ── Fix double-escaped artifacts ──
+  // After the above, \f\frac is now two chars: backslash+f + backslash+frac
+  // We want just \frac, so remove the duplicated prefix
   result = result.replace(/\\f\\frac/g, "\\frac");
   result = result.replace(/\\f\\flat/g, "\\flat");
   result = result.replace(/\\f\\forall/g, "\\forall");
   result = result.replace(/\\t\\theta/g, "\\theta");
   result = result.replace(/\\t\\times/g, "\\times");
-  result = result.replace(/\\t\\to/g, "\\to");
+  result = result.replace(/\\t\\to(?![A-Za-z])/g, "\\to");
   result = result.replace(/\\t\\tan/g, "\\tan");
   result = result.replace(/\\t\\tau/g, "\\tau");
   result = result.replace(/\\r\\right/g, "\\right");
