@@ -163,7 +163,7 @@ function parseQuizJSON(content: string): any {
     try {
       return JSON.parse(fixLatexInJSON(jsonObjectMatch[0]));
     } catch (e) {
-      console.log("Object pattern parse failed");
+      console.log("Object pattern parse failed:", e instanceof Error ? e.message : String(e));
     }
   }
 
