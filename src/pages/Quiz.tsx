@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -61,7 +61,8 @@ const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
 const Quiz = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const recommendedTopic = (location.state as any)?.recommendedTopic as string | undefined;
+  const [searchParams] = useSearchParams();
+  const recommendedTopic = searchParams.get("topic") || (location.state as any)?.recommendedTopic as string | undefined;
   const {
     user,
     loading: authLoading

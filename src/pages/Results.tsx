@@ -352,7 +352,7 @@ const Results = ({ embedded }: { embedded?: boolean }) => {
               {user ? (
                 <Card
                   className="border-primary/30 hover:border-primary/60 transition-colors cursor-pointer"
-                  onClick={() => navigate("/quiz", { state: { recommendedTopic: subject } })}
+                  onClick={() => navigate(`/quiz?topic=${encodeURIComponent(subject)}`)}
                 >
                   <CardContent className="pt-6 flex items-center gap-4">
                     <div className="p-3 rounded-xl bg-primary/10">
