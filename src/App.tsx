@@ -25,6 +25,7 @@ import ShareLikes from "./pages/ShareLikes";
 import AdminShareLikes from "./pages/AdminShareLikes";
 import AdminCommunityGoal from "./pages/AdminCommunityGoal";
 import CommunityGoalSubmissions from "./pages/CommunityGoalSubmissions";
+import ReviewCommunitySubmissions from "./pages/ReviewCommunitySubmissions";
 import SecurityEventsLog from "./pages/SecurityEventsLog";
 import NotFound from "./pages/NotFound";
 import { GlobalBadgeUnlock } from "./components/badges/GlobalBadgeUnlock";
