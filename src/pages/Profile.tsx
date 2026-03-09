@@ -272,6 +272,9 @@ const Profile = () => {
 
   }
 
+  const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
+  const isAdmin = user?.email === ADMIN_EMAIL;
+
   const maxSpeechClips = profile?.is_premium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS;
   const maxSolveFlow = profile?.is_premium ? PREMIUM_SOLVE_FLOW_PER_DAY : FREE_SOLVE_FLOW_PER_DAY;
   const solveFlowUsed = profile?.animated_steps_used_today || 0;
