@@ -219,6 +219,7 @@ const SolveDetail = () => {
               solveId={solve.id}
               isPremium={isPremium}
               isHistory={true}
+              isAuthenticated={!!user}
             />
 
           </motion.div>
