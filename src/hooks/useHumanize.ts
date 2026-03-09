@@ -17,6 +17,11 @@ export function useHumanize({ isPremium, isAuthenticated = true }: UseHumanizeOp
     async (solution: string, subject: string, strength: HumanizeStrength = "auto"): Promise<string | null> => {
       if (isHumanizing) return null;
 
+      if (!isAuthenticated) {
+        toast.error("Please sign in to use AI features.");
+        return null;
+      }
+
       if (!isPremium) {
         setLimitReached(true);
         return null;
