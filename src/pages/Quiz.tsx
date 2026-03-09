@@ -61,7 +61,8 @@ const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
 const Quiz = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const recommendedTopic = (location.state as any)?.recommendedTopic as string | undefined;
+  const [searchParams] = useSearchParams();
+  const recommendedTopic = searchParams.get("topic") || (location.state as any)?.recommendedTopic as string | undefined;
   const {
     user,
     loading: authLoading
