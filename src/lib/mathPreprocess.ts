@@ -1,35 +1,50 @@
 /**
  * Preprocess math content so remark-math can parse it.
  *
- * 1. Clean up artifacts from backend LaTeX generation (doubled delimiters,
- *    empty blocks, double-escaped commands like \f\frac).
- * 2. Convert \[...\] → $$...$$ and \(...\) → $...$
+ * 1. Restore control characters corrupted by JSON parsing
+ *    (\f → form-feed, \t → tab, etc.) back to proper LaTeX.
+ * 2. Clean doubled delimiters and empty blocks.
+ * 3. Convert \[...\] → $$...$$ and \(...\) → $...$
  *    (remark-math only supports $ delimiters).
  */
 export function preprocessMath(content: string): string {
   let result = content;
-  const BS = "\\"; // literal backslash
 
-  // ── Fix double-escaped command artifacts ──
-  // Backend may produce \f\frac instead of \frac, etc.
+  // ── Step 1: Restore control characters to backslash + letter ──
+  // JSON.parse can turn LaTeX commands into control chars:
+  //   \frac → form-feed (0x0C) + "rac"
+  //   \theta → tab (0x09) + "heta"
+  //   \right → carriage-return (0x0D) + "ight"
+  //   \beta → backspace (0x08) + "eta"
+  // Restore them to the proper LaTeX backslash commands.
+  result = result.replace(/\f/g, "\\f");       // form-feed → \f
+  result = result.replace(/\t/g, "\\t");       // tab → \t (note: tabs in normal text are rare in math)
+  result = result.replace(/\r/g, "\\r");       // carriage return → \r
+  result = result.replace(/\x08/g, "\\b");     // backspace → \b
+  // Don't replace ALL \n (newlines are meaningful), only before letters
+  result = result.replace(/\n(?=[a-zA-Z])/g, "\\n");
+
+  // ── Step 2: Fix doubled command prefixes ──
+  // After step 1, \\f\\frac in JSON becomes \f\frac in the string.
+  // Collapse these duplicates.
   const doubles: [string, string][] = [
-    [BS+"f"+BS+"frac", BS+"frac"],
-    [BS+"f"+BS+"flat", BS+"flat"],
-    [BS+"f"+BS+"forall", BS+"forall"],
-    [BS+"t"+BS+"theta", BS+"theta"],
-    [BS+"t"+BS+"times", BS+"times"],
-    [BS+"t"+BS+"tan", BS+"tan"],
-    [BS+"t"+BS+"tau", BS+"tau"],
-    [BS+"r"+BS+"right", BS+"right"],
-    [BS+"r"+BS+"rho", BS+"rho"],
-    [BS+"r"+BS+"rangle", BS+"rangle"],
-    [BS+"b"+BS+"beta", BS+"beta"],
-    [BS+"b"+BS+"bar", BS+"bar"],
-    [BS+"b"+BS+"binom", BS+"binom"],
-    [BS+"b"+BS+"boxed", BS+"boxed"],
-    [BS+"n"+BS+"nabla", BS+"nabla"],
-    [BS+"n"+BS+"nu", BS+"nu"],
-    [BS+"n"+BS+"neq", BS+"neq"],
+    ["\\f\\frac", "\\frac"],
+    ["\\f\\flat", "\\flat"],
+    ["\\f\\forall", "\\forall"],
+    ["\\t\\theta", "\\theta"],
+    ["\\t\\times", "\\times"],
+    ["\\t\\tan", "\\tan"],
+    ["\\t\\tau", "\\tau"],
+    ["\\r\\right", "\\right"],
+    ["\\r\\rho", "\\rho"],
+    ["\\r\\rangle", "\\rangle"],
+    ["\\b\\beta", "\\beta"],
+    ["\\b\\bar", "\\bar"],
+    ["\\b\\binom", "\\binom"],
+    ["\\b\\boxed", "\\boxed"],
+    ["\\n\\nabla", "\\nabla"],
+    ["\\n\\nu", "\\nu"],
+    ["\\n\\neq", "\\neq"],
   ];
   for (const [from, to] of doubles) {
     while (result.includes(from)) {
@@ -37,26 +52,27 @@ export function preprocessMath(content: string): string {
     }
   }
 
-  // Handle \to separately
-  result = result.split(BS+"t"+BS+"to ").join(BS+"to ");
-  result = result.split(BS+"t"+BS+"to"+BS).join(BS+"to"+BS);
+  // Handle \to separately (short command)
+  while (result.includes("\\t\\to")) {
+    result = result.split("\\t\\to").join("\\to");
+  }
 
-  // ── Remove empty delimiter blocks ──
-  result = result.split(BS+"("+BS+")").join("");
-  result = result.split(BS+"["+BS+"]").join("");
+  // ── Step 3: Remove empty delimiter blocks ──
+  result = result.split("\\(\\)").join("");
+  result = result.split("\\[\\]").join("");
 
-  // ── Fix doubled delimiters: \(\( → \( ──
-  result = result.split(BS+"("+BS+"(").join(BS+"(");
-  result = result.split(BS+")"+BS+")").join(BS+")");
-  result = result.split(BS+"["+BS+"[").join(BS+"[");
-  result = result.split(BS+"]"+BS+"]").join(BS+"]");
+  // ── Step 4: Fix doubled delimiters: \(\( → \( ──
+  result = result.split("\\(\\(").join("\\(");
+  result = result.split("\\)\\)").join("\\)");
+  result = result.split("\\[\\[").join("\\[");
+  result = result.split("\\]\\]").join("\\]");
 
-  // ── Convert \[...\] display math to $$...$$ ──
+  // ── Step 5: Convert \[...\] display math to $$...$$ ──
   result = result.replace(/\\\[([\s\S]*?)\\\]/g, (_match, inner) => {
     return `$$${inner}$$`;
   });
 
-  // ── Convert \(...\) inline math to $...$ ──
+  // ── Step 6: Convert \(...\) inline math to $...$ ──
   result = result.replace(/\\\(([\s\S]*?)\\\)/g, (_match, inner) => {
     return `$${inner}$`;
   });
