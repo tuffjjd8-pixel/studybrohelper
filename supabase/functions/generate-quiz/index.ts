@@ -150,7 +150,11 @@ function parseQuizJSON(content: string): any {
   try {
     return JSON.parse(latexFixed);
   } catch (e) {
-    console.log("LaTeX-fixed parse failed, trying pattern extraction...");
+    console.log(
+      "LaTeX-fixed parse failed:",
+      e instanceof Error ? e.message : String(e),
+      "— trying pattern extraction..."
+    );
   }
 
   // Strategy 4: Find JSON object pattern + LaTeX fix
