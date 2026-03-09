@@ -763,7 +763,7 @@ const Quiz = () => {
                 }} className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
                       <p className="text-sm text-green-400 flex items-start gap-2">
                         <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
-                        <span className="font-medium">Correct! {quizResult[currentQuestion].explanation}</span>
+                        <span className="font-medium">Correct! <MathText>{quizResult[currentQuestion].explanation}</MathText></span>
                       </p>
                     </motion.div>}
 
