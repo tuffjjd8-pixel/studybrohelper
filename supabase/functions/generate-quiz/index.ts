@@ -62,9 +62,25 @@ function sanitizeQuizOutput(questions: any[]): any[] {
   }).filter(q => q.question && q.options.length === 4);
 }
 
-// Fix LaTeX backslashes before JSON parsing (prevents JSON escape sequences like \f, \t, \n, \r, \b, \uXXXX from corrupting LaTeX)
+// Fix LaTeX inside JSON returned by the LLM.
+// IMPORTANT: The Groq API response itself is JSON; sequences like "\frac" may already have been
+// decoded into control characters (e.g. \f form-feed) *before* we ever see `content`.
+// We must first restore those into backslash-commands, then make the JSON parseable.
 function fixLatexInJSON(raw: string): string {
-  return raw
+  const restored = raw
+    // Restore control characters that commonly come from JSON-decoding LaTeX commands
+    // \f in "\frac" -> form feed (0x0c) + "rac"; restore to "\\frac" in the JSON text
+    .replace(/\x0c(?=[A-Za-z])/g, "\\\\f")
+    // \t in "\theta", "\times", "\to" -> tab (0x09)
+    .replace(/\x09(?=[A-Za-z])/g, "\\\\t")
+    // \n in "\nabla", etc. -> newline (0x0a)
+    .replace(/\x0a(?=[A-Za-z])/g, "\\\\n")
+    // \r in "\rho", "\right" -> carriage return (0x0d)
+    .replace(/\x0d(?=[A-Za-z])/g, "\\\\r")
+    // \b in "\beta", "\bar", etc. -> backspace (0x08)
+    .replace(/\x08(?=[A-Za-z])/g, "\\\\b");
+
+  return restored
     // \u is a JSON unicode escape; escape it unless it's followed by 4 hex digits
     .replace(/(?<!\\)\\u(?![0-9a-fA-F]{4})/g, "\\\\u")
     // \f, \t, \n, \r, \b are JSON escapes; escape them when they start LaTeX commands
