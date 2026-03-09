@@ -903,7 +903,7 @@ const Quiz = () => {
                       {isPremium ? <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
                           <p className="text-sm">
                             <span className="font-medium text-primary block mb-1">Why this is correct:</span>
-                            <span className="text-muted-foreground break-words">{q.explanation}</span>
+                            <span className="text-muted-foreground break-words"><MathText>{q.explanation}</MathText></span>
                           </p>
                         </div> : <div className="p-3 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-xl text-center">
                           <Lock className="w-4 h-4 inline mr-1.5 text-muted-foreground" />
