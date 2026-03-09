@@ -46,59 +46,66 @@ function fixCommonLatexErrors(content: string): string {
   if (typeof content !== "string") return content;
 
   let result = content;
+  const BS = "\\"; // literal backslash (one char)
 
-  // ── Restore control-character corrupted LaTeX commands ──
-  // When JSON.parse decodes \frac it becomes form-feed (0x0C) + "rac", etc.
-  // We need to restore these to proper backslash + letter sequences.
-  // IMPORTANT: In JS, "\f" IS the form-feed char. We must write the replacement
-  // as String.fromCharCode(92) + letter to get a literal backslash.
-  const BS = String.fromCharCode(92); // literal backslash character
+  // ── Step 1: Restore control-character corrupted LaTeX commands ──
+  // JSON.parse turns \f → 0x0C, \t → 0x09, \r → 0x0D, \b → 0x08, \n → 0x0A
+  // We restore them to backslash + letter for proper LaTeX
+  result = result.split("\f").join(BS + "f");
+  result = result.split("\t").join(BS + "t");
+  result = result.split("\r").join(BS + "r");
+  result = result.split("\b").join(BS + "b");
+  // Only restore \n before letters (LaTeX commands), not normal newlines
+  result = result.replace(/\n(?=[A-Za-z])/g, BS + "n");
 
-  result = result.replace(/\x0c/g, BS + "f");   // form-feed → \f
-  result = result.replace(/\x09/g, BS + "t");   // tab → \t
-  result = result.replace(/\x0d/g, BS + "r");   // carriage-return → \r
-  result = result.replace(/\x08/g, BS + "b");   // backspace → \b
-  // newline before alpha (LaTeX commands like \nabla, \nu, \neq)
-  result = result.replace(/\x0a(?=[A-Za-z])/g, BS + "n");
+  // ── Step 2: Fix doubled command prefixes ──
+  // After step 1, strings like original \\f\\frac become \f\frac
+  // We collapse these: \f\frac → \frac, \t\theta → \theta, etc.
+  const doubles: [string, string][] = [
+    [BS+"f"+BS+"frac", BS+"frac"],
+    [BS+"f"+BS+"flat", BS+"flat"],
+    [BS+"f"+BS+"forall", BS+"forall"],
+    [BS+"t"+BS+"theta", BS+"theta"],
+    [BS+"t"+BS+"times", BS+"times"],
+    [BS+"t"+BS+"tan", BS+"tan"],
+    [BS+"t"+BS+"tau", BS+"tau"],
+    [BS+"r"+BS+"right", BS+"right"],
+    [BS+"r"+BS+"rho", BS+"rho"],
+    [BS+"r"+BS+"rangle", BS+"rangle"],
+    [BS+"b"+BS+"beta", BS+"beta"],
+    [BS+"b"+BS+"bar", BS+"bar"],
+    [BS+"b"+BS+"binom", BS+"binom"],
+    [BS+"b"+BS+"boxed", BS+"boxed"],
+    [BS+"b"+BS+"bullet", BS+"bullet"],
+    [BS+"n"+BS+"nabla", BS+"nabla"],
+    [BS+"n"+BS+"nu", BS+"nu"],
+    [BS+"n"+BS+"neq", BS+"neq"],
+    [BS+"n"+BS+"neg", BS+"neg"],
+    [BS+"n"+BS+"not", BS+"not"],
+  ];
+  for (const [from, to] of doubles) {
+    while (result.includes(from)) {
+      result = result.split(from).join(to);
+    }
+  }
 
-  // ── Fix double-escaped artifacts ──
-  // After the above, \f\frac is now two chars: backslash+f + backslash+frac
-  // We want just \frac, so remove the duplicated prefix
-  result = result.replace(/\\f\\frac/g, "\\frac");
-  result = result.replace(/\\f\\flat/g, "\\flat");
-  result = result.replace(/\\f\\forall/g, "\\forall");
-  result = result.replace(/\\t\\theta/g, "\\theta");
-  result = result.replace(/\\t\\times/g, "\\times");
-  result = result.replace(/\\t\\to(?![A-Za-z])/g, "\\to");
-  result = result.replace(/\\t\\tan/g, "\\tan");
-  result = result.replace(/\\t\\tau/g, "\\tau");
-  result = result.replace(/\\r\\right/g, "\\right");
-  result = result.replace(/\\r\\rho/g, "\\rho");
-  result = result.replace(/\\r\\rangle/g, "\\rangle");
-  result = result.replace(/\\b\\beta/g, "\\beta");
-  result = result.replace(/\\b\\bar/g, "\\bar");
-  result = result.replace(/\\b\\binom/g, "\\binom");
-  result = result.replace(/\\b\\boxed/g, "\\boxed");
-  result = result.replace(/\\b\\bullet/g, "\\bullet");
-  result = result.replace(/\\n\\nabla/g, "\\nabla");
-  result = result.replace(/\\n\\nu/g, "\\nu");
-  result = result.replace(/\\n\\neq/g, "\\neq");
-  result = result.replace(/\\n\\neg/g, "\\neg");
-  result = result.replace(/\\n\\not/g, "\\not");
+  // Also handle \to separately (short command, avoid false positives)
+  result = result.split(BS+"t"+BS+"to ").join(BS+"to ");
+  result = result.split(BS+"t"+BS+"to"+BS).join(BS+"to"+BS);
 
-  // ── Remove empty \(\) or \[\] blocks ──
-  result = result.replace(/\\\(\s*\\\)/g, "");
-  result = result.replace(/\\\[\s*\\\]/g, "");
+  // ── Step 3: Remove empty delimiter blocks ──
+  result = result.split(BS+"("+BS+")").join("");
+  result = result.split(BS+"["+BS+"]").join("");
 
-  // ── Fix doubled delimiters like \(\( ... \) → \( ... \) ──
-  result = result.replace(/\\\(\\\(/g, "\\(");
-  result = result.replace(/\\\)\\\)/g, "\\)");
-  result = result.replace(/\\\[\\\[/g, "\\[");
-  result = result.replace(/\\\]\\\]/g, "\\]");
+  // ── Step 4: Fix doubled delimiters: \(\( → \( ──
+  result = result.split(BS+"("+BS+"(").join(BS+"(");
+  result = result.split(BS+")"+BS+")").join(BS+")");
+  result = result.split(BS+"["+BS+"[").join(BS+"[");
+  result = result.split(BS+"]"+BS+"]").join(BS+"]");
 
-  // ── Normalize $ delimiters to \( \) / \[ \] ──
-  result = result.replace(/\$\$([\s\S]*?)\$\$/g, (_m, inner) => `\\[${inner.trim()}\\]`);
-  result = result.replace(/(?<!\$)(?<!\\)\$([^\$\n]+?)\$(?!\$)/g, (_m, inner) => `\\(${inner}\\)`);
+  // ── Step 5: Normalize $ delimiters to \( \) / \[ \] ──
+  result = result.replace(/\$\$([\s\S]*?)\$\$/g, (_m, inner) => BS+"["+inner.trim()+BS+"]");
+  result = result.replace(/(?<!\$)(?<!\\)\$([^\$\n]+?)\$(?!\$)/g, (_m, inner) => BS+"("+inner+BS+")");
 
   return result;
 }
