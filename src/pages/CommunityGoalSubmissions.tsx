@@ -28,6 +28,7 @@ interface Submission {
   downloads_count: number;
   disqualified: boolean;
   display_name?: string;
+  message?: string;
 }
 
 const CommunityGoalSubmissions = () => {
@@ -55,9 +56,10 @@ const CommunityGoalSubmissions = () => {
 
       if (error) throw error;
 
-      const withProof = (data || []).filter((s) => s.screenshot_urls?.length > 0);
+      // Show ALL submissions - don't filter by screenshot_urls
+      const allSubs = data || [];
 
-      const userIds = [...new Set(withProof.map((s) => s.user_id))];
+      const userIds = [...new Set(allSubs.map((s) => s.user_id))];
       let profileMap: Record<string, string> = {};
 
       if (userIds.length > 0) {
@@ -72,9 +74,11 @@ const CommunityGoalSubmissions = () => {
       }
 
       setSubmissions(
-        withProof.map((s) => ({
+        allSubs.map((s) => ({
           ...s,
+          screenshot_urls: Array.isArray(s.screenshot_urls) ? s.screenshot_urls : [],
           display_name: profileMap[s.user_id] || "Unknown User",
+          message: (s as any).message || "",
         }))
       );
     } catch (e) {
@@ -99,27 +103,23 @@ const CommunityGoalSubmissions = () => {
       if (error) throw error;
 
       if (action === "approved") {
-        const { error: goalError } = await supabase.rpc("increment_community_goal" as any, { goal_id_param: goalId });
-        if (goalError) {
-          const { data: goal } = await supabase
-            .from("community_goal_content")
-            .select("current_count")
-            .eq("id", goalId)
-            .single();
+        const { data: goal } = await supabase
+          .from("community_goal_content")
+          .select("current_count")
+          .eq("id", goalId)
+          .single();
 
-          if (goal) {
-            await supabase
-              .from("community_goal_content")
-              .update({ current_count: goal.current_count + 1 })
-              .eq("id", goalId);
-          }
+        if (goal) {
+          await supabase
+            .from("community_goal_content")
+            .update({ current_count: goal.current_count + 1 })
+            .eq("id", goalId);
         }
       }
 
       setSubmissions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, status: action } : s))
       );
-      // Update selected sub status in modal too
       setSelectedSub((prev) => (prev && prev.id === id ? { ...prev, status: action } : prev));
       toast.success(`Submission ${action}`);
     } catch (e) {
@@ -142,7 +142,6 @@ const CommunityGoalSubmissions = () => {
 
   return (
     <div className="min-h-screen bg-background p-4 pb-24 max-w-2xl mx-auto">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-5 h-5" />
@@ -190,7 +189,6 @@ const CommunityGoalSubmissions = () => {
               className="bg-card rounded-xl border border-border p-4 space-y-3 cursor-pointer hover:border-primary/50 transition-colors"
               onClick={() => setSelectedSub(sub)}
             >
-              {/* User & time */}
               <div className="flex items-center justify-between">
                 <p className="font-semibold text-foreground">{sub.display_name}</p>
                 <span
@@ -210,7 +208,12 @@ const CommunityGoalSubmissions = () => {
                 {format(new Date(sub.created_at), "MMM d, yyyy 'at' h:mm a")}
               </p>
 
-              {/* Screenshot thumbnail */}
+              {/* Message preview */}
+              {sub.message && (
+                <p className="text-sm text-foreground line-clamp-2">{sub.message}</p>
+              )}
+
+              {/* Screenshot thumbnails */}
               {sub.screenshot_urls.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto">
                   {sub.screenshot_urls.map((url, i) => (
@@ -275,6 +278,13 @@ const CommunityGoalSubmissions = () => {
               </p>
             )}
           </DialogHeader>
+
+          {/* Message */}
+          {selectedSub?.message && (
+            <div className="px-5 pb-3">
+              <p className="text-sm text-foreground whitespace-pre-wrap break-words">{selectedSub.message}</p>
+            </div>
+          )}
 
           {/* Screenshots full view */}
           {selectedSub && selectedSub.screenshot_urls.length > 0 && (
