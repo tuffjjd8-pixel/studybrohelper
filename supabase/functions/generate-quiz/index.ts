@@ -45,44 +45,55 @@ function fixLatexDelimiters(text: string): string {
 function fixCommonLatexErrors(content: string): string {
   if (typeof content !== "string") return content;
 
-  return (
-    content
-      // ── Restore control-character corrupted LaTeX commands ──
-      // \f (0x0C) → \frac, \flat, \forall …
-      .replace(/\x0c/g, "\\f")
-      // \t (0x09) → \theta, \times, \to, \tan, \tau …
-      .replace(/\x09/g, "\\t")
-      // \n (0x0A) → \nabla, \nu, \neq, \neg …  (but only when followed by a letter)
-      .replace(/\x0a(?=[A-Za-z])/g, "\\n")
-      // \r (0x0D) → \rho, \right, \rangle …
-      .replace(/\x0d/g, "\\r")
-      // \b (0x08) → \beta, \bar, \binom, \boxed …
-      .replace(/\x08/g, "\\b")
+  let result = content;
 
-      // ── Fix double-escaped artifacts like \\f\\frac → \\frac ──
-      .replace(/\\f\\frac/g, "\\frac")
-      .replace(/\\t\\theta/g, "\\theta")
-      .replace(/\\t\\times/g, "\\times")
-      .replace(/\\t\\to/g, "\\to")
-      .replace(/\\r\\right/g, "\\right")
-      .replace(/\\r\\rho/g, "\\rho")
-      .replace(/\\b\\beta/g, "\\beta")
-      .replace(/\\b\\bar/g, "\\bar")
-      .replace(/\\b\\binom/g, "\\binom")
-      .replace(/\\b\\boxed/g, "\\boxed")
-      .replace(/\\n\\nabla/g, "\\nabla")
-      .replace(/\\n\\nu/g, "\\nu")
-      .replace(/\\n\\neq/g, "\\neq")
+  // ── Restore control-character corrupted LaTeX commands ──
+  // When JSON.parse decodes \frac it becomes form-feed (0x0C) + "rac", etc.
+  result = result.replace(/\x0c/g, "\\f");   // \f → restore
+  result = result.replace(/\x09/g, "\\t");   // \t → restore
+  result = result.replace(/\x0d/g, "\\r");   // \r → restore
+  result = result.replace(/\x08/g, "\\b");   // \b → restore
+  // \n before alpha (not real newlines between sentences)
+  result = result.replace(/\x0a(?=[A-Za-z])/g, "\\n");
 
-      // ── Remove empty delimiters introduced by previous regex passes ──
-      .replace(/\\\(\s*\\\)/g, "")
-      .replace(/\\\[\s*\\\]/g, "")
+  // ── Fix double-escaped artifacts like \f\frac → \frac ──
+  result = result.replace(/\\f\\frac/g, "\\frac");
+  result = result.replace(/\\f\\flat/g, "\\flat");
+  result = result.replace(/\\f\\forall/g, "\\forall");
+  result = result.replace(/\\t\\theta/g, "\\theta");
+  result = result.replace(/\\t\\times/g, "\\times");
+  result = result.replace(/\\t\\to/g, "\\to");
+  result = result.replace(/\\t\\tan/g, "\\tan");
+  result = result.replace(/\\t\\tau/g, "\\tau");
+  result = result.replace(/\\r\\right/g, "\\right");
+  result = result.replace(/\\r\\rho/g, "\\rho");
+  result = result.replace(/\\r\\rangle/g, "\\rangle");
+  result = result.replace(/\\b\\beta/g, "\\beta");
+  result = result.replace(/\\b\\bar/g, "\\bar");
+  result = result.replace(/\\b\\binom/g, "\\binom");
+  result = result.replace(/\\b\\boxed/g, "\\boxed");
+  result = result.replace(/\\b\\bullet/g, "\\bullet");
+  result = result.replace(/\\n\\nabla/g, "\\nabla");
+  result = result.replace(/\\n\\nu/g, "\\nu");
+  result = result.replace(/\\n\\neq/g, "\\neq");
+  result = result.replace(/\\n\\neg/g, "\\neg");
+  result = result.replace(/\\n\\not/g, "\\not");
 
-      // ── Normalize $ delimiters to \( \) / \[ \] ──
-      // (same as fixLatexDelimiters, applied inline for safety)
-      .replace(/\$\$([\s\S]*?)\$\$/g, (_m, inner) => `\\[${inner.trim()}\\]`)
-      .replace(/(?<!\$)(?<!\\)\$([^\$\n]+?)\$(?!\$)/g, (_m, inner) => `\\(${inner}\\)`)
-  );
+  // ── Remove empty \(\) or \[\] blocks ──
+  result = result.replace(/\\\(\s*\\\)/g, "");
+  result = result.replace(/\\\[\s*\\\]/g, "");
+
+  // ── Fix doubled delimiters like \(\( ... \) → \( ... \) ──
+  result = result.replace(/\\\(\\\(/g, "\\(");
+  result = result.replace(/\\\)\\\)/g, "\\)");
+  result = result.replace(/\\\[\\\[/g, "\\[");
+  result = result.replace(/\\\]\\\]/g, "\\]");
+
+  // ── Normalize $ delimiters to \( \) / \[ \] ──
+  result = result.replace(/\$\$([\s\S]*?)\$\$/g, (_m, inner) => `\\[${inner.trim()}\\]`);
+  result = result.replace(/(?<!\$)(?<!\\)\$([^\$\n]+?)\$(?!\$)/g, (_m, inner) => `\\(${inner}\\)`);
+
+  return result;
 }
 
 /**
