@@ -183,7 +183,6 @@ export type Database = {
           downloads_count: number
           goal_id: string
           id: string
-          message: string | null
           reviewed_at: string | null
           screenshot_urls: string[]
           status: string
@@ -196,7 +195,6 @@ export type Database = {
           downloads_count?: number
           goal_id: string
           id?: string
-          message?: string | null
           reviewed_at?: string | null
           screenshot_urls?: string[]
           status?: string
@@ -209,7 +207,6 @@ export type Database = {
           downloads_count?: number
           goal_id?: string
           id?: string
-          message?: string | null
           reviewed_at?: string | null
           screenshot_urls?: string[]
           status?: string

@@ -1,350 +1,246 @@
-import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { Header } from "@/components/layout/Header";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
-import { Target, Upload, Camera, X, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Check, X, Filter } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 
-const MAX_SCREENSHOTS = 3;
+const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
 
-interface GoalContent {
+type StatusFilter = "all" | "pending" | "approved" | "rejected";
+
+interface Submission {
   id: string;
-  title: string;
-  body: string;
-  current_count: number;
-  target_count: number;
-  visible: boolean;
-}
-
-interface UserSubmission {
-  id: string;
-  status: string;
-  message: string | null;
+  user_id: string;
+  goal_id: string;
   screenshot_urls: string[];
+  status: string;
   created_at: string;
   admin_note: string | null;
+  downloads_count: number;
   disqualified: boolean;
+  display_name?: string;
 }
 
 const CommunityGoalSubmissions = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
-  const [goal, setGoal] = useState<GoalContent | null>(null);
-  const [submissions, setSubmissions] = useState<UserSubmission[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [filter, setFilter] = useState<StatusFilter>("pending");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-  }, [user, authLoading, navigate]);
-
-  useEffect(() => {
-    if (user) {
-      fetchGoal();
-      fetchSubmissions();
-    }
-  }, [user]);
-
-  const fetchGoal = async () => {
-    const { data } = await supabase
-      .from("community_goal_content")
-      .select("*")
-      .eq("visible", true)
-      .limit(1)
-      .maybeSingle();
-    if (data) setGoal(data);
-  };
+    if (isAdmin) fetchSubmissions();
+  }, [isAdmin]);
 
   const fetchSubmissions = async () => {
-    if (!user) return;
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from("community_goal_submissions")
-        .select("id, status, message, screenshot_urls, created_at, admin_note, disqualified")
-        .eq("user_id", user.id)
+        .select("*")
         .order("created_at", { ascending: false });
+
       if (error) throw error;
+
+      // Only show submissions where proof was uploaded (screenshot_urls not empty)
+      const withProof = (data || []).filter((s) => s.screenshot_urls?.length > 0);
+
+      // Fetch display names for all user_ids
+      const userIds = [...new Set(withProof.map((s) => s.user_id))];
+      let profileMap: Record<string, string> = {};
+
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, display_name")
+          .in("user_id", userIds);
+
+        profiles?.forEach((p) => {
+          profileMap[p.user_id] = p.display_name || "Unknown User";
+        });
+      }
+
       setSubmissions(
-        (data || []).map((s) => ({
+        withProof.map((s) => ({
           ...s,
-          screenshot_urls: Array.isArray(s.screenshot_urls) ? s.screenshot_urls : [],
+          display_name: profileMap[s.user_id] || "Unknown User",
         }))
       );
     } catch (e) {
-      console.error("Error fetching submissions:", e);
+      console.error("Failed to fetch submissions:", e);
+      toast.error("Failed to load submissions");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files || []);
-    const remaining = MAX_SCREENSHOTS - files.length;
-    const toAdd = selected.slice(0, remaining);
-
-    for (const f of toAdd) {
-      if (!f.type.startsWith("image/")) {
-        toast.error("Only image files allowed");
-        return;
-      }
-      if (f.size > 5 * 1024 * 1024) {
-        toast.error("Each image must be under 5 MB");
-        return;
-      }
-    }
-
-    const newFiles = [...files, ...toAdd];
-    setFiles(newFiles);
-    setPreviews(newFiles.map((f) => URL.createObjectURL(f)));
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const removeFile = (idx: number) => {
-    const newFiles = files.filter((_, i) => i !== idx);
-    setFiles(newFiles);
-    setPreviews(newFiles.map((f) => URL.createObjectURL(f)));
-  };
-
-  const handleSubmit = async () => {
-    if (!user || !goal) return;
-    if (files.length === 0 && !message.trim()) {
-      toast.error("Add a message or at least one screenshot");
-      return;
-    }
-
-    setSubmitting(true);
+  const handleAction = async (id: string, goalId: string, action: "approved" | "rejected") => {
+    setActionLoading(id);
     try {
-      const urls: string[] = [];
-      for (const file of files) {
-        const ext = file.name.split(".").pop();
-        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error: upErr } = await supabase.storage.from("goal-proofs").upload(path, file);
-        if (upErr) throw upErr;
-        const { data: { publicUrl } } = supabase.storage.from("goal-proofs").getPublicUrl(path);
-        urls.push(publicUrl);
-      }
+      const { error } = await supabase
+        .from("community_goal_submissions")
+        .update({
+          status: action,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", id);
 
-      const { error } = await supabase.from("community_goal_submissions").insert({
-        user_id: user.id,
-        goal_id: goal.id,
-        message: message.trim() || null,
-        screenshot_urls: urls,
-        status: "pending",
-      });
       if (error) throw error;
 
-      toast.success("Submission sent for review!");
-      setMessage("");
-      setFiles([]);
-      setPreviews([]);
-      fetchSubmissions();
+      if (action === "approved") {
+        const { error: goalError } = await supabase.rpc("increment_community_goal" as any, { goal_id_param: goalId });
+        if (goalError) {
+          // Fallback: manual increment
+          const { data: goal } = await supabase
+            .from("community_goal_content")
+            .select("current_count")
+            .eq("id", goalId)
+            .single();
+
+          if (goal) {
+            await supabase
+              .from("community_goal_content")
+              .update({ current_count: goal.current_count + 1 })
+              .eq("id", goalId);
+          }
+        }
+      }
+
+      setSubmissions((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, status: action } : s))
+      );
+      toast.success(`Submission ${action}`);
     } catch (e) {
-      console.error("Submit error:", e);
-      toast.error("Failed to submit");
+      console.error(`Failed to ${action} submission:`, e);
+      toast.error(`Failed to ${action} submission`);
     } finally {
-      setSubmitting(false);
+      setActionLoading(null);
     }
   };
 
-  const statusIcon = (status: string) => {
-    switch (status) {
-      case "approved": return <CheckCircle className="w-4 h-4 text-primary" />;
-      case "rejected": return <XCircle className="w-4 h-4 text-destructive" />;
-      default: return <Clock className="w-4 h-4 text-muted-foreground" />;
-    }
-  };
+  const filtered = filter === "all" ? submissions : submissions.filter((s) => s.status === filter);
 
-  if (authLoading || loading) {
+  if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <p className="text-muted-foreground">Admin access required.</p>
       </div>
     );
   }
 
-  const progressPct = goal ? Math.min(100, (goal.current_count / goal.target_count) * 100) : 0;
-
   return (
-    <div className="min-h-screen bg-background">
-      <Header streak={0} totalSolves={0} />
-      <main className="pt-20 pb-24 px-4">
-        <div className="max-w-lg mx-auto space-y-6">
-          {/* Header */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-3">
-              <Target className="w-8 h-8 text-primary" />
-            </div>
-            <h1 className="text-2xl font-heading font-bold">Community Goal Submissions</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Help us reach the goal — submit your proof!
-            </p>
-          </motion.div>
+    <div className="min-h-screen bg-background p-4 pb-24 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <h1 className="text-xl font-bold text-foreground">Community Goal Submissions</h1>
+      </div>
 
-          {/* Goal progress */}
-          {goal && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.05 }}
-              className="p-5 bg-card rounded-xl border border-primary/20 space-y-3"
-            >
-              <h3 className="font-heading font-bold text-primary">{goal.title}</h3>
-              <p className="text-xs text-muted-foreground">{goal.body}</p>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{goal.current_count} / {goal.target_count}</span>
-                  <span>{Math.round(progressPct)}%</span>
-                </div>
-                <Progress value={progressPct} className="h-3" />
-              </div>
-            </motion.div>
-          )}
-
-          {/* Rules */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="p-5 bg-card rounded-xl border border-primary/20 space-y-3"
+      {/* Filters */}
+      <div className="flex gap-2 mb-6 overflow-x-auto">
+        {(["all", "pending", "approved", "rejected"] as StatusFilter[]).map((f) => (
+          <Button
+            key={f}
+            variant={filter === f ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilter(f)}
+            className="capitalize"
           >
-            <h3 className="font-heading font-bold text-primary">Rules & Requirements</h3>
-            <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
-              <li>At least <span className="font-semibold text-foreground">100 real views</span></li>
-              <li>At least <span className="font-semibold text-foreground">10 real likes</span></li>
-              <li>A <span className="font-semibold text-foreground">real, public profile</span> (no AI-generated accounts)</li>
-              <li>Screenshot proof of the post, views, and likes</li>
-            </ul>
-            <p className="text-xs text-destructive font-medium">
-              Fake or AI-generated posts will be disqualified. Disqualified users cannot claim rewards.
-            </p>
-          </motion.div>
+            {f}
+            {f !== "all" && (
+              <span className="ml-1 text-xs opacity-70">
+                ({submissions.filter((s) => s.status === f).length})
+              </span>
+            )}
+          </Button>
+        ))}
+      </div>
 
-          {/* Submission form */}
-          {goal && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="p-5 bg-card rounded-xl border border-primary/20 space-y-4"
-            >
-              <h3 className="font-heading font-bold text-primary">Submit Your Proof</h3>
+      {/* Content */}
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-48 bg-card rounded-xl animate-pulse border border-border" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Filter className="w-10 h-10 mx-auto mb-3 opacity-40" />
+          <p>No {filter === "all" ? "" : filter} submissions found.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filtered.map((sub) => (
+            <div key={sub.id} className="bg-card rounded-xl border border-border p-4 space-y-3">
+              {/* User & time */}
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-foreground">{sub.display_name}</p>
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
+                    sub.status === "pending"
+                      ? "bg-yellow-500/20 text-yellow-500"
+                      : sub.status === "approved"
+                      ? "bg-primary/20 text-primary"
+                      : "bg-destructive/20 text-destructive"
+                  }`}
+                >
+                  {sub.status}
+                </span>
+              </div>
 
-              <Textarea
-                placeholder="Add a message (optional)"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="bg-background resize-none"
-                rows={3}
-              />
+              <p className="text-xs text-muted-foreground">
+                {format(new Date(sub.created_at), "MMM d, yyyy 'at' h:mm a")}
+              </p>
 
-              {/* Image previews */}
-              {previews.length > 0 && (
+              {/* Screenshots */}
+              {sub.screenshot_urls.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto">
-                  {previews.map((url, i) => (
-                    <div key={i} className="relative flex-shrink-0">
-                      <img src={url} alt={`Proof ${i + 1}`} className="w-24 h-24 object-cover rounded-lg border border-border" />
-                      <button
-                        onClick={() => removeFile(i)}
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
+                  {sub.screenshot_urls.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={url}
+                        alt={`Proof ${i + 1}`}
+                        className="w-32 h-32 object-cover rounded-lg border border-border"
+                      />
+                    </a>
                   ))}
                 </div>
               )}
 
-              {files.length < MAX_SCREENSHOTS && (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full h-28 border-2 border-dashed border-primary/30 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors"
-                >
-                  <Camera className="w-7 h-7 text-primary/60" />
-                  <span className="text-sm text-muted-foreground">
-                    Add screenshot ({files.length}/{MAX_SCREENSHOTS})
-                  </span>
-                </button>
-              )}
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-
-              <Button onClick={handleSubmit} disabled={submitting} className="w-full">
-                {submitting ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                    Uploading...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Upload className="w-4 h-4" />
-                    Submit for Review
-                  </div>
-                )}
-              </Button>
-            </motion.div>
-          )}
-
-          {/* Past submissions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="space-y-3"
-          >
-            <h3 className="font-heading font-bold">Your Submissions</h3>
-            {submissions.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No submissions yet</p>
-            ) : (
-              submissions.map((sub) => (
-                <div key={sub.id} className="p-3 bg-card rounded-xl border border-border space-y-2">
-                  <div className="flex items-center gap-2">
-                    {sub.disqualified ? (
-                      <AlertTriangle className="w-4 h-4 text-destructive" />
-                    ) : (
-                      statusIcon(sub.status)
-                    )}
-                    <span className={`text-sm font-medium capitalize ${sub.disqualified ? "text-destructive" : sub.status === "approved" ? "text-primary" : sub.status === "rejected" ? "text-destructive" : "text-muted-foreground"}`}>
-                      {sub.disqualified ? "DISQUALIFIED" : sub.status}
-                    </span>
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      {new Date(sub.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {sub.message && <p className="text-xs text-foreground line-clamp-2">{sub.message}</p>}
-                  {sub.screenshot_urls.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto">
-                      {sub.screenshot_urls.map((url, i) => (
-                        <img key={i} src={url} alt={`Proof ${i + 1}`} className="w-20 h-20 object-cover rounded-lg border border-border flex-shrink-0" />
-                      ))}
-                    </div>
-                  )}
-                  {sub.admin_note && (
-                    <p className="text-xs text-muted-foreground italic">"{sub.admin_note}"</p>
-                  )}
+              {/* Actions */}
+              {sub.status === "pending" && (
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    onClick={() => handleAction(sub.id, sub.goal_id, "approved")}
+                    disabled={actionLoading === sub.id}
+                    className="flex-1 gap-1"
+                  >
+                    <Check className="w-4 h-4" /> Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleAction(sub.id, sub.goal_id, "rejected")}
+                    disabled={actionLoading === sub.id}
+                    className="flex-1 gap-1"
+                  >
+                    <X className="w-4 h-4" /> Reject
+                  </Button>
                 </div>
-              ))
-            )}
-          </motion.div>
+              )}
+            </div>
+          ))}
         </div>
-      </main>
-      <BottomNav />
+      )}
     </div>
   );
 };
