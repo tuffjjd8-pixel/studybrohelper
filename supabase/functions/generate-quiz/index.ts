@@ -212,6 +212,45 @@ function sanitizeQuizOutput(questions: any[]): any[] {
       };
     })
     .filter((q) => q.question && q.options.length === 4);
+
+  // ── Balance answer distribution ──
+  // If any letter is heavily over-represented, shuffle some answers
+  const counts = { A: 0, B: 0, C: 0, D: 0 };
+  for (const q of sanitized) counts[q.answer as keyof typeof counts]++;
+
+  const total = sanitized.length;
+  const maxPerLetter = Math.ceil(total / 2); // e.g. for 10 questions, max 5 of one letter
+
+  if (total >= 4) {
+    for (const q of sanitized) {
+      const letter = q.answer as keyof typeof counts;
+      if (counts[letter] > maxPerLetter) {
+        // Find the least-used letter
+        const leastUsed = (Object.entries(counts) as [string, number][])
+          .sort((a, b) => a[1] - b[1])[0][0] as keyof typeof counts;
+        const leastIdx = ["A", "B", "C", "D"].indexOf(leastUsed);
+        const currentIdx = ["A", "B", "C", "D"].indexOf(letter);
+
+        // Swap option content and update answer
+        const temp = q.options[currentIdx];
+        q.options[currentIdx] = q.options[leastIdx];
+        q.options[leastIdx] = temp;
+
+        // Update prefixes
+        const prefixes = ["A)", "B)", "C)", "D)"];
+        q.options = q.options.map((opt: string, idx: number) => {
+          const stripped = opt.replace(/^[A-D]\)\s*/, "");
+          return `${prefixes[idx]} ${stripped}`;
+        });
+
+        q.answer = leastUsed;
+        counts[letter]--;
+        counts[leastUsed]++;
+      }
+    }
+  }
+
+  return sanitized;
 }
 
 // ============================================================
