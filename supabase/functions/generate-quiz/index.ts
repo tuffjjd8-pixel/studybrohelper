@@ -445,11 +445,13 @@ async function callGroqWithFallback(
   keyManager: any
 ): Promise<{ data: any; model: string }> {
   let lastError: Error | null = null;
+  let groqAttempts = 0;
 
-  // Try Groq models first
-  for (const model of FALLBACK_MODELS) {
+  // Try each Groq model — this gives us 2 attempts before Lovable AI
+  for (const model of GROQ_MODELS) {
     try {
-      console.log(`Attempting quiz generation with model: ${model}`);
+      groqAttempts++;
+      console.log(`Groq attempt ${groqAttempts}/${GROQ_MODELS.length} with model: ${model}`);
 
       const response = await keyManager.callGroqWithRotation(
         "https://api.groq.com/openai/v1/chat/completions",
@@ -466,8 +468,8 @@ async function callGroqWithFallback(
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Model ${model} failed:`, response.status, errorText);
-        lastError = new Error(`Model ${model} failed: ${response.status}`);
+        console.error(`Groq ${model} failed: ${response.status}`, errorText.slice(0, 200));
+        lastError = new Error(`Groq ${model} failed: ${response.status}`);
         continue;
       }
 
@@ -475,19 +477,26 @@ async function callGroqWithFallback(
       const content = data.choices?.[0]?.message?.content;
 
       if (!content) {
-        lastError = new Error(`Model ${model} returned no content`);
+        lastError = new Error(`Groq ${model} returned no content`);
+        continue;
+      }
+
+      // Quick JSON validity check — if it doesn't even contain { or [, skip to next model
+      if (!content.includes("{") && !content.includes("[")) {
+        console.warn(`Groq ${model} returned non-JSON content, trying next model`);
+        lastError = new Error(`Groq ${model} returned non-JSON`);
         continue;
       }
 
       return { data: content, model };
     } catch (error) {
-      console.error(`Error with model ${model}:`, error);
+      console.error(`Error with Groq ${model}:`, error);
       lastError = error as Error;
     }
   }
 
-  // Groq failed — try Lovable AI as fallback
-  console.log("All Groq models failed, falling back to Lovable AI...");
+  // Only fall back to Lovable AI after ALL Groq models failed
+  console.log(`All ${groqAttempts} Groq attempts failed, falling back to Lovable AI...`);
   for (const model of LOVABLE_AI_MODELS) {
     try {
       return await callLovableAI(prompt, systemPrompt, model);
