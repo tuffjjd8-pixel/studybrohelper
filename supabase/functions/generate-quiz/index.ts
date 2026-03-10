@@ -220,11 +220,12 @@ function sanitizeQuizOutput(questions: any[]): any[] {
 
   // ── Balance answer distribution ──
   // If any letter is heavily over-represented, shuffle some answers
-  const counts = { A: 0, B: 0, C: 0, D: 0 };
-  for (const q of sanitized) counts[q.answer as keyof typeof counts]++;
+  const counts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
+  for (const q of sanitized) counts[q.answer]++;
 
   const total = sanitized.length;
-  const maxPerLetter = Math.max(Math.ceil(total / 4) + 1, 2); // e.g. for 10 questions, max 4 of one letter
+  const maxPerLetter = Math.max(Math.ceil(total / 4) + 1, 2);
+  console.log(`[Quiz Balancer] Before: A=${counts.A} B=${counts.B} C=${counts.C} D=${counts.D}, max=${maxPerLetter}`);
 
   if (total >= 4) {
     for (const q of sanitized) {
