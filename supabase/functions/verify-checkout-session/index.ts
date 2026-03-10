@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -21,6 +21,32 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Verify JWT and extract authenticated user ID
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const verifiedUserId = claimsData.claims.sub as string;
+
     // Parse request body
     const { sessionId } = await req.json();
 
@@ -33,9 +59,6 @@ Deno.serve(async (req) => {
 
     console.log(`Verifying checkout session: ${sessionId}`);
 
-    // Get Supabase client to read stripe mode setting
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Read stripe mode from app_settings
@@ -80,17 +103,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    const userId = session.client_reference_id;
-    if (!userId) {
+    // Verify the session belongs to the authenticated user
+    const sessionUserId = session.client_reference_id;
+    if (!sessionUserId || sessionUserId !== verifiedUserId) {
+      console.error(`Session user mismatch: session=${sessionUserId}, caller=${verifiedUserId}`);
       return new Response(
-        JSON.stringify({ success: false, error: "No user ID associated with session" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Session does not belong to this user" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    }
-
-    // TEST MODE: Allow all users to activate premium through test-mode payments
-    if (isTestMode) {
-      console.log(`Test mode premium activation enabled for all users`);
     }
 
     // Get subscription details for renewal date
@@ -109,7 +129,7 @@ Deno.serve(async (req) => {
         renewal_date: renewalDate,
         premium_until: renewalDate,
       })
-      .eq("user_id", userId);
+      .eq("user_id", verifiedUserId);
 
     if (updateError) {
       console.error("Error updating profile:", updateError);
@@ -119,7 +139,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Premium activated for user: ${userId}`);
+    console.log(`Premium activated for user: ${verifiedUserId}`);
 
     return new Response(
       JSON.stringify({ success: true, message: "Premium activated successfully" }),
