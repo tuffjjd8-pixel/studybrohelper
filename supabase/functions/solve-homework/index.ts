@@ -380,22 +380,13 @@ function shouldGenerateGraph(question: string): boolean {
   );
 }
 
-// Call OpenRouter API for graph generation (Mistral Small 3.1 24B)
+// Call Groq API for graph generation (GPT-OSS)
 async function callOpenRouterGraph(question: string): Promise<string> {
-  const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-  if (!OPENROUTER_API_KEY) {
-    throw new Error("OPENROUTER_API_KEY is not configured");
-  }
+  console.log("Calling Groq API with model:", OPENROUTER_GRAPH_MODEL, "for graph generation");
 
-  console.log("Calling OpenRouter API with model:", OPENROUTER_GRAPH_MODEL, "for graph generation");
-
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-    },
-    body: JSON.stringify({
+  const response = await callGroqWithRotation(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
       model: OPENROUTER_GRAPH_MODEL,
       messages: [
         { role: "system", content: GRAPH_PROMPT },
@@ -403,18 +394,18 @@ async function callOpenRouterGraph(question: string): Promise<string> {
       ],
       temperature: 0.3,
       max_tokens: 4096,
-    }),
-  });
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("OpenRouter API error:", response.status, errorText);
+    console.error("Groq graph API error:", response.status, errorText);
     
     if (response.status === 429) {
       throw new Error("Rate limit exceeded. Please try again in a moment.");
     }
     
-    throw new Error(`OpenRouter API error: ${response.status}`);
+    throw new Error(`Groq graph API error: ${response.status}`);
   }
 
   const data = await response.json();
