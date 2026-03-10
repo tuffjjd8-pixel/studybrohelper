@@ -228,16 +228,17 @@ function sanitizeQuizOutput(questions: any[]): any[] {
   console.log(`[Quiz Balancer] Before: A=${counts.A} B=${counts.B} C=${counts.C} D=${counts.D}, max=${maxPerLetter}`);
 
   if (total >= 4) {
-    for (const q of sanitized) {
-      const letter = q.answer as keyof typeof counts;
+    for (let i = 0; i < sanitized.length; i++) {
+      const q = sanitized[i];
+      const letter = q.answer;
       if (counts[letter] > maxPerLetter) {
         // Find the least-used letter
-        const leastUsed = (Object.entries(counts) as [string, number][])
-          .sort((a, b) => a[1] - b[1])[0][0] as keyof typeof counts;
+        const sorted = Object.entries(counts).sort((a, b) => a[1] - b[1]);
+        const leastUsed = sorted[0][0];
         const leastIdx = ["A", "B", "C", "D"].indexOf(leastUsed);
         const currentIdx = ["A", "B", "C", "D"].indexOf(letter);
 
-        // Swap option content and update answer
+        // Swap option content
         const temp = q.options[currentIdx];
         q.options[currentIdx] = q.options[leastIdx];
         q.options[leastIdx] = temp;
@@ -252,10 +253,12 @@ function sanitizeQuizOutput(questions: any[]): any[] {
         q.answer = leastUsed;
         counts[letter]--;
         counts[leastUsed]++;
+        console.log(`[Quiz Balancer] Swapped Q${i+1}: ${letter} → ${leastUsed}`);
       }
     }
   }
 
+  console.log(`[Quiz Balancer] After: A=${counts.A} B=${counts.B} C=${counts.C} D=${counts.D}`);
   return sanitized;
 }
 
