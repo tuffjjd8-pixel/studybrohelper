@@ -225,7 +225,7 @@ function sanitizeQuizOutput(questions: any[]): any[] {
 
   const total = sanitized.length;
   const maxPerLetter = Math.max(Math.ceil(total / 4) + 1, 2);
-  console.log(`[Quiz Balancer] Before: A=${counts.A} B=${counts.B} C=${counts.C} D=${counts.D}, max=${maxPerLetter}`);
+  
 
   if (total >= 4) {
     for (let i = 0; i < sanitized.length; i++) {
