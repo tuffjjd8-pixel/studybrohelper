@@ -308,45 +308,68 @@ const Quiz = () => {
     try {
       const validCount = Math.min(Math.max(count, 1), maxQuestions);
 
+      // Sanitize subject and topic before sending
+      const rawSubject = selectedSolve?.subject || topicInput.trim();
+      const cleanSubject = sanitizeTopic(rawSubject);
+      
       // Build context: use selected conversation if available, otherwise use topic
       const conversationText = selectedSolve ?
       `Question: ${selectedSolve.question_text || "Image-based question"}\n\nSolution: ${selectedSolve.solution_markdown}` :
-      `Topic: ${topicInput.trim()}\n\nGenerate quiz questions about this topic.`;
-      const subject = selectedSolve?.subject || topicInput.trim();
+      `Topic: ${cleanSubject}\n\nGenerate quiz questions about this topic.`;
 
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke("generate-quiz", {
-        body: {
-          conversationText,
-          questionCount: validCount,
-          subject,
-          strictCountMode: isPremium ? strictCountMode : false
+      // Try generation, with one auto-retry using broader topic on failure
+      let lastErr: Error | null = null;
+      const attempts = [cleanSubject, getFallbackTopic(cleanSubject)];
+      // Deduplicate attempts
+      const uniqueAttempts = [...new Set(attempts)];
+      
+      for (const attemptSubject of uniqueAttempts) {
+        try {
+          const attemptText = selectedSolve ? conversationText : 
+            `Topic: ${attemptSubject}\n\nGenerate quiz questions about this topic.`;
+
+          const { data, error } = await supabase.functions.invoke("generate-quiz", {
+            body: {
+              conversationText: attemptText,
+              questionCount: validCount,
+              subject: attemptSubject,
+              strictCountMode: isPremium ? strictCountMode : false
+            }
+          });
+          if (error) throw error;
+          if (data?.error === "daily_limit_reached") {
+            toast.error(data.message || "Daily quiz limit reached");
+            return;
+          }
+          if (data?.error === "generation_failed" && data?.retryable) {
+            lastErr = new Error(data.message || "Quiz generation failed");
+            continue; // Try next attempt
+          }
+          if (data?.quiz && Array.isArray(data.quiz) && data.quiz.length > 0) {
+            const validQuiz = data.quiz.filter((q: QuizQuestion) => q.question && Array.isArray(q.options) && q.options.length === 4 && q.answer && ['A', 'B', 'C', 'D'].includes(q.answer.toUpperCase()));
+            if (validQuiz.length === 0) {
+              lastErr = new Error("Generated quiz has invalid structure");
+              continue;
+            }
+            setQuizResult(validQuiz);
+            setQuizzesUsedToday(data.quizzesUsed || quizzesUsedToday + 1);
+            toast.success(`Generated ${validQuiz.length} questions`);
+            return; // Success — exit
+          } else {
+            lastErr = new Error("Invalid response from quiz generator");
+            continue;
+          }
+        } catch (err) {
+          lastErr = err as Error;
+          console.warn(`Quiz attempt with "${attemptSubject}" failed:`, err);
+          // If it's the selected solve attempt, don't retry with broader topic (conversation context is fine)
+          if (selectedSolve) break;
         }
-      });
-      if (error) throw error;
-      if (data?.error === "daily_limit_reached") {
-        toast.error(data.message || "Daily quiz limit reached");
-        return;
       }
-      if (data?.error === "generation_failed" && data?.retryable) {
-        setGenerationError(data.message || "Quiz generation failed. Please try again.");
-        toast.error("Quiz generation failed. Tap retry to try again.");
-        return;
-      }
-      if (data?.quiz && Array.isArray(data.quiz) && data.quiz.length > 0) {
-        // Validate quiz structure
-        const validQuiz = data.quiz.filter((q: QuizQuestion) => q.question && Array.isArray(q.options) && q.options.length === 4 && q.answer && ['A', 'B', 'C', 'D'].includes(q.answer.toUpperCase()));
-        if (validQuiz.length === 0) {
-          throw new Error("Generated quiz has invalid structure");
-        }
-        setQuizResult(validQuiz);
-        setQuizzesUsedToday(data.quizzesUsed || quizzesUsedToday + 1);
-        toast.success(`Generated ${validQuiz.length} questions`);
-      } else {
-        throw new Error("Invalid response from quiz generator");
-      }
+      // All attempts failed
+      console.error("Quiz generation error:", lastErr);
+      setGenerationError("Quiz generation failed. Please try again.");
+      toast.error("Failed to generate quiz. Tap retry to try again.");
     } catch (error) {
       console.error("Quiz generation error:", error);
       setGenerationError("Quiz generation failed. Please try again.");
