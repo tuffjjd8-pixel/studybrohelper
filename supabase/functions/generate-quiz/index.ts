@@ -190,9 +190,9 @@ function sanitizeQuizOutput(questions: any[]): any[] {
       }
 
       // Pre-clean: protect known words from LaTeX mangling
+      // After JSON parse, "Schrödinger" may appear as Schr\(\ö\)dinger or similar
       const preClean = (s: string) => s
-        .replace(/Schr\\?\(?\\?ö\\?\)?dinger/gi, "Schrödinger")
-        .replace(/Schr\\?\(?o\\?\)?dinger/gi, "Schrödinger");
+        .replace(/Schr[\\()öo\s]*(ö|o)[\\()]*dinger/gi, "Schrödinger");
 
       // Apply LaTeX safety pipeline to every text field
       const safeQuestion =
