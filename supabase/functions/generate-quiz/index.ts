@@ -219,7 +219,7 @@ function sanitizeQuizOutput(questions: any[]): any[] {
   for (const q of sanitized) counts[q.answer as keyof typeof counts]++;
 
   const total = sanitized.length;
-  const maxPerLetter = Math.ceil(total / 2); // e.g. for 10 questions, max 5 of one letter
+  const maxPerLetter = Math.max(Math.ceil(total / 4) + 1, 2); // e.g. for 10 questions, max 4 of one letter
 
   if (total >= 4) {
     for (const q of sanitized) {
