@@ -9,9 +9,9 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// Use llama-3.3-70b-versatile for ALL text/reasoning tasks
+// Use openai/gpt-oss-120b for ALL text/reasoning tasks
 // ============================================================
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 
 serve(async (req) => {
   // Handle CORS preflight
