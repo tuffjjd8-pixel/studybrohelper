@@ -369,8 +369,10 @@ const Quiz = () => {
     // Store real quiz results for the Results page
     const quizScore = calculateScore();
     const topicMap: Record<string, {total: number;correct: number;}> = {};
+    const fallbackSubject = selectedSolve?.subject || topicInput || "General";
     quizResult.forEach((q, idx) => {
-      const topic = getTopicFromSubject(selectedSolve?.subject || topicInput || "General");
+      // Extract topic from each question's content for granular weak-point analysis
+      const topic = extractTopicFromQuestion(q.question, fallbackSubject);
       if (!topicMap[topic]) topicMap[topic] = { total: 0, correct: 0 };
       topicMap[topic].total++;
       const selectedOption = selectedAnswers[idx];
@@ -386,7 +388,11 @@ const Quiz = () => {
       pct: Math.round(d.correct / d.total * 100)
     }));
 
-    const weakTopics = topicBreakdown.filter((t) => t.pct < 80).map((t) => t.name);
+    // Weak topics: only include topics where user got questions wrong
+    const weakTopics = topicBreakdown
+      .filter((t) => t.pct < 80 && t.correct < t.total)
+      .sort((a, b) => a.pct - b.pct)
+      .map((t) => t.name);
 
     const quizResultData = {
       totalQuestions: quizScore.total,
@@ -395,7 +401,7 @@ const Quiz = () => {
       scorePercentage: Math.round(quizScore.correct / quizScore.total * 100),
       weakTopics,
       topicBreakdown,
-      subject: selectedSolve?.subject || topicInput || "General",
+      subject: getTopicFromSubject(fallbackSubject),
       quizName: selectedSolve?.question_text || topicInput || selectedSolve?.subject || "Quiz",
       timestamp: Date.now()
     };
