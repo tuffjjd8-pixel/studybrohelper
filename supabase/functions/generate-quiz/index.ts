@@ -578,9 +578,13 @@ serve(async (req) => {
     const {
       conversationText,
       questionCount = 5,
-      subject,
+      subject: rawSubject,
       strictCountMode = false,
     } = await req.json();
+
+    // Sanitize subject server-side to prevent vague/broken topics from reaching Groq
+    const subject = sanitizeSubject(rawSubject);
+    console.log(`Sanitized subject: "${rawSubject}" → "${subject}"`);
 
     if (!conversationText) {
       return new Response(
