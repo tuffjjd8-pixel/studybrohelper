@@ -552,10 +552,6 @@ DIFFICULTY & QUALITY:
 - NEVER use "All of the above" or "None of the above" as options.
 - Each question must test a DIFFERENT concept or skill — no repetitive questions.
 
-ANSWER CORRECTNESS:
-- The correct answer MUST appear in the options at the position indicated by correctOptionIndex.
-- Compute the correct answer first, then generate three plausible distractors.
-
 EXPLANATION QUALITY:
 - Each explanation MUST be humanized and natural — like a tutor talking to a student.
 - Start with WHY the answer is correct, then briefly address why a common wrong choice fails.
