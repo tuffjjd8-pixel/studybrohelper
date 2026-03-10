@@ -10,13 +10,13 @@ const corsHeaders = {
 // MODEL CONFIGURATION
 // Free tier:  openai/gpt-oss-20b (fast, lightweight)
 // Pro tier:   openai/gpt-oss-120b (full reasoning)
-// Vision:     llama-4-scout (image processing) — Pro only
-// Graph:      LLaMA 3.3 70B via OpenRouter (free tier, structured JSON)
+// Vision:     openai/gpt-oss-120b (image processing)
+// Graph:      openai/gpt-oss-20b (structured JSON)
 // ============================================================
 const FREE_TEXT_MODEL = "openai/gpt-oss-20b";
 const PRO_TEXT_MODEL = "openai/gpt-oss-120b";
-const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
-const OPENROUTER_GRAPH_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+const GROQ_VISION_MODEL = "openai/gpt-oss-120b";
+const OPENROUTER_GRAPH_MODEL = "openai/gpt-oss-20b";
 
 // ============================================================
 // TIER LIMITS
