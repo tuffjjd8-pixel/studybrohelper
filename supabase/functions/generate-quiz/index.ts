@@ -552,6 +552,24 @@ DIFFICULTY & QUALITY:
 - NEVER use "All of the above" or "None of the above" as options.
 - Each question must test a DIFFERENT concept or skill — no repetitive questions.
 
+MATH & PHYSICS CORRECTNESS (MANDATORY — ZERO TOLERANCE FOR WRONG ANSWERS):
+- ALWAYS compute the correct answer FIRST using rigorous math, THEN generate three plausible distractors.
+- The correct answer MUST appear in the options at the position indicated by correctOptionIndex.
+- NEVER generate options first and then pick one — derive the answer, verify it, then build distractors around common errors.
+- For quantum mechanics:
+  * ALWAYS normalize quantum states before computing probabilities. If \\\\(|\\\\psi\\\\rangle = a|0\\\\rangle + b|1\\\\rangle\\\\), probabilities are \\\\(|a|^2/(|a|^2+|b|^2)\\\\) and \\\\(|b|^2/(|a|^2+|b|^2)\\\\).
+  * Time evolution: apply \\\\(e^{-iHt/\\\\hbar}\\\\) correctly to each eigenstate component.
+  * Eigenvalues/eigenstates: verify by substituting back into the operator equation.
+  * Commutators: compute \\\\([A,B] = AB - BA\\\\) explicitly, do not guess.
+- For classical mechanics: verify units, check limiting cases, ensure conservation laws hold.
+- For electromagnetism: verify Gauss's law, Ampere's law applications; check vector directions.
+- For math:
+  * Verify arithmetic: plug the answer back into the original equation.
+  * For calculus: differentiate integrals to check, or integrate derivatives to check.
+  * For algebra: substitute solutions back into the original equation.
+  * For probability: ensure all probabilities sum to 1.
+- SELF-CHECK: Before finalizing each question, mentally verify: "Does correctOptionIndex point to the mathematically correct answer? Have I checked my arithmetic?"
+
 EXPLANATION QUALITY:
 - Each explanation MUST be humanized and natural — like a tutor talking to a student.
 - Start with WHY the answer is correct, then briefly address why a common wrong choice fails.
