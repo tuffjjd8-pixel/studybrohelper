@@ -189,19 +189,24 @@ function sanitizeQuizOutput(questions: any[]): any[] {
         answer = answer.toUpperCase();
       }
 
+      // Pre-clean: protect known words from LaTeX mangling
+      const preClean = (s: string) => s
+        .replace(/Schr\\?\(?\\?ö\\?\)?dinger/gi, "Schrödinger")
+        .replace(/Schr\\?\(?o\\?\)?dinger/gi, "Schrödinger");
+
       // Apply LaTeX safety pipeline to every text field
       const safeQuestion =
         typeof q.question === "string" && q.question.trim()
-          ? fixCommonLatexErrors(fixLatexDelimiters(q.question.trim()))
+          ? fixCommonLatexErrors(fixLatexDelimiters(preClean(q.question.trim())))
           : `Question ${i + 1}`;
 
       const safeOptions = options.map((opt: string) =>
-        fixCommonLatexErrors(fixLatexDelimiters(opt))
+        fixCommonLatexErrors(fixLatexDelimiters(preClean(opt)))
       );
 
       const safeExplanation =
         typeof q.explanation === "string" && q.explanation.trim()
-          ? fixCommonLatexErrors(fixLatexDelimiters(q.explanation.trim()))
+          ? fixCommonLatexErrors(fixLatexDelimiters(preClean(q.explanation.trim())))
           : "This is the correct answer based on the material.";
 
       return {
