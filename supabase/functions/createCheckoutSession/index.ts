@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -21,15 +21,34 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse request body
-    const { userId, plan } = await req.json();
+    // Verify JWT and extract authenticated user ID
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    if (!userId || typeof userId !== "string") {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
-        JSON.stringify({ error: "userId is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const verifiedUserId = claimsData.claims.sub as string;
+
+    // Parse request body (only plan is needed; userId is ignored in favor of JWT)
+    const { plan } = await req.json();
 
     if (!plan || !["monthly", "weekend", "yearly", "lifetime"].includes(plan)) {
       return new Response(
@@ -38,9 +57,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get Supabase client to read stripe mode setting
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // Get Supabase service client to read stripe mode setting
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Read stripe mode from app_settings
@@ -110,12 +127,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // TEST MODE: Allow all users to create test-mode checkout when test mode is enabled
-    if (isTestMode) {
-      console.log(`Test mode checkout enabled for all users`);
-    }
-
-    console.log(`Creating checkout session for user ${userId}, plan: ${plan}, priceId: ${priceId}, mode: ${stripeMode}`);
+    console.log(`Creating checkout session for user ${verifiedUserId}, plan: ${plan}, priceId: ${priceId}, mode: ${stripeMode}`);
 
     // Initialize Stripe
     const stripe = new Stripe(stripeSecretKey, {
@@ -123,7 +135,6 @@ Deno.serve(async (req) => {
     });
 
     // Create checkout session
-    // Lifetime is a one-time payment, everything else is a subscription
     const sessionMode = plan === "lifetime" ? "payment" : "subscription";
 
     const session = await stripe.checkout.sessions.create({
@@ -136,7 +147,7 @@ Deno.serve(async (req) => {
       ],
       success_url: "https://studybrohelper.lovable.app/premium/success?session_id={CHECKOUT_SESSION_ID}",
       cancel_url: "https://studybrohelper.lovable.app/premium/cancel",
-      client_reference_id: userId,
+      client_reference_id: verifiedUserId,
     });
 
     console.log(`Checkout session created: ${session.id}`);
