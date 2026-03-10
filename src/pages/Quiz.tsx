@@ -43,18 +43,75 @@ const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 7;
 const PREMIUM_DAILY_QUIZZES = 13;
-const getTopicFromSubject = (subject: string) => {
-  const s = subject.toLowerCase();
-  if (s.includes("algebra") || s.includes("equation")) return "Algebra";
-  if (s.includes("geometry") || s.includes("triangle") || s.includes("circle")) return "Geometry";
-  if (s.includes("calculus") || s.includes("derivative") || s.includes("integral")) return "Calculus";
-  if (s.includes("statistics") || s.includes("probability")) return "Statistics";
-  if (s.includes("physics")) return "Physics";
-  if (s.includes("chemistry")) return "Chemistry";
-  if (s.includes("biology")) return "Biology";
-  if (s.includes("history")) return "History";
-  if (s.includes("english") || s.includes("grammar")) return "English";
-  return subject.charAt(0).toUpperCase() + subject.slice(1) || "General";
+const getTopicFromSubject = (subject: string): string => {
+  const s = subject.toLowerCase().trim();
+  if (s.includes("algebra") || s.includes("equation") || s.includes("polynomial")) return "Algebra";
+  if (s.includes("geometry") || s.includes("triangle") || s.includes("circle") || s.includes("angle")) return "Geometry";
+  if (s.includes("calculus") || s.includes("derivative") || s.includes("integral") || s.includes("limit")) return "Calculus";
+  if (s.includes("trigonometry") || s.includes("trig") || s.includes("sine") || s.includes("cosine")) return "Trigonometry";
+  if (s.includes("statistics") || s.includes("probability") || s.includes("standard deviation")) return "Statistics";
+  if (s.includes("fraction") || s.includes("decimal") || s.includes("percent")) return "Fractions";
+  if (s.includes("linear") || s.includes("slope") || s.includes("graph")) return "Linear Equations";
+  if (s.includes("quantum") || s.includes("relativity") || s.includes("mechanics") || s.includes("force") || s.includes("energy") || s.includes("momentum") || s.includes("newton") || s.includes("physics")) return "Physics";
+  if (s.includes("chemistry") || s.includes("reaction") || s.includes("molecule") || s.includes("atom") || s.includes("bond")) return "Chemistry";
+  if (s.includes("biology") || s.includes("cell") || s.includes("dna") || s.includes("evolution") || s.includes("photosynthesis")) return "Biology";
+  if (s.includes("history") || s.includes("war") || s.includes("revolution") || s.includes("civilization")) return "History";
+  if (s.includes("english") || s.includes("grammar") || s.includes("essay") || s.includes("literature")) return "English";
+  if (s.includes("psychology") || s.includes("cognitive") || s.includes("behavior")) return "Psychology";
+  if (s.includes("economics") || s.includes("supply") || s.includes("demand") || s.includes("market")) return "Economics";
+  if (s.includes("math") || s.includes("arithmetic") || s.includes("number")) return "Math";
+  if (s.includes("science")) return "Science";
+  // Clean up: capitalize first letter, avoid returning "general" or "other"
+  const cleaned = subject.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+  if (!cleaned || cleaned.toLowerCase() === "general" || cleaned.toLowerCase() === "other") return "General";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+};
+
+/**
+ * Extract a specific topic from a quiz question's text content.
+ * Used to build per-question topic breakdown for weak-point analysis.
+ */
+const extractTopicFromQuestion = (questionText: string, fallbackSubject: string): string => {
+  const q = questionText.toLowerCase();
+
+  // Math topics
+  if (/\bfraction|numerator|denominator\b/.test(q)) return "Fractions";
+  if (/\bquadratic|ax\^?2|discriminant\b/.test(q)) return "Quadratic Equations";
+  if (/\bslope|intercept|linear\b/.test(q)) return "Linear Equations";
+  if (/\bderivative|differentiat|d\/dx\b/.test(q)) return "Derivatives";
+  if (/\bintegral|integrat|antiderivative\b/.test(q)) return "Integrals";
+  if (/\blimit|lim\b/.test(q)) return "Limits";
+  if (/\btrigonometr|sin|cos|tan\b/.test(q)) return "Trigonometry";
+  if (/\bmatrix|matrices|determinant\b/.test(q)) return "Matrices";
+  if (/\bprobability|combinat|permut\b/.test(q)) return "Probability";
+  if (/\bstatistic|mean|median|standard deviation\b/.test(q)) return "Statistics";
+  if (/\bgeometr|area|perimeter|volume|triangle|circle\b/.test(q)) return "Geometry";
+  if (/\balgebra|equation|variable|polynomial\b/.test(q)) return "Algebra";
+  if (/\blogarithm|log|exponential\b/.test(q)) return "Logarithms";
+
+  // Science topics
+  if (/\bnewton|force|acceleration|velocity|momentum\b/.test(q)) return "Mechanics";
+  if (/\belectri|circuit|voltage|current|resistance\b/.test(q)) return "Electricity";
+  if (/\bwave|frequency|wavelength|amplitude\b/.test(q)) return "Waves";
+  if (/\bquantum|photon|planck|wave.?function\b/.test(q)) return "Quantum Physics";
+  if (/\bthermodynamic|heat|entropy|temperature\b/.test(q)) return "Thermodynamics";
+  if (/\bchemical|reaction|mole|stoichiom\b/.test(q)) return "Chemical Reactions";
+  if (/\borganic|hydrocarbon|alkane|alkene\b/.test(q)) return "Organic Chemistry";
+  if (/\bacid|base|ph\b/.test(q)) return "Acids and Bases";
+  if (/\bcell|mitosis|meiosis|organelle\b/.test(q)) return "Cell Biology";
+  if (/\bdna|rna|gene|mutation|genetic\b/.test(q)) return "Genetics";
+  if (/\bevolution|natural selection|adaptation\b/.test(q)) return "Evolution";
+  if (/\bphotosynthesis|respiration|atp\b/.test(q)) return "Biochemistry";
+  if (/\becosystem|ecology|food chain|biome\b/.test(q)) return "Ecology";
+
+  // Humanities
+  if (/\bworld war|revolution|civil war|empire|dynasty\b/.test(q)) return "World History";
+  if (/\bgrammar|syntax|verb|noun|sentence\b/.test(q)) return "Grammar";
+  if (/\bliterature|novel|poem|author|shakespeare\b/.test(q)) return "Literature";
+  if (/\bpsycholog|cognitive|behavior|freud\b/.test(q)) return "Psychology";
+  if (/\beconom|gdp|inflation|supply|demand\b/.test(q)) return "Economics";
+
+  return getTopicFromSubject(fallbackSubject);
 };
 
 const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
