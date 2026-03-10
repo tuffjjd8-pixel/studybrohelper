@@ -12,10 +12,57 @@ const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 7;
 const PREMIUM_DAILY_QUIZZES = 13;
 
-// Primary model
-const FALLBACK_MODELS = [
+// Primary + backup Groq models (try both before Lovable AI)
+const GROQ_MODELS = [
   "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
 ];
+
+// ============================================================
+// Topic sanitization (server-side safety net)
+// ============================================================
+
+const SUBJECT_FALLBACKS: Record<string, string> = {
+  math: "General Math Skills",
+  algebra: "Algebra",
+  geometry: "Geometry",
+  calculus: "Calculus",
+  trigonometry: "Trigonometry",
+  statistics: "Statistics and Probability",
+  science: "General Science Concepts",
+  physics: "Physics Fundamentals",
+  chemistry: "Chemistry Fundamentals",
+  biology: "Biology Fundamentals",
+  english: "Reading Comprehension",
+  history: "World History Basics",
+  geography: "World Geography",
+  economics: "Basic Economic Principles",
+  psychology: "Psychology Fundamentals",
+  computer: "Computer Science Basics",
+};
+
+function sanitizeSubject(raw: string | undefined | null): string {
+  if (!raw || typeof raw !== "string") return "General Knowledge";
+  // Strip LaTeX, symbols, control chars
+  let clean = raw
+    .replace(/\\\(|\\\)|\\\[|\\\]|\$\$/g, "")
+    .replace(/\$([^$]*)\$/g, "$1")
+    .replace(/\\[a-zA-Z]+/g, " ")
+    .replace(/[{}^_\n\r\t\f]/g, " ")
+    .replace(/[^a-zA-Z0-9\s'-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const lower = clean.toLowerCase();
+  if (!clean || lower === "other" || lower === "general" || lower === "topic" || lower === "quiz" || clean.length < 2) {
+    // Try to match partial subject from original
+    const origLower = (raw || "").toLowerCase();
+    for (const [key, fallback] of Object.entries(SUBJECT_FALLBACKS)) {
+      if (origLower.includes(key)) return fallback;
+    }
+    return "General Knowledge";
+  }
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
 
 // ============================================================
 // LaTeX Safety — mirrors solve-homework exactly
