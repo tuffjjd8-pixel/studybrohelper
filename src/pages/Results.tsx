@@ -349,35 +349,35 @@ const Results = ({ embedded }: { embedded?: boolean }) => {
           {/* Recommended Quiz — only after quiz completion */}
           {subject && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
-              {user ? (() => {
-                // Pick the weakest topic that the user got wrong; fall back to subject
-                const weakestTopic = weakTopics.length > 0
-                  ? weakTopics[0]
-                  : (topicBreakdown.length > 0
-                    ? [...topicBreakdown].sort((a, b) => a.pct - b.pct)[0]?.name
-                    : null);
-                const recommendedLabel = weakestTopic && weakestTopic !== "Other" && weakestTopic !== "General"
-                  ? weakestTopic
-                  : subject;
-                return (
-                <Card
-                  className="border-primary/30 hover:border-primary/60 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/quiz?topic=${encodeURIComponent(recommendedLabel)}`)}
-                >
-                  <CardContent className="pt-6 flex items-center gap-4">
-                    <div className="p-3 rounded-xl bg-primary/10">
-                      <Target className="w-6 h-6 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">Recommended Quiz</p>
-                      <p className="text-xs text-muted-foreground">
-                        Practice more: <span className="font-medium text-foreground">{recommendedLabel}</span>
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-                );
-              })()
+              {user ? (
+                (() => {
+                  const weakestTopic = weakTopics.length > 0
+                    ? weakTopics[0]
+                    : (topicBreakdown.length > 0
+                      ? [...topicBreakdown].sort((a, b) => a.pct - b.pct)[0]?.name
+                      : null);
+                  const recommendedLabel = weakestTopic && weakestTopic !== "Other" && weakestTopic !== "General"
+                    ? weakestTopic
+                    : subject;
+                  return (
+                    <Card
+                      className="border-primary/30 hover:border-primary/60 transition-colors cursor-pointer"
+                      onClick={() => navigate(`/quiz?topic=${encodeURIComponent(recommendedLabel)}`)}
+                    >
+                      <CardContent className="pt-6 flex items-center gap-4">
+                        <div className="p-3 rounded-xl bg-primary/10">
+                          <Target className="w-6 h-6 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-sm">Recommended Quiz</p>
+                          <p className="text-xs text-muted-foreground">
+                            Practice more: <span className="font-medium text-foreground">{recommendedLabel}</span>
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()
               ) : (
                 <Card className="border-border">
                   <CardContent className="pt-6 text-center">
