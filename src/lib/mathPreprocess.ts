@@ -7,7 +7,27 @@
  * 3. Convert \[...\] → $$...$$ and \(...\) → $...$
  *    (remark-math only supports $ delimiters).
  */
+/**
+ * Returns true when the text looks like it contains actual math expressions
+ * (LaTeX delimiters, math operators, symbols, etc.).
+ */
+function containsMath(text: string): boolean {
+  // Explicit LaTeX delimiters
+  if (/\\\(|\\\)|\\\[|\\]|\$\$|\$[^$]/.test(text)) return true;
+  // Common LaTeX commands
+  if (/\\(frac|sqrt|sum|int|prod|lim|infty|alpha|beta|theta|omega|hbar|nabla|partial|vec|hat|bar|dot)/.test(text)) return true;
+  // Math-heavy symbols that rarely appear in prose
+  if (/[∫∑∏√≈≠≤≥±∓∞∂∇]/.test(text)) return true;
+  // Superscripts / subscripts patterns like x^2, a_n
+  if (/[a-zA-Z]\^[\d{]/.test(text) || /[a-zA-Z]_[\d{a-zA-Z]/.test(text)) return true;
+  return false;
+}
+
 export function preprocessMath(content: string): string {
+  // If the content has no math at all, return it untouched — preserves
+  // plain-text paragraphs for non-math subjects.
+  if (!containsMath(content)) return content;
+
   let result = content;
 
   // ── Step 1: Restore control characters to backslash + letter ──
@@ -21,12 +41,11 @@ export function preprocessMath(content: string): string {
   result = result.replace(/\t/g, "\\t");       // tab → \t (note: tabs in normal text are rare in math)
   result = result.replace(/\r/g, "\\r");       // carriage return → \r
   result = result.replace(/\x08/g, "\\b");     // backspace → \b
-  // Don't replace ALL \n (newlines are meaningful), only before letters
-  result = result.replace(/\n(?=[a-zA-Z])/g, "\\n");
+  // Only restore \n→\\n when immediately followed by a known LaTeX command stem
+  // (e.g. \nabla, \nu, \neq) — never for normal prose newlines.
+  result = result.replace(/\n(?=abla|u[^a-z]|eq\b)/g, "\\n");
 
   // ── Step 2: Fix doubled command prefixes ──
-  // After step 1, \\f\\frac in JSON becomes \f\frac in the string.
-  // Collapse these duplicates.
   const doubles: [string, string][] = [
     ["\\f\\frac", "\\frac"],
     ["\\f\\flat", "\\flat"],
