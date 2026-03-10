@@ -551,8 +551,8 @@ DIFFICULTY & QUALITY:
 - Distractors (wrong options) must be plausible — based on common mistakes students actually make (e.g. sign errors, forgetting a step, off-by-one).
 - Make sure all four distractors are distinct from each other — no two options should have the same value.
 - NEVER use "All of the above" or "None of the above" as options.
-- Each question must test a DIFFERENT concept or skill — no repetitive questions.
-- Spread correct answers roughly evenly across A, B, C, and D — avoid clustering.
+- Each question must test a DIFFERENT concept or skill — no repetitive questions. Avoid asking two questions about the same formula or system.
+- Distribute correctOptionIndex roughly evenly: for 10 questions, aim for about 2-3 each of 0, 1, 2, 3. In particular, make sure D (index 3) is correct for at least 1-2 questions. Do NOT default to A.
 
 PHYSICS & QUANTUM TIPS (soft guidelines for physics, quantum, and related topics):
 - Prefer simple, friendly numbers: use coefficients like 1/√2, 1/2, √3/2 and small integers (1–5) for energies, quantum numbers, etc.
