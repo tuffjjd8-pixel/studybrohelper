@@ -258,7 +258,7 @@ function sanitizeQuizOutput(questions: any[]): any[] {
     }
   }
 
-  console.log(`[Quiz Balancer] After: A=${counts.A} B=${counts.B} C=${counts.C} D=${counts.D}`);
+  
   return sanitized;
 }
 
