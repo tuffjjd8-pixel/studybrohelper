@@ -549,17 +549,21 @@ DIFFICULTY & QUALITY:
 - For math: include word problems, proofs, optimization, and competition-style problems (AMC/MATHCOUNTS level).
 - For science: include application questions, not just definitions.
 - Distractors (wrong options) must be plausible — based on common mistakes students actually make (e.g. sign errors, forgetting a step, off-by-one).
+- Make sure all four distractors are distinct from each other — no two options should have the same value.
 - NEVER use "All of the above" or "None of the above" as options.
 - Each question must test a DIFFERENT concept or skill — no repetitive questions.
+- Spread correct answers roughly evenly across A, B, C, and D — avoid clustering.
 
-PHYSICS & QUANTUM MECHANICS NUMBER RULES (apply when subject involves physics, quantum, or related topics):
-- Only use quantum states that are ALREADY normalized with simple coefficients: 1/√2, √3/2, 1/2, 1, 0. Do NOT generate states that require normalization as a step.
-- Use small integers (1–5) for energies, quantum numbers, wavelengths, coefficients, and probabilities.
-- Compute the correct numerical answer FIRST using simple arithmetic, then write the question around that answer.
-- Generate distractors by slightly modifying the correct answer (e.g. sign flip, off-by-one, swapped numerator/denominator).
-- Do NOT include normalization steps, symbolic algebra, or complex square-root arithmetic in questions or options.
-- Keep all numerical results as simple fractions or small decimals (e.g. 1/4, 3/4, 0.5, 1/2).
-- Every question must be internally self-consistent: the given data must lead to exactly one correct option via straightforward calculation.
+PHYSICS & QUANTUM TIPS (soft guidelines for physics, quantum, and related topics):
+- Prefer simple, friendly numbers: use coefficients like 1/√2, 1/2, √3/2 and small integers (1–5) for energies, quantum numbers, etc.
+- For well-known results, use the standard textbook sign conventions:
+  · [x̂, p̂] = iℏ (positive iℏ)
+  · Spin-up energy in H = −μB σ_z is E = −μB (negative)
+  · [Â, B̂] = −[B̂, Â]
+- When possible, phrase questions so the answer is a concrete number or simple fraction rather than a symbolic formula.
+- Build distractors by tweaking the correct answer (sign flip, factor of 2, swapped numerator/denominator) — but keep each option unique.
+- Wrap all math symbols in LaTeX delimiters, including inside options (e.g. \\\\(m_l\\\\) not plain m_l).
+- Prefer pre-normalized states; avoid asking students to normalize as a step.
 
 EXPLANATION QUALITY:
 - Each explanation MUST be humanized and natural — like a tutor talking to a student.
