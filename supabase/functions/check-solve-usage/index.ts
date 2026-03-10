@@ -39,36 +39,51 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { action, deviceId, userId } = await req.json();
+    const { action, deviceId } = await req.json();
     const todayCST = getTodayCST();
 
-    const lookupByUser = !!userId;
-    const lookupId = lookupByUser ? userId : deviceId;
+    // Derive userId from verified JWT instead of trusting request body
+    let verifiedUserId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+      if (!claimsError && claimsData?.claims?.sub) {
+        verifiedUserId = claimsData.claims.sub as string;
+      }
+    }
+
+    const lookupByUser = !!verifiedUserId;
+    const lookupId = lookupByUser ? verifiedUserId : deviceId;
 
     if (!lookupId) {
       return new Response(
-        JSON.stringify({ error: "Must provide userId or deviceId" }),
+        JSON.stringify({ error: "Must be authenticated or provide deviceId" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // === FAST PATH: Premium check with in-memory cache ===
     let isPremium = false;
-    if (userId) {
-      const cached = getCachedPremium(userId);
+    if (verifiedUserId) {
+      const cached = getCachedPremium(verifiedUserId);
       if (cached !== null) {
         isPremium = cached;
       } else {
         const { data: profile } = await supabase
           .from("profiles")
           .select("is_premium")
-          .eq("user_id", userId)
+          .eq("user_id", verifiedUserId)
           .single();
         isPremium = profile?.is_premium || false;
-        setCachedPremium(userId, isPremium);
+        setCachedPremium(verifiedUserId, isPremium);
       }
     }
 
