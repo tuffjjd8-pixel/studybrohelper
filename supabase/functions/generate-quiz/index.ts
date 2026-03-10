@@ -253,7 +253,7 @@ function sanitizeQuizOutput(questions: any[]): any[] {
         q.answer = leastUsed;
         counts[letter]--;
         counts[leastUsed]++;
-        console.log(`[Quiz Balancer] Swapped Q${i+1}: ${letter} → ${leastUsed}`);
+        
       }
     }
   }
