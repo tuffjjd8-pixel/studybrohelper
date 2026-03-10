@@ -12,10 +12,57 @@ const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 7;
 const PREMIUM_DAILY_QUIZZES = 13;
 
-// Primary model
-const FALLBACK_MODELS = [
+// Primary + backup Groq models (try both before Lovable AI)
+const GROQ_MODELS = [
   "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
 ];
+
+// ============================================================
+// Topic sanitization (server-side safety net)
+// ============================================================
+
+const SUBJECT_FALLBACKS: Record<string, string> = {
+  math: "General Math Skills",
+  algebra: "Algebra",
+  geometry: "Geometry",
+  calculus: "Calculus",
+  trigonometry: "Trigonometry",
+  statistics: "Statistics and Probability",
+  science: "General Science Concepts",
+  physics: "Physics Fundamentals",
+  chemistry: "Chemistry Fundamentals",
+  biology: "Biology Fundamentals",
+  english: "Reading Comprehension",
+  history: "World History Basics",
+  geography: "World Geography",
+  economics: "Basic Economic Principles",
+  psychology: "Psychology Fundamentals",
+  computer: "Computer Science Basics",
+};
+
+function sanitizeSubject(raw: string | undefined | null): string {
+  if (!raw || typeof raw !== "string") return "General Knowledge";
+  // Strip LaTeX, symbols, control chars
+  let clean = raw
+    .replace(/\\\(|\\\)|\\\[|\\\]|\$\$/g, "")
+    .replace(/\$([^$]*)\$/g, "$1")
+    .replace(/\\[a-zA-Z]+/g, " ")
+    .replace(/[{}^_\n\r\t\f]/g, " ")
+    .replace(/[^a-zA-Z0-9\s'-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const lower = clean.toLowerCase();
+  if (!clean || lower === "other" || lower === "general" || lower === "topic" || lower === "quiz" || clean.length < 2) {
+    // Try to match partial subject from original
+    const origLower = (raw || "").toLowerCase();
+    for (const [key, fallback] of Object.entries(SUBJECT_FALLBACKS)) {
+      if (origLower.includes(key)) return fallback;
+    }
+    return "General Knowledge";
+  }
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
 
 // ============================================================
 // LaTeX Safety — mirrors solve-homework exactly
@@ -398,11 +445,13 @@ async function callGroqWithFallback(
   keyManager: any
 ): Promise<{ data: any; model: string }> {
   let lastError: Error | null = null;
+  let groqAttempts = 0;
 
-  // Try Groq models first
-  for (const model of FALLBACK_MODELS) {
+  // Try each Groq model — this gives us 2 attempts before Lovable AI
+  for (const model of GROQ_MODELS) {
     try {
-      console.log(`Attempting quiz generation with model: ${model}`);
+      groqAttempts++;
+      console.log(`Groq attempt ${groqAttempts}/${GROQ_MODELS.length} with model: ${model}`);
 
       const response = await keyManager.callGroqWithRotation(
         "https://api.groq.com/openai/v1/chat/completions",
@@ -419,8 +468,8 @@ async function callGroqWithFallback(
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Model ${model} failed:`, response.status, errorText);
-        lastError = new Error(`Model ${model} failed: ${response.status}`);
+        console.error(`Groq ${model} failed: ${response.status}`, errorText.slice(0, 200));
+        lastError = new Error(`Groq ${model} failed: ${response.status}`);
         continue;
       }
 
@@ -428,19 +477,26 @@ async function callGroqWithFallback(
       const content = data.choices?.[0]?.message?.content;
 
       if (!content) {
-        lastError = new Error(`Model ${model} returned no content`);
+        lastError = new Error(`Groq ${model} returned no content`);
+        continue;
+      }
+
+      // Quick JSON validity check — if it doesn't even contain { or [, skip to next model
+      if (!content.includes("{") && !content.includes("[")) {
+        console.warn(`Groq ${model} returned non-JSON content, trying next model`);
+        lastError = new Error(`Groq ${model} returned non-JSON`);
         continue;
       }
 
       return { data: content, model };
     } catch (error) {
-      console.error(`Error with model ${model}:`, error);
+      console.error(`Error with Groq ${model}:`, error);
       lastError = error as Error;
     }
   }
 
-  // Groq failed — try Lovable AI as fallback
-  console.log("All Groq models failed, falling back to Lovable AI...");
+  // Only fall back to Lovable AI after ALL Groq models failed
+  console.log(`All ${groqAttempts} Groq attempts failed, falling back to Lovable AI...`);
   for (const model of LOVABLE_AI_MODELS) {
     try {
       return await callLovableAI(prompt, systemPrompt, model);
@@ -522,9 +578,13 @@ serve(async (req) => {
     const {
       conversationText,
       questionCount = 5,
-      subject,
+      subject: rawSubject,
       strictCountMode = false,
     } = await req.json();
+
+    // Sanitize subject server-side to prevent vague/broken topics from reaching Groq
+    const subject = sanitizeSubject(rawSubject);
+    console.log(`Sanitized subject: "${rawSubject}" → "${subject}"`);
 
     if (!conversationText) {
       return new Response(
