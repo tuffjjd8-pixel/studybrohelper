@@ -613,23 +613,33 @@ DIFFICULTY & QUALITY:
 - Distribute correctOptionIndex roughly evenly: for 10 questions, aim for about 2-3 each of 0, 1, 2, 3. In particular, make sure D (index 3) is correct for at least 1-2 questions. Do NOT default to A.
 
 PHYSICS & QUANTUM TIPS (soft guidelines for physics, quantum, and related topics):
-- Prefer simple, friendly numbers: use coefficients like 1/√2, 1/2, √3/2 and small integers (1–5) for energies, quantum numbers, etc.
+- Prefer simple, friendly numbers: use coefficients like \\\\(1/\\\\sqrt{2}\\\\), \\\\(1/2\\\\), \\\\(\\\\sqrt{3}/2\\\\) and small integers (1–5) for energies, quantum numbers, etc.
 - For well-known results, use the standard textbook sign conventions:
-  · [x̂, p̂] = iℏ (positive iℏ)
-  · Spin-up energy in H = −μB σ_z is E = −μB (negative)
-  · [Â, B̂] = −[B̂, Â]
+  · \\\\([\\\\hat{x}, \\\\hat{p}] = i\\\\hbar\\\\) (positive \\\\(i\\\\hbar\\\\))
+  · Spin-up energy in \\\\(H = -\\\\mu B \\\\sigma_z\\\\) is \\\\(E = -\\\\mu B\\\\) (negative)
+  · \\\\([\\\\hat{A}, \\\\hat{B}] = -[\\\\hat{B}, \\\\hat{A}]\\\\)
+  · Harmonic oscillator: \\\\(E_n = \\\\hbar\\\\omega(n + \\\\frac{1}{2})\\\\)
+  · Tunneling coefficient: \\\\(T \\\\propto e^{-2\\\\kappa a}\\\\) where \\\\(\\\\kappa = \\\\sqrt{2m(V_0 - E)}/\\\\hbar\\\\)
 - When possible, phrase questions so the answer is a concrete number or simple fraction rather than a symbolic formula.
 - Build distractors by tweaking the correct answer (sign flip, factor of 2, swapped numerator/denominator) — but keep each option unique.
-- Wrap all math symbols in LaTeX delimiters, including inside options (e.g. \\\\(m_l\\\\) not plain m_l).
+- Wrap ALL math symbols in LaTeX delimiters everywhere — in questions, options, AND explanations. Write \\\\(m_l\\\\) not plain m_l, \\\\(\\\\hbar\\\\) not ℏ, \\\\(\\\\kappa\\\\) not κ, \\\\(\\\\alpha\\\\) not α.
 - Prefer pre-normalized states; avoid asking students to normalize as a step.
+- Keep option text short and clean: one expression per option, no long sentences.
+
+QUESTION WORDING & CLARITY:
+- Write questions in clear, direct language. Avoid filler phrases like "in terms of n" or "given the following".
+- Each question should be self-contained and unambiguous — a student should know exactly what is being asked.
+- Use specific phrasing: "What is the energy of the \\\\(n\\\\)-th level?" rather than "Find the energy in terms of n for the system described."
+- Avoid repeating the same formula in both plain text and LaTeX — choose one (LaTeX preferred).
 
 EXPLANATION QUALITY:
 - Each explanation MUST be humanized and natural — like a tutor talking to a student.
-- Start with WHY the answer is correct, then briefly address why a common wrong choice fails.
+- Start with WHY the answer is correct, then briefly note why a common wrong choice fails.
 - Use short, clear language: "The key here is…", "This works because…", "A common mistake is…".
 - NEVER use generic explanations like "This is the correct answer based on the material."
-- Include the core formula or concept used, in LaTeX if math-related.
+- Show the key formula or result ONCE in clean LaTeX — do NOT repeat it in plain text alongside the LaTeX version.
 - Keep explanations 2-4 sentences max — concise but insightful.
+- When referencing a formula, write it only in LaTeX form: "Using \\\\(E_n = \\\\hbar\\\\omega(n+1/2)\\\\), we get…" — never follow with a plain-text duplicate like "E = hbar*omega*(n+1/2)".
 
 ${QUIZ_LATEX_RULES}
 
