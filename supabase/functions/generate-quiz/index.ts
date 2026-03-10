@@ -342,8 +342,55 @@ function parseQuizJSON(content: string): any {
 }
 
 // ============================================================
-// Groq API call with model fallback
+// Groq API call with model fallback + Lovable AI fallback
 // ============================================================
+
+const LOVABLE_AI_MODELS = [
+  "google/gemini-2.5-flash",
+  "google/gemini-2.5-flash-lite",
+];
+
+async function callLovableAI(
+  prompt: string,
+  systemPrompt: string,
+  model: string
+): Promise<{ data: string; model: string }> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  // Lovable AI gateway endpoint
+  const url = `${supabaseUrl}/functions/v1/ai-proxy`;
+
+  console.log(`Attempting Lovable AI fallback with model: ${model}`);
+
+  const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.3,
+      max_tokens: 4000,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Lovable AI ${model} failed: ${response.status} - ${errText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error(`Lovable AI ${model} returned no content`);
+  return { data: content, model: `lovable/${model}` };
+}
 
 async function callGroqWithFallback(
   prompt: string,
@@ -352,6 +399,7 @@ async function callGroqWithFallback(
 ): Promise<{ data: any; model: string }> {
   let lastError: Error | null = null;
 
+  // Try Groq models first
   for (const model of FALLBACK_MODELS) {
     try {
       console.log(`Attempting quiz generation with model: ${model}`);
@@ -391,7 +439,18 @@ async function callGroqWithFallback(
     }
   }
 
-  throw lastError || new Error("All models failed");
+  // Groq failed — try Lovable AI as fallback
+  console.log("All Groq models failed, falling back to Lovable AI...");
+  for (const model of LOVABLE_AI_MODELS) {
+    try {
+      return await callLovableAI(prompt, systemPrompt, model);
+    } catch (error) {
+      console.error(`Lovable AI fallback ${model} failed:`, error);
+      lastError = error as Error;
+    }
+  }
+
+  throw lastError || new Error("All models failed (Groq + Lovable AI)");
 }
 
 // ============================================================
