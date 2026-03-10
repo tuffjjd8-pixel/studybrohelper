@@ -45,7 +45,17 @@ function fixLatexDelimiters(text: string): string {
 function fixCommonLatexErrors(content: string): string {
   if (typeof content !== "string") return content;
 
+  // ── Step 0: Protect common non-LaTeX words with special chars ──
+  // "Schrödinger" often gets mangled by LaTeX fixers; preserve it
+  const protectedWords: [RegExp, string][] = [
+    [/Schr[\\()\s]*ö[\\()\s]*dinger/gi, "Schrödinger"],
+    [/Schr[\\()\s]*o[\\()\s]*dinger/gi, "Schrödinger"],
+  ];
+
   let result = content;
+  for (const [pattern, replacement] of protectedWords) {
+    result = result.replace(pattern, replacement);
+  }
   const BS = "\\"; // literal backslash (one char)
 
   // ── Step 1: Restore control-character corrupted LaTeX commands ──
@@ -148,7 +158,7 @@ function fixLatexInJSON(raw: string): string {
 // ============================================================
 
 function sanitizeQuizOutput(questions: any[]): any[] {
-  return questions
+  const sanitized = questions
     .map((q, i) => {
       // Ensure options is an array with exactly 4 items
       let options = Array.isArray(q.options) ? q.options : [];
@@ -179,19 +189,24 @@ function sanitizeQuizOutput(questions: any[]): any[] {
         answer = answer.toUpperCase();
       }
 
+      // Pre-clean: protect known words from LaTeX mangling
+      // After JSON parse, "Schrödinger" may appear as Schr\(\ö\)dinger or similar
+      const preClean = (s: string) => s
+        .replace(/Schr[\\()öo\s]*(ö|o)[\\()]*dinger/gi, "Schrödinger");
+
       // Apply LaTeX safety pipeline to every text field
       const safeQuestion =
         typeof q.question === "string" && q.question.trim()
-          ? fixCommonLatexErrors(fixLatexDelimiters(q.question.trim()))
+          ? fixCommonLatexErrors(fixLatexDelimiters(preClean(q.question.trim())))
           : `Question ${i + 1}`;
 
       const safeOptions = options.map((opt: string) =>
-        fixCommonLatexErrors(fixLatexDelimiters(opt))
+        fixCommonLatexErrors(fixLatexDelimiters(preClean(opt)))
       );
 
       const safeExplanation =
         typeof q.explanation === "string" && q.explanation.trim()
-          ? fixCommonLatexErrors(fixLatexDelimiters(q.explanation.trim()))
+          ? fixCommonLatexErrors(fixLatexDelimiters(preClean(q.explanation.trim())))
           : "This is the correct answer based on the material.";
 
       return {
@@ -202,6 +217,49 @@ function sanitizeQuizOutput(questions: any[]): any[] {
       };
     })
     .filter((q) => q.question && q.options.length === 4);
+
+  // ── Balance answer distribution ──
+  // If any letter is heavily over-represented, shuffle some answers
+  const counts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
+  for (const q of sanitized) counts[q.answer]++;
+
+  const total = sanitized.length;
+  const maxPerLetter = Math.max(Math.ceil(total / 4) + 1, 2);
+  
+
+  if (total >= 4) {
+    for (let i = 0; i < sanitized.length; i++) {
+      const q = sanitized[i];
+      const letter = q.answer;
+      if (counts[letter] > maxPerLetter) {
+        // Find the least-used letter
+        const sorted = Object.entries(counts).sort((a, b) => a[1] - b[1]);
+        const leastUsed = sorted[0][0];
+        const leastIdx = ["A", "B", "C", "D"].indexOf(leastUsed);
+        const currentIdx = ["A", "B", "C", "D"].indexOf(letter);
+
+        // Swap option content
+        const temp = q.options[currentIdx];
+        q.options[currentIdx] = q.options[leastIdx];
+        q.options[leastIdx] = temp;
+
+        // Update prefixes
+        const prefixes = ["A)", "B)", "C)", "D)"];
+        q.options = q.options.map((opt: string, idx: number) => {
+          const stripped = opt.replace(/^[A-D]\)\s*/, "");
+          return `${prefixes[idx]} ${stripped}`;
+        });
+
+        q.answer = leastUsed;
+        counts[letter]--;
+        counts[leastUsed]++;
+        
+      }
+    }
+  }
+
+  
+  return sanitized;
 }
 
 // ============================================================
@@ -551,8 +609,8 @@ DIFFICULTY & QUALITY:
 - Distractors (wrong options) must be plausible — based on common mistakes students actually make (e.g. sign errors, forgetting a step, off-by-one).
 - Make sure all four distractors are distinct from each other — no two options should have the same value.
 - NEVER use "All of the above" or "None of the above" as options.
-- Each question must test a DIFFERENT concept or skill — no repetitive questions.
-- Spread correct answers roughly evenly across A, B, C, and D — avoid clustering.
+- Each question must test a DIFFERENT concept or skill — no repetitive questions. Avoid asking two questions about the same formula or system.
+- Distribute correctOptionIndex roughly evenly: for 10 questions, aim for about 2-3 each of 0, 1, 2, 3. In particular, make sure D (index 3) is correct for at least 1-2 questions. Do NOT default to A.
 
 PHYSICS & QUANTUM TIPS (soft guidelines for physics, quantum, and related topics):
 - Prefer simple, friendly numbers: use coefficients like 1/√2, 1/2, √3/2 and small integers (1–5) for energies, quantum numbers, etc.
