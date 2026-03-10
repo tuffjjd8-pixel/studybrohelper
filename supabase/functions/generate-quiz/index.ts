@@ -158,7 +158,7 @@ function fixLatexInJSON(raw: string): string {
 // ============================================================
 
 function sanitizeQuizOutput(questions: any[]): any[] {
-  return questions
+  const sanitized = questions
     .map((q, i) => {
       // Ensure options is an array with exactly 4 items
       let options = Array.isArray(q.options) ? q.options : [];
