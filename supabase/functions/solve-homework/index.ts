@@ -15,7 +15,7 @@ const corsHeaders = {
 // ============================================================
 const FREE_TEXT_MODEL = "openai/gpt-oss-20b";
 const PRO_TEXT_MODEL = "openai/gpt-oss-120b";
-const GROQ_VISION_MODEL = "openai/gpt-oss-120b";
+const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const OPENROUTER_GRAPH_MODEL = "openai/gpt-oss-20b";
 
 // ============================================================
