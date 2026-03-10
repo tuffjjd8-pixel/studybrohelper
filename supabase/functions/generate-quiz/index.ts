@@ -45,7 +45,17 @@ function fixLatexDelimiters(text: string): string {
 function fixCommonLatexErrors(content: string): string {
   if (typeof content !== "string") return content;
 
+  // ── Step 0: Protect common non-LaTeX words with special chars ──
+  // "Schrödinger" often gets mangled by LaTeX fixers; preserve it
+  const protectedWords: [RegExp, string][] = [
+    [/Schr[\\()\s]*ö[\\()\s]*dinger/gi, "Schrödinger"],
+    [/Schr[\\()\s]*o[\\()\s]*dinger/gi, "Schrödinger"],
+  ];
+
   let result = content;
+  for (const [pattern, replacement] of protectedWords) {
+    result = result.replace(pattern, replacement);
+  }
   const BS = "\\"; // literal backslash (one char)
 
   // ── Step 1: Restore control-character corrupted LaTeX commands ──
