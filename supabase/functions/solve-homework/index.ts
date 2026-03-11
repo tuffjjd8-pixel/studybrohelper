@@ -687,31 +687,26 @@ serve(async (req) => {
 
     // Route to appropriate model based on input type and tier
     if (image) {
-      if (!isPremium) {
-        // Free users: no vision model, extract text concept only via text model
-        // Still use vision for basic OCR but log as free tier
-        ocrEngineUsed = "free_groq_vision";
-        modelUsed = GROQ_VISION_MODEL;
-      } else {
-        // Pro users: full enhanced vision OCR
-        ocrEngineUsed = "pro_groq_vision_enhanced";
-        modelUsed = GROQ_VISION_MODEL;
-      }
-      
+      // 2-STEP PIPELINE: OCR (Lovable AI/Gemini) → Reasoning (GPT-OSS)
       const matches = image.match(/^data:([^;]+);base64,(.+)$/);
       if (!matches) {
         throw new Error("Invalid image format");
       }
       const mimeType = matches[1];
       const base64Data = matches[2];
-      solution = await callGroqVision(
-        question || "", 
-        base64Data, 
-        mimeType, 
-        isPremium, 
-        animatedSteps,
-        effectiveMode
-      );
+
+      // Step 1: Extract text from image via OCR
+      ocrEngineUsed = "lovable_ai_gemini_ocr";
+      const extractedText = await extractTextFromImage(base64Data, mimeType);
+      console.log("[Pipeline] OCR complete, extracted text preview:", extractedText.substring(0, 100));
+
+      // Step 2: Send extracted text to GPT-OSS for reasoning
+      const combinedQuestion = question 
+        ? `${question}\n\nExtracted from image:\n${extractedText}` 
+        : extractedText;
+      
+      modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
+      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode);
     } else if (question) {
       // Text-only input → route to tier-appropriate text model
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;

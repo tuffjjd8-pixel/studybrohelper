@@ -190,7 +190,7 @@ const Quiz = () => {
   const [reviewMode, setReviewMode] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizzesUsedToday, setQuizzesUsedToday] = useState(0);
-  const shimmerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const shimmerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Detect if user is typing equation-related content
   const showSolveRedirect = useMemo(() => {
