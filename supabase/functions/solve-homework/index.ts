@@ -464,16 +464,11 @@ async function callGroqText(
 }
 
 // ============================================================
-// OCR via Lovable AI Gateway (Gemini — vision-capable)
+// OCR via Groq Vision API (LLaMA-4 Scout — cheapest vision model)
 // Extracts text ONLY from image, no reasoning
 // ============================================================
 async function extractTextFromImage(imageBase64: string, mimeType: string): Promise<string> {
-  console.log("[OCR] Extracting text via Lovable AI (Gemini)...");
-  
-  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!lovableApiKey) {
-    throw new Error("OCR service not configured");
-  }
+  console.log("[OCR] Extracting text via Groq Vision (", GROQ_VISION_MODEL, ")...");
 
   const ocrPrompt = `You are an OCR engine. Extract ALL text from this image exactly as written.
 Rules:
@@ -485,14 +480,10 @@ Rules:
 - Do NOT add commentary or labels.
 - If no text is found, respond with: "NO_TEXT_FOUND"`;
 
-  const response = await fetch("https://ai.lovable.dev/api/generate", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${lovableApiKey}`,
-    },
-    body: JSON.stringify({
-      model: OCR_MODEL,
+  const response = await callGroqWithRotation(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      model: GROQ_VISION_MODEL,
       messages: [
         { role: "system", content: ocrPrompt },
         {
@@ -510,14 +501,8 @@ Rules:
       ],
       temperature: 0.1,
       max_tokens: 4096,
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error("[OCR] Lovable AI error:", response.status, errText);
-    throw new Error(`OCR extraction failed: ${response.status}`);
-  }
+    }
+  );
 
   const data = await response.json();
   const extractedText = data.choices?.[0]?.message?.content || "";
@@ -528,6 +513,69 @@ Rules:
 
   console.log("[OCR] Extracted text length:", extractedText.length);
   return extractedText.trim();
+}
+
+// ============================================================
+// Graph/Diagram detection from OCR text
+// If OCR output hints at a graph or diagram, call Groq Vision
+// to get a textual description of the visual
+// ============================================================
+const GRAPH_DIAGRAM_KEYWORDS = [
+  "graph", "plot", "chart", "diagram", "figure", "shown in the figure",
+  "axis", "axes", "x-axis", "y-axis", "coordinate", "curve",
+  "bar chart", "pie chart", "histogram", "scatter", "line graph",
+  "shown above", "shown below", "the figure shows", "refer to the graph",
+  "as shown", "illustrated", "sketch",
+];
+
+function looksLikeGraphOrDiagram(ocrText: string): boolean {
+  const lower = ocrText.toLowerCase();
+  return GRAPH_DIAGRAM_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+async function describeGraphFromImage(imageBase64: string, mimeType: string, ocrHint: string): Promise<string> {
+  console.log("[Vision] Describing graph/diagram via Groq Vision (", GROQ_VISION_MODEL, ")...");
+
+  const visionPrompt = `You are a graph/diagram interpreter. The image contains a graph, chart, or diagram.
+Describe it precisely in text so someone can solve a math/science problem from your description alone.
+
+Include:
+- Type of graph (line, bar, scatter, etc.)
+- Axis labels and units
+- Key data points, intercepts, slopes, or values
+- Any equations or labels visible on the graph
+- Trends or patterns
+
+Output ONLY the description. No solving, no commentary.`;
+
+  const response = await callGroqWithRotation(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      model: GROQ_VISION_MODEL,
+      messages: [
+        { role: "system", content: visionPrompt },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: `OCR detected these words on the image: "${ocrHint.substring(0, 300)}". Now describe the graph/diagram in detail.` },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${imageBase64}`
+              }
+            }
+          ]
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 2048,
+    }
+  );
+
+  const data = await response.json();
+  const description = data.choices?.[0]?.message?.content || "";
+  console.log("[Vision] Graph description length:", description.length);
+  return description.trim();
 }
 
 // Parse structured sections from solution (used only for Solve Flow feature)
