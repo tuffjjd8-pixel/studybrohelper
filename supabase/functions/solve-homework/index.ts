@@ -736,7 +736,7 @@ serve(async (req) => {
 
     // Route to appropriate model based on input type and tier
     if (image) {
-      // 2-STEP PIPELINE: OCR (Lovable AI/Gemini) → Reasoning (GPT-OSS)
+      // PIPELINE: Groq Vision OCR → (optional graph description) → GPT-OSS Reasoning
       const matches = image.match(/^data:([^;]+);base64,(.+)$/);
       if (!matches) {
         throw new Error("Invalid image format");
@@ -744,15 +744,31 @@ serve(async (req) => {
       const mimeType = matches[1];
       const base64Data = matches[2];
 
-      // Step 1: Extract text from image via OCR
-      ocrEngineUsed = "lovable_ai_gemini_ocr";
+      // Step 1: Extract text from image via Groq Vision OCR
+      ocrEngineUsed = "groq_vision_ocr";
       const extractedText = await extractTextFromImage(base64Data, mimeType);
       console.log("[Pipeline] OCR complete, extracted text preview:", extractedText.substring(0, 100));
 
-      // Step 2: Send extracted text to GPT-OSS for reasoning
-      const combinedQuestion = question 
+      // Step 1b: If OCR text hints at a graph/diagram, get a visual description
+      let graphDescription = "";
+      if (looksLikeGraphOrDiagram(extractedText)) {
+        try {
+          graphDescription = await describeGraphFromImage(base64Data, mimeType, extractedText);
+          ocrEngineUsed = "groq_vision_ocr+graph_description";
+          console.log("[Pipeline] Graph description added, length:", graphDescription.length);
+        } catch (graphErr) {
+          console.error("[Pipeline] Graph description failed, continuing with OCR text only:", graphErr);
+        }
+      }
+
+      // Step 2: Send extracted text (+ optional graph description) to GPT-OSS for reasoning
+      let combinedQuestion = question 
         ? `${question}\n\nExtracted from image:\n${extractedText}` 
         : extractedText;
+      
+      if (graphDescription) {
+        combinedQuestion += `\n\nGraph/Diagram description:\n${graphDescription}`;
+      }
       
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
       solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode);
