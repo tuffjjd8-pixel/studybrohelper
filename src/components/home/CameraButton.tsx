@@ -56,7 +56,7 @@ export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
         disabled={isLoading}
         variant="neonGreenFilled"
         size="icon-xl"
-        className="relative z-10 w-28 h-28 md:w-32 md:h-32"
+        className="relative z-10 w-28 h-28 md:w-32 md:h-32 transition-all duration-150 ease-out hover:scale-105 hover:shadow-[0_0_35px_hsl(var(--primary)/0.65)] hover:brightness-110"
       >
         {isLoading ? (
           <Loader2 className="w-10 h-10 md:w-12 md:h-12 animate-spin" />
