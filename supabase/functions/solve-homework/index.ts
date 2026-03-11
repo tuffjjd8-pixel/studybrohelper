@@ -10,14 +10,15 @@ const corsHeaders = {
 // MODEL CONFIGURATION
 // Free tier:  openai/gpt-oss-20b (fast, lightweight reasoning)
 // Pro tier:   openai/gpt-oss-120b (full reasoning)
-// OCR:        Lovable AI (Gemini) — text extraction only
-// Graph:      openai/gpt-oss-20b (structured JSON)
+// OCR:        Groq Vision (meta-llama/llama-4-scout-17b-16e-instruct) — text extraction only
+// Graph desc: Groq Vision (same cheapest model) — diagram interpretation
+// Graph data: openai/gpt-oss-20b (structured JSON)
 // ============================================================
 const FREE_TEXT_MODEL = "openai/gpt-oss-20b";
 const PRO_TEXT_MODEL = "openai/gpt-oss-120b";
 const OPENROUTER_GRAPH_MODEL = "openai/gpt-oss-20b";
-// OCR model via Lovable AI gateway (Gemini — vision-capable)
-const OCR_MODEL = "google/gemini-2.5-flash";
+// Groq Vision model — cheapest vision-capable model on Groq for OCR + diagram interpretation
+const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 // ============================================================
 // TIER LIMITS
