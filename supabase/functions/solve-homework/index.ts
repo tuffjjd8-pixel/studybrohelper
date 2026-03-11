@@ -8,15 +8,16 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// Free tier:  openai/gpt-oss-20b (fast, lightweight)
+// Free tier:  openai/gpt-oss-20b (fast, lightweight reasoning)
 // Pro tier:   openai/gpt-oss-120b (full reasoning)
-// Vision:     openai/gpt-oss-120b (image processing)
+// OCR:        Lovable AI (Gemini) — text extraction only
 // Graph:      openai/gpt-oss-20b (structured JSON)
 // ============================================================
 const FREE_TEXT_MODEL = "openai/gpt-oss-20b";
 const PRO_TEXT_MODEL = "openai/gpt-oss-120b";
-const GROQ_VISION_MODEL = "openai/gpt-oss-120b";
 const OPENROUTER_GRAPH_MODEL = "openai/gpt-oss-20b";
+// OCR model via Lovable AI gateway (Gemini — vision-capable)
+const OCR_MODEL = "google/gemini-2.5-flash";
 
 // ============================================================
 // TIER LIMITS
@@ -461,49 +462,42 @@ async function callGroqText(
   return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
 }
 
-// Call Groq API for image input (Vision model) - Enhanced OCR for premium with key rotation
-async function callGroqVision(
-  question: string, 
-  imageBase64: string, 
-  mimeType: string, 
-  isPremium: boolean,
-  animatedSteps: boolean,
-  solveMode: string = "instant"
-): Promise<string> {
-  let systemPrompt = BASE_SYSTEM_PROMPT;
-  systemPrompt += solveMode === "deep" ? DEEP_MODE_INSTRUCTIONS : INSTANT_MODE_INSTRUCTIONS;
+// ============================================================
+// OCR via Lovable AI Gateway (Gemini — vision-capable)
+// Extracts text ONLY from image, no reasoning
+// ============================================================
+async function extractTextFromImage(imageBase64: string, mimeType: string): Promise<string> {
+  console.log("[OCR] Extracting text via Lovable AI (Gemini)...");
   
-  // Premium gets enhanced OCR instructions
-  if (isPremium) {
-    systemPrompt += `
-
-## Enhanced Image Processing (Premium):
-- Extract ALL text from the image with high accuracy
-- Preserve mathematical notation and formatting exactly as shown
-- Identify handwritten vs printed text and handle appropriately
-- If the image quality is poor, state what you can read and any uncertainties`;
-  }
-  
-  // Add breakdown sections instruction
-  if (animatedSteps) {
-    const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
-    systemPrompt += getAnimatedSectionsPrompt(maxSections, isPremium);
+  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableApiKey) {
+    throw new Error("OCR service not configured");
   }
 
-  const textContent = question || "Please solve this homework problem from the image. Identify the subject and provide the answer.";
-  
-  console.log("Calling Groq Vision API with model:", GROQ_VISION_MODEL, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
+  const ocrPrompt = `You are an OCR engine. Extract ALL text from this image exactly as written.
+Rules:
+- Output ONLY the extracted text, nothing else.
+- Preserve mathematical notation exactly (use LaTeX if handwritten math).
+- Preserve line breaks and structure.
+- If handwritten, transcribe as accurately as possible.
+- Do NOT solve, explain, or answer anything.
+- Do NOT add commentary or labels.
+- If no text is found, respond with: "NO_TEXT_FOUND"`;
 
-  const response = await callGroqWithRotation(
-    "https://api.groq.com/openai/v1/chat/completions",
-    {
-      model: GROQ_VISION_MODEL,
+  const response = await fetch("https://ai.lovable.dev/api/generate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${lovableApiKey}`,
+    },
+    body: JSON.stringify({
+      model: OCR_MODEL,
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: ocrPrompt },
         {
           role: "user",
           content: [
-            { type: "text", text: textContent },
+            { type: "text", text: "Extract all text from this image." },
             {
               type: "image_url",
               image_url: {
@@ -513,13 +507,26 @@ async function callGroqVision(
           ]
         }
       ],
-      temperature: isPremium ? 0.5 : 0.7,
-      max_tokens: isPremium ? 8192 : 4096,
-    }
-  );
+      temperature: 0.1,
+      max_tokens: 4096,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("[OCR] Lovable AI error:", response.status, errText);
+    throw new Error(`OCR extraction failed: ${response.status}`);
+  }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
+  const extractedText = data.choices?.[0]?.message?.content || "";
+  
+  if (!extractedText || extractedText.trim() === "NO_TEXT_FOUND") {
+    throw new Error("Could not extract text from image. Please try a clearer photo.");
+  }
+
+  console.log("[OCR] Extracted text length:", extractedText.length);
+  return extractedText.trim();
 }
 
 // Parse structured sections from solution (used only for Solve Flow feature)
@@ -680,31 +687,26 @@ serve(async (req) => {
 
     // Route to appropriate model based on input type and tier
     if (image) {
-      if (!isPremium) {
-        // Free users: no vision model, extract text concept only via text model
-        // Still use vision for basic OCR but log as free tier
-        ocrEngineUsed = "free_groq_vision";
-        modelUsed = GROQ_VISION_MODEL;
-      } else {
-        // Pro users: full enhanced vision OCR
-        ocrEngineUsed = "pro_groq_vision_enhanced";
-        modelUsed = GROQ_VISION_MODEL;
-      }
-      
+      // 2-STEP PIPELINE: OCR (Lovable AI/Gemini) → Reasoning (GPT-OSS)
       const matches = image.match(/^data:([^;]+);base64,(.+)$/);
       if (!matches) {
         throw new Error("Invalid image format");
       }
       const mimeType = matches[1];
       const base64Data = matches[2];
-      solution = await callGroqVision(
-        question || "", 
-        base64Data, 
-        mimeType, 
-        isPremium, 
-        animatedSteps,
-        effectiveMode
-      );
+
+      // Step 1: Extract text from image via OCR
+      ocrEngineUsed = "lovable_ai_gemini_ocr";
+      const extractedText = await extractTextFromImage(base64Data, mimeType);
+      console.log("[Pipeline] OCR complete, extracted text preview:", extractedText.substring(0, 100));
+
+      // Step 2: Send extracted text to GPT-OSS for reasoning
+      const combinedQuestion = question 
+        ? `${question}\n\nExtracted from image:\n${extractedText}` 
+        : extractedText;
+      
+      modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
+      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode);
     } else if (question) {
       // Text-only input → route to tier-appropriate text model
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
