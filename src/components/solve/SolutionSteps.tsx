@@ -216,7 +216,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             effect={deepModeEffect}
           />
         ) : (
-          <div className="prose prose-invert prose-sm max-w-none math-solution">
+          <div className={`prose prose-invert prose-sm max-w-none math-solution ${isDeepMode && deepModeEffect !== "none" ? `deep-effect-${deepModeEffect} reveal-active` : ""}`}>
             <ReactMarkdown
               remarkPlugins={[remarkMath]}
               rehypePlugins={[rehypeKatex]}
