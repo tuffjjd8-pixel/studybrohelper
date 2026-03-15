@@ -28,7 +28,7 @@ interface SolutionStepsProps {
   followUpCount?: number;
   maxFollowUps?: number;
   isDeepMode?: boolean;
-  deepModeEffect?: DeepModeEffect;
+  deepTextColor?: DeepModeTextColor;
   isAuthenticated?: boolean;
 }
 
