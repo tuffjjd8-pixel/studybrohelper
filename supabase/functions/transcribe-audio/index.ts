@@ -63,6 +63,9 @@ async function transcribeWithRotation(
       formData.append('file', audioBlob, 'audio.webm');
       formData.append('model', model);
       
+      // Vocabulary hint to bias Whisper toward school/math terms for better accuracy
+      formData.append('prompt', 'math homework equation x squared square root divided by integral derivative slope y-intercept quadratic formula sine cosine tangent logarithm exponent fraction numerator denominator');
+
       const endpoint = mode === "translate" 
         ? 'https://api.groq.com/openai/v1/audio/translations'
         : 'https://api.groq.com/openai/v1/audio/transcriptions';
