@@ -445,9 +445,9 @@ const Index = () => {
               <RecentSolves solves={recentSolves} />
             </motion.div> : <motion.div initial={{
           opacity: 0
-        }} animate={{
+         }} animate={{
           opacity: 1
-        }} className="py-8">
+        }} className="py-8 pb-28">
 
               {/* Show Solve Flow if enabled and available */}
               {showSolveFlow ? <div className="space-y-6">
