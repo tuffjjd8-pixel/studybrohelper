@@ -448,9 +448,6 @@ const Index = () => {
         }} animate={{
           opacity: 1
         }} className="py-8">
-              <button onClick={handleReset} className="text-sm text-muted-foreground hover:text-foreground mb-6 flex items-center gap-2">
-                ← Solve another
-              </button>
 
               {/* Show Solve Flow if enabled and available */}
               {showSolveFlow ? <div className="space-y-6">
@@ -467,11 +464,21 @@ const Index = () => {
                   <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
                 </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isDeepModeActive} deepTextColor={deepTextColor} isAuthenticated={!!user} />}
 
-              {/* Solve usage banner below solution */}
-              {!isPremium}
             </motion.div>}
         </div>
       </main>
+
+      {/* Sticky "Solve Another" button above bottom nav, only when solution is shown */}
+      {solution && (
+        <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-2 flex justify-center pointer-events-none">
+          <button
+            onClick={() => { handleReset(); setScannerOpen(true); }}
+            className="pointer-events-auto w-full max-w-md py-3 rounded-full bg-primary text-primary-foreground font-semibold text-base shadow-lg hover:brightness-110 transition-all"
+          >
+            Solve Another
+          </button>
+        </div>
+      )}
 
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
