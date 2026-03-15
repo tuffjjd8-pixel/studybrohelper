@@ -109,7 +109,7 @@ ${MODE_MODIFIERS[strength]}`;
 
     // Inject answer language
     if (answerLanguage && answerLanguage !== "en") {
-      systemPrompt += `\n\nLANGUAGE: The rewritten text must be in ${answerLanguage}. Keep all LaTeX math formatting unchanged.`;
+      systemPrompt += `\n\nYou MUST ALWAYS rewrite the text in ${answerLanguage}, regardless of the original language.\nDo NOT keep the text in its original language. Output MUST be in ${answerLanguage}.\nKeep all LaTeX math notation exactly as-is. Do NOT translate LaTeX.`;
     }
 
     const response = await callGroqWithRotation(
