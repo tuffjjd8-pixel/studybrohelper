@@ -103,8 +103,8 @@ const Index = () => {
 
   // Persist toggles
   useEffect(() => {
-    localStorage.setItem("toggle_solve_flow", JSON.stringify(solveFlow));
-  }, [solveFlow]);
+    sessionStorage.setItem("keep_solve_mode", keepMode ? "true" : "false");
+  }, [keepMode]);
   useEffect(() => {
     localStorage.setItem("toggle_speech_input", JSON.stringify(speechInput));
   }, [speechInput]);
