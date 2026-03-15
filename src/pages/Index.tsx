@@ -470,12 +470,19 @@ const Index = () => {
 
       {/* Sticky "Solve Another" button above bottom nav, only when solution is shown */}
       {solution && (
-        <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-2 flex justify-center pointer-events-none">
+        <div className="fixed bottom-20 left-0 right-0 z-40 px-6 pb-2 flex justify-center pointer-events-none">
           <button
             onClick={() => { handleReset(); setScannerOpen(true); }}
-            className="pointer-events-auto w-full max-w-md py-3 rounded-full bg-primary text-primary-foreground font-semibold text-base shadow-lg hover:brightness-110 transition-all"
+            className="pointer-events-auto inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full font-medium text-sm transition-all"
+            style={{
+              background: "#050608",
+              border: "1.5px solid hsl(var(--primary))",
+              color: "hsl(var(--primary))",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+            }}
           >
-            Solve Another
+            <span className="text-base leading-none">+</span>
+            Solve another
           </button>
         </div>
       )}
