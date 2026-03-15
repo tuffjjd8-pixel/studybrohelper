@@ -31,11 +31,7 @@ interface SolutionData {
   answer: string;
   image?: string;
   solveId?: string;
-  steps?: Array<{
-    title: string;
-    content: string;
-  }>;
-  maxSteps?: number;
+}
 }
 const Index = () => {
   const {
