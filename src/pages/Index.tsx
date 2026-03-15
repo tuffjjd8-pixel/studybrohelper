@@ -289,6 +289,13 @@ const Index = () => {
           console.error("Failed to save to localStorage:", e);
         }
       }
+      // Anti-spam: detect counting sequences / trivial patterns in Deep Mode
+      if (isDeepModeActive && detectSpamOutput(data.solution)) {
+        toast.error(SPAM_WARNING_MESSAGE);
+        setIsLoading(false);
+        return;
+      }
+
       setSolution({
         subject: data.subject || "other",
         question: input || "Image question",
