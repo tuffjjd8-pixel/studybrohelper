@@ -464,10 +464,47 @@ async function callGroqText(
 }
 
 // ============================================================
-// OCR via Groq Vision API (LLaMA-4 Scout — cheapest vision model)
-// Extracts text ONLY from image, no reasoning
+// VISION: Groq Vision (LLaMA 3.2) — high-level image description
 // ============================================================
-async function extractTextFromImage(imageBase64: string, mimeType: string): Promise<string> {
+async function callGroqVision(imageBase64: string, mimeType: string): Promise<string> {
+  console.log("[Vision] Calling Groq Vision (", GROQ_VISION_MODEL, ") for image description...");
+
+  const response = await callGroqWithRotation(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      model: GROQ_VISION_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Describe this image in detail. Include: any text, equations, numbers, labels, diagrams, graphs, geometric shapes, tables, and their layout. Be precise about all visible content. Output ONLY the description, no solving."
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${imageBase64}`
+              }
+            }
+          ]
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 2048,
+    }
+  );
+
+  const data = await response.json();
+  const description = data.choices?.[0]?.message?.content || "";
+  console.log("[Vision] Description length:", description.length);
+  return description.trim();
+}
+
+// ============================================================
+// OCR: External OCR endpoint — exact text, equations, tables
+// ============================================================
+async function callExternalOCR(imageBase64: string, mimeType: string): Promise<string> {
   console.log("[OCR] Extracting text via external OCR API...");
 
   // Convert base64 to binary
@@ -477,11 +514,9 @@ async function extractTextFromImage(imageBase64: string, mimeType: string): Prom
     bytes[i] = binaryString.charCodeAt(i);
   }
 
-  // Determine file extension from mime type
   const ext = mimeType.split("/")[1] || "png";
   const fileName = `image.${ext}`;
 
-  // Build multipart/form-data with field name "file"
   const formData = new FormData();
   const blob = new Blob([bytes], { type: mimeType });
   formData.append("file", blob, fileName);
@@ -498,15 +533,50 @@ async function extractTextFromImage(imageBase64: string, mimeType: string): Prom
   }
 
   const data = await response.json();
-  // Support common response shapes: { text }, { extracted_text }, { result }, or raw string
   const extractedText = data.text || data.extracted_text || data.result || (typeof data === "string" ? data : JSON.stringify(data));
 
-  if (!extractedText || extractedText.trim() === "" || extractedText.trim() === "NO_TEXT_FOUND") {
+  console.log("[OCR] Extracted text length:", extractedText?.length || 0);
+  return (extractedText || "").trim();
+}
+
+// ============================================================
+// COMBINED PIPELINE: Vision + OCR → merged result
+// Runs both in parallel for speed
+// ============================================================
+async function extractTextFromImage(imageBase64: string, mimeType: string): Promise<{ vision: string; ocr: string; combined_text: string }> {
+  console.log("[Pipeline] Running Vision + OCR in parallel...");
+
+  const [visionResult, ocrResult] = await Promise.allSettled([
+    callGroqVision(imageBase64, mimeType),
+    callExternalOCR(imageBase64, mimeType),
+  ]);
+
+  const vision = visionResult.status === "fulfilled" ? visionResult.value : "";
+  const ocr = ocrResult.status === "fulfilled" ? ocrResult.value : "";
+
+  if (visionResult.status === "rejected") {
+    console.error("[Pipeline] Vision failed:", visionResult.reason);
+  }
+  if (ocrResult.status === "rejected") {
+    console.error("[Pipeline] OCR failed:", ocrResult.reason);
+  }
+
+  if (!vision && !ocr) {
     throw new Error("Could not extract text from image. Please try a clearer photo.");
   }
 
-  console.log("[OCR] Extracted text length:", extractedText.length);
-  return extractedText.trim();
+  // Combine: OCR provides exact text/equations, Vision provides layout/diagram context
+  let combined_text = "";
+  if (ocr && vision) {
+    combined_text = `[Exact text and equations from image]:\n${ocr}\n\n[Visual description and layout]:\n${vision}`;
+  } else if (ocr) {
+    combined_text = ocr;
+  } else {
+    combined_text = vision;
+  }
+
+  console.log("[Pipeline] Combined text length:", combined_text.length);
+  return { vision, ocr, combined_text };
 }
 
 // ============================================================
