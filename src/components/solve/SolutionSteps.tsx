@@ -364,7 +364,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="glass-card p-4"
+          className="glass-card p-4 mt-4"
         >
           {followUpLimitReached ? (
             <div className="text-center py-4">

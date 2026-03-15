@@ -470,7 +470,7 @@ const Index = () => {
 
       {/* Sticky "Solve Another" button above bottom nav, only when solution is shown */}
       {solution && (
-        <div className="fixed bottom-20 left-0 right-0 z-40 px-6 pb-2 flex justify-center pointer-events-none">
+        <div className="fixed bottom-[4.5rem] left-0 right-0 z-40 px-6 pb-3 flex justify-center pointer-events-none">
           <button
             onClick={() => { handleReset(); setScannerOpen(true); }}
             className="pointer-events-auto inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full font-medium text-sm transition-all"
