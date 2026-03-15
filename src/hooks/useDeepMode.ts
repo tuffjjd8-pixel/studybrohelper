@@ -22,6 +22,7 @@ export function useDeepMode() {
   }, [textColor]);
 
   const isDeepMode = solveMode === "deep";
+  const isInstantMode = solveMode === "instant";
 
   return {
     solveMode,
@@ -29,5 +30,6 @@ export function useDeepMode() {
     textColor,
     setTextColor: setTextColorState,
     isDeepMode,
+    isInstantMode,
   };
 }
