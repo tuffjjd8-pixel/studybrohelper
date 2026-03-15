@@ -378,7 +378,7 @@ export function TextInputBox({
                 variant="ghost"
                 size="sm"
                 onClick={() => audioFileInputRef.current?.click()}
-                disabled={isTranscribing || isRecording || !canUseSpeechClip}
+                disabled={isTranscribing || isRecording || (!isPremium && !canUseSpeechClip)}
                 className="flex items-center gap-2"
                 title="Upload audio file"
               >
