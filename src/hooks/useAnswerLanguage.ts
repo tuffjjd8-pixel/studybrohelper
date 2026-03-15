@@ -47,11 +47,18 @@ export function useAnswerLanguage(userId: string | undefined, isPremium: boolean
 
 // Get cached answer language for use in AI calls
 export async function getAnswerLanguage(userId: string | undefined): Promise<string> {
-  if (userId) {
+  // If no userId provided, try to get it from the current session
+  let effectiveUserId = userId;
+  if (!effectiveUserId) {
+    const { data: { session } } = await supabase.auth.getSession();
+    effectiveUserId = session?.user?.id;
+  }
+
+  if (effectiveUserId) {
     const { data } = await supabase
       .from("profiles")
       .select("answer_language")
-      .eq("user_id", userId)
+      .eq("user_id", effectiveUserId)
       .single();
     return (data as any)?.answer_language || "en";
   }
