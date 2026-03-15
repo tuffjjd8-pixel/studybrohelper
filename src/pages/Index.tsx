@@ -112,14 +112,14 @@ const Index = () => {
     localStorage.setItem("speech_language", speechLanguage);
   }, [speechLanguage]);
 
-  // Show effect picker on first Deep Mode toggle
+  // Show color picker on first Deep Mode toggle
   const handleSolveModeChange = (mode: "instant" | "deep") => {
     setSolveMode(mode);
     if (mode === "deep") {
-      const hasChosen = localStorage.getItem("deep_effect_chosen");
+      const hasChosen = localStorage.getItem("deep_color_chosen");
       if (!hasChosen) {
-        setShowEffectPicker(true);
-        localStorage.setItem("deep_effect_chosen", "true");
+        setShowColorPicker(true);
+        localStorage.setItem("deep_color_chosen", "true");
       }
     }
   };
