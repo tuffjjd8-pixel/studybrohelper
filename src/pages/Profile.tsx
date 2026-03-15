@@ -66,7 +66,18 @@ const Profile = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [totalConfirmedLikes, setTotalConfirmedLikes] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showDeepColorPicker, setShowDeepColorPicker] = useState(false);
+  const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
+    const saved = localStorage.getItem("deep_text_color");
+    return (saved as DeepModeTextColor) || "gold";
+  });
+
+  const handleDeepColorSelect = (color: DeepModeTextColor) => {
+    setDeepTextColor(color);
+    localStorage.setItem("deep_text_color", color);
+    toast.success(`Deep Mode color set to ${color}`);
+  };
   const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
     const saved = localStorage.getItem("deep_text_color");
     return (saved as DeepModeTextColor) || "gold";
