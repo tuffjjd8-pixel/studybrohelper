@@ -213,7 +213,8 @@ const Index = () => {
           question: input,
           image: imageData,
           isPremium,
-          animatedSteps: solveFlow,
+          // Deep Mode has its own explanation style — never append breakdown sections
+          animatedSteps: (isPremium && solveMode === "deep") ? false : solveFlow,
           generateGraph: false,
           solveMode: isPremium ? solveMode : "instant",
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
