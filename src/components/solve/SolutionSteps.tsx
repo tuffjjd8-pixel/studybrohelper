@@ -214,10 +214,10 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         {isDeepMode && !isHistory ? (
           <DeepModeReveal
             content={displayedSolution}
-            effect={deepModeEffect}
+            textColor={deepTextColor}
           />
         ) : (
-          <div className={`prose prose-invert prose-sm max-w-none math-solution ${isDeepMode && deepModeEffect !== "none" ? `deep-effect-${deepModeEffect}` : ""}`}>
+          <div className={`prose prose-invert prose-sm max-w-none math-solution ${isDeepMode ? `deep-text-${deepTextColor}` : ""}`}>
             <ReactMarkdown
               remarkPlugins={[remarkMath]}
               rehypePlugins={[rehypeKatex]}
