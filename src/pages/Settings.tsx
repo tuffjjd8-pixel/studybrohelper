@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useAnswerLanguage } from "@/hooks/useAnswerLanguage";
+import { AnswerLanguageSelector } from "@/components/settings/AnswerLanguageSelector";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -44,6 +46,7 @@ const Settings = () => {
   
   const isPremium = profile?.is_premium || false;
   const speechClips = useSpeechClips(user?.id, isPremium);
+  const { answerLanguage, updateLanguage } = useAnswerLanguage(user?.id, isPremium);
 
   useEffect(() => {
     if (user) {
@@ -248,6 +251,13 @@ const Settings = () => {
                 </motion.div>
               )}
             </div>
+
+            {/* Answer Language */}
+            <AnswerLanguageSelector
+              value={answerLanguage}
+              onChange={updateLanguage}
+              isPremium={isPremium}
+            />
 
             {/* Sign In / Sign Out Section */}
             <motion.div

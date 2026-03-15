@@ -146,6 +146,8 @@ const Chat = () => {
 
     try {
       // Call AI for response
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(user?.id);
       const { data, error } = await supabase.functions.invoke("follow-up-chat", {
         body: {
           solveId: solve.id,
@@ -156,6 +158,7 @@ const Chat = () => {
             solution: solve.solution_markdown,
           },
           history: messages.map((m) => ({ role: m.role, content: m.content })),
+          answerLanguage,
         },
       });
 

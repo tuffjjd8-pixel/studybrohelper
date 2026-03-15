@@ -580,6 +580,7 @@ serve(async (req) => {
       questionCount = 5,
       subject: rawSubject,
       strictCountMode = false,
+      answerLanguage = "en",
     } = await req.json();
 
     // Sanitize subject server-side to prevent vague/broken topics from reaching Groq
@@ -766,7 +767,8 @@ CONTENT RULES:
 - Questions must be clear, unambiguous, and have exactly one correct answer.
 - If the user provides study material, generate questions FROM that material.
 - If the topic is broad, cover a diverse range of subtopics.
-- Return ONLY the JSON object, nothing else.`;
+- Return ONLY the JSON object, nothing else.
+${answerLanguage && answerLanguage !== "en" ? `\nLANGUAGE:\n- Write ALL question text, options, and explanations in ${answerLanguage}.\n- Keep LaTeX math notation and JSON structure unchanged.\n- Only the human-readable text should be in ${answerLanguage}.` : ""}`;
 
     // Use fallback-enabled call
     const keyManager = { callGroqWithRotation };

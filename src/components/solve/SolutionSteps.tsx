@@ -99,6 +99,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
     setIsAsking(true);
     try {
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(undefined);
       const { data, error } = await supabase.functions.invoke("follow-up-chat", {
         body: {
           solveId,
@@ -111,6 +113,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           history: followUpResponse ? [
             { role: "assistant", content: followUpResponse }
           ] : [],
+          answerLanguage,
         },
       });
 

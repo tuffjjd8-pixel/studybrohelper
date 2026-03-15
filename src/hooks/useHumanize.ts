@@ -30,8 +30,10 @@ export function useHumanize({ isPremium, isAuthenticated = true }: UseHumanizeOp
       setIsHumanizing(true);
 
       try {
+        const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+        const answerLanguage = await getAnswerLanguage(undefined);
         const { data, error } = await supabase.functions.invoke("humanize-answer", {
-          body: { solution, subject, humanize_strength: strength },
+          body: { solution, subject, humanize_strength: strength, answerLanguage },
         });
 
         if (error) {

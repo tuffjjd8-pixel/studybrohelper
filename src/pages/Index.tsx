@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getAnswerLanguage } from "@/hooks/useAnswerLanguage";
 import { detectSpamOutput, SPAM_WARNING_MESSAGE } from "@/lib/spamDetection";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
@@ -197,6 +198,7 @@ const Index = () => {
       }
     }
     try {
+      const answerLanguage = await getAnswerLanguage(user?.id);
       const {
         data,
         error
@@ -208,7 +210,8 @@ const Index = () => {
            animatedSteps: false,
            generateGraph: false,
            solveMode: isPremium ? solveMode : "instant",
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
+          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+          answerLanguage
         }
       });
       if (error) throw error;

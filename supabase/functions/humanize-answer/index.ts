@@ -47,7 +47,7 @@ serve(async (req) => {
   }
 
   try {
-    const { solution, subject, action, humanize_strength } = await req.json();
+    const { solution, subject, action, humanize_strength, answerLanguage = "en" } = await req.json();
 
     // Auth check
     const authHeader = req.headers.get("Authorization");
@@ -100,12 +100,17 @@ serve(async (req) => {
     const strength: string = humanize_strength && MODE_MODIFIERS[humanize_strength] ? humanize_strength : "auto";
     console.log("Humanize request — subject:", subject, "strength:", strength);
 
-    const systemPrompt = `${BASE_PROMPT}
+    let systemPrompt = `${BASE_PROMPT}
 
 Mode: ${strength}
 
 Instructions:
 ${MODE_MODIFIERS[strength]}`;
+
+    // Inject answer language
+    if (answerLanguage && answerLanguage !== "en") {
+      systemPrompt += `\n\nLANGUAGE: The rewritten text must be in ${answerLanguage}. Keep all LaTeX math formatting unchanged.`;
+    }
 
     const response = await callGroqWithRotation(
       "https://api.groq.com/openai/v1/chat/completions",

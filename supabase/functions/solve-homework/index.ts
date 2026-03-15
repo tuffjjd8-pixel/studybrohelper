@@ -438,7 +438,8 @@ async function callGroqText(
   question: string, 
   isPremium: boolean,
   animatedSteps: boolean,
-  solveMode: string = "instant"
+  solveMode: string = "instant",
+  answerLanguage: string = "en"
 ): Promise<string> {
   // Select prompt based on solveMode
   let systemPrompt = BASE_SYSTEM_PROMPT;
@@ -448,6 +449,11 @@ async function callGroqText(
   if (animatedSteps) {
     const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
     systemPrompt += getAnimatedSectionsPrompt(maxSections, isPremium);
+  }
+
+  // Inject answer language
+  if (answerLanguage && answerLanguage !== "en") {
+    systemPrompt += `\n\n## LANGUAGE:\nAlways answer in ${answerLanguage}. All explanations, text, and descriptions must be written in ${answerLanguage}. Keep LaTeX math notation unchanged.`;
   }
   
   const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
@@ -762,7 +768,8 @@ serve(async (req) => {
       generateGraph = false,
       userGraphCount = 0,
       solveMode = "instant",
-      deviceType = "web"
+      deviceType = "web",
+      answerLanguage = "en"
     } = await req.json();
 
     // Check if user is banned or limited
@@ -831,11 +838,11 @@ serve(async (req) => {
       }
       
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode);
+      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode, answerLanguage);
     } else if (question) {
       // Text-only input → route to tier-appropriate text model
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-      solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode);
+      solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode, answerLanguage);
     } else {
       throw new Error("Please provide a question or image");
     }

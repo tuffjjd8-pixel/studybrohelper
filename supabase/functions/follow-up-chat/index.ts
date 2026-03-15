@@ -20,7 +20,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, context, history } = await req.json();
+    const { message, context, history, answerLanguage = "en" } = await req.json();
     
     // Import key rotation and security
     const { callGroqWithRotation } = await import("../_shared/groq-key-manager.ts");
@@ -54,7 +54,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = `You are StudyBro AI, a warm and supportive homework tutor. You are continuing an ongoing conversation about a ${context?.subject || "homework"} problem.
+    let systemPrompt = `You are StudyBro AI, a warm and supportive homework tutor. You are continuing an ongoing conversation about a ${context?.subject || "homework"} problem.
 
 ## CONVERSATION RULES:
 - Treat every follow-up as part of the same conversation thread. Never replace or ignore earlier follow-ups.
@@ -83,6 +83,11 @@ Original question: ${context?.question || "Image question"}
 
 Previous solution:
 ${context?.solution || "No previous solution"}`;
+
+    // Inject answer language
+    if (answerLanguage && answerLanguage !== "en") {
+      systemPrompt += `\n\n## LANGUAGE:\nAlways answer in ${answerLanguage}. All explanations and text must be in ${answerLanguage}. Keep LaTeX math notation unchanged.`;
+    }
 
     // Build messages array for Groq
     const messages: { role: string; content: string }[] = [
