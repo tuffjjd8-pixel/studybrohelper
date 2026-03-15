@@ -8,7 +8,11 @@ import { fileToOptimizedDataUrl } from "@/lib/image";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// UI-level modes (what buttons trigger)
 export type TranscriptionMode = "transcribe" | "translate";
+
+// Backend-level modes (what we send to the edge function)
+type BackendSTTMode = "transcribe" | "translate_to_english" | "auto_detect" | "transcribe_to_selected_language";
 
 interface TextInputBoxProps {
   onSubmit: (text: string) => void;
