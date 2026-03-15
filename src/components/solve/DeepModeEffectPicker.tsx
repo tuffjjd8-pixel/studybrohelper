@@ -9,7 +9,7 @@ interface DeepModeColorPickerProps {
 const COLORS: { id: DeepModeTextColor; label: string; swatch: string }[] = [
   { id: "default", label: "Default", swatch: "bg-[hsl(0,0%,95%)]" },
   { id: "gold", label: "Gold", swatch: "bg-[hsl(45,90%,55%)]" },
-  { id: "sky", label: "Sky", swatch: "bg-[hsl(200,85%,55%)]" },
+  { id: "sky", label: "Sky", swatch: "bg-[hsl(200,85%,60%)]" },
   { id: "purple", label: "Purple", swatch: "bg-[hsl(270,70%,60%)]" },
   { id: "rose", label: "Rose", swatch: "bg-[hsl(340,75%,55%)]" },
   { id: "orange", label: "Orange", swatch: "bg-[hsl(25,95%,55%)]" },

@@ -336,9 +336,8 @@
 
 .deep-text-default { color: hsl(0 0% 95%); }
 .deep-text-gold { color: hsl(45 90% 55%); }
-.deep-text-sky { color: hsl(200 85% 55%); }
+.deep-text-sky { color: hsl(200 85% 60%); }
 .deep-text-purple { color: hsl(270 70% 60%); }
-.deep-text-mint { color: hsl(160 60% 50%); }
 .deep-text-rose { color: hsl(340 75% 55%); }
 .deep-text-orange { color: hsl(25 95% 55%); }
 
@@ -346,7 +345,6 @@
 .deep-text-gold .inherit-color,
 .deep-text-sky .inherit-color,
 .deep-text-purple .inherit-color,
-.deep-text-mint .inherit-color,
 .deep-text-rose .inherit-color,
 .deep-text-orange .inherit-color {
   color: inherit;
@@ -357,7 +355,6 @@
 .deep-text-gold .katex,
 .deep-text-sky .katex,
 .deep-text-purple .katex,
-.deep-text-mint .katex,
 .deep-text-rose .katex,
 .deep-text-orange .katex {
   color: inherit;
