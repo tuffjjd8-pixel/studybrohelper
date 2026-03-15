@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { DeepModeSolution } from "@/components/solve/DeepModeSolution";
 import { InstantModeSolution } from "@/components/solve/InstantModeSolution";
 import type { DeepTextColor } from "@/hooks/useDeepMode";
+import { preprocessMath } from "@/lib/mathPreprocess";
 
 interface SolutionStepsProps {
   subject: string;
