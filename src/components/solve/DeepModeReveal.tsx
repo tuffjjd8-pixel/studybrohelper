@@ -3,14 +3,13 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { preprocessMath } from "@/lib/mathPreprocess";
-
-export type DeepModeEffect = "fire" | "water" | "neon" | "glitch" | "sparkle" | "none";
+import type { DeepTextColor } from "@/hooks/useDeepMode";
 
 interface DeepModeRevealProps {
   content: string;
-  effect: DeepModeEffect;
+  textColor: DeepTextColor;
   onComplete?: () => void;
 }
 
@@ -19,21 +18,18 @@ function computeSafePoints(content: string): number[] {
   const points: number[] = [0];
   let i = 0;
   while (i < content.length) {
-    // Skip $$ ... $$ blocks
     if (content[i] === "$" && content[i + 1] === "$") {
       const end = content.indexOf("$$", i + 2);
       i = end !== -1 ? end + 2 : content.length;
       points.push(i);
       continue;
     }
-    // Skip \( ... \) blocks
     if (content[i] === "\\" && content[i + 1] === "(") {
       const end = content.indexOf("\\)", i + 2);
       i = end !== -1 ? end + 2 : content.length;
       points.push(i);
       continue;
     }
-    // Skip $ ... $ inline blocks
     if (content[i] === "$" && i > 0 && content[i - 1] !== "\\") {
       const end = content.indexOf("$", i + 1);
       if (end !== -1) {
@@ -48,7 +44,7 @@ function computeSafePoints(content: string): number[] {
   return points;
 }
 
-export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealProps) {
+export function DeepModeReveal({ content, textColor, onComplete }: DeepModeRevealProps) {
   const [displayedContent, setDisplayedContent] = useState("");
   const [isComplete, setIsComplete] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,9 +55,6 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
 
     const safePoints = computeSafePoints(content);
     let pointIndex = 0;
-
-    // 2–3 chars per RAF frame (~16ms) = ~120–180 chars/sec
-    // No timestamp gating — advance every single frame for smoothness
     const CHARS_PER_FRAME = 3;
 
     const animate = () => {
@@ -87,7 +80,6 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content]);
 
-  // Skip animation on click
   const handleSkip = useCallback(() => {
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
     setDisplayedContent(content);
@@ -95,12 +87,10 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
     onComplete?.();
   }, [content, onComplete]);
 
-  const effectClass = getEffectClass(effect);
-
   return (
     <div
       ref={containerRef}
-      className={`deep-mode-reveal ${effectClass} ${isComplete ? "reveal-complete" : "reveal-active"}`}
+      className={`deep-text-${textColor}`}
       onClick={!isComplete ? handleSkip : undefined}
       style={{ cursor: isComplete ? "default" : "pointer" }}
     >
@@ -110,25 +100,25 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
           rehypePlugins={[rehypeKatex]}
           components={{
             h1: ({ children }) => (
-              <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>
+              <h1 className="text-xl font-bold mb-3" style={{ color: "inherit" }}>{children}</h1>
             ),
             h2: ({ children }) => (
-              <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>
+              <h2 className="text-lg font-semibold mb-2 mt-4" style={{ color: "inherit" }}>{children}</h2>
             ),
             h3: ({ children }) => (
-              <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>
+              <h3 className="text-base font-medium mb-2 mt-3" style={{ color: "inherit" }}>{children}</h3>
             ),
             p: ({ children }) => (
-              <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>
+              <p className="mb-3 leading-relaxed" style={{ color: "inherit", opacity: 0.9 }}>{children}</p>
             ),
             strong: ({ children }) => (
-              <strong className="font-bold text-primary">{children}</strong>
+              <strong className="font-bold" style={{ color: "inherit" }}>{children}</strong>
             ),
             em: ({ children }) => (
-              <em className="text-secondary italic">{children}</em>
+              <em className="italic" style={{ color: "inherit", opacity: 0.8 }}>{children}</em>
             ),
             code: ({ children }) => (
-              <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">
+              <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono" style={{ color: "inherit" }}>
                 {children}
               </code>
             ),
@@ -154,21 +144,4 @@ export function DeepModeReveal({ content, effect, onComplete }: DeepModeRevealPr
       )}
     </div>
   );
-}
-
-function getEffectClass(effect: DeepModeEffect): string {
-  switch (effect) {
-    case "fire":
-      return "deep-effect-fire";
-    case "water":
-      return "deep-effect-water";
-    case "neon":
-      return "deep-effect-neon";
-    case "glitch":
-      return "deep-effect-glitch";
-    case "sparkle":
-      return "deep-effect-sparkle";
-    default:
-      return "";
-  }
 }
