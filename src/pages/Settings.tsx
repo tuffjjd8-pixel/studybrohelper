@@ -18,10 +18,12 @@ import {
   Crown,
   LogOut,
   Clock,
-  Mic
+  Mic,
+  Palette
 } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
+import type { DeepTextColor } from "@/components/solve/DeepModeReveal";
 
 const FREE_SOLVE_FLOW_PER_DAY = 5;
 const PREMIUM_SOLVE_FLOW_PER_DAY = 16;
