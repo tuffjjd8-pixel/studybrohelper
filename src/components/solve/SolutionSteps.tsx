@@ -291,7 +291,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
         {/* Humanize section */}
         {!isHistory || isPremium ? (
-          <div className="mt-6 pt-4 border-t border-border/50 space-y-3">
+          <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
                 {isHumanized ? (
@@ -338,7 +338,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6 border-l-4 border-l-secondary mt-4"
+          className="glass-card p-6 border-l-4 border-l-secondary"
         >
           <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-4">
             Follow-up Answer
@@ -364,7 +364,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="glass-card p-4 mt-4"
+          className="glass-card p-4"
         >
           {followUpLimitReached ? (
             <div className="text-center py-4">

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { detectSpamOutput, SPAM_WARNING_MESSAGE } from "@/lib/spamDetection";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
@@ -446,9 +445,12 @@ const Index = () => {
               <RecentSolves solves={recentSolves} />
             </motion.div> : <motion.div initial={{
           opacity: 0
-         }} animate={{
+        }} animate={{
           opacity: 1
-        }} className="py-8 pb-28">
+        }} className="py-8">
+              <button onClick={handleReset} className="text-sm text-muted-foreground hover:text-foreground mb-6 flex items-center gap-2">
+                ← Solve another
+              </button>
 
               {/* Show Solve Flow if enabled and available */}
               {showSolveFlow ? <div className="space-y-6">
@@ -465,34 +467,13 @@ const Index = () => {
                   <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
                 </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isDeepModeActive} deepTextColor={deepTextColor} isAuthenticated={!!user} />}
 
+              {/* Solve usage banner below solution */}
+              {!isPremium}
             </motion.div>}
         </div>
       </main>
 
       <BottomNav />
-
-      {/* Solve Another — root-level portal element */}
-      {solution && createPortal(
-        <button
-          onClick={() => { handleReset(); setScannerOpen(true); }}
-          className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full font-medium text-sm max-w-md"
-          style={{
-            position: "fixed",
-            bottom: "4.5rem",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 999999,
-            background: "#050608",
-            border: "1.5px solid hsl(var(--primary))",
-            color: "hsl(var(--primary))",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-          }}
-        >
-          <span className="text-base leading-none">+</span>
-          Solve another
-        </button>,
-        document.body
-      )}
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
       <TopSharerPopup />
       
