@@ -580,6 +580,7 @@ serve(async (req) => {
       questionCount = 5,
       subject: rawSubject,
       strictCountMode = false,
+      answerLanguage = "en",
     } = await req.json();
 
     // Sanitize subject server-side to prevent vague/broken topics from reaching Groq
