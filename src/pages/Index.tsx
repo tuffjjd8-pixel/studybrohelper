@@ -9,7 +9,7 @@ import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
-import { DeepModeEffectPicker } from "@/components/solve/DeepModeEffectPicker";
+import { DeepModeColorPicker } from "@/components/solve/DeepModeColorPicker";
 import { useDeepMode } from "@/hooks/useDeepMode";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
