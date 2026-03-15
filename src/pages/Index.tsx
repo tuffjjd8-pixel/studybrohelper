@@ -98,8 +98,8 @@ const Index = () => {
     const saved = localStorage.getItem("speech_language");
     return saved ?? "auto";
   });
-  const { solveMode, setSolveMode, deepEffect, setDeepEffect, isDeepMode } = useDeepMode();
-  const [showEffectPicker, setShowEffectPicker] = useState(false);
+  const { solveMode, setSolveMode, textColor, setTextColor, isDeepMode } = useDeepMode();
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Persist toggles
   useEffect(() => {
