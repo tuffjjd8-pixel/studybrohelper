@@ -768,7 +768,7 @@ CONTENT RULES:
 - If the user provides study material, generate questions FROM that material.
 - If the topic is broad, cover a diverse range of subtopics.
 - Return ONLY the JSON object, nothing else.
-${answerLanguage && answerLanguage !== "en" ? `\nLANGUAGE:\n- You MUST write ALL question text, options, and explanations in ${answerLanguage}, regardless of the language of the user's input.\n- Do NOT mirror or match the user's input language. Always use ${answerLanguage}.\n- Keep LaTeX math notation and JSON structure unchanged.\n- Only the human-readable text should be in ${answerLanguage}.` : ""}`;
+${await (async () => { if (answerLanguage && answerLanguage !== "en") { const { getLanguageName } = await import("../_shared/language-names.ts"); const langName = getLanguageName(answerLanguage); return `\nLANGUAGE:\n- You MUST write ALL question text, options, and explanations in ${langName}, regardless of the language of the user's input.\n- Do NOT mirror or match the user's input language. Always use ${langName}.\n- Keep LaTeX math notation and JSON structure unchanged.\n- Only the human-readable text should be in ${langName}.`; } return ""; })()}`;
 
     // Use fallback-enabled call
     const keyManager = { callGroqWithRotation };
