@@ -76,6 +76,8 @@ export function ScannerModal({
       await new Promise((r) => setTimeout(r, 200));
       setLoadingStage("solving");
 
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(userId);
       const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: {
           question: "",
@@ -85,6 +87,7 @@ export function ScannerModal({
           solveMode: isPremium ? solveMode : "instant",
           generateGraph: false,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+          answerLanguage,
         },
       });
 

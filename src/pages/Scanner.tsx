@@ -89,6 +89,8 @@ const Scanner = () => {
       // Stage 3: Solving
       setLoadingStage("solving");
       
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(undefined);
       const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: { 
           question: "", 
@@ -97,6 +99,7 @@ const Scanner = () => {
           animatedSteps: false,
           generateGraph: false,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+          answerLanguage,
         },
       });
 
