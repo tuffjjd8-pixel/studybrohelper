@@ -13,11 +13,10 @@ type LoadingStage = "extracting" | "classifying" | "solving";
 interface ScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSolved: (question: string, solution: string, subject: string, image?: string, steps?: Array<{ title: string; content: string }>, maxSteps?: number) => void;
+  onSolved: (question: string, solution: string, subject: string, image?: string) => void;
   userId?: string;
   isPremium?: boolean;
   solveMode?: "instant" | "deep";
-  solveFlow?: boolean;
 }
 
 export function ScannerModal({
