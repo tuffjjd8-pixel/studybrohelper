@@ -136,9 +136,14 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       });
       return;
     }
+    if (humanizeUsed) {
+      toast.info("Humanize can only be used once per answer.");
+      return;
+    }
     const result = await humanize(displayedSolution, subject, humanizeStrength);
     if (result) {
       setDisplayedSolution(result);
+      setHumanizeUsed(true);
       toast.success("Answer humanized! ✨");
     }
   };
