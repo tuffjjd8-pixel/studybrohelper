@@ -292,8 +292,6 @@ const Index = () => {
         answer: data.solution,
         image: imageData,
         solveId,
-        steps: data.steps,
-        maxSteps: data.maxSteps
       });
       setShowConfetti(true);
     } catch (error: unknown) {
