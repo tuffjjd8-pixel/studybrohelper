@@ -450,20 +450,7 @@ const Index = () => {
                 </button>
               </div>
 
-              {/* Show Solve Flow if enabled and available */}
-              {showSolveFlow ? <div className="space-y-6">
-                  {/* Question card */}
-                  <div className="glass-card p-4">
-                    <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                      Question
-                    </h3>
-                    {solution.image && <img src={solution.image} alt="Question" className="max-h-48 rounded-lg mb-3 object-contain" />}
-                    <p className="text-foreground">{solution.question}</p>
-                  </div>
-
-                  {/* Solve Flow */}
-                  <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isDeepModeActive} deepTextColor={deepTextColor} isAuthenticated={!!user} />}
+              <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isDeepModeActive} deepTextColor={deepTextColor} isAuthenticated={!!user} />
 
               {/* Solve usage banner below solution */}
               {!isPremium}
