@@ -762,7 +762,8 @@ serve(async (req) => {
       generateGraph = false,
       userGraphCount = 0,
       solveMode = "instant",
-      deviceType = "web"
+      deviceType = "web",
+      answerLanguage = "en"
     } = await req.json();
 
     // Check if user is banned or limited
