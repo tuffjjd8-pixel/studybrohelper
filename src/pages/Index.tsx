@@ -468,6 +468,18 @@ const Index = () => {
         </div>
       </main>
 
+      {/* Sticky "Solve Another" button above bottom nav, only when solution is shown */}
+      {solution && (
+        <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-2 flex justify-center pointer-events-none">
+          <button
+            onClick={() => { handleReset(); setScannerOpen(true); }}
+            className="pointer-events-auto w-full max-w-md py-3 rounded-full bg-primary text-primary-foreground font-semibold text-base shadow-lg hover:brightness-110 transition-all"
+          >
+            Solve Another
+          </button>
+        </div>
+      )}
+
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
       <TopSharerPopup />
