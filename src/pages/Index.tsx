@@ -78,13 +78,10 @@ const Index = () => {
     return saved === "true";
   });
 
-  // Solve toggles - persist in localStorage
-  const [solveFlow, setSolveFlow] = useState(() => {
-    const saved = localStorage.getItem("toggle_solve_flow");
-    if (saved !== null) return JSON.parse(saved);
-    // Migrate from old key
-    const old = localStorage.getItem("toggle_animated_steps");
-    return old !== null ? JSON.parse(old) : true;
+  // Keep mode toggle (session persistence)
+  const [keepMode, setKeepMode] = useState(() => {
+    const saved = sessionStorage.getItem("keep_solve_mode");
+    return saved === "true";
   });
   const [speechInput, setSpeechInput] = useState(() => {
     const saved = localStorage.getItem("toggle_speech_input");
