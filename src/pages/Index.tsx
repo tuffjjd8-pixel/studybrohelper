@@ -468,38 +468,29 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Sticky "Solve Another" button — rendered as a portal-like fixed element outside scroll */}
+      <BottomNav />
+
+      {/* Solve Another — root-level fixed button, outside all motion/scroll containers */}
       {solution && (
-        <div
-          className="flex justify-center pointer-events-none"
+        <button
+          onClick={() => { handleReset(); setScannerOpen(true); }}
+          className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full font-medium text-sm transition-all max-w-md"
           style={{
-            position: 'fixed',
-            bottom: '4.5rem',
-            left: 0,
-            right: 0,
-            zIndex: 40,
-            paddingLeft: '1.5rem',
-            paddingRight: '1.5rem',
-            paddingBottom: '0.75rem',
+            position: "fixed",
+            bottom: "4.5rem",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            background: "#050608",
+            border: "1.5px solid hsl(var(--primary))",
+            color: "hsl(var(--primary))",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
           }}
         >
-          <button
-            onClick={() => { handleReset(); setScannerOpen(true); }}
-            className="pointer-events-auto inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full font-medium text-sm transition-all"
-            style={{
-              background: "#050608",
-              border: "1.5px solid hsl(var(--primary))",
-              color: "hsl(var(--primary))",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-            }}
-          >
-            <span className="text-base leading-none">+</span>
-            Solve another
-          </button>
-        </div>
+          <span className="text-base leading-none">+</span>
+          Solve another
+        </button>
       )}
-
-      <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
       <TopSharerPopup />
       
