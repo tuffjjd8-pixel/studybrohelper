@@ -9,8 +9,8 @@ import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
-import { DeepModeEffectPicker } from "@/components/solve/DeepModeEffectPicker";
-import type { DeepModeEffect } from "@/components/solve/DeepModeReveal";
+import { DeepModeColorPicker } from "@/components/solve/DeepModeEffectPicker";
+import type { DeepModeTextColor } from "@/components/solve/DeepModeReveal";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
@@ -102,11 +102,11 @@ const Index = () => {
     const saved = localStorage.getItem("solve_mode");
     return (saved === "deep" ? "deep" : "instant");
   });
-  const [deepEffect, setDeepEffect] = useState<DeepModeEffect>(() => {
-    const saved = localStorage.getItem("deep_mode_effect");
-    return (saved as DeepModeEffect) || "neon";
+  const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
+    const saved = localStorage.getItem("deep_text_color");
+    return (saved as DeepModeTextColor) || "gold";
   });
-  const [showEffectPicker, setShowEffectPicker] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Persist toggles
   useEffect(() => {
@@ -122,17 +122,16 @@ const Index = () => {
     localStorage.setItem("solve_mode", solveMode);
   }, [solveMode]);
   useEffect(() => {
-    localStorage.setItem("deep_mode_effect", deepEffect);
-  }, [deepEffect]);
+    localStorage.setItem("deep_text_color", deepTextColor);
+  }, [deepTextColor]);
 
-  // Show effect picker on first Deep Mode toggle
   const handleSolveModeChange = (mode: "instant" | "deep") => {
     setSolveMode(mode);
     if (mode === "deep") {
-      const hasChosen = localStorage.getItem("deep_effect_chosen");
+      const hasChosen = localStorage.getItem("deep_color_chosen");
       if (!hasChosen) {
-        setShowEffectPicker(true);
-        localStorage.setItem("deep_effect_chosen", "true");
+        setShowColorPicker(true);
+        localStorage.setItem("deep_color_chosen", "true");
       }
     }
   };
@@ -409,12 +408,12 @@ const Index = () => {
               {/* Solve Toggles */}
               <SolveToggles solveFlow={solveFlow} onSolveFlowChange={setSolveFlow} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={handleSolveModeChange} />
 
-              {/* Effect Picker - shown when Deep Mode first toggled or user wants to change */}
-              {showEffectPicker && isPremium && solveMode === "deep" && (
-                <DeepModeEffectPicker
-                  selectedEffect={deepEffect}
-                  onSelect={(fx) => setDeepEffect(fx)}
-                  onClose={() => setShowEffectPicker(false)}
+              {/* Color Picker - shown when Deep Mode first toggled or user wants to change */}
+              {showColorPicker && isPremium && solveMode === "deep" && (
+                <DeepModeColorPicker
+                  selectedColor={deepTextColor}
+                  onSelect={(c) => setDeepTextColor(c)}
+                  onClose={() => setShowColorPicker(false)}
                 />
               )}
 
@@ -455,7 +454,7 @@ const Index = () => {
 
                   {/* Solve Flow */}
                   <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isPremium && solveMode === "deep"} deepModeEffect={deepEffect} isAuthenticated={!!user} />}
+                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isPremium && solveMode === "deep"} deepTextColor={deepTextColor} isAuthenticated={!!user} />}
 
               {/* Solve usage banner below solution */}
               {!isPremium}
