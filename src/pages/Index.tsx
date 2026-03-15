@@ -470,6 +470,9 @@ const Index = () => {
         </div>
       </main>
 
+      {solution && <button onClick={handleReset} className="text-sm text-muted-foreground hover:text-foreground mb-6 flex items-center gap-2">
+                ← Solve another
+              </button>}
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
       <TopSharerPopup />
