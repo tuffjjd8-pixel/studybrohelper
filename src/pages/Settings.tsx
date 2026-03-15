@@ -309,6 +309,45 @@ const Settings = () => {
               )}
             </motion.div>
 
+            {/* Deep Mode Text Color - Pro/Admin only */}
+            {isPremium && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.25 }}
+                className="p-4 bg-card rounded-xl border border-border space-y-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Palette className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Deep Mode Text Color</h3>
+                    <p className="text-sm text-muted-foreground">Choose the text color for Deep Mode explanations</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-7 gap-2">
+                  {DEEP_TEXT_COLORS.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        setDeepTextColor(c.id);
+                        localStorage.setItem("deep_text_color", c.id);
+                      }}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
+                        deepTextColor === c.id
+                          ? "bg-primary/20 ring-2 ring-primary scale-105"
+                          : "bg-muted/50 hover:bg-muted"
+                      }`}
+                    >
+                      <span className={`w-5 h-5 rounded-full ${c.swatch} border border-border/50`} />
+                      <span className="text-[10px] font-medium">{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
             {/* Settings list */}
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-muted-foreground">Preferences</h3>
