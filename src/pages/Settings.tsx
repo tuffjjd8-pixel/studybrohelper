@@ -38,6 +38,15 @@ const getLocalDate = (): string => {
   return new Date().toISOString().split('T')[0];
 };
 
+const DEEP_TEXT_COLORS: { id: DeepTextColor; label: string; swatch: string }[] = [
+  { id: "default", label: "Default", swatch: "bg-white" },
+  { id: "gold", label: "Gold", swatch: "bg-amber-400" },
+  { id: "sky", label: "Sky", swatch: "bg-sky-400" },
+  { id: "purple", label: "Purple", swatch: "bg-purple-400" },
+  { id: "rose", label: "Rose", swatch: "bg-rose-400" },
+  { id: "orange", label: "Orange", swatch: "bg-orange-400" },
+];
+
 const Settings = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -46,6 +55,11 @@ const Settings = () => {
   
   const isPremium = profile?.is_premium || false;
   const speechClips = useSpeechClips(user?.id, isPremium);
+
+  const [deepTextColor, setDeepTextColor] = useState<DeepTextColor>(() => {
+    const saved = localStorage.getItem("deep_text_color");
+    return (saved as DeepTextColor) || "default";
+  });
 
   useEffect(() => {
     if (user) {
