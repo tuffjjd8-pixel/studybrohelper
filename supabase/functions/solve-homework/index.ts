@@ -453,7 +453,7 @@ async function callGroqText(
 
   // Inject answer language
   if (answerLanguage && answerLanguage !== "en") {
-    systemPrompt += `\n\n## LANGUAGE:\nAlways answer in ${answerLanguage}. All explanations, text, and descriptions must be written in ${answerLanguage}. Keep LaTeX math notation unchanged.`;
+    systemPrompt += `\n\nYou MUST ALWAYS respond in ${answerLanguage}, regardless of the language of the user's question.\nDo NOT mirror or match the user's input language.\nIf the user writes in English, Nepali, Hindi, Arabic, or any other language, you STILL respond ONLY in ${answerLanguage}.\nNever switch languages unless the user changes their Answer Language setting.\nKeep all LaTeX math notation exactly as-is. Do NOT translate LaTeX.`;
   }
   
   const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
