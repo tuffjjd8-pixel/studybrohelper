@@ -432,6 +432,7 @@ export type Database = {
       profiles: {
         Row: {
           animated_steps_used_today: number | null
+          answer_language: string
           avatar_url: string | null
           created_at: string
           daily_solves_used: number
@@ -463,6 +464,7 @@ export type Database = {
         }
         Insert: {
           animated_steps_used_today?: number | null
+          answer_language?: string
           avatar_url?: string | null
           created_at?: string
           daily_solves_used?: number
@@ -494,6 +496,7 @@ export type Database = {
         }
         Update: {
           animated_steps_used_today?: number | null
+          answer_language?: string
           avatar_url?: string | null
           created_at?: string
           daily_solves_used?: number
