@@ -18,12 +18,10 @@ import {
   Crown,
   LogOut,
   Clock,
-  Mic,
-  Palette
+  Mic
 } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
-import type { DeepTextColor } from "@/components/solve/DeepModeReveal";
 
 const FREE_SOLVE_FLOW_PER_DAY = 5;
 const PREMIUM_SOLVE_FLOW_PER_DAY = 16;
@@ -38,15 +36,6 @@ const getLocalDate = (): string => {
   return new Date().toISOString().split('T')[0];
 };
 
-const DEEP_TEXT_COLORS: { id: DeepTextColor; label: string; swatch: string }[] = [
-  { id: "default", label: "Default", swatch: "bg-white" },
-  { id: "gold", label: "Gold", swatch: "bg-amber-400" },
-  { id: "sky", label: "Sky", swatch: "bg-sky-400" },
-  { id: "purple", label: "Purple", swatch: "bg-purple-400" },
-  { id: "rose", label: "Rose", swatch: "bg-rose-400" },
-  { id: "orange", label: "Orange", swatch: "bg-orange-400" },
-];
-
 const Settings = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -55,11 +44,6 @@ const Settings = () => {
   
   const isPremium = profile?.is_premium || false;
   const speechClips = useSpeechClips(user?.id, isPremium);
-
-  const [deepTextColor, setDeepTextColor] = useState<DeepTextColor>(() => {
-    const saved = localStorage.getItem("deep_text_color");
-    return (saved as DeepTextColor) || "default";
-  });
 
   useEffect(() => {
     if (user) {
@@ -308,45 +292,6 @@ const Settings = () => {
                 </div>
               )}
             </motion.div>
-
-            {/* Deep Mode Text Color - Pro/Admin only */}
-            {isPremium && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.25 }}
-                className="p-4 bg-card rounded-xl border border-border space-y-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Palette className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Deep Mode Text Color</h3>
-                    <p className="text-sm text-muted-foreground">Choose the text color for Deep Mode explanations</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-7 gap-2">
-                  {DEEP_TEXT_COLORS.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => {
-                        setDeepTextColor(c.id);
-                        localStorage.setItem("deep_text_color", c.id);
-                      }}
-                      className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
-                        deepTextColor === c.id
-                          ? "bg-primary/20 ring-2 ring-primary scale-105"
-                          : "bg-muted/50 hover:bg-muted"
-                      }`}
-                    >
-                      <span className={`w-5 h-5 rounded-full ${c.swatch} border border-border/50`} />
-                      <span className="text-[10px] font-medium">{c.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
 
             {/* Settings list */}
             <div className="space-y-3">
