@@ -105,7 +105,7 @@ export function ScannerModal({
         });
       }
 
-      onSolved(extractedQuestion, data.solution, data.subject || "general", imageData);
+      onSolved(extractedQuestion, data.solution, data.subject || "general", imageData, data.steps, data.maxSteps);
       handleReset();
       onClose();
     } catch (error) {
