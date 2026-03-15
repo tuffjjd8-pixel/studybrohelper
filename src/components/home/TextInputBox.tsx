@@ -298,15 +298,17 @@ export function TextInputBox({
         {/* Speech mode buttons - above textarea when enabled */}
         {showSpeechButtons && (
           <div className="space-y-2 mb-3">
-            {/* Clips remaining indicator */}
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
-                Speech Clips: {speechClipsRemaining}/{maxSpeechClips}
-              </span>
-              {!canUseSpeechClip && (
-                <span className="text-orange-500">Resets in {hoursUntilReset}h</span>
-              )}
-            </div>
+            {/* Clips remaining indicator - only for free users */}
+            {!isPremium && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  Speech Clips: {speechClipsRemaining}/{maxSpeechClips}
+                </span>
+                {!canUseSpeechClip && (
+                  <span className="text-orange-500">Resets in {hoursUntilReset}h</span>
+                )}
+              </div>
+            )}
             
             <div className="flex items-center gap-2 flex-wrap">
               {/* Transcribe in my language */}
