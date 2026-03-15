@@ -16,6 +16,7 @@ interface ScannerModalProps {
   onSolved: (question: string, solution: string, subject: string, image?: string) => void;
   userId?: string;
   isPremium?: boolean;
+  solveMode?: "instant" | "deep";
 }
 
 export function ScannerModal({
@@ -24,6 +25,7 @@ export function ScannerModal({
   onSolved,
   userId,
   isPremium = false,
+  solveMode = "instant",
 }: ScannerModalProps) {
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
