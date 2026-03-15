@@ -344,7 +344,7 @@ export function TextInputBox({
                 variant={isRecording && currentMode === "translate" ? "secondary" : "outline"}
                 size="sm"
                 onClick={() => handleVoiceClick("translate")}
-                disabled={isTranscribing || (isRecording && currentMode !== "translate") || !canUseSpeechClip}
+                disabled={isTranscribing || (isRecording && currentMode !== "translate") || (!isPremium && !canUseSpeechClip)}
                 className="flex items-center gap-2"
               >
                 {isRecording && currentMode === "translate" ? (
