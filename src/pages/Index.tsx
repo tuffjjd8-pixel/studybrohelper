@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { detectSpamOutput, SPAM_WARNING_MESSAGE } from "@/lib/spamDetection";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
