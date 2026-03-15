@@ -125,14 +125,13 @@ const Index = () => {
     localStorage.setItem("deep_text_color", deepTextColor);
   }, [deepTextColor]);
 
-  // Show effect picker on first Deep Mode toggle
   const handleSolveModeChange = (mode: "instant" | "deep") => {
     setSolveMode(mode);
     if (mode === "deep") {
-      const hasChosen = localStorage.getItem("deep_effect_chosen");
+      const hasChosen = localStorage.getItem("deep_color_chosen");
       if (!hasChosen) {
         setShowEffectPicker(true);
-        localStorage.setItem("deep_effect_chosen", "true");
+        localStorage.setItem("deep_color_chosen", "true");
       }
     }
   };
