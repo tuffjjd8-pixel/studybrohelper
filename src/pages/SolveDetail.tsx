@@ -222,7 +222,7 @@ const SolveDetail = () => {
               isPremium={isPremium}
               isHistory={true}
               isDeepMode={isDeepMode}
-              deepModeEffect={deepEffect}
+              deepTextColor={textColor}
               isAuthenticated={!!user}
             />
 
