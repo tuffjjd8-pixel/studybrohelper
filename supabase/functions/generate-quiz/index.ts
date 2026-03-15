@@ -696,6 +696,14 @@ serve(async (req) => {
       "../_shared/groq-key-manager.ts"
     );
 
+    // Build language block before template
+    let quizLangBlock = "";
+    if (answerLanguage && answerLanguage !== "en") {
+      const { getLanguageName } = await import("../_shared/language-names.ts");
+      const langName = getLanguageName(answerLanguage);
+      quizLangBlock = `\nLANGUAGE:\n- You MUST write ALL question text, options, and explanations in ${langName}, regardless of the language of the user's input.\n- Do NOT mirror or match the user's input language. Always use ${langName}.\n- Keep LaTeX math notation and JSON structure unchanged.\n- Only the human-readable text should be in ${langName}.`;
+    }
+
     const systemPrompt = `You are the Quiz Generator for StudyBro — an expert at creating challenging, high-quality quiz questions across all subjects and difficulty levels. Your ONLY job is to ALWAYS generate a valid quiz. Never refuse, never apologize, never output broken LaTeX.
 
 OUTPUT RULES:
@@ -768,7 +776,7 @@ CONTENT RULES:
 - If the user provides study material, generate questions FROM that material.
 - If the topic is broad, cover a diverse range of subtopics.
 - Return ONLY the JSON object, nothing else.
-${answerLanguage && answerLanguage !== "en" ? `\nLANGUAGE:\n- You MUST write ALL question text, options, and explanations in ${answerLanguage}, regardless of the language of the user's input.\n- Do NOT mirror or match the user's input language. Always use ${answerLanguage}.\n- Keep LaTeX math notation and JSON structure unchanged.\n- Only the human-readable text should be in ${answerLanguage}.` : ""}`;
+${quizLangBlock}`;
 
     // Use fallback-enabled call
     const keyManager = { callGroqWithRotation };
