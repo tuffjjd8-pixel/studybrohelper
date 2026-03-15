@@ -8,7 +8,11 @@ import { fileToOptimizedDataUrl } from "@/lib/image";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// UI-level modes (what buttons trigger)
 export type TranscriptionMode = "transcribe" | "translate";
+
+// Backend-level modes (what we send to the edge function)
+type BackendSTTMode = "transcribe" | "translate_to_english" | "auto_detect" | "transcribe_to_selected_language";
 
 interface TextInputBoxProps {
   onSubmit: (text: string) => void;
@@ -163,18 +167,33 @@ export function TextInputBox({
       reader.readAsDataURL(audioBlob);
       const base64Audio = await base64Promise;
 
-      // Prepare request body
-      const body: { audio: string; language?: string; mode: TranscriptionMode } = {
-        audio: base64Audio,
-        mode,
-      };
+      // Resolve UI mode → backend mode
+      let backendMode: BackendSTTMode;
+      let language: string | undefined;
 
-      // Only pass language if not auto-detect and in transcribe mode
-      if (speechLanguage !== "auto" && mode === "transcribe") {
-        body.language = speechLanguage;
+      if (mode === "translate") {
+        // "Translate to English" button
+        backendMode = "translate_to_english";
+        // language stays undefined (auto-detect source)
+      } else if (speechLanguage === "auto") {
+        // "Transcribe" with auto-detect selected
+        backendMode = "auto_detect";
+        // language stays undefined
+      } else {
+        // "Transcribe" with a specific language selected
+        backendMode = "transcribe_to_selected_language";
+        language = speechLanguage;
       }
 
-      console.log(`Transcribing with mode: ${mode}, language: ${speechLanguage}`);
+      const body: { audio: string; language?: string; mode: BackendSTTMode } = {
+        audio: base64Audio,
+        mode: backendMode,
+      };
+      if (language) {
+        body.language = language;
+      }
+
+      console.log(`[STT] UI mode: ${mode}, backend mode: ${backendMode}, language: ${language ?? 'auto-detect'}`);
 
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
         body
@@ -249,15 +268,25 @@ export function TextInputBox({
       reader.readAsDataURL(file);
       const base64Audio = await base64Promise;
 
-      // Prepare request body
-      const body: { audio: string; language?: string; mode: TranscriptionMode } = {
-        audio: base64Audio,
-        mode,
-      };
+      // Resolve UI mode → backend mode (same logic as live recording)
+      let backendMode: BackendSTTMode;
+      let language: string | undefined;
 
-      // Only pass language if not auto-detect and in transcribe mode
-      if (speechLanguage !== "auto" && mode === "transcribe") {
-        body.language = speechLanguage;
+      if (mode === "translate") {
+        backendMode = "translate_to_english";
+      } else if (speechLanguage === "auto") {
+        backendMode = "auto_detect";
+      } else {
+        backendMode = "transcribe_to_selected_language";
+        language = speechLanguage;
+      }
+
+      const body: { audio: string; language?: string; mode: BackendSTTMode } = {
+        audio: base64Audio,
+        mode: backendMode,
+      };
+      if (language) {
+        body.language = language;
       }
 
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
