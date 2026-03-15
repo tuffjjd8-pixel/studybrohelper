@@ -438,7 +438,8 @@ async function callGroqText(
   question: string, 
   isPremium: boolean,
   animatedSteps: boolean,
-  solveMode: string = "instant"
+  solveMode: string = "instant",
+  answerLanguage: string = "en"
 ): Promise<string> {
   // Select prompt based on solveMode
   let systemPrompt = BASE_SYSTEM_PROMPT;
@@ -448,6 +449,11 @@ async function callGroqText(
   if (animatedSteps) {
     const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
     systemPrompt += getAnimatedSectionsPrompt(maxSections, isPremium);
+  }
+
+  // Inject answer language
+  if (answerLanguage && answerLanguage !== "en") {
+    systemPrompt += `\n\n## LANGUAGE:\nAlways answer in ${answerLanguage}. All explanations, text, and descriptions must be written in ${answerLanguage}. Keep LaTeX math notation unchanged.`;
   }
   
   const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
