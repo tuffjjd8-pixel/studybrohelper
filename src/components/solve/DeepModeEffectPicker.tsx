@@ -27,7 +27,7 @@ export function DeepModeColorPicker({ selectedColor, onSelect, onClose }: DeepMo
         </button>
       </div>
 
-      <div className="grid grid-cols-6 gap-2">
+      <div className="grid grid-cols-7 gap-2">
         {COLORS.map((c) => (
           <button
             key={c.id}
