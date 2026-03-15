@@ -121,7 +121,33 @@ serve(async (req) => {
       throw new Error('No audio data provided');
     }
 
-    console.log(`[STT] Transcription request - mode: ${mode}, language: ${language || 'auto'}, model: ${mode === "translate" ? TRANSLATE_MODEL : TRANSCRIBE_MODEL}`);
+    // ── Resolve Whisper parameters from mode ──
+    let whisperTask: "transcribe" | "translate";
+    let whisperLanguage: string | null;
+
+    switch (mode) {
+      case "translate":
+      case "translate_to_english":
+        whisperTask = "translate";
+        whisperLanguage = null; // auto-detect source language
+        break;
+      case "auto_detect":
+        whisperTask = "transcribe";
+        whisperLanguage = null; // let Whisper auto-detect
+        break;
+      case "transcribe_to_selected_language":
+        whisperTask = "transcribe";
+        whisperLanguage = language || null;
+        break;
+      case "transcribe":
+      default:
+        whisperTask = "transcribe";
+        // If language is "auto" or empty, let Whisper auto-detect
+        whisperLanguage = (language && language !== "auto") ? language : null;
+        break;
+    }
+
+    console.log(`[STT] Request - mode: ${mode}, resolved task: ${whisperTask}, resolved language: ${whisperLanguage ?? 'auto-detect'}`);
 
     // Decode base64 to binary
     const binaryString = atob(audio);
@@ -133,7 +159,7 @@ serve(async (req) => {
     const audioBlob = new Blob([bytes.buffer], { type: 'audio/webm' });
 
     // Use key rotation for STT
-    const result = await transcribeWithRotation(audioBlob, language, mode);
+    const result = await transcribeWithRotation(audioBlob, whisperTask, whisperLanguage);
 
     console.log('[STT] Transcription successful');
 
