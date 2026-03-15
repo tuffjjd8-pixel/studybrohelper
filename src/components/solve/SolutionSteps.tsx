@@ -13,7 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
 import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider";
 import { useNavigate } from "react-router-dom";
-import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
+import { DeepModeSolution } from "@/components/solve/DeepModeSolution";
+import { InstantModeSolution } from "@/components/solve/InstantModeSolution";
 import type { DeepTextColor } from "@/hooks/useDeepMode";
 import { preprocessMath } from "@/lib/mathPreprocess";
 
