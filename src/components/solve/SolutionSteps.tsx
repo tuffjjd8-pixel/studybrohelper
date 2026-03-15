@@ -210,11 +210,33 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </Button>
           </div>
         </div>
-        {isDeepMode && !isHistory ? (
-          <DeepModeReveal
-            content={displayedSolution}
-            effect={deepModeEffect}
-          />
+      {isDeepMode ? (
+          <div className={`deep-text-${deepTextColor}`}>
+            {isHistory ? (
+              <div className="prose prose-invert prose-sm max-w-none math-solution">
+                <ReactMarkdown
+                  remarkPlugins={[remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    h1: ({ children }) => <h1 className="text-xl font-bold mb-3 inherit-color">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-lg font-semibold mb-2 mt-4 inherit-color">{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-base font-medium mb-2 mt-3 inherit-color">{children}</h3>,
+                    p: ({ children }) => <p className="mb-3 leading-relaxed inherit-color">{children}</p>,
+                    strong: ({ children }) => <strong className="font-bold inherit-color">{children}</strong>,
+                    em: ({ children }) => <em className="italic inherit-color">{children}</em>,
+                    code: ({ children }) => <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono inherit-color">{children}</code>,
+                  }}
+                >
+                  {preprocessMath(displayedSolution)}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <DeepModeReveal
+                content={displayedSolution}
+                textColor={deepTextColor}
+              />
+            )}
+          </div>
         ) : (
           <div className="prose prose-invert prose-sm max-w-none math-solution">
             <ReactMarkdown
