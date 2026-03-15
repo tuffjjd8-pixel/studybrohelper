@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import type { DeepModeTextColor } from "@/components/solve/DeepModeReveal";
+import { DeepModeColorPicker } from "@/components/solve/DeepModeEffectPicker";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
