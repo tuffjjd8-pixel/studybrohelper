@@ -290,7 +290,7 @@ const Index = () => {
         }
       }
       // Anti-spam: detect counting sequences / trivial patterns in Deep Mode
-      if (isDeepModeActive && detectSpamOutput(data.solution)) {
+      if (isPremium && solveMode === "deep" && detectSpamOutput(data.solution)) {
         toast.error(SPAM_WARNING_MESSAGE);
         setIsLoading(false);
         return;
