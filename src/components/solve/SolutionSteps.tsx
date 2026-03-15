@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
 import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider";
 import { useNavigate } from "react-router-dom";
-import { DeepModeReveal, type DeepModeEffect } from "@/components/solve/DeepModeReveal";
+import { DeepModeReveal, type DeepTextColor } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
 
 interface SolutionStepsProps {
