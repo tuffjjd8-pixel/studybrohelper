@@ -63,8 +63,14 @@ async function transcribeWithRotation(
       formData.append('file', audioBlob, 'audio.webm');
       formData.append('model', model);
       
-      // Vocabulary hint to bias Whisper toward school/math terms for better accuracy
-      formData.append('prompt', 'math homework equation x squared square root divided by integral derivative slope y-intercept quadratic formula sine cosine tangent logarithm exponent fraction numerator denominator');
+      // Vocabulary hint — only use English prompt when output will be English.
+      // For non-English transcription the English prompt biases Whisper toward
+      // wrong-language output, so we either use a language-appropriate hint or skip it.
+      const outputIsEnglish = whisperTask === "translate" || whisperLanguage === "en";
+      if (outputIsEnglish) {
+        formData.append('prompt', 'math homework equation x squared square root divided by integral derivative slope y-intercept quadratic formula sine cosine tangent logarithm exponent fraction numerator denominator');
+      }
+      // For non-English transcription: no prompt → Whisper uses native script naturally
 
       const endpoint = whisperTask === "translate" 
         ? 'https://api.groq.com/openai/v1/audio/translations'
