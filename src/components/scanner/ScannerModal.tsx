@@ -103,7 +103,7 @@ export function ScannerModal({
         });
       }
 
-      onSolved(extractedQuestion, data.solution, data.subject || "general", imageData, data.steps, data.maxSteps);
+      onSolved(extractedQuestion, data.solution, data.subject || "general", imageData);
       handleReset();
       onClose();
     } catch (error) {
