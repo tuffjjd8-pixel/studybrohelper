@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import type { DeepModeEffect } from "@/components/solve/DeepModeReveal";
+import { useState, useEffect } from "react";
+
+export type DeepTextColor = "gold" | "sky" | "purple" | "mint" | "rose" | "orange";
 
 export function useDeepMode() {
   const [solveMode, setSolveModeState] = useState<"instant" | "deep">(() => {
@@ -7,9 +8,9 @@ export function useDeepMode() {
     return saved === "deep" ? "deep" : "instant";
   });
 
-  const [deepEffect, setDeepEffectState] = useState<DeepModeEffect>(() => {
-    const saved = localStorage.getItem("deep_mode_effect");
-    return (saved as DeepModeEffect) || "neon";
+  const [textColor, setTextColorState] = useState<DeepTextColor>(() => {
+    const saved = localStorage.getItem("deep_text_color");
+    return (saved as DeepTextColor) || "gold";
   });
 
   useEffect(() => {
@@ -17,16 +18,16 @@ export function useDeepMode() {
   }, [solveMode]);
 
   useEffect(() => {
-    localStorage.setItem("deep_mode_effect", deepEffect);
-  }, [deepEffect]);
+    localStorage.setItem("deep_text_color", textColor);
+  }, [textColor]);
 
   const isDeepMode = solveMode === "deep";
 
   return {
     solveMode,
     setSolveMode: setSolveModeState,
-    deepEffect,
-    setDeepEffect: setDeepEffectState,
+    textColor,
+    setTextColor: setTextColorState,
     isDeepMode,
   };
 }

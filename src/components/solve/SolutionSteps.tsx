@@ -13,7 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
 import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider";
 import { useNavigate } from "react-router-dom";
-import { DeepModeReveal, type DeepModeEffect } from "@/components/solve/DeepModeReveal";
+import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
+import type { DeepTextColor } from "@/hooks/useDeepMode";
 import { preprocessMath } from "@/lib/mathPreprocess";
 
 interface SolutionStepsProps {
@@ -28,7 +29,7 @@ interface SolutionStepsProps {
   followUpCount?: number;
   maxFollowUps?: number;
   isDeepMode?: boolean;
-  deepModeEffect?: DeepModeEffect;
+  deepTextColor?: DeepTextColor;
   isAuthenticated?: boolean;
 }
 
@@ -48,7 +49,7 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, deepModeEffect = "none", isAuthenticated = false }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, deepTextColor = "gold", isAuthenticated = false }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -213,10 +214,10 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         {isDeepMode && !isHistory ? (
           <DeepModeReveal
             content={displayedSolution}
-            effect={deepModeEffect}
+            textColor={deepTextColor}
           />
         ) : (
-          <div className={`prose prose-invert prose-sm max-w-none math-solution ${isDeepMode && deepModeEffect !== "none" ? `deep-effect-${deepModeEffect}` : ""}`}>
+          <div className={`prose prose-invert prose-sm max-w-none math-solution ${isDeepMode ? `deep-text-${deepTextColor}` : ""}`}>
             <ReactMarkdown
               remarkPlugins={[remarkMath]}
               rehypePlugins={[rehypeKatex]}
