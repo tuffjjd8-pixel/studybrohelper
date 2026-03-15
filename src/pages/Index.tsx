@@ -471,11 +471,11 @@ const Index = () => {
 
       <BottomNav />
 
-      {/* Solve Another — rendered via portal into document.body */}
+      {/* Solve Another — root-level portal element */}
       {solution && createPortal(
         <button
           onClick={() => { handleReset(); setScannerOpen(true); }}
-          className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full font-medium text-sm"
+          className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full font-medium text-sm max-w-md"
           style={{
             position: "fixed",
             bottom: "4.5rem",
