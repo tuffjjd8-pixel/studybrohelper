@@ -50,6 +50,14 @@ export function AnimatedSolutionSteps({
     if (!steps[currentStep]) return;
     
     const content = steps[currentStep].content;
+
+    // If this step was already fully animated, show instantly
+    if (completedSteps.has(currentStep)) {
+      setDisplayedContent(content);
+      setIsTypewriting(false);
+      return;
+    }
+
     setDisplayedContent("");
     setIsTypewriting(true);
 
