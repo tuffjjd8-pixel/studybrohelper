@@ -102,11 +102,11 @@ const Index = () => {
     const saved = localStorage.getItem("solve_mode");
     return (saved === "deep" ? "deep" : "instant");
   });
-  const [deepEffect, setDeepEffect] = useState<DeepModeEffect>(() => {
-    const saved = localStorage.getItem("deep_mode_effect");
-    return (saved as DeepModeEffect) || "neon";
+  const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
+    const saved = localStorage.getItem("deep_text_color");
+    return (saved as DeepModeTextColor) || "gold";
   });
-  const [showEffectPicker, setShowEffectPicker] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Persist toggles
   useEffect(() => {
