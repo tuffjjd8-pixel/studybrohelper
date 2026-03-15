@@ -338,7 +338,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6 border-l-4 border-l-secondary"
+          className="glass-card p-6 border-l-4 border-l-secondary mt-4"
         >
           <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-4">
             Follow-up Answer
