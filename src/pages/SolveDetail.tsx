@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useDeepMode } from "@/hooks/useDeepMode";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -31,7 +30,6 @@ const SolveDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { isDeepMode, textColor } = useDeepMode();
   const [solve, setSolve] = useState<Solve | null>(null);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -221,8 +219,6 @@ const SolveDetail = () => {
               solveId={solve.id}
               isPremium={isPremium}
               isHistory={true}
-              isDeepMode={isDeepMode}
-              deepTextColor={textColor}
               isAuthenticated={!!user}
             />
 
