@@ -39,6 +39,7 @@ export function AnimatedSolutionSteps({
   const [displayedContent, setDisplayedContent] = useState("");
   const [isFinished, setIsFinished] = useState(false);
   const [showFinishConfetti, setShowFinishConfetti] = useState(false);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   const totalSteps = Math.min(steps.length, maxSteps);
   const progress = ((currentStep + 1) / totalSteps) * 100;
