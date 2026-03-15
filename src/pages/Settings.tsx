@@ -46,6 +46,7 @@ const Settings = () => {
   
   const isPremium = profile?.is_premium || false;
   const speechClips = useSpeechClips(user?.id, isPremium);
+  const { answerLanguage, updateLanguage } = useAnswerLanguage(user?.id, isPremium);
 
   useEffect(() => {
     if (user) {
