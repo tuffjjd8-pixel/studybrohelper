@@ -67,7 +67,7 @@ async function transcribeWithRotation(
       // For non-English transcription the English prompt biases Whisper toward
       // wrong-language output, so we either use a language-appropriate hint or skip it.
       const isEnglishOutput = whisperTask === "translate" || whisperLanguage === "en" || whisperLanguage === "en-US";
-      if (outputIsEnglish) {
+      if (isEnglishOutput) {
         formData.append('prompt', 'math homework equation x squared square root divided by integral derivative slope y-intercept quadratic formula sine cosine tangent logarithm exponent fraction numerator denominator');
       }
       // For non-English transcription: no prompt → Whisper uses native script naturally
