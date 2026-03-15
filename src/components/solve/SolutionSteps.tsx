@@ -210,10 +210,10 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </Button>
           </div>
         </div>
-        {isDeepMode && !isHistory ? (
+        {isDeepMode ? (
           <DeepModeReveal
             content={displayedSolution}
-            effect={deepModeEffect}
+            textColor={deepTextColor}
           />
         ) : (
           <div className="prose prose-invert prose-sm max-w-none math-solution">

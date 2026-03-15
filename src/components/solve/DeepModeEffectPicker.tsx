@@ -1,55 +1,50 @@
-import { motion } from "framer-motion";
-import type { DeepModeEffect } from "./DeepModeReveal";
+import type { DeepTextColor } from "./DeepModeReveal";
 
-interface DeepModeEffectPickerProps {
-  selectedEffect: DeepModeEffect;
-  onSelect: (effect: DeepModeEffect) => void;
+interface DeepModeTextColorPickerProps {
+  selectedColor: DeepTextColor;
+  onSelect: (color: DeepTextColor) => void;
   onClose: () => void;
 }
 
-const EFFECTS: { id: DeepModeEffect; label: string; emoji: string; description: string }[] = [
-  { id: "fire", label: "Fire", emoji: "🔥", description: "Orange glow & flicker" },
-  { id: "water", label: "Water", emoji: "💧", description: "Ripple distortion" },
-  { id: "neon", label: "Neon", emoji: "💚", description: "Bright glow" },
-  { id: "glitch", label: "Glitch", emoji: "⚡", description: "Jitter & RGB split" },
-  { id: "sparkle", label: "Sparkle", emoji: "✨", description: "Particle bursts" },
+const COLORS: { id: DeepTextColor; label: string; swatch: string }[] = [
+  { id: "default", label: "Default", swatch: "bg-white" },
+  { id: "gold", label: "Gold", swatch: "bg-amber-400" },
+  { id: "sky", label: "Sky", swatch: "bg-sky-400" },
+  { id: "purple", label: "Purple", swatch: "bg-purple-400" },
+  { id: "rose", label: "Rose", swatch: "bg-rose-400" },
+  { id: "orange", label: "Orange", swatch: "bg-orange-400" },
 ];
 
-export function DeepModeEffectPicker({ selectedEffect, onSelect, onClose }: DeepModeEffectPickerProps) {
+export function DeepModeEffectPicker({ selectedColor, onSelect, onClose }: DeepModeTextColorPickerProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className="glass-card p-4 space-y-3"
-    >
+    <div className="glass-card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Choose Your Effect
+          Text Color
         </h4>
         <button onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">
           Done
         </button>
       </div>
 
-      <div className="grid grid-cols-5 gap-2">
-        {EFFECTS.map((fx) => (
+      <div className="grid grid-cols-6 gap-2">
+        {COLORS.map((c) => (
           <button
-            key={fx.id}
-            onClick={() => onSelect(fx.id)}
+            key={c.id}
+            onClick={() => onSelect(c.id)}
             className={`
               flex flex-col items-center gap-1 p-2 rounded-xl transition-all
-              ${selectedEffect === fx.id
+              ${selectedColor === c.id
                 ? "bg-primary/20 ring-2 ring-primary scale-105"
                 : "bg-muted/50 hover:bg-muted"
               }
             `}
           >
-            <span className="text-xl">{fx.emoji}</span>
-            <span className="text-[10px] font-medium">{fx.label}</span>
+            <span className={`w-5 h-5 rounded-full ${c.swatch} border border-border/50`} />
+            <span className="text-[10px] font-medium">{c.label}</span>
           </button>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
