@@ -220,6 +220,8 @@ const SolveDetail = () => {
               solveId={solve.id}
               isPremium={isPremium}
               isHistory={true}
+              isDeepMode={isPremium}
+              deepTextColor={(localStorage.getItem("deep_text_color") as DeepModeTextColor) || "gold"}
               isAuthenticated={!!user}
             />
 
