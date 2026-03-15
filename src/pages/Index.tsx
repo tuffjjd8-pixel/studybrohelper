@@ -32,7 +32,6 @@ interface SolutionData {
   image?: string;
   solveId?: string;
 }
-}
 const Index = () => {
   const {
     user
