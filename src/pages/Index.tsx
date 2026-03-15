@@ -99,6 +99,18 @@ const Index = () => {
     return saved ?? "auto";
   });
   const { solveMode, setSolveMode, deepEffect, setDeepEffect, isDeepMode } = useDeepMode();
+  const [showEffectPicker, setShowEffectPicker] = useState(false);
+
+  // Persist toggles
+  useEffect(() => {
+    localStorage.setItem("toggle_solve_flow", JSON.stringify(solveFlow));
+  }, [solveFlow]);
+  useEffect(() => {
+    localStorage.setItem("toggle_speech_input", JSON.stringify(speechInput));
+  }, [speechInput]);
+  useEffect(() => {
+    localStorage.setItem("speech_language", speechLanguage);
+  }, [speechLanguage]);
 
   // Show effect picker on first Deep Mode toggle
   const handleSolveModeChange = (mode: "instant" | "deep") => {
