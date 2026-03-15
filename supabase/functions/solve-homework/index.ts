@@ -825,6 +825,11 @@ serve(async (req) => {
         ? `${question}\n\n${combined_text}` 
         : combined_text;
       
+      // In Deep Mode, ensure image-only solves get a clear instruction to explain
+      if (effectiveMode === "deep" && !question) {
+        combinedQuestion = `Solve the following problem and explain your reasoning in full detail:\n\n${combined_text}`;
+      }
+      
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
       solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode);
     } else if (question) {
