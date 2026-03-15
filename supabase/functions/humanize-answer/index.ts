@@ -47,7 +47,7 @@ serve(async (req) => {
   }
 
   try {
-    const { solution, subject, action, humanize_strength } = await req.json();
+    const { solution, subject, action, humanize_strength, answerLanguage = "en" } = await req.json();
 
     // Auth check
     const authHeader = req.headers.get("Authorization");
