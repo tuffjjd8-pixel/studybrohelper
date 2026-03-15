@@ -449,6 +449,21 @@ const Index = () => {
           opacity: 1
         }} className="py-8">
 
+              {/* Solve Another chip */}
+              <div className="flex justify-center mb-5 mt-1">
+                <button
+                  onClick={() => { handleReset(); setScannerOpen(true); }}
+                  className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+                  style={{
+                    background: "#050608",
+                    border: "1.5px solid hsl(var(--primary))",
+                    color: "hsl(var(--primary))",
+                  }}
+                >
+                  ← Solve another
+                </button>
+              </div>
+
               {/* Show Solve Flow if enabled and available */}
               {showSolveFlow ? <div className="space-y-6">
                   {/* Question card */}
@@ -469,10 +484,6 @@ const Index = () => {
             </motion.div>}
         </div>
       </main>
-
-      {solution && <button onClick={handleReset} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2" style={{ position: "fixed", bottom: "5.5rem", left: "50%", transform: "translateX(-50%)", zIndex: 9999 }}>
-                ← Solve another
-              </button>}
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
       <TopSharerPopup />
