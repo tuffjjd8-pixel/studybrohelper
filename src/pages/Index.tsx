@@ -396,12 +396,12 @@ const Index = () => {
               {/* Solve Toggles */}
               <SolveToggles solveFlow={solveFlow} onSolveFlowChange={setSolveFlow} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={handleSolveModeChange} />
 
-              {/* Effect Picker - shown when Deep Mode first toggled or user wants to change */}
-              {showEffectPicker && isPremium && solveMode === "deep" && (
-                <DeepModeEffectPicker
-                  selectedEffect={deepEffect}
-                  onSelect={(fx) => setDeepEffect(fx)}
-                  onClose={() => setShowEffectPicker(false)}
+              {/* Color Picker - shown when Deep Mode first toggled or user wants to change */}
+              {showColorPicker && isPremium && solveMode === "deep" && (
+                <DeepModeColorPicker
+                  selectedColor={textColor}
+                  onSelect={(c) => setTextColor(c)}
+                  onClose={() => setShowColorPicker(false)}
                 />
               )}
 
