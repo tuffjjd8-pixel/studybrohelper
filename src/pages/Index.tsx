@@ -322,12 +322,14 @@ const Index = () => {
     setPendingImage(imageData);
     toast.info("Image ready! Press Enter or type a question to solve.");
   };
-  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string) => {
+  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string, steps?: Array<{ title: string; content: string }>, maxSteps?: number) => {
     setSolution({
       subject,
       question,
       answer: solutionText,
-      image
+      image,
+      steps,
+      maxSteps,
     });
     setShowConfetti(true);
     fetchRecentSolves();
@@ -489,7 +491,7 @@ const Index = () => {
       <TopSharerPopup />
       
       {/* Scanner Modal */}
-      <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} solveMode={isPremium ? solveMode : "instant"} />
+      <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} solveMode={isPremium ? solveMode : "instant"} solveFlow={!isDeepModeActive && solveFlow} />
     </div>;
 };
 export default Index;

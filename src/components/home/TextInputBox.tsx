@@ -104,7 +104,7 @@ export function TextInputBox({
       toast.error("Speech to Text is a Premium feature.");
       return;
     }
-    if (!canUseSpeechClip) {
+    if (!isPremium && !canUseSpeechClip) {
       toast.error(`You've used all your speech clips. Resets in ${hoursUntilReset}h.`);
       return;
     }
@@ -217,7 +217,7 @@ export function TextInputBox({
       toast.error("Speech to Text is a Premium feature.");
       return;
     }
-    if (!canUseSpeechClip) {
+    if (!isPremium && !canUseSpeechClip) {
       toast.error(`You've used all your speech clips. Resets in ${hoursUntilReset}h.`);
       return;
     }
@@ -298,15 +298,17 @@ export function TextInputBox({
         {/* Speech mode buttons - above textarea when enabled */}
         {showSpeechButtons && (
           <div className="space-y-2 mb-3">
-            {/* Clips remaining indicator */}
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
-                Speech Clips: {speechClipsRemaining}/{maxSpeechClips}
-              </span>
-              {!canUseSpeechClip && (
-                <span className="text-orange-500">Resets in {hoursUntilReset}h</span>
-              )}
-            </div>
+            {/* Clips remaining indicator - only for free users */}
+            {!isPremium && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  Speech Clips: {speechClipsRemaining}/{maxSpeechClips}
+                </span>
+                {!canUseSpeechClip && (
+                  <span className="text-orange-500">Resets in {hoursUntilReset}h</span>
+                )}
+              </div>
+            )}
             
             <div className="flex items-center gap-2 flex-wrap">
               {/* Transcribe in my language */}
@@ -315,7 +317,7 @@ export function TextInputBox({
                 variant={isRecording && currentMode === "transcribe" ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleVoiceClick("transcribe")}
-                disabled={isTranscribing || (isRecording && currentMode !== "transcribe") || !canUseSpeechClip}
+                disabled={isTranscribing || (isRecording && currentMode !== "transcribe") || (!isPremium && !canUseSpeechClip)}
                 className="flex items-center gap-2"
               >
                 {isRecording && currentMode === "transcribe" ? (
@@ -342,7 +344,7 @@ export function TextInputBox({
                 variant={isRecording && currentMode === "translate" ? "secondary" : "outline"}
                 size="sm"
                 onClick={() => handleVoiceClick("translate")}
-                disabled={isTranscribing || (isRecording && currentMode !== "translate") || !canUseSpeechClip}
+                disabled={isTranscribing || (isRecording && currentMode !== "translate") || (!isPremium && !canUseSpeechClip)}
                 className="flex items-center gap-2"
               >
                 {isRecording && currentMode === "translate" ? (
@@ -376,7 +378,7 @@ export function TextInputBox({
                 variant="ghost"
                 size="sm"
                 onClick={() => audioFileInputRef.current?.click()}
-                disabled={isTranscribing || isRecording || !canUseSpeechClip}
+                disabled={isTranscribing || isRecording || (!isPremium && !canUseSpeechClip)}
                 className="flex items-center gap-2"
                 title="Upload audio file"
               >

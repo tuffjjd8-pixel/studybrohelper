@@ -170,7 +170,7 @@ export function SolveToggles({
                     Speech to Text
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Voice transcription (15/day)
+                    Voice transcription{isPremium ? "" : " (3/day)"}
                   </p>
                 </div>
               </div>
