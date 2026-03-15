@@ -20,7 +20,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, context, history } = await req.json();
+    const { message, context, history, answerLanguage = "en" } = await req.json();
     
     // Import key rotation and security
     const { callGroqWithRotation } = await import("../_shared/groq-key-manager.ts");
