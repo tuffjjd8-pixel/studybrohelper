@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { detectSpamOutput, SPAM_WARNING_MESSAGE } from "@/lib/spamDetection";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
@@ -288,6 +289,13 @@ const Index = () => {
           console.error("Failed to save to localStorage:", e);
         }
       }
+      // Anti-spam: detect counting sequences / trivial patterns in Deep Mode
+      if (isPremium && solveMode === "deep" && detectSpamOutput(data.solution)) {
+        toast.error(SPAM_WARNING_MESSAGE);
+        setIsLoading(false);
+        return;
+      }
+
       setSolution({
         subject: data.subject || "other",
         question: input || "Image question",

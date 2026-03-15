@@ -89,7 +89,7 @@ export function SolveToggles({
               </Label>
               <p className="text-xs text-muted-foreground">
                 {isPremium ? (
-                  solveMode === "deep" ? "Answer + short explanation" : "Final answer only"
+                 solveMode === "deep" ? "Answer + explanation" : "Final answer only"
                 ) : (
                   <span className="flex items-center gap-1">
                     Final answer only

@@ -6,7 +6,7 @@ import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
 import { preprocessMath } from "@/lib/mathPreprocess";
 
-export type DeepModeTextColor = "default" | "gold" | "sky" | "purple" | "mint" | "rose" | "orange";
+export type DeepModeTextColor = "default" | "gold" | "sky" | "purple" | "rose" | "orange";
 
 interface DeepModeRevealProps {
   content: string;
