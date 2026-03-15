@@ -402,8 +402,8 @@ const Index = () => {
                   </p>
                 </motion.div>}
 
-              {/* Solve Toggles */}
-              <SolveToggles solveFlow={solveFlow} onSolveFlowChange={setSolveFlow} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={handleSolveModeChange} />
+              {/* Mode Selector */}
+              <ModeSelector solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={handleSolveModeChange} keepMode={keepMode} onKeepModeChange={setKeepMode} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
 
               {/* Color Picker - shown when Deep Mode first toggled or user wants to change */}
               {showColorPicker && isPremium && solveMode === "deep" && (
