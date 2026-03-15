@@ -491,7 +491,7 @@ const Index = () => {
       <TopSharerPopup />
       
       {/* Scanner Modal */}
-      <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} solveMode={isPremium ? solveMode : "instant"} />
+      <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} solveMode={isPremium ? solveMode : "instant"} solveFlow={!isDeepModeActive && solveFlow} />
     </div>;
 };
 export default Index;
