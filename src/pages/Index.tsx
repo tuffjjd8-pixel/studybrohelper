@@ -213,7 +213,8 @@ const Index = () => {
           question: input,
           image: imageData,
           isPremium,
-          animatedSteps: solveFlow,
+          // Deep Mode has its own explanation style — never append breakdown sections
+          animatedSteps: (isPremium && solveMode === "deep") ? false : solveFlow,
           generateGraph: false,
           solveMode: isPremium ? solveMode : "instant",
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
@@ -343,7 +344,9 @@ const Index = () => {
   const handleClearPendingImage = () => {
     setPendingImage(null);
   };
-  const showSolveFlow = solveFlow && solution?.steps && solution.steps.length > 0;
+  // Deep Mode always uses SolutionSteps (never AnimatedSolutionSteps)
+  const isDeepModeActive = isPremium && solveMode === "deep";
+  const showSolveFlow = !isDeepModeActive && solveFlow && solution?.steps && solution.steps.length > 0;
   return <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -454,7 +457,7 @@ const Index = () => {
 
                   {/* Solve Flow */}
                   <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isPremium && solveMode === "deep"} deepTextColor={deepTextColor} isAuthenticated={!!user} />}
+                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isDeepModeActive} deepTextColor={deepTextColor} isAuthenticated={!!user} />}
 
               {/* Solve usage banner below solution */}
               {!isPremium}
