@@ -27,6 +27,7 @@ export function ScannerModal({
   userId,
   isPremium = false,
   solveMode = "instant",
+  solveFlow = false,
 }: ScannerModalProps) {
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
