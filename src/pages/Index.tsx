@@ -122,8 +122,8 @@ const Index = () => {
     localStorage.setItem("solve_mode", solveMode);
   }, [solveMode]);
   useEffect(() => {
-    localStorage.setItem("deep_mode_effect", deepEffect);
-  }, [deepEffect]);
+    localStorage.setItem("deep_text_color", deepTextColor);
+  }, [deepTextColor]);
 
   // Show effect picker on first Deep Mode toggle
   const handleSolveModeChange = (mode: "instant" | "deep") => {
