@@ -310,14 +310,12 @@ const Index = () => {
     setPendingImage(imageData);
     toast.info("Image ready! Press Enter or type a question to solve.");
   };
-  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string, steps?: Array<{ title: string; content: string }>, maxSteps?: number) => {
+  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string) => {
     setSolution({
       subject,
       question,
       answer: solutionText,
       image,
-      steps,
-      maxSteps,
     });
     setShowConfetti(true);
     fetchRecentSolves();
