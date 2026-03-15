@@ -317,7 +317,7 @@ export function TextInputBox({
                 variant={isRecording && currentMode === "transcribe" ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleVoiceClick("transcribe")}
-                disabled={isTranscribing || (isRecording && currentMode !== "transcribe") || !canUseSpeechClip}
+                disabled={isTranscribing || (isRecording && currentMode !== "transcribe") || (!isPremium && !canUseSpeechClip)}
                 className="flex items-center gap-2"
               >
                 {isRecording && currentMode === "transcribe" ? (
