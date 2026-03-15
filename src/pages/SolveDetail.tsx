@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import type { DeepModeEffect } from "@/components/solve/DeepModeReveal";
+import { useDeepMode } from "@/hooks/useDeepMode";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
