@@ -468,9 +468,21 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Sticky "Solve Another" button above bottom nav, only when solution is shown */}
+      {/* Sticky "Solve Another" button — rendered as a portal-like fixed element outside scroll */}
       {solution && (
-        <div className="fixed bottom-[4.5rem] left-0 right-0 z-40 px-6 pb-3 flex justify-center pointer-events-none">
+        <div
+          className="flex justify-center pointer-events-none"
+          style={{
+            position: 'fixed',
+            bottom: '4.5rem',
+            left: 0,
+            right: 0,
+            zIndex: 40,
+            paddingLeft: '1.5rem',
+            paddingRight: '1.5rem',
+            paddingBottom: '0.75rem',
+          }}
+        >
           <button
             onClick={() => { handleReset(); setScannerOpen(true); }}
             className="pointer-events-auto inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full font-medium text-sm transition-all"
