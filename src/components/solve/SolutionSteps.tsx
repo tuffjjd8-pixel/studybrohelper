@@ -291,7 +291,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
         {/* Humanize section */}
         {!isHistory || isPremium ? (
-          <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+          <div className="mt-6 pt-4 border-t border-border/50 space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
                 {isHumanized ? (
