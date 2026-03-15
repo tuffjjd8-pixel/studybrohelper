@@ -336,6 +336,10 @@ const Index = () => {
   const handleReset = () => {
     setSolution(null);
     setPendingImage(null);
+    // If keepMode is off, reset to instant
+    if (!keepMode) {
+      setSolveMode("instant");
+    }
   };
   const handleClearPendingImage = () => {
     setPendingImage(null);
