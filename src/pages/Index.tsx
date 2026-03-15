@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { detectSpamOutput, SPAM_WARNING_MESSAGE } from "@/lib/spamDetection";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
@@ -470,17 +471,17 @@ const Index = () => {
 
       <BottomNav />
 
-      {/* Solve Another — root-level fixed button, outside all motion/scroll containers */}
-      {solution && (
+      {/* Solve Another — rendered via portal into document.body */}
+      {solution && createPortal(
         <button
           onClick={() => { handleReset(); setScannerOpen(true); }}
-          className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full font-medium text-sm transition-all max-w-md"
+          className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full font-medium text-sm"
           style={{
             position: "fixed",
             bottom: "4.5rem",
             left: "50%",
             transform: "translateX(-50%)",
-            zIndex: 9999,
+            zIndex: 999999,
             background: "#050608",
             border: "1.5px solid hsl(var(--primary))",
             color: "hsl(var(--primary))",
@@ -489,7 +490,8 @@ const Index = () => {
         >
           <span className="text-base leading-none">+</span>
           Solve another
-        </button>
+        </button>,
+        document.body
       )}
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
       <TopSharerPopup />
