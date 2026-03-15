@@ -104,7 +104,7 @@ export function TextInputBox({
       toast.error("Speech to Text is a Premium feature.");
       return;
     }
-    if (!canUseSpeechClip) {
+    if (!isPremium && !canUseSpeechClip) {
       toast.error(`You've used all your speech clips. Resets in ${hoursUntilReset}h.`);
       return;
     }
