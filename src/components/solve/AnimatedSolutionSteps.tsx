@@ -108,6 +108,7 @@ export function AnimatedSolutionSteps({
       setDisplayedContent(content.slice(0, safePoints[pointIndex]));
       if (pointIndex >= safePoints.length - 1) {
         setIsTypewriting(false);
+        setCompletedSteps(prev => new Set(prev).add(currentStep));
         clearInterval(timer);
       }
     }, speed);
