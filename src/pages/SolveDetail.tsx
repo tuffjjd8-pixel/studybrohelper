@@ -221,8 +221,8 @@ const SolveDetail = () => {
               solveId={solve.id}
               isPremium={isPremium}
               isHistory={true}
-              isDeepMode={isPremium}
-              deepModeEffect={(localStorage.getItem("deep_mode_effect") as DeepModeEffect) || "neon"}
+              isDeepMode={isDeepMode}
+              deepModeEffect={deepEffect}
               isAuthenticated={!!user}
             />
 
