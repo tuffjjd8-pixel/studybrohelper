@@ -10,7 +10,7 @@ import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
 import { DeepModeEffectPicker } from "@/components/solve/DeepModeEffectPicker";
-import type { DeepModeEffect } from "@/components/solve/DeepModeReveal";
+import { useDeepMode } from "@/hooks/useDeepMode";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
@@ -98,14 +98,7 @@ const Index = () => {
     const saved = localStorage.getItem("speech_language");
     return saved ?? "auto";
   });
-  const [solveMode, setSolveMode] = useState<"instant" | "deep">(() => {
-    const saved = localStorage.getItem("solve_mode");
-    return (saved === "deep" ? "deep" : "instant");
-  });
-  const [deepEffect, setDeepEffect] = useState<DeepModeEffect>(() => {
-    const saved = localStorage.getItem("deep_mode_effect");
-    return (saved as DeepModeEffect) || "neon";
-  });
+  const { solveMode, setSolveMode, deepEffect, setDeepEffect, isDeepMode } = useDeepMode();
   const [showEffectPicker, setShowEffectPicker] = useState(false);
 
   // Persist toggles
@@ -118,12 +111,6 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem("speech_language", speechLanguage);
   }, [speechLanguage]);
-  useEffect(() => {
-    localStorage.setItem("solve_mode", solveMode);
-  }, [solveMode]);
-  useEffect(() => {
-    localStorage.setItem("deep_mode_effect", deepEffect);
-  }, [deepEffect]);
 
   // Show effect picker on first Deep Mode toggle
   const handleSolveModeChange = (mode: "instant" | "deep") => {
@@ -455,7 +442,7 @@ const Index = () => {
 
                   {/* Solve Flow */}
                   <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isPremium && solveMode === "deep"} deepModeEffect={deepEffect} isAuthenticated={!!user} />}
+                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isDeepMode} deepModeEffect={deepEffect} isAuthenticated={!!user} />}
 
               {/* Solve usage banner below solution */}
               {!isPremium}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import type { DeepModeEffect } from "@/components/solve/DeepModeReveal";
+import { useDeepMode } from "@/hooks/useDeepMode";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -31,6 +31,7 @@ const SolveDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { isDeepMode, deepEffect } = useDeepMode();
   const [solve, setSolve] = useState<Solve | null>(null);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -220,8 +221,8 @@ const SolveDetail = () => {
               solveId={solve.id}
               isPremium={isPremium}
               isHistory={true}
-              isDeepMode={isPremium}
-              deepModeEffect={(localStorage.getItem("deep_mode_effect") as DeepModeEffect) || "neon"}
+              isDeepMode={isDeepMode}
+              deepModeEffect={deepEffect}
               isAuthenticated={!!user}
             />
 
