@@ -448,9 +448,6 @@ const Index = () => {
         }} animate={{
           opacity: 1
         }} className="py-8">
-              <button onClick={handleReset} className="text-sm text-muted-foreground hover:text-foreground mb-6 flex items-center gap-2">
-                ← Solve another
-              </button>
 
               {/* Show Solve Flow if enabled and available */}
               {showSolveFlow ? <div className="space-y-6">
@@ -473,6 +470,9 @@ const Index = () => {
         </div>
       </main>
 
+      {solution && <button onClick={handleReset} className="text-sm text-muted-foreground hover:text-foreground mb-6 flex items-center gap-2">
+                ← Solve another
+              </button>}
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
       <TopSharerPopup />
