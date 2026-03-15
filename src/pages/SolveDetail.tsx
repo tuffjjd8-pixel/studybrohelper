@@ -31,6 +31,7 @@ const SolveDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { isDeepMode, deepEffect } = useDeepMode();
   const [solve, setSolve] = useState<Solve | null>(null);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
