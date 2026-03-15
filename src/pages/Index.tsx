@@ -340,9 +340,7 @@ const Index = () => {
   const handleClearPendingImage = () => {
     setPendingImage(null);
   };
-  // Deep Mode always uses SolutionSteps (never AnimatedSolutionSteps)
   const isDeepModeActive = isPremium && solveMode === "deep";
-  const showSolveFlow = !isDeepModeActive && solveFlow && solution?.steps && solution.steps.length > 0;
   return <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
