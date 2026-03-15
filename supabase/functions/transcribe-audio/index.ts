@@ -41,8 +41,8 @@ function getAvailableSTTKeys(): Array<{ name: string; key: string }> {
 
 async function transcribeWithRotation(
   audioBlob: Blob, 
-  language?: string,
-  mode: "transcribe" | "translate" = "transcribe"
+  whisperTask: "transcribe" | "translate",
+  whisperLanguage: string | null,
 ): Promise<{ text: string }> {
   const keys = getAvailableSTTKeys();
   
@@ -50,14 +50,14 @@ async function transcribeWithRotation(
     throw new Error("No Groq API keys configured for STT");
   }
   
-  const model = mode === "translate" ? TRANSLATE_MODEL : TRANSCRIBE_MODEL;
-  console.log(`[STT] Starting transcription with ${keys.length} available keys, model: ${model}`);
+  const model = whisperTask === "translate" ? TRANSLATE_MODEL : TRANSCRIBE_MODEL;
+  console.log(`[STT] task: ${whisperTask}, language: ${whisperLanguage ?? 'auto-detect'}, model: ${model}, keys: ${keys.length}`);
   
   let lastError: Error | null = null;
   
   for (const { name, key } of keys) {
     try {
-      console.log(`[STT] Attempting transcription with ${name}`);
+      console.log(`[STT] Attempting with ${name}`);
       
       const formData = new FormData();
       formData.append('file', audioBlob, 'audio.webm');
@@ -66,13 +66,13 @@ async function transcribeWithRotation(
       // Vocabulary hint to bias Whisper toward school/math terms for better accuracy
       formData.append('prompt', 'math homework equation x squared square root divided by integral derivative slope y-intercept quadratic formula sine cosine tangent logarithm exponent fraction numerator denominator');
 
-      const endpoint = mode === "translate" 
+      const endpoint = whisperTask === "translate" 
         ? 'https://api.groq.com/openai/v1/audio/translations'
         : 'https://api.groq.com/openai/v1/audio/transcriptions';
       
-      // Add language hint for transcription mode
-      if (mode === "transcribe" && language && language !== "auto") {
-        formData.append('language', language);
+      // Only append language when we have an explicit ISO code (not null = auto-detect)
+      if (whisperTask === "transcribe" && whisperLanguage) {
+        formData.append('language', whisperLanguage);
       }
       
       const response = await fetch(endpoint, {
@@ -121,7 +121,33 @@ serve(async (req) => {
       throw new Error('No audio data provided');
     }
 
-    console.log(`[STT] Transcription request - mode: ${mode}, language: ${language || 'auto'}, model: ${mode === "translate" ? TRANSLATE_MODEL : TRANSCRIBE_MODEL}`);
+    // ── Resolve Whisper parameters from mode ──
+    let whisperTask: "transcribe" | "translate";
+    let whisperLanguage: string | null;
+
+    switch (mode) {
+      case "translate":
+      case "translate_to_english":
+        whisperTask = "translate";
+        whisperLanguage = null; // auto-detect source language
+        break;
+      case "auto_detect":
+        whisperTask = "transcribe";
+        whisperLanguage = null; // let Whisper auto-detect
+        break;
+      case "transcribe_to_selected_language":
+        whisperTask = "transcribe";
+        whisperLanguage = language || null;
+        break;
+      case "transcribe":
+      default:
+        whisperTask = "transcribe";
+        // If language is "auto" or empty, let Whisper auto-detect
+        whisperLanguage = (language && language !== "auto") ? language : null;
+        break;
+    }
+
+    console.log(`[STT] Request - mode: ${mode}, resolved task: ${whisperTask}, resolved language: ${whisperLanguage ?? 'auto-detect'}`);
 
     // Decode base64 to binary
     const binaryString = atob(audio);
@@ -133,7 +159,7 @@ serve(async (req) => {
     const audioBlob = new Blob([bytes.buffer], { type: 'audio/webm' });
 
     // Use key rotation for STT
-    const result = await transcribeWithRotation(audioBlob, language, mode);
+    const result = await transcribeWithRotation(audioBlob, whisperTask, whisperLanguage);
 
     console.log('[STT] Transcription successful');
 
