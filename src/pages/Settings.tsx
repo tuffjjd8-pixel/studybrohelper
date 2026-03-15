@@ -252,6 +252,13 @@ const Settings = () => {
               )}
             </div>
 
+            {/* Answer Language */}
+            <AnswerLanguageSelector
+              value={answerLanguage}
+              onChange={updateLanguage}
+              isPremium={isPremium}
+            />
+
             {/* Sign In / Sign Out Section */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
