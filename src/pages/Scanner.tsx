@@ -90,7 +90,7 @@ const Scanner = () => {
       setLoadingStage("solving");
       
       const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
-      const answerLanguage = await getAnswerLanguage(undefined);
+      const answerLanguage = await getAnswerLanguage(user?.id);
       const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: { 
           question: "", 
