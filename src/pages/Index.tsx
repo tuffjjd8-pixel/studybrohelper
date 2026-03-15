@@ -98,32 +98,7 @@ const Index = () => {
     const saved = localStorage.getItem("speech_language");
     return saved ?? "auto";
   });
-  const [solveMode, setSolveMode] = useState<"instant" | "deep">(() => {
-    const saved = localStorage.getItem("solve_mode");
-    return (saved === "deep" ? "deep" : "instant");
-  });
-  const [deepEffect, setDeepEffect] = useState<DeepModeEffect>(() => {
-    const saved = localStorage.getItem("deep_mode_effect");
-    return (saved as DeepModeEffect) || "neon";
-  });
-  const [showEffectPicker, setShowEffectPicker] = useState(false);
-
-  // Persist toggles
-  useEffect(() => {
-    localStorage.setItem("toggle_solve_flow", JSON.stringify(solveFlow));
-  }, [solveFlow]);
-  useEffect(() => {
-    localStorage.setItem("toggle_speech_input", JSON.stringify(speechInput));
-  }, [speechInput]);
-  useEffect(() => {
-    localStorage.setItem("speech_language", speechLanguage);
-  }, [speechLanguage]);
-  useEffect(() => {
-    localStorage.setItem("solve_mode", solveMode);
-  }, [solveMode]);
-  useEffect(() => {
-    localStorage.setItem("deep_mode_effect", deepEffect);
-  }, [deepEffect]);
+  const { solveMode, setSolveMode, deepEffect, setDeepEffect, isDeepMode } = useDeepMode();
 
   // Show effect picker on first Deep Mode toggle
   const handleSolveModeChange = (mode: "instant" | "deep") => {
