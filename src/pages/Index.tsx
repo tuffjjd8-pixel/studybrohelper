@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { detectSpamOutput, SPAM_WARNING_MESSAGE } from "@/lib/spamDetection";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
