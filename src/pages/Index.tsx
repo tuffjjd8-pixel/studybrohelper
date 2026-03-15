@@ -470,7 +470,7 @@ const Index = () => {
         </div>
       </main>
 
-      {solution && <button onClick={handleReset} className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 text-sm text-muted-foreground hover:text-foreground flex items-center gap-2">
+      {solution && <button onClick={handleReset} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2" style={{ position: "fixed", bottom: "5.5rem", left: "50%", transform: "translateX(-50%)", zIndex: 9999 }}>
                 ← Solve another
               </button>}
       <BottomNav />
