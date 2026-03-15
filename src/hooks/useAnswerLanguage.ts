@@ -50,7 +50,7 @@ export async function getAnswerLanguage(userId: string | undefined): Promise<str
   // If no userId provided, try to get it from the current session
   let effectiveUserId = userId;
   if (!effectiveUserId) {
-    const { data: { session } } = await supabase.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
     effectiveUserId = session?.user?.id;
   }
 
