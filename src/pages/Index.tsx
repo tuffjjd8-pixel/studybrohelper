@@ -460,7 +460,7 @@ const Index = () => {
                     color: "hsl(var(--primary))",
                   }}
                 >
-                  ← Solve another
+                  + Solve another
                 </button>
               </div>
 
