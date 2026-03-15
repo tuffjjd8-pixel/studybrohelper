@@ -13,11 +13,10 @@ type LoadingStage = "extracting" | "classifying" | "solving";
 interface ScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSolved: (question: string, solution: string, subject: string, image?: string, steps?: Array<{ title: string; content: string }>, maxSteps?: number) => void;
+  onSolved: (question: string, solution: string, subject: string, image?: string) => void;
   userId?: string;
   isPremium?: boolean;
   solveMode?: "instant" | "deep";
-  solveFlow?: boolean;
 }
 
 export function ScannerModal({
@@ -27,7 +26,6 @@ export function ScannerModal({
   userId,
   isPremium = false,
   solveMode = "instant",
-  solveFlow = false,
 }: ScannerModalProps) {
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
@@ -83,7 +81,7 @@ export function ScannerModal({
           question: "",
           image: imageData,
           isPremium,
-          animatedSteps: (isPremium && solveMode === "deep") ? false : solveFlow,
+          animatedSteps: false,
           solveMode: isPremium ? solveMode : "instant",
           generateGraph: false,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
@@ -105,7 +103,7 @@ export function ScannerModal({
         });
       }
 
-      onSolved(extractedQuestion, data.solution, data.subject || "general", imageData, data.steps, data.maxSteps);
+      onSolved(extractedQuestion, data.solution, data.subject || "general", imageData);
       handleReset();
       onClose();
     } catch (error) {

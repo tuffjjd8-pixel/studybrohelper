@@ -57,6 +57,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const [localFollowUpCount, setLocalFollowUpCount] = useState(followUpCount);
   const [humanizeStrength, setHumanizeStrength] = useState<HumanizeStrength>("auto");
   const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
+  const [humanizeUsed, setHumanizeUsed] = useState(false);
   const navigate = useNavigate();
 
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
@@ -135,9 +136,14 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       });
       return;
     }
+    if (humanizeUsed) {
+      toast.info("Humanize can only be used once per answer.");
+      return;
+    }
     const result = await humanize(displayedSolution, subject, humanizeStrength);
     if (result) {
       setDisplayedSolution(result);
+      setHumanizeUsed(true);
       toast.success("Answer humanized! ✨");
     }
   };
@@ -294,7 +300,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
-                {isHumanized ? (
+                {isHumanized || humanizeUsed ? (
                   <span className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary bg-secondary/10 px-3 py-1.5 rounded-full">
                     <Sparkles className="w-3 h-3" />
                     Humanized ✨
@@ -320,7 +326,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                   </Button>
                 )}
               </div>
-              {!isHumanized && (
+              {!isHumanized && !humanizeUsed && (
                 <HumanizeStrengthSlider
                   value={humanizeStrength}
                   onChange={setHumanizeStrength}

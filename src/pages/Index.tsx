@@ -8,8 +8,7 @@ import { TextInputBox } from "@/components/home/TextInputBox";
 import { RecentSolves } from "@/components/home/RecentSolves";
 import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
-import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
-import { SolveToggles } from "@/components/solve/SolveToggles";
+import { ModeSelector } from "@/components/solve/ModeSelector";
 import { DeepModeColorPicker } from "@/components/solve/DeepModeEffectPicker";
 import type { DeepModeTextColor } from "@/components/solve/DeepModeReveal";
 import { Header } from "@/components/layout/Header";
@@ -32,11 +31,6 @@ interface SolutionData {
   answer: string;
   image?: string;
   solveId?: string;
-  steps?: Array<{
-    title: string;
-    content: string;
-  }>;
-  maxSteps?: number;
 }
 const Index = () => {
   const {
@@ -83,13 +77,10 @@ const Index = () => {
     return saved === "true";
   });
 
-  // Solve toggles - persist in localStorage
-  const [solveFlow, setSolveFlow] = useState(() => {
-    const saved = localStorage.getItem("toggle_solve_flow");
-    if (saved !== null) return JSON.parse(saved);
-    // Migrate from old key
-    const old = localStorage.getItem("toggle_animated_steps");
-    return old !== null ? JSON.parse(old) : true;
+  // Keep mode toggle (session persistence)
+  const [keepMode, setKeepMode] = useState(() => {
+    const saved = sessionStorage.getItem("keep_solve_mode");
+    return saved === "true";
   });
   const [speechInput, setSpeechInput] = useState(() => {
     const saved = localStorage.getItem("toggle_speech_input");
@@ -111,8 +102,8 @@ const Index = () => {
 
   // Persist toggles
   useEffect(() => {
-    localStorage.setItem("toggle_solve_flow", JSON.stringify(solveFlow));
-  }, [solveFlow]);
+    sessionStorage.setItem("keep_solve_mode", keepMode ? "true" : "false");
+  }, [keepMode]);
   useEffect(() => {
     localStorage.setItem("toggle_speech_input", JSON.stringify(speechInput));
   }, [speechInput]);
@@ -213,11 +204,10 @@ const Index = () => {
         body: {
           question: input,
           image: imageData,
-          isPremium,
-          // Deep Mode has its own explanation style — never append breakdown sections
-          animatedSteps: (isPremium && solveMode === "deep") ? false : solveFlow,
-          generateGraph: false,
-          solveMode: isPremium ? solveMode : "instant",
+           isPremium,
+           animatedSteps: false,
+           generateGraph: false,
+           solveMode: isPremium ? solveMode : "instant",
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
         }
       });
@@ -302,8 +292,6 @@ const Index = () => {
         answer: data.solution,
         image: imageData,
         solveId,
-        steps: data.steps,
-        maxSteps: data.maxSteps
       });
       setShowConfetti(true);
     } catch (error: unknown) {
@@ -322,14 +310,12 @@ const Index = () => {
     setPendingImage(imageData);
     toast.info("Image ready! Press Enter or type a question to solve.");
   };
-  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string, steps?: Array<{ title: string; content: string }>, maxSteps?: number) => {
+  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string) => {
     setSolution({
       subject,
       question,
       answer: solutionText,
       image,
-      steps,
-      maxSteps,
     });
     setShowConfetti(true);
     fetchRecentSolves();
@@ -350,13 +336,15 @@ const Index = () => {
   const handleReset = () => {
     setSolution(null);
     setPendingImage(null);
+    // If keepMode is off, reset to instant
+    if (!keepMode) {
+      setSolveMode("instant");
+    }
   };
   const handleClearPendingImage = () => {
     setPendingImage(null);
   };
-  // Deep Mode always uses SolutionSteps (never AnimatedSolutionSteps)
   const isDeepModeActive = isPremium && solveMode === "deep";
-  const showSolveFlow = !isDeepModeActive && solveFlow && solution?.steps && solution.steps.length > 0;
   return <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -418,8 +406,8 @@ const Index = () => {
                   </p>
                 </motion.div>}
 
-              {/* Solve Toggles */}
-              <SolveToggles solveFlow={solveFlow} onSolveFlowChange={setSolveFlow} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={handleSolveModeChange} />
+              {/* Mode Selector */}
+              <ModeSelector solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={handleSolveModeChange} keepMode={keepMode} onKeepModeChange={setKeepMode} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
 
               {/* Color Picker - shown when Deep Mode first toggled or user wants to change */}
               {showColorPicker && isPremium && solveMode === "deep" && (
@@ -466,20 +454,7 @@ const Index = () => {
                 </button>
               </div>
 
-              {/* Show Solve Flow if enabled and available */}
-              {showSolveFlow ? <div className="space-y-6">
-                  {/* Question card */}
-                  <div className="glass-card p-4">
-                    <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                      Question
-                    </h3>
-                    {solution.image && <img src={solution.image} alt="Question" className="max-h-48 rounded-lg mb-3 object-contain" />}
-                    <p className="text-foreground">{solution.question}</p>
-                  </div>
-
-                  {/* Solve Flow */}
-                  <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isDeepModeActive} deepTextColor={deepTextColor} isAuthenticated={!!user} />}
+              <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isDeepModeActive} deepTextColor={deepTextColor} isAuthenticated={!!user} />
 
               {/* Solve usage banner below solution */}
               {!isPremium}
@@ -491,7 +466,7 @@ const Index = () => {
       <TopSharerPopup />
       
       {/* Scanner Modal */}
-      <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} solveMode={isPremium ? solveMode : "instant"} solveFlow={!isDeepModeActive && solveFlow} />
+      <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} solveMode={isPremium ? solveMode : "instant"} />
     </div>;
 };
 export default Index;
