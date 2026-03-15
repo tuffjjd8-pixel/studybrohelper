@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
 import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider";
 import { useNavigate } from "react-router-dom";
-import { DeepModeReveal, type DeepTextColor } from "@/components/solve/DeepModeReveal";
+import { DeepModeReveal, type DeepModeEffect } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
 
 interface SolutionStepsProps {
@@ -28,7 +28,7 @@ interface SolutionStepsProps {
   followUpCount?: number;
   maxFollowUps?: number;
   isDeepMode?: boolean;
-  deepTextColor?: DeepTextColor;
+  deepModeEffect?: DeepModeEffect;
   isAuthenticated?: boolean;
 }
 
@@ -48,7 +48,7 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, deepTextColor = "default", isAuthenticated = false }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, deepModeEffect = "none", isAuthenticated = false }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -210,10 +210,10 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </Button>
           </div>
         </div>
-        {isDeepMode ? (
+        {isDeepMode && !isHistory ? (
           <DeepModeReveal
             content={displayedSolution}
-            textColor={deepTextColor}
+            effect={deepModeEffect}
           />
         ) : (
           <div className="prose prose-invert prose-sm max-w-none math-solution">
