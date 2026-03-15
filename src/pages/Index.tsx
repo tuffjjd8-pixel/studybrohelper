@@ -198,6 +198,7 @@ const Index = () => {
       }
     }
     try {
+      const answerLanguage = await getAnswerLanguage(user?.id);
       const {
         data,
         error
@@ -209,7 +210,8 @@ const Index = () => {
            animatedSteps: false,
            generateGraph: false,
            solveMode: isPremium ? solveMode : "instant",
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
+          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+          answerLanguage
         }
       });
       if (error) throw error;

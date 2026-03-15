@@ -328,12 +328,15 @@ const Quiz = () => {
           const attemptText = selectedSolve ? conversationText : 
             `Topic: ${attemptSubject}\n\nGenerate quiz questions about this topic.`;
 
+          const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+          const answerLanguage = await getAnswerLanguage(user?.id);
           const { data, error } = await supabase.functions.invoke("generate-quiz", {
             body: {
               conversationText: attemptText,
               questionCount: validCount,
               subject: attemptSubject,
-              strictCountMode: isPremium ? strictCountMode : false
+              strictCountMode: isPremium ? strictCountMode : false,
+              answerLanguage,
             }
           });
           if (error) throw error;
