@@ -39,9 +39,7 @@ interface SolutionData {
   maxSteps?: number;
 }
 const Index = () => {
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
 
   const [searchParams] = useSearchParams();
 
@@ -56,12 +54,14 @@ const Index = () => {
   const [solveStartTime, setSolveStartTime] = useState<number | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [recentSolves, setRecentSolves] = useState<{
-    id: string;
-    subject: string;
-    question: string;
-    createdAt: Date;
-  }[]>([]);
+  const [recentSolves, setRecentSolves] = useState<
+    {
+      id: string;
+      subject: string;
+      question: string;
+      createdAt: Date;
+    }[]
+  >([]);
   const [profile, setProfile] = useState<{
     streak_count: number;
     total_solves: number;
@@ -101,7 +101,7 @@ const Index = () => {
   });
   const [solveMode, setSolveMode] = useState<"instant" | "deep">(() => {
     const saved = localStorage.getItem("solve_mode");
-    return (saved === "deep" ? "deep" : "instant");
+    return saved === "deep" ? "deep" : "instant";
   });
   const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
     const saved = localStorage.getItem("deep_text_color");
@@ -157,24 +157,31 @@ const Index = () => {
     await speechClips.useClip();
   };
   const fetchRecentSolves = async () => {
-    const {
-      data
-    } = await supabase.from("solves").select("id, subject, question_text, created_at").eq("user_id", user?.id).order("created_at", {
-      ascending: false
-    }).limit(5);
+    const { data } = await supabase
+      .from("solves")
+      .select("id, subject, question_text, created_at")
+      .eq("user_id", user?.id)
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(5);
     if (data) {
-      setRecentSolves(data.map(s => ({
-        id: s.id,
-        subject: s.subject,
-        question: s.question_text || "Image question",
-        createdAt: new Date(s.created_at)
-      })));
+      setRecentSolves(
+        data.map((s) => ({
+          id: s.id,
+          subject: s.subject,
+          question: s.question_text || "Image question",
+          createdAt: new Date(s.created_at),
+        })),
+      );
     }
   };
   const fetchProfile = async () => {
-    const {
-      data
-    } = await supabase.from("profiles").select("streak_count, total_solves, is_premium, daily_solves_used").eq("user_id", user?.id).single();
+    const { data } = await supabase
+      .from("profiles")
+      .select("streak_count, total_solves, is_premium, daily_solves_used")
+      .eq("user_id", user?.id)
+      .single();
     if (data) {
       setProfile(data);
     }
@@ -206,20 +213,17 @@ const Index = () => {
       }
     }
     try {
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke("solve-homework", {
+      const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: {
           question: input,
           image: imageData,
           isPremium,
           // Deep Mode has its own explanation style — never append breakdown sections
-          animatedSteps: (isPremium && solveMode === "deep") ? false : solveFlow,
+          animatedSteps: isPremium && solveMode === "deep" ? false : solveFlow,
           generateGraph: false,
           solveMode: isPremium ? solveMode : "instant",
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
-        }
+          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+        },
       });
       if (error) throw error;
       let solveId: string | undefined;
@@ -230,19 +234,23 @@ const Index = () => {
         const solveTimeSeconds = (Date.now() - startTime) / 1000;
         const isSpeedSolve = solveTimeSeconds <= 120;
         const isEarlySolve = new Date().getHours() < 8;
-        const insertPromise = supabase.from("solves").insert({
-          user_id: user.id,
-          subject: data.subject || "other",
-          question_text: input || null,
-          question_image_url: imageData || null,
-          solution_markdown: data.solution
-        }).select("id").single();
+        const insertPromise = supabase
+          .from("solves")
+          .insert({
+            user_id: user.id,
+            subject: data.subject || "other",
+            question_text: input || null,
+            question_image_url: imageData || null,
+            solution_markdown: data.solution,
+          })
+          .select("id")
+          .single();
 
         // Combine ALL profile updates into one call
         const profileUpdates: Record<string, unknown> = {
           total_solves: (profile?.total_solves || 0) + 1,
           daily_solves_used: (profile?.daily_solves_used || 0) + 1,
-          last_solve_date: new Date().toISOString().split('T')[0]
+          last_solve_date: new Date().toISOString().split("T")[0],
         };
         if (isSpeedSolve) {
           profileUpdates.speed_solves = ((profile as any)?.speed_solves || 0) + 1;
@@ -261,7 +269,7 @@ const Index = () => {
           if ((profile?.total_solves || 0) === 0) {
             try {
               await supabase.rpc("complete_referral", {
-                referred_id: user.id
+                referred_id: user.id,
               });
             } catch (_) {}
           }
@@ -279,7 +287,7 @@ const Index = () => {
           question_text: input || null,
           question_image_url: imageData || null,
           solution_markdown: data.solution,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         };
         try {
           const existingSolves = JSON.parse(localStorage.getItem("guest_solves") || "[]");
@@ -303,7 +311,7 @@ const Index = () => {
         image: imageData,
         solveId,
         steps: data.steps,
-        maxSteps: data.maxSteps
+        maxSteps: data.maxSteps,
       });
       setShowConfetti(true);
     } catch (error: unknown) {
@@ -327,7 +335,7 @@ const Index = () => {
       subject,
       question,
       answer: solutionText,
-      image
+      image,
     });
     setShowConfetti(true);
     fetchRecentSolves();
@@ -355,40 +363,54 @@ const Index = () => {
   // Deep Mode always uses SolutionSteps (never AnimatedSolutionSteps)
   const isDeepModeActive = isPremium && solveMode === "deep";
   const showSolveFlow = !isDeepModeActive && solveFlow && solution?.steps && solution.steps.length > 0;
-  return <div className="min-h-screen bg-background">
+  return (
+    <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
-      
+
       <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
-      
+
       <main className="pt-20 pb-24 px-4">
         <div className="max-w-4xl mx-auto">
-          {!solution ? <motion.div initial={{
-          opacity: 0
-        }} animate={{
-          opacity: 1
-        }} className="flex flex-col items-center gap-8 py-8">
+          {!solution ? (
+            <motion.div
+              initial={{
+                opacity: 0,
+              }}
+              animate={{
+                opacity: 1,
+              }}
+              className="flex flex-col items-center gap-8 py-8"
+            >
               {/* Hero text */}
               <div className="text-center space-y-2">
-                <motion.h2 initial={{
-              opacity: 0,
-              y: 20
-            }} animate={{
-              opacity: 1,
-              y: 0
-            }} className="text-3xl md:text-4xl font-heading font-bold">
+                <motion.h2
+                  initial={{
+                    opacity: 0,
+                    y: 20,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                  }}
+                  className="text-3xl md:text-4xl font-heading font-bold"
+                >
                   Snap. Solve. <span className="text-gradient">Succeed.</span>
                 </motion.h2>
-                <motion.p initial={{
-              opacity: 0,
-              y: 20
-            }} animate={{
-              opacity: 1,
-              y: 0
-            }} transition={{
-              delay: 0.1
-            }} className="text-muted-foreground">
+                <motion.p
+                  initial={{
+                    opacity: 0,
+                    y: 20,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                  }}
+                  transition={{
+                    delay: 0.1,
+                  }}
+                  className="text-muted-foreground"
+                >
                   Your AI homework bro – instant step-by-step solutions
                 </motion.p>
               </div>
@@ -400,24 +422,49 @@ const Index = () => {
               <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
 
               {/* Pending image preview */}
-              {pendingImage && <motion.div initial={{
-            opacity: 0,
-            scale: 0.9
-          }} animate={{
-            opacity: 1,
-            scale: 1
-          }} className="relative max-w-xs">
-                  <img src={pendingImage} alt="Pending homework" className="rounded-lg border-2 border-primary/50 max-h-32 object-contain" />
-                  <button onClick={handleClearPendingImage} className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs font-bold hover:bg-destructive/80">
+              {pendingImage && (
+                <motion.div
+                  initial={{
+                    opacity: 0,
+                    scale: 0.9,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    scale: 1,
+                  }}
+                  className="relative max-w-xs"
+                >
+                  <img
+                    src={pendingImage}
+                    alt="Pending homework"
+                    className="rounded-lg border-2 border-primary/50 max-h-32 object-contain"
+                  />
+                  <button
+                    onClick={handleClearPendingImage}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs font-bold hover:bg-destructive/80"
+                  >
                     ×
                   </button>
-                  <p className="text-xs text-primary text-center mt-2">
-                    Press Enter below to solve, or add a question
-                  </p>
-                </motion.div>}
+                  <p className="text-xs text-primary text-center mt-2">Press Enter below to solve, or add a question</p>
+                </motion.div>
+              )}
 
               {/* Solve Toggles */}
-              <SolveToggles solveFlow={solveFlow} onSolveFlowChange={setSolveFlow} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={handleSolveModeChange} />
+              <SolveToggles
+                solveFlow={solveFlow}
+                onSolveFlowChange={setSolveFlow}
+                isPremium={isPremium}
+                solvesUsed={solveUsage.solvesUsed}
+                maxSolves={solveUsage.maxSolves}
+                canSolve={solveUsage.canSolve}
+                speechInput={speechInput}
+                onSpeechInputChange={setSpeechInput}
+                speechLanguage={speechLanguage}
+                onSpeechLanguageChange={setSpeechLanguage}
+                isAuthenticated={!!user}
+                solveMode={isPremium ? solveMode : "instant"}
+                onSolveModeChange={handleSolveModeChange}
+              />
 
               {/* Color Picker - shown when Deep Mode first toggled or user wants to change */}
               {showColorPicker && isPremium && solveMode === "deep" && (
@@ -438,58 +485,105 @@ const Index = () => {
               </div>
 
               {/* Text input */}
-              <TextInputBox onSubmit={handleTextSubmit} onEmptySubmit={handleSolveWithPendingImage} onImagePaste={handleImageCapture} isLoading={isLoading} hasPendingImage={!!pendingImage} placeholder={pendingImage ? "Add details or press Enter to solve..." : "Paste or type your homework question..."} speechInputEnabled={speechInput} isPremium={isPremium} speechLanguage={speechLanguage} onSpeechUsed={handleSpeechUsed} isAuthenticated={!!user} canUseSpeechClip={speechClips.canUseClip} speechClipsRemaining={speechClips.clipsRemaining} maxSpeechClips={speechClips.maxClips} hoursUntilReset={speechClips.hoursUntilReset} />
-
+              <TextInputBox
+                onSubmit={handleTextSubmit}
+                onEmptySubmit={handleSolveWithPendingImage}
+                onImagePaste={handleImageCapture}
+                isLoading={isLoading}
+                hasPendingImage={!!pendingImage}
+                placeholder={
+                  pendingImage ? "Add details or press Enter to solve..." : "Paste or type your homework question..."
+                }
+                speechInputEnabled={speechInput}
+                isPremium={isPremium}
+                speechLanguage={speechLanguage}
+                onSpeechUsed={handleSpeechUsed}
+                isAuthenticated={!!user}
+                canUseSpeechClip={speechClips.canUseClip}
+                speechClipsRemaining={speechClips.clipsRemaining}
+                maxSpeechClips={speechClips.maxClips}
+                hoursUntilReset={speechClips.hoursUntilReset}
+              />
 
               {/* Recent solves */}
               <RecentSolves solves={recentSolves} />
-            </motion.div> : <motion.div initial={{
-          opacity: 0
-        }} animate={{
-          opacity: 1
-        }} className="py-8">
-
-              {/* Solve Another chip */}
-              <div className="flex justify-center mb-5 mt-1">
-                <button
-                  onClick={() => { handleReset(); setScannerOpen(true); }}
-                  className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
-                  style={{
-                    background: "#050608",
-                    border: "1.5px solid hsl(var(--primary))",
-                    color: "hsl(var(--primary))",
-                  }}
-                >
-                  ← Solve another
-                </button>
-              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{
+                opacity: 0,
+              }}
+              animate={{
+                opacity: 1,
+              }}
+              className="py-8"
+            >
+              <button
+                onClick={handleReset}
+                className="text-sm text-muted-foreground hover:text-foreground mb-6 flex items-center gap-2"
+              >
+                + Solve another
+              </button>
 
               {/* Show Solve Flow if enabled and available */}
-              {showSolveFlow ? <div className="space-y-6">
+              {showSolveFlow ? (
+                <div className="space-y-6">
                   {/* Question card */}
                   <div className="glass-card p-4">
                     <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                       Question
                     </h3>
-                    {solution.image && <img src={solution.image} alt="Question" className="max-h-48 rounded-lg mb-3 object-contain" />}
+                    {solution.image && (
+                      <img src={solution.image} alt="Question" className="max-h-48 rounded-lg mb-3 object-contain" />
+                    )}
                     <p className="text-foreground">{solution.question}</p>
                   </div>
 
                   {/* Solve Flow */}
-                  <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isDeepModeActive} deepTextColor={deepTextColor} isAuthenticated={!!user} />}
+                  <AnimatedSolutionSteps
+                    steps={solution.steps!}
+                    maxSteps={solution.maxSteps || 16}
+                    isPremium={isPremium}
+                    autoPlay={false}
+                    autoPlayDelay={3000}
+                    fullSolution={solution.answer}
+                  />
+                </div>
+              ) : (
+                <SolutionSteps
+                  subject={solution.subject}
+                  question={solution.question}
+                  solution={solution.answer}
+                  questionImage={solution.image}
+                  solveId={solution.solveId}
+                  isPremium={isPremium}
+                  isDeepMode={isDeepModeActive}
+                  deepTextColor={deepTextColor}
+                  isAuthenticated={!!user}
+                />
+              )}
 
               {/* Solve usage banner below solution */}
               {!isPremium}
-            </motion.div>}
+            </motion.div>
+          )}
         </div>
       </main>
+
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
       <TopSharerPopup />
-      
+
       {/* Scanner Modal */}
-      <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} solveMode={isPremium ? solveMode : "instant"} />
-    </div>;
+      <ScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onSolved={handleScannerSolved}
+        userId={user?.id}
+        isPremium={isPremium}
+        solveMode={isPremium ? solveMode : "instant"}
+      />
+    </div>
+  );
 };
 export default Index;
