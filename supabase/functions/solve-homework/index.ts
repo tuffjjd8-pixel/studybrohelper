@@ -17,8 +17,8 @@ const corsHeaders = {
 const FREE_TEXT_MODEL = "openai/gpt-oss-20b";
 const PRO_TEXT_MODEL = "openai/gpt-oss-120b";
 const OPENROUTER_GRAPH_MODEL = "openai/gpt-oss-20b";
-// Groq Vision model — LLaMA 3.2 Vision for image understanding + diagram interpretation
-const GROQ_VISION_MODEL = "llama-3.2-90b-vision-preview";
+// Groq Vision model — LLaMA 4 Scout (replacement for decommissioned LLaMA 3.2 Vision)
+const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 // ============================================================
 // TIER LIMITS
