@@ -80,12 +80,12 @@ const COMPARISON: ComparisonItem[] = [
 ];
 
 const PREMIUM_BENEFITS = [
-  { icon: Brain, title: "16 Solve Flows/Day", description: "Interactive solver breakdowns" },
-  { icon: Calculator, title: "Premium Calculator", description: "Advanced reasoning & logic" },
-  { icon: Target, title: "Enhanced Image Solving", description: "Better OCR accuracy" },
-  { icon: Zap, title: "Priority Response", description: "Skip the queue" },
-  { icon: Shield, title: "No Ads", description: "Distraction-free learning" },
-  { icon: MessageSquare, title: "Latest AI Models", description: "Cutting-edge technology" },
+  { icon: Brain, title: "520 Solves/Month", description: "400 Instant + 120 Deep combined" },
+  { icon: Calculator, title: "Scientific Calculator", description: "Advanced reasoning & logic" },
+  { icon: Target, title: "Premium OCR", description: "Enhanced image recognition" },
+  { icon: Zap, title: "Priority Speed", description: "Skip the queue" },
+  { icon: Shield, title: "Ad-Free", description: "Distraction-free learning" },
+  { icon: MessageSquare, title: "Unlimited STT", description: "Speech to text, no limits" },
 ];
 
 const Premium = () => {
