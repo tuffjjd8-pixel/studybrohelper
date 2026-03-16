@@ -45,6 +45,7 @@ const Settings = () => {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [proUsage, setProUsage] = useState<any>(null);
   
   const isPremium = profile?.is_premium || false;
   const speechClips = useSpeechClips(user?.id, isPremium);
