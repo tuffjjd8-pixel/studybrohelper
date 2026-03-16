@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { ProUsageDisplay } from "@/components/pro/ProUsageDisplay";
+import { ProLimitWarning } from "@/components/pro/ProLimitWarning";
 import { 
   ArrowLeft, 
   Settings as SettingsIcon, 
