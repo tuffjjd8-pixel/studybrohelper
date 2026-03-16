@@ -54,6 +54,7 @@ const Settings = () => {
   useEffect(() => {
     if (user) {
       fetchProfile();
+      fetchProUsage();
     } else {
       loadGuestLimits();
     }
