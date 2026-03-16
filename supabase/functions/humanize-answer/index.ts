@@ -88,6 +88,18 @@ serve(async (req) => {
       );
     }
 
+    // === PRO MONTHLY LIMIT CHECK ===
+    if (isPremium && userId) {
+      const { checkAndUseProFeature } = await import("../_shared/pro-limits.ts");
+      const result = await checkAndUseProFeature(userId, "humanize_count", "use");
+      if (!result.allowed) {
+        return new Response(
+          JSON.stringify({ error: "monthly_limit_reached", message: `Monthly humanize limit reached (${result.limit}/month).`, used: result.used, limit: result.limit }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     if (!solution) {
       return new Response(
         JSON.stringify({ error: "No solution provided" }),

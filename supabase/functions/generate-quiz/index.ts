@@ -658,7 +658,19 @@ serve(async (req) => {
     const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
     const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
 
-    // Check daily limit
+    // === PRO MONTHLY LIMIT CHECK ===
+    if (isPremium && userId) {
+      const { checkAndUseProFeature } = await import("../_shared/pro-limits.ts");
+      const result = await checkAndUseProFeature(userId, "quiz_count", "use");
+      if (!result.allowed) {
+        return new Response(
+          JSON.stringify({ error: "monthly_limit_reached", message: `Monthly quiz limit reached (${result.limit}/month).`, used: result.used, limit: result.limit }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Check daily limit (free users)
     if (quizzesUsedToday >= dailyLimit) {
       return new Response(
         JSON.stringify({

@@ -801,6 +801,24 @@ serve(async (req) => {
     
     // Use solveMode as-is — backend access control is handled externally
     const effectiveMode = solveMode;
+
+    // === PRO MONTHLY LIMIT CHECK ===
+    if (isPremium && requestUserId) {
+      const { checkAndUseProFeature } = await import("../_shared/pro-limits.ts");
+      const feature = effectiveMode === "deep" ? "deep_solves" : "instant_solves";
+      const result = await checkAndUseProFeature(requestUserId, feature, "use");
+      if (!result.allowed) {
+        return new Response(
+          JSON.stringify({
+            error: "monthly_limit_reached",
+            message: `Monthly ${effectiveMode === "deep" ? "Deep" : "Instant"} solve limit reached (${result.limit}/month).`,
+            used: result.used,
+            limit: result.limit,
+          }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
     
     // Check graph limit
     const maxGraphs = isPremium ? PREMIUM_GRAPHS_PER_DAY : FREE_GRAPHS_PER_DAY;
