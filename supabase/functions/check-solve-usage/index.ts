@@ -87,8 +87,10 @@ serve(async (req) => {
       }
     }
 
-    // Premium users: instant return, no usage tracking
+    // Premium users: return Pro monthly usage summary
     if (isPremium) {
+      const { getProUsageSummary } = await import("../_shared/pro-limits.ts");
+      const proUsage = await getProUsageSummary(verifiedUserId!);
       return new Response(
         JSON.stringify({
           success: true,
@@ -97,6 +99,7 @@ serve(async (req) => {
           solvesRemaining: -1,
           maxSolves: FREE_SOLVES_PER_DAY,
           isPremium: true,
+          proUsage,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

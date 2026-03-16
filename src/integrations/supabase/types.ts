@@ -429,6 +429,45 @@ export type Database = {
         }
         Relationships: []
       }
+      pro_usage: {
+        Row: {
+          created_at: string
+          deep_solves: number
+          followup_count: number
+          humanize_count: number
+          id: string
+          instant_solves: number
+          quiz_count: number
+          updated_at: string
+          usage_month: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deep_solves?: number
+          followup_count?: number
+          humanize_count?: number
+          id?: string
+          instant_solves?: number
+          quiz_count?: number
+          updated_at?: string
+          usage_month: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deep_solves?: number
+          followup_count?: number
+          humanize_count?: number
+          id?: string
+          instant_solves?: number
+          quiz_count?: number
+          updated_at?: string
+          usage_month?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           animated_steps_used_today: number | null

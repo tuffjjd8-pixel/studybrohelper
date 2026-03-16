@@ -54,6 +54,23 @@ serve(async (req) => {
       }
     }
 
+    // === PRO MONTHLY LIMIT CHECK ===
+    if (requestUserId) {
+      const { createClient: createSB } = await import("https://esm.sh/@supabase/supabase-js@2");
+      const sbCheck = createSB(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authH! } } });
+      const { data: profile } = await sbCheck.from("profiles").select("is_premium").eq("user_id", requestUserId).single();
+      if (profile?.is_premium) {
+        const { checkAndUseProFeature } = await import("../_shared/pro-limits.ts");
+        const result = await checkAndUseProFeature(requestUserId, "followup_count", "use");
+        if (!result.allowed) {
+          return new Response(
+            JSON.stringify({ error: "monthly_limit_reached", message: `Monthly follow-up limit reached (${result.limit}/month).`, used: result.used, limit: result.limit }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
     let systemPrompt = `You are StudyBro AI, a warm and supportive homework tutor. You are continuing an ongoing conversation about a ${context?.subject || "homework"} problem.
 
 ## CONVERSATION RULES:
