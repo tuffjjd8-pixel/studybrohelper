@@ -269,6 +269,12 @@ const Settings = () => {
               )}
             </div>
 
+            {/* Pro Limit Warnings */}
+            {isPremium && proUsage && <ProLimitWarning proUsage={proUsage} />}
+
+            {/* Pro Monthly Usage */}
+            {isPremium && proUsage && <ProUsageDisplay proUsage={proUsage} />}
+
             {/* Answer Language */}
             <AnswerLanguageSelector
               value={answerLanguage}
