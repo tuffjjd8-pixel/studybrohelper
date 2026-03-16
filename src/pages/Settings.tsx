@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { ProUsageDisplay } from "@/components/pro/ProUsageDisplay";
+import { ProLimitWarning } from "@/components/pro/ProLimitWarning";
 import { 
   ArrowLeft, 
   Settings as SettingsIcon, 
@@ -43,6 +45,7 @@ const Settings = () => {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [proUsage, setProUsage] = useState<any>(null);
   
   const isPremium = profile?.is_premium || false;
   const speechClips = useSpeechClips(user?.id, isPremium);
@@ -51,6 +54,7 @@ const Settings = () => {
   useEffect(() => {
     if (user) {
       fetchProfile();
+      fetchProUsage();
     } else {
       loadGuestLimits();
     }
@@ -80,6 +84,19 @@ const Settings = () => {
       console.error("Error fetching profile:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProUsage = async () => {
+    try {
+      const { data } = await supabase.functions.invoke("check-solve-usage", {
+        body: { action: "check" },
+      });
+      if (data?.proUsage) {
+        setProUsage(data.proUsage);
+      }
+    } catch (e) {
+      console.error("Error fetching pro usage:", e);
     }
   };
 
@@ -251,6 +268,12 @@ const Settings = () => {
                 </motion.div>
               )}
             </div>
+
+            {/* Pro Limit Warnings */}
+            {isPremium && proUsage && <ProLimitWarning proUsage={proUsage} />}
+
+            {/* Pro Monthly Usage */}
+            {isPremium && proUsage && <ProUsageDisplay proUsage={proUsage} />}
 
             {/* Answer Language */}
             <AnswerLanguageSelector

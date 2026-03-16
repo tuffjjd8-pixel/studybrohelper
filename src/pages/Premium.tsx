@@ -61,26 +61,31 @@ const PLANS: PlanOption[] = [
 ];
 
 const COMPARISON: ComparisonItem[] = [
-  { feature: "Daily Solves", free: "Unlimited", premium: "Unlimited" },
-  { feature: "Solve Flow", free: "5/day", premium: "16/day" },
-  { feature: "Speech to Text", free: false, premium: "15/day" },
-  { feature: "AI Model", free: "Standard", premium: "Advanced" },
-  { feature: "Enhanced OCR", free: false, premium: true },
-  { feature: "Priority Speed", free: false, premium: true },
-  { feature: "Ad-Free Experience", free: true, premium: true },
-  { feature: "Quiz Generator", free: "7/day (max 10 Qs)", premium: "13/day (max 20 Qs)" },
+  { feature: "Daily Solves", free: "5/day", premium: "Unlimited" },
+  { feature: "Instant Mode", free: "Included (5/day)", premium: "400/month" },
+  { feature: "Deep Mode", free: false, premium: "120/month" },
+  { feature: "Follow-Ups", free: "1 per solve", premium: "200/month" },
+  { feature: "Humanize", free: false, premium: "80/month" },
+  { feature: "Quiz Generator", free: "1/day (max 10 Qs)", premium: "40/month (max 20 Qs)" },
   { feature: "Strict Count Mode", free: false, premium: true },
+  { feature: "Speech to Text", free: false, premium: "Unlimited" },
+  { feature: "Enhanced OCR", free: "Basic", premium: "Premium" },
+  { feature: "Priority Speed", free: false, premium: true },
+  { feature: "Ad-Free Experience", free: false, premium: true },
   { feature: "Calculator", free: "Basic", premium: "Scientific" },
   { feature: "Full Quiz Review", free: false, premium: true },
+  { feature: "History", free: "Today only", premium: "Unlimited" },
+  { feature: "Language Control", free: false, premium: "Unlimited" },
+  { feature: "Gamification", free: "Limited", premium: "Unlimited" },
 ];
 
 const PREMIUM_BENEFITS = [
-  { icon: Brain, title: "16 Solve Flows/Day", description: "Interactive solver breakdowns" },
-  { icon: Calculator, title: "Premium Calculator", description: "Advanced reasoning & logic" },
-  { icon: Target, title: "Enhanced Image Solving", description: "Better OCR accuracy" },
-  { icon: Zap, title: "Priority Response", description: "Skip the queue" },
-  { icon: Shield, title: "No Ads", description: "Distraction-free learning" },
-  { icon: MessageSquare, title: "Latest AI Models", description: "Cutting-edge technology" },
+  { icon: Brain, title: "520 Solves/Month", description: "400 Instant + 120 Deep combined" },
+  { icon: Calculator, title: "Scientific Calculator", description: "Advanced reasoning & logic" },
+  { icon: Target, title: "Premium OCR", description: "Enhanced image recognition" },
+  { icon: Zap, title: "Priority Speed", description: "Skip the queue" },
+  { icon: Shield, title: "Ad-Free", description: "Distraction-free learning" },
+  { icon: MessageSquare, title: "Unlimited STT", description: "Speech to text, no limits" },
 ];
 
 const Premium = () => {
