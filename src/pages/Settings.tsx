@@ -87,6 +87,19 @@ const Settings = () => {
     }
   };
 
+  const fetchProUsage = async () => {
+    try {
+      const { data } = await supabase.functions.invoke("check-solve-usage", {
+        body: { action: "check" },
+      });
+      if (data?.proUsage) {
+        setProUsage(data.proUsage);
+      }
+    } catch (e) {
+      console.error("Error fetching pro usage:", e);
+    }
+  };
+
   const loadGuestLimits = () => {
     const guestData = localStorage.getItem("guest_usage");
     const today = getLocalDate();
