@@ -227,7 +227,7 @@ const CommunityGoalReward = () => {
                     </div>
                     <div className="font-medium mt-1">​2‑Year Premium Access</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      ​Unlock 24 months of full Premium with a single, worry‑free payment.  
+                      ​Unlock 24 months of full Premium with a single, worry‑free payment. 
 Equivalent to just $3.55/month — billed once for 2 years.
 
                     
