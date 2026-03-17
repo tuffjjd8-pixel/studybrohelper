@@ -154,67 +154,7 @@ export function SolveToggles({
           </div>
         )}
 
-        {/* Speech Input Toggle - Premium Only AND Authenticated Only */}
-        {canShowPremiumFeatures && onSpeechInputChange && (
-          <>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${speechInput ? "bg-primary/10" : "bg-muted"}`}>
-                  <Mic className={`w-4 h-4 ${speechInput ? "text-primary" : "text-muted-foreground"}`} />
-                </div>
-                <div>
-                  <Label 
-                    htmlFor="speech-input" 
-                    className="text-sm font-medium cursor-pointer"
-                  >
-                    Speech to Text
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Voice transcription{isPremium ? "" : " (3/day)"}
-                  </p>
-                </div>
-              </div>
-              <Switch
-                id="speech-input"
-                checked={speechInput}
-                onCheckedChange={onSpeechInputChange}
-              />
-            </div>
-
-            {/* Language Dropdown - Only visible when Speech Input is ON */}
-            {speechInput && onSpeechLanguageChange && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="pl-11"
-              >
-                <Label className="text-xs text-muted-foreground mb-1.5 block">
-                  Speech Language
-                </Label>
-                <Select value={speechLanguage} onValueChange={onSpeechLanguageChange}>
-                  <SelectTrigger className="w-full h-9 text-sm">
-                    <SelectValue>
-                      {getLanguageDisplayName(speechLanguage)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <ScrollArea className="h-[300px]">
-                      {WHISPER_LANGUAGES.map((lang) => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          {lang.nativeName ? `${lang.name} (${lang.nativeName})` : lang.name}
-                        </SelectItem>
-                      ))}
-                    </ScrollArea>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1.5">
-                  Used for "Transcribe in My Language" mode
-                </p>
-              </motion.div>
-            )}
-          </>
-        )}
+        {/* Speech Input Toggle - Hidden */}
 
         {/* Usage Progress Bar - only for free users */}
         {!isPremium && (
@@ -239,7 +179,7 @@ export function SolveToggles({
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <Crown className="w-3 h-3 inline mr-1" />
-              Upgrade to Pro for unlimited solves + Solve Flow + speech to text
+              Upgrade to Pro for unlimited solves + Solve Flow
             </p>
           </div>
         )}

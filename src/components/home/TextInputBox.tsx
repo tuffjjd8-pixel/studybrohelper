@@ -313,8 +313,8 @@ export function TextInputBox({
   };
 
   const canSubmit = text.trim() || hasPendingImage;
-  // CRITICAL: Never show speech buttons to unsigned users
-  const showSpeechButtons = isAuthenticated && speechInputEnabled && isPremium;
+  // STT UI hidden
+  const showSpeechButtons = false;
 
   return (
     <motion.div
