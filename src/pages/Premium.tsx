@@ -71,12 +71,10 @@ const COMPARISON: ComparisonItem[] = [
   
   { feature: "Enhanced OCR", free: "Basic", premium: "Premium" },
   { feature: "Priority Speed", free: false, premium: true },
-  { feature: "Ad-Free Experience", free: false, premium: true },
-  { feature: "Calculator", free: "Basic", premium: "Scientific" },
+  { feature: "Ad-Free Experience", free: true, premium: true },
   { feature: "Full Quiz Review", free: false, premium: true },
   { feature: "History", free: "Today only", premium: "Unlimited" },
   { feature: "Language Control", free: false, premium: "Unlimited" },
-  { feature: "Gamification", free: "Limited", premium: "Unlimited" },
 ];
 
 const PREMIUM_BENEFITS = [

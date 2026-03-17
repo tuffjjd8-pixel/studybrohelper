@@ -97,7 +97,7 @@ const CommunityGoalReward = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("createCheckoutSession", {
-        body: { userId: user.id, plan: plan === "monthly" ? "weekend" : "lifetime" }
+        body: { userId: user.id, plan: plan === "monthly" ? "weekend" : "two_year" }
       });
 
       if (error) {

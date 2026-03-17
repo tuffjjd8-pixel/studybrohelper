@@ -113,6 +113,48 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Check if this is a two_year plan (one-time, 24-month premium)
+    const planType = session.metadata?.plan;
+
+    if (planType === "two_year") {
+      // Fetch current profile to check existing premium_until
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("premium_until")
+        .eq("user_id", verifiedUserId)
+        .single();
+
+      const now = new Date();
+      const existingExpiry = profile?.premium_until ? new Date(profile.premium_until) : null;
+      const baseDate = existingExpiry && existingExpiry > now ? existingExpiry : now;
+      const newExpiry = new Date(baseDate);
+      newExpiry.setMonth(newExpiry.getMonth() + 24);
+      const premiumUntil = newExpiry.toISOString();
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          is_premium: true,
+          premium_until: premiumUntil,
+        })
+        .eq("user_id", verifiedUserId);
+
+      if (updateError) {
+        console.error("Error updating profile:", updateError);
+        return new Response(
+          JSON.stringify({ success: false, error: "Failed to activate premium" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`2-Year Premium activated for user: ${verifiedUserId}, expires: ${premiumUntil}`);
+
+      return new Response(
+        JSON.stringify({ success: true, message: "2-Year Premium activated successfully" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get subscription details for renewal date
     let renewalDate: string | null = null;
     if (session.subscription) {

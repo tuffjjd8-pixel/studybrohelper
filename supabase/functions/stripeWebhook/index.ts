@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.client_reference_id;
         const subscriptionId = session.subscription as string;
+        const planType = session.metadata?.plan;
 
         if (!userId) {
           console.error("No client_reference_id found in session");
@@ -85,6 +86,39 @@ Deno.serve(async (req) => {
         }
 
         if (await shouldBlockTestMode(userId)) break;
+
+        // Handle 2-year one-time plan
+        if (planType === "two_year") {
+          console.log(`2-Year checkout completed for user ${userId}`);
+
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("premium_until")
+            .eq("user_id", userId)
+            .single();
+
+          const now = new Date();
+          const existingExpiry = profile?.premium_until ? new Date(profile.premium_until) : null;
+          const baseDate = existingExpiry && existingExpiry > now ? existingExpiry : now;
+          const newExpiry = new Date(baseDate);
+          newExpiry.setMonth(newExpiry.getMonth() + 24);
+          const premiumUntil = newExpiry.toISOString();
+
+          const { error } = await supabase
+            .from("profiles")
+            .update({
+              is_premium: true,
+              premium_until: premiumUntil,
+            })
+            .eq("user_id", userId);
+
+          if (error) {
+            console.error(`Failed to update user ${userId}:`, error);
+          } else {
+            console.log(`User ${userId} activated 2-Year Premium, expires: ${premiumUntil}`);
+          }
+          break;
+        }
 
         console.log(`Checkout completed for user ${userId}, subscription ${subscriptionId}`);
 

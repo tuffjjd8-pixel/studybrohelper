@@ -50,9 +50,9 @@ Deno.serve(async (req) => {
     // Parse request body (only plan is needed; userId is ignored in favor of JWT)
     const { plan } = await req.json();
 
-    if (!plan || !["monthly", "weekend", "yearly", "lifetime"].includes(plan)) {
+    if (!plan || !["monthly", "weekend", "yearly", "lifetime", "two_year"].includes(plan)) {
       return new Response(
-        JSON.stringify({ error: "plan must be 'monthly', 'weekend', 'yearly', or 'lifetime'" }),
+        JSON.stringify({ error: "plan must be 'monthly', 'weekend', 'yearly', 'lifetime', or 'two_year'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -101,6 +101,9 @@ Deno.serve(async (req) => {
         case "lifetime":
           priceId = Deno.env.get("STRIPE_PRICE_ID_LIFETIME_TEST");
           break;
+        case "two_year":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_TWO_YEAR_TEST");
+          break;
       }
     } else {
       switch (plan) {
@@ -115,6 +118,9 @@ Deno.serve(async (req) => {
           break;
         case "lifetime":
           priceId = Deno.env.get("STRIPE_PRICE_ID_LIFETIME_LIVE");
+          break;
+        case "two_year":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_TWO_YEAR");
           break;
       }
     }
@@ -135,7 +141,7 @@ Deno.serve(async (req) => {
     });
 
     // Create checkout session
-    const sessionMode = plan === "lifetime" ? "payment" : "subscription";
+    const sessionMode = (plan === "lifetime" || plan === "two_year") ? "payment" : "subscription";
 
     const session = await stripe.checkout.sessions.create({
       mode: sessionMode,
@@ -148,6 +154,7 @@ Deno.serve(async (req) => {
       success_url: "https://studybrohelper.lovable.app/premium/success?session_id={CHECKOUT_SESSION_ID}",
       cancel_url: "https://studybrohelper.lovable.app/premium/cancel",
       client_reference_id: verifiedUserId,
+      metadata: { plan },
     });
 
     console.log(`Checkout session created: ${session.id}`);
