@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
       success_url: "https://studybrohelper.lovable.app/premium/success?session_id={CHECKOUT_SESSION_ID}",
       cancel_url: "https://studybrohelper.lovable.app/premium/cancel",
       client_reference_id: verifiedUserId,
+      metadata: { plan },
     });
 
     console.log(`Checkout session created: ${session.id}`);
