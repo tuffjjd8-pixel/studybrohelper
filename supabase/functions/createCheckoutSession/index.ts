@@ -50,9 +50,9 @@ Deno.serve(async (req) => {
     // Parse request body (only plan is needed; userId is ignored in favor of JWT)
     const { plan } = await req.json();
 
-    if (!plan || !["monthly", "weekend", "yearly", "lifetime"].includes(plan)) {
+    if (!plan || !["monthly", "weekend", "yearly", "lifetime", "two_year"].includes(plan)) {
       return new Response(
-        JSON.stringify({ error: "plan must be 'monthly', 'weekend', 'yearly', or 'lifetime'" }),
+        JSON.stringify({ error: "plan must be 'monthly', 'weekend', 'yearly', 'lifetime', or 'two_year'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
