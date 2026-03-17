@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
     });
 
     // Create checkout session
-    const sessionMode = plan === "lifetime" ? "payment" : "subscription";
+    const sessionMode = (plan === "lifetime" || plan === "two_year") ? "payment" : "subscription";
 
     const session = await stripe.checkout.sessions.create({
       mode: sessionMode,
