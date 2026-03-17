@@ -85,7 +85,7 @@ const PREMIUM_BENEFITS = [
   { icon: Target, title: "Premium OCR", description: "Enhanced image recognition" },
   { icon: Zap, title: "Priority Speed", description: "Skip the queue" },
   { icon: Shield, title: "Ad-Free", description: "Distraction-free learning" },
-  { icon: MessageSquare, title: "Unlimited STT", description: "Speech to text, no limits" },
+  
 ];
 
 const Premium = () => {

@@ -137,7 +137,7 @@ export function ModeSelector({
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <Crown className="w-3 h-3 inline mr-1" />
-              Upgrade to Pro for unlimited solves + Deep Mode + speech to text
+              Upgrade to Pro for unlimited solves + Deep Mode
             </p>
           </div>
         )}
