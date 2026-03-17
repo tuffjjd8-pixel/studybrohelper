@@ -68,7 +68,7 @@ const COMPARISON: ComparisonItem[] = [
   { feature: "Humanize", free: false, premium: "80/month" },
   { feature: "Quiz Generator", free: "1/day (max 10 Qs)", premium: "40/month (max 20 Qs)" },
   { feature: "Strict Count Mode", free: false, premium: true },
-  { feature: "Speech to Text", free: false, premium: "Unlimited" },
+  
   { feature: "Enhanced OCR", free: "Basic", premium: "Premium" },
   { feature: "Priority Speed", free: false, premium: true },
   { feature: "Ad-Free Experience", free: false, premium: true },
