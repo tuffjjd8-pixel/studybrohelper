@@ -101,6 +101,9 @@ Deno.serve(async (req) => {
         case "lifetime":
           priceId = Deno.env.get("STRIPE_PRICE_ID_LIFETIME_TEST");
           break;
+        case "two_year":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_TWO_YEAR_TEST");
+          break;
       }
     } else {
       switch (plan) {
@@ -115,6 +118,9 @@ Deno.serve(async (req) => {
           break;
         case "lifetime":
           priceId = Deno.env.get("STRIPE_PRICE_ID_LIFETIME_LIVE");
+          break;
+        case "two_year":
+          priceId = Deno.env.get("STRIPE_PRICE_ID_TWO_YEAR");
           break;
       }
     }
