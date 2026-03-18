@@ -800,6 +800,7 @@ serve(async (req) => {
     const { 
       question, 
       image, 
+      images,
       isPremium = false,
       animatedSteps = false,
       generateGraph = false,
@@ -808,6 +809,25 @@ serve(async (req) => {
       deviceType = "web",
       answerLanguage = "en"
     } = await req.json();
+
+    // Normalize images: support single `image` string or `images` array
+    const allImages: string[] = images
+      ? (Array.isArray(images) ? images : [images])
+      : (image ? [image] : []);
+
+    // Enforce image count limits: Free = 1, Pro = 2
+    const maxImages = isPremium ? 2 : 1;
+    if (allImages.length > maxImages) {
+      return new Response(
+        JSON.stringify({
+          error: "image_limit_exceeded",
+          message: `You can upload up to ${maxImages} image${maxImages > 1 ? 's' : ''} per solve.${!isPremium ? ' Upgrade to Pro for 2 images!' : ''}`,
+          maxImages,
+          sent: allImages.length,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Check if user is banned or limited
     let requestUserId: string | null = null;
