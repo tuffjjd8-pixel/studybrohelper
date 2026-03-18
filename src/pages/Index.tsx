@@ -2,23 +2,17 @@ import { useState, useEffect } from "react";
 import { getAnswerLanguage } from "@/hooks/useAnswerLanguage";
 import { detectSpamOutput, SPAM_WARNING_MESSAGE } from "@/lib/spamDetection";
 import { motion } from "framer-motion";
-import { Crown } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { CameraButton } from "@/components/home/CameraButton";
 import { TextInputBox } from "@/components/home/TextInputBox";
 import { RecentSolves } from "@/components/home/RecentSolves";
-import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
-import { ModeSelector } from "@/components/solve/ModeSelector";
-import { EssayControls, DEFAULT_ESSAY_SETTINGS, DEFAULT_PRO_ESSAY_SETTINGS } from "@/components/solve/EssayControls";
+import { EssayControls, DEFAULT_ESSAY_SETTINGS } from "@/components/solve/EssayControls";
 import type { EssaySettings } from "@/components/solve/EssayControls";
-import { DeepModeColorPicker } from "@/components/solve/DeepModeEffectPicker";
-import type { DeepModeTextColor } from "@/components/solve/DeepModeReveal";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { AppSidebar } from "@/components/layout/AppSidebar";
-import { SidebarTrigger } from "@/components/layout/SidebarTrigger";
 import { ScannerModal } from "@/components/scanner/ScannerModal";
 import { TopSharerPopup } from "@/components/share/TopSharerPopup";
 import { CommunityGoalCard } from "@/components/community/CommunityGoalCard";
@@ -28,6 +22,7 @@ import { useSpeechClips } from "@/hooks/useSpeechClips";
 import { useSolveUsage } from "@/hooks/useSolveUsage";
 import { useBadges } from "@/hooks/useBadges";
 import { toast } from "sonner";
+
 interface SolutionData {
   subject: string;
   question: string;
@@ -35,11 +30,9 @@ interface SolutionData {
   image?: string;
   solveId?: string;
 }
-const Index = () => {
-  const {
-    user
-  } = useAuth();
 
+const Index = () => {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
   // Capture referral code from URL and store it
@@ -49,6 +42,7 @@ const Index = () => {
       localStorage.setItem("pending_referral_code", refCode);
     }
   }, [searchParams]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [solveStartTime, setSolveStartTime] = useState<number | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
@@ -80,22 +74,10 @@ const Index = () => {
     return saved === "true";
   });
 
-  // Keep mode toggle (session persistence)
-  const [keepMode, setKeepMode] = useState(() => {
-    const saved = sessionStorage.getItem("keep_solve_mode");
-    return saved === "true";
-  });
-  const [speechInput, setSpeechInput] = useState(() => {
-    const saved = localStorage.getItem("toggle_speech_input");
-    return saved !== null ? JSON.parse(saved) : false;
-  });
-  const [speechLanguage, setSpeechLanguage] = useState(() => {
-    const saved = localStorage.getItem("speech_language");
-    return saved ?? "auto";
-  });
-  const [solveMode, setSolveMode] = useState<"instant" | "deep" | "essay">(() => {
+  // Essay mode settings
+  const [solveMode, setSolveMode] = useState<"instant" | "essay">(() => {
     const saved = localStorage.getItem("solve_mode");
-    return saved === "deep" ? "deep" : saved === "essay" ? "essay" : "instant";
+    return saved === "essay" ? "essay" : "instant";
   });
   const [essaySettings, setEssaySettings] = useState<EssaySettings>(() => {
     try {
@@ -104,16 +86,18 @@ const Index = () => {
     } catch (_) {}
     return DEFAULT_ESSAY_SETTINGS;
   });
-  const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
-    const saved = localStorage.getItem("deep_text_color");
-    return (saved as DeepModeTextColor) || "gold";
+
+  // Speech input (kept for TextInputBox)
+  const [speechInput, setSpeechInput] = useState(() => {
+    const saved = localStorage.getItem("toggle_speech_input");
+    return saved !== null ? JSON.parse(saved) : false;
   });
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [speechLanguage, setSpeechLanguage] = useState(() => {
+    const saved = localStorage.getItem("speech_language");
+    return saved ?? "auto";
+  });
 
   // Persist toggles
-  useEffect(() => {
-    sessionStorage.setItem("keep_solve_mode", keepMode ? "true" : "false");
-  }, [keepMode]);
   useEffect(() => {
     localStorage.setItem("toggle_speech_input", JSON.stringify(speechInput));
   }, [speechInput]);
@@ -124,25 +108,12 @@ const Index = () => {
     localStorage.setItem("solve_mode", solveMode);
   }, [solveMode]);
   useEffect(() => {
-    localStorage.setItem("deep_text_color", deepTextColor);
-  }, [deepTextColor]);
-  useEffect(() => {
     localStorage.setItem("essay_settings", JSON.stringify(essaySettings));
   }, [essaySettings]);
 
-  const handleSolveModeChange = (mode: "instant" | "deep" | "essay") => {
-    setSolveMode(mode);
-    if (mode === "deep") {
-      const hasChosen = localStorage.getItem("deep_color_chosen");
-      if (!hasChosen) {
-        setShowColorPicker(true);
-        localStorage.setItem("deep_color_chosen", "true");
-      }
-    }
-  };
   const isPremium = profile?.is_premium || false;
 
-  // Persistent solve usage tracking (backend-backed, not localStorage)
+  // Persistent solve usage tracking (backend-backed)
   const solveUsage = useSolveUsage(user?.id, isPremium);
 
   // Speech clips hook
@@ -156,42 +127,45 @@ const Index = () => {
       fetchRecentSolves();
     }
   }, [user]);
+
   const handleSpeechUsed = async () => {
     if (!user) return;
     await speechClips.useClip();
   };
+
   const fetchRecentSolves = async () => {
-    const {
-      data
-    } = await supabase.from("solves").select("id, subject, question_text, created_at").eq("user_id", user?.id).order("created_at", {
-      ascending: false
-    }).limit(5);
+    const { data } = await supabase
+      .from("solves")
+      .select("id, subject, question_text, created_at")
+      .eq("user_id", user?.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
     if (data) {
       setRecentSolves(data.map(s => ({
         id: s.id,
         subject: s.subject,
         question: s.question_text || "Image question",
-        createdAt: new Date(s.created_at)
+        createdAt: new Date(s.created_at),
       })));
     }
   };
+
   const fetchProfile = async () => {
-    const {
-      data
-    } = await supabase.from("profiles").select("streak_count, total_solves, is_premium, daily_solves_used").eq("user_id", user?.id).single();
+    const { data } = await supabase
+      .from("profiles")
+      .select("streak_count, total_solves, is_premium, daily_solves_used")
+      .eq("user_id", user?.id)
+      .single();
     if (data) {
       setProfile(data);
     }
   };
-  const maxImages = isPremium ? 2 : 1;
 
   const handleSolve = async (input: string, imageData?: string | string[]) => {
-    // Auth guard: require sign-in for AI features
     if (!user) {
       toast.error("Please sign in to use AI features.");
       return;
     }
-    // Quick client-side guard (cached state)
     if (!solveUsage.isPremium && !solveUsage.canSolve) {
       toast.error("You've used all 5 free solves today. Upgrade to Pro for unlimited solves!");
       return;
@@ -202,7 +176,6 @@ const Index = () => {
     const startTime = Date.now();
     setSolveStartTime(startTime);
 
-    // For free users: single atomic check_and_use call (1 round-trip instead of 3)
     if (!isPremium) {
       const solveAllowed = await solveUsage.useSolve();
       if (!solveAllowed) {
@@ -211,39 +184,35 @@ const Index = () => {
         return;
       }
     }
+
     try {
       const answerLanguage = await getAnswerLanguage(user?.id);
-
-      // Normalize images: support single string or array
       const imagesArray = imageData
         ? (Array.isArray(imageData) ? imageData : [imageData])
         : [];
 
-      const effectiveMode = solveMode === "essay" ? "essay" : (isPremium ? solveMode : "instant");
+      // Home only sends instant or essay mode; Instant/Deep handled in camera
+      const effectiveMode = solveMode === "essay" ? "essay" : "instant";
 
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke("solve-homework", {
+      const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: {
           question: input,
           ...(imagesArray.length === 1 ? { image: imagesArray[0] } : {}),
           ...(imagesArray.length > 1 ? { images: imagesArray } : {}),
-           isPremium,
-           animatedSteps: false,
-           generateGraph: false,
-           solveMode: effectiveMode,
+          isPremium,
+          animatedSteps: false,
+          generateGraph: false,
+          solveMode: effectiveMode,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
           answerLanguage,
           ...(solveMode === "essay" ? { essaySettings } : {}),
-        }
+        },
       });
       if (error) throw error;
+
       let solveId: string | undefined;
 
-      // Save to database if logged in
       if (user) {
-        // Single combined insert + profile update (fire in parallel)
         const solveTimeSeconds = (Date.now() - startTime) / 1000;
         const isSpeedSolve = solveTimeSeconds <= 120;
         const isEarlySolve = new Date().getHours() < 8;
@@ -252,14 +221,13 @@ const Index = () => {
           subject: data.subject || "other",
           question_text: input || null,
           question_image_url: imagesArray.length > 0 ? imagesArray[0] : null,
-          solution_markdown: data.solution
+          solution_markdown: data.solution,
         }).select("id").single();
 
-        // Combine ALL profile updates into one call
         const profileUpdates: Record<string, unknown> = {
           total_solves: (profile?.total_solves || 0) + 1,
           daily_solves_used: (profile?.daily_solves_used || 0) + 1,
-          last_solve_date: new Date().toISOString().split('T')[0]
+          last_solve_date: new Date().toISOString().split('T')[0],
         };
         if (isSpeedSolve) {
           profileUpdates.speed_solves = ((profile as any)?.speed_solves || 0) + 1;
@@ -268,22 +236,16 @@ const Index = () => {
           profileUpdates.early_solves = ((profile as any)?.early_solves || 0) + 1;
         }
         const updatePromise = supabase.from("profiles").update(profileUpdates).eq("user_id", user.id);
-        const [solveResult, _profileResult] = await Promise.all([insertPromise, updatePromise]);
+        const [solveResult] = await Promise.all([insertPromise, updatePromise]);
         if (solveResult.error) {
           console.error("Save error:", solveResult.error);
         } else {
           solveId = solveResult.data?.id;
-
-          // Non-critical: referral completion (fire and forget)
           if ((profile?.total_solves || 0) === 0) {
             try {
-              await supabase.rpc("complete_referral", {
-                referred_id: user.id
-              });
+              await supabase.rpc("complete_referral", { referred_id: user.id });
             } catch (_) {}
           }
-
-          // Refresh recent solves, profile, and badges in background
           fetchRecentSolves();
           fetchProfile();
           refetchBadges();
@@ -296,7 +258,7 @@ const Index = () => {
           question_text: input || null,
           question_image_url: imageData || null,
           solution_markdown: data.solution,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         };
         try {
           const existingSolves = JSON.parse(localStorage.getItem("guest_solves") || "[]");
@@ -306,8 +268,9 @@ const Index = () => {
           console.error("Failed to save to localStorage:", e);
         }
       }
-      // Anti-spam: detect counting sequences / trivial patterns in Deep Mode
-      if (isPremium && solveMode === "deep" && detectSpamOutput(data.solution)) {
+
+      // Anti-spam check (deep mode won't come from Home anymore, but keep for safety)
+      if (isPremium && detectSpamOutput(data.solution)) {
         toast.error(SPAM_WARNING_MESSAGE);
         setIsLoading(false);
         return;
@@ -333,7 +296,9 @@ const Index = () => {
       setIsLoading(false);
     }
   };
+
   const handleImageCapture = (imageData: string) => {
+    const maxImages = isPremium ? 2 : 1;
     setPendingImages(prev => {
       if (prev.length >= maxImages) {
         toast.error(`You can add up to ${maxImages} image${maxImages > 1 ? 's' : ''} per solve.${!isPremium ? ' Upgrade to Pro for 2 images!' : ''}`);
@@ -343,17 +308,14 @@ const Index = () => {
     });
     toast.info("Image ready! Press Enter or type a question to solve.");
   };
+
   const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string) => {
-    setSolution({
-      subject,
-      question,
-      answer: solutionText,
-      image,
-    });
+    setSolution({ subject, question, answer: solutionText, image });
     setShowConfetti(true);
     fetchRecentSolves();
     fetchProfile();
   };
+
   const handleTextSubmit = (text: string) => {
     if (pendingImages.length > 0) {
       handleSolve(text, pendingImages);
@@ -361,19 +323,18 @@ const Index = () => {
       handleSolve(text);
     }
   };
+
   const handleSolveWithPendingImage = () => {
     if (pendingImages.length > 0) {
       handleSolve("", pendingImages);
     }
   };
+
   const handleReset = () => {
     setSolution(null);
     setPendingImages([]);
-    // If keepMode is off, reset to instant
-    if (!keepMode) {
-      setSolveMode("instant");
-    }
   };
+
   const handleClearPendingImage = (index?: number) => {
     if (index !== undefined) {
       setPendingImages(prev => prev.filter((_, i) => i !== index));
@@ -381,112 +342,140 @@ const Index = () => {
       setPendingImages([]);
     }
   };
-  const isDeepModeActive = isPremium && solveMode === "deep";
-  return <div className="min-h-screen bg-background">
-      {/* Sidebar */}
+
+  // Read deep text color from localStorage for solution display
+  const deepTextColor = (() => {
+    const saved = localStorage.getItem("deep_text_color");
+    return (saved as any) || "gold";
+  })();
+
+  return (
+    <div className="min-h-screen bg-background">
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
-      
       <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
-      
+
       <main className="pt-20 pb-24 px-4">
         <div className="max-w-4xl mx-auto">
-          {!solution ? <motion.div initial={{
-          opacity: 0
-        }} animate={{
-          opacity: 1
-        }} className="flex flex-col items-center gap-8 py-8">
+          {!solution ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center gap-8 py-8"
+            >
               {/* Hero text */}
               <div className="text-center space-y-2">
-                <motion.h2 initial={{
-              opacity: 0,
-              y: 20
-            }} animate={{
-              opacity: 1,
-              y: 0
-            }} className="text-3xl md:text-4xl font-heading font-bold">
+                <motion.h2
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-3xl md:text-4xl font-heading font-bold"
+                >
                   Snap. Solve. <span className="text-gradient">Succeed.</span>
                 </motion.h2>
-                <motion.p initial={{
-              opacity: 0,
-              y: 20
-            }} animate={{
-              opacity: 1,
-              y: 0
-            }} transition={{
-              delay: 0.1
-            }} className="text-muted-foreground">
+                <motion.p
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-muted-foreground"
+                >
                   Your AI homework bro – instant step-by-step solutions
                 </motion.p>
               </div>
 
-              {/* Community Goal Card - below hero, above camera */}
+              {/* Community Goal Card */}
               <CommunityGoalCard onParticipationChange={setGoalParticipation} />
 
               {/* Camera button */}
               <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
 
               {/* Pending image previews */}
-              {pendingImages.length > 0 && <motion.div initial={{
-            opacity: 0,
-            scale: 0.9
-          }} animate={{
-            opacity: 1,
-            scale: 1
-          }} className="flex gap-3 flex-wrap max-w-md justify-center">
+              {pendingImages.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex gap-3 flex-wrap max-w-md justify-center"
+                >
                   {pendingImages.map((img, i) => (
                     <div key={i} className="relative">
                       <img src={img} alt={`Pending ${i + 1}`} className="rounded-lg border-2 border-primary/50 max-h-32 object-contain" />
-                      <button onClick={() => handleClearPendingImage(i)} className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs font-bold hover:bg-destructive/80">
+                      <button
+                        onClick={() => handleClearPendingImage(i)}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs font-bold hover:bg-destructive/80"
+                      >
                         ×
                       </button>
                     </div>
                   ))}
-                  <p className="w-full text-xs text-primary text-center mt-1">
-                    {pendingImages.length < maxImages 
-                      ? `${pendingImages.length}/${maxImages} image${maxImages > 1 ? 's' : ''} — add more or press Enter`
-                      : "Press Enter below to solve, or add a question"}
-                  </p>
-                </motion.div>}
+                </motion.div>
+              )}
 
-              {/* Mode Selector */}
-              <ModeSelector solveMode={solveMode === "essay" ? "essay" : (isPremium ? solveMode : "instant")} onSolveModeChange={handleSolveModeChange} keepMode={keepMode} onKeepModeChange={setKeepMode} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
+              {/* Essay Mode Toggle */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSolveMode("instant")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    solveMode === "instant"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Ask
+                </button>
+                <button
+                  onClick={() => setSolveMode("essay")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    solveMode === "essay"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Essay
+                </button>
+              </div>
 
               {/* Essay Controls - shown when Essay mode selected */}
               {solveMode === "essay" && (
                 <EssayControls settings={essaySettings} onChange={setEssaySettings} isPremium={isPremium} />
               )}
 
-              {/* Color Picker - shown when Deep Mode first toggled or user wants to change */}
-              {showColorPicker && isPremium && solveMode === "deep" && (
-                <DeepModeColorPicker
-                  selectedColor={deepTextColor}
-                  onSelect={(c) => setDeepTextColor(c)}
-                  onClose={() => setShowColorPicker(false)}
-                />
-              )}
-
               {/* Divider */}
               <div className="flex items-center gap-4 w-full max-w-md">
                 <div className="flex-1 h-px bg-border" />
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                  {pendingImages.length > 0 ? "add details or press enter" : "or type it"}
+                  {pendingImages.length > 0 ? "add details or press enter" : "type your question"}
                 </span>
                 <div className="flex-1 h-px bg-border" />
               </div>
 
               {/* Text input */}
-              <TextInputBox onSubmit={handleTextSubmit} onEmptySubmit={handleSolveWithPendingImage} onImagePaste={handleImageCapture} isLoading={isLoading} hasPendingImage={pendingImages.length > 0} placeholder={pendingImages.length > 0 ? "Add details or press Enter to solve..." : "Paste or type your homework question..."} speechInputEnabled={speechInput} isPremium={isPremium} speechLanguage={speechLanguage} onSpeechUsed={handleSpeechUsed} isAuthenticated={!!user} canUseSpeechClip={speechClips.canUseClip} speechClipsRemaining={speechClips.clipsRemaining} maxSpeechClips={speechClips.maxClips} hoursUntilReset={speechClips.hoursUntilReset} />
-
+              <TextInputBox
+                onSubmit={handleTextSubmit}
+                onEmptySubmit={handleSolveWithPendingImage}
+                onImagePaste={handleImageCapture}
+                isLoading={isLoading}
+                hasPendingImage={pendingImages.length > 0}
+                placeholder={
+                  pendingImages.length > 0
+                    ? "Add details or press Enter to solve..."
+                    : solveMode === "essay"
+                    ? "Type your essay topic or question..."
+                    : "Paste or type your homework question..."
+                }
+                speechInputEnabled={speechInput}
+                isPremium={isPremium}
+                speechLanguage={speechLanguage}
+                onSpeechUsed={handleSpeechUsed}
+                isAuthenticated={!!user}
+                canUseSpeechClip={speechClips.canUseClip}
+                speechClipsRemaining={speechClips.clipsRemaining}
+                maxSpeechClips={speechClips.maxClips}
+                hoursUntilReset={speechClips.hoursUntilReset}
+              />
 
               {/* Recent solves */}
               <RecentSolves solves={recentSolves} />
-            </motion.div> : <motion.div initial={{
-          opacity: 0
-        }} animate={{
-          opacity: 1
-        }} className="py-8">
-
+            </motion.div>
+          ) : (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-8">
               {/* Solve Another chip */}
               <div className="flex justify-center mb-5 mt-1">
                 <button
@@ -502,19 +491,37 @@ const Index = () => {
                 </button>
               </div>
 
-              <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isDeepModeActive} deepTextColor={deepTextColor} isAuthenticated={!!user} />
-
-              {/* Solve usage banner below solution */}
-              {!isPremium}
-            </motion.div>}
+              <SolutionSteps
+                subject={solution.subject}
+                question={solution.question}
+                solution={solution.answer}
+                questionImage={solution.image}
+                solveId={solution.solveId}
+                isPremium={isPremium}
+                isDeepMode={false}
+                deepTextColor={deepTextColor}
+                isAuthenticated={!!user}
+              />
+            </motion.div>
+          )}
         </div>
       </main>
+
       <BottomNav />
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
       <TopSharerPopup />
-      
+
       {/* Scanner Modal */}
-      <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} solveMode={solveMode === "essay" ? "essay" : (isPremium ? solveMode : "instant")} />
-    </div>;
+      <ScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onSolved={handleScannerSolved}
+        userId={user?.id}
+        isPremium={isPremium}
+        solveMode="instant"
+      />
+    </div>
+  );
 };
+
 export default Index;

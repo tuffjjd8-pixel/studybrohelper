@@ -30,45 +30,53 @@ export function ScannerModal({
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
   const [processedImage, setProcessedImage] = useState<string | null>(null);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
 
-  // Open camera immediately when modal opens
   const cameraActive = isOpen && (state === "idle" || state === "camera");
 
   const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
-    setCapturedImage(result.image);
+    setCapturedImages(result.images);
     setSelectedMode(result.mode);
-    setState("cropping");
+
+    // Multi-image: skip crop, go straight to solve
+    if (result.images.length > 1) {
+      setState("scanning");
+      setLoadingStage("classifying");
+      // TODO: Full multi-image support — for now use first image
+      solveProblem(result.images[0], result.images);
+    } else {
+      // Single image: show crop UI
+      setState("cropping");
+    }
   }, []);
 
   const handleCropComplete = useCallback((croppedImage: string) => {
     // Clean up original capture
-    if (capturedImage?.startsWith("blob:")) {
-      URL.revokeObjectURL(capturedImage);
-    }
-    setCapturedImage(null);
+    capturedImages.forEach(img => {
+      if (img.startsWith("blob:")) URL.revokeObjectURL(img);
+    });
+    setCapturedImages([]);
     setProcessedImage(croppedImage);
     setState("scanning");
     setLoadingStage("classifying");
     solveProblem(croppedImage);
-  }, [capturedImage]);
+  }, [capturedImages]);
 
   const handleCropCancel = useCallback(() => {
-    if (capturedImage?.startsWith("blob:")) {
-      URL.revokeObjectURL(capturedImage);
-    }
-    setCapturedImage(null);
+    capturedImages.forEach(img => {
+      if (img.startsWith("blob:")) URL.revokeObjectURL(img);
+    });
+    setCapturedImages([]);
     setState("idle");
-  }, [capturedImage]);
+  }, [capturedImages]);
 
   const handleCameraClose = useCallback(() => {
     handleReset();
     onClose();
   }, [onClose]);
 
-  const solveProblem = async (imageData: string) => {
-    // Auth guard: require sign-in for AI features
+  const solveProblem = async (imageData: string, allImages?: string[]) => {
     if (!userId) {
       toast.error("Please sign in to use AI features.");
       return;
@@ -80,24 +88,31 @@ export function ScannerModal({
 
       const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
       const answerLanguage = await getAnswerLanguage(userId);
-      const { data, error } = await supabase.functions.invoke("solve-homework", {
-        body: {
-          question: "",
-          image: imageData,
-          isPremium,
-          animatedSteps: false,
-          solveMode: isPremium ? selectedMode : "instant",
-          generateGraph: false,
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-          answerLanguage,
-        },
-      });
+
+      // Build body — if multiple images, send images array
+      const body: Record<string, unknown> = {
+        question: "",
+        image: imageData,
+        isPremium,
+        animatedSteps: false,
+        solveMode: isPremium ? selectedMode : "instant",
+        generateGraph: false,
+        deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+        answerLanguage,
+      };
+
+      // TODO: When backend fully supports multi-image, send all images
+      if (allImages && allImages.length > 1) {
+        body.images = allImages;
+        delete body.image;
+      }
+
+      const { data, error } = await supabase.functions.invoke("solve-homework", { body });
 
       if (error) throw error;
 
       const extractedQuestion = data.question || data.extractedText || "Image-based question";
 
-      // Save to database if logged in
       if (userId) {
         await supabase.from("solves").insert({
           user_id: userId,
@@ -121,22 +136,23 @@ export function ScannerModal({
   const handleReset = useCallback(() => {
     setState("idle");
     setProcessedImage(null);
-    setCapturedImage(null);
+    setCapturedImages([]);
   }, []);
 
   return (
     <>
-      {/* Full-screen native camera — opens immediately */}
+      {/* Full-screen native camera */}
       <CustomCamera
         isOpen={cameraActive}
         onCapture={handleCameraCapture}
         onClose={handleCameraClose}
+        isPremium={isPremium}
       />
 
-      {/* Manual crop screen */}
-      {state === "cropping" && capturedImage && (
+      {/* Manual crop screen — only for single image */}
+      {state === "cropping" && capturedImages.length === 1 && (
         <ImageCropper
-          imageSrc={capturedImage}
+          imageSrc={capturedImages[0]}
           onCropComplete={handleCropComplete}
           onCancel={handleCropCancel}
         />
