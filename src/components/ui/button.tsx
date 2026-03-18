@@ -23,7 +23,7 @@ const buttonVariants = cva(
         // Premium neon green button - Gauth-style with glowing border
         neonGreen: "relative bg-background text-primary font-bold border-2 border-primary shadow-[0_0_20px_hsl(var(--primary)/0.4),inset_0_0_20px_hsl(var(--primary)/0.1)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.6),inset_0_0_25px_hsl(var(--primary)/0.15)] hover:border-primary/90 hover:bg-primary/5",
         // Filled neon green button variant
-        neonGreenFilled: "bg-primary text-primary-foreground font-bold border-2 border-primary shadow-[0_0_25px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.7)] hover:bg-primary/90",
+        neonGreenFilled: "bg-primary text-primary-foreground font-bold border-2 border-primary shadow-[0_0_25px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.7)] hover:bg-primary/90"
       },
       size: {
         default: "h-11 px-5 py-2",
@@ -32,27 +32,27 @@ const buttonVariants = cva(
         xl: "h-14 rounded-2xl px-10 text-lg",
         icon: "h-11 w-11",
         "icon-lg": "h-14 w-14",
-        "icon-xl": "h-20 w-20 rounded-full",
-      },
+        "icon-xl": "h-20 w-20 rounded-full"
+      }
     },
     defaultVariants: {
       variant: "default",
-      size: "default",
-    },
-  },
+      size: "default"
+    }
+  }
 );
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+export interface ButtonProps extends
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, onClick, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} onClick={onClick} {...props} />;
-  },
+    return;
+  }
 );
 Button.displayName = "Button";
 
