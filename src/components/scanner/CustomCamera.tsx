@@ -2,8 +2,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen, Images, Image as ImageSingle } from "lucide-react";
 import { fileToOptimizedDataUrl } from "@/lib/image";
-import { DeepModeColorPicker } from "@/components/solve/DeepModeEffectPicker";
-import type { DeepModeTextColor } from "@/components/solve/DeepModeReveal";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
