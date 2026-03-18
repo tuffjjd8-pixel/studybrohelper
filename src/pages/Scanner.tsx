@@ -171,6 +171,11 @@ const Scanner = () => {
     }
   };
 
+  const handleSolveModeChange = (mode: SolveMode) => {
+    if (mode === "essay") return; // Essay not available on image screen
+    setSolveMode(mode);
+  };
+
   const handleReset = useCallback(() => {
     // Clean up blob URLs
     if (selectedImage?.startsWith("blob:")) {
@@ -183,7 +188,11 @@ const Scanner = () => {
     setSelectedImage(null);
     setCroppedImage(null);
     setSolution(null);
-  }, [selectedImage, croppedImage]);
+    // Reset mode if keep-mode is off
+    if (!keepMode) {
+      setSolveMode("instant");
+    }
+  }, [selectedImage, croppedImage, keepMode]);
 
   return (
     <div className="min-h-screen bg-background">
