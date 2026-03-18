@@ -215,8 +215,24 @@ const Premium = () => {
               </p>
             </div>
 
+            {/* Already Premium Banner */}
+            {userIsPremium && (
+              <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 text-center space-y-2">
+                <div className="flex items-center justify-center gap-2">
+                  <Crown className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-primary">You're already Premium!</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Cancel your current subscription first before purchasing a new plan.
+                </p>
+                <Button variant="outline" size="sm" onClick={() => navigate("/profile")}>
+                  Manage Subscription
+                </Button>
+              </div>
+            )}
+
             {/* Plan Selection */}
-            <div className="space-y-3">
+            <div className={`space-y-3 ${userIsPremium ? "opacity-50 pointer-events-none" : ""}`}>
               <h2 className="font-semibold text-lg text-center">Choose Your Plan</h2>
               <div className="space-y-3">
                 {PLANS.map((plan) => {
