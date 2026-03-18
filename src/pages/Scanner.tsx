@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Sparkles, Crown } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { Header } from "@/components/layout/Header";
@@ -11,13 +11,10 @@ import { CustomCamera } from "@/components/scanner/CustomCamera";
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { SolutionDisplay } from "@/components/scanner/SolutionDisplay";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
-import { ModeSelector } from "@/components/solve/ModeSelector";
-import type { SolveMode } from "@/components/solve/ModeSelector";
 import { Button } from "@/components/ui/button";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useSolveUsage } from "@/hooks/useSolveUsage";
 import { toast } from "sonner";
 
 type ScannerState = "idle" | "camera" | "cropping" | "scanning" | "solved";
@@ -33,36 +30,6 @@ interface SolutionData {
 const Scanner = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  // Profile for premium status
-  const [profile, setProfile] = useState<{ is_premium: boolean } | null>(null);
-  const isPremium = profile?.is_premium || false;
-
-  useEffect(() => {
-    if (user) {
-      supabase.from("profiles").select("is_premium").eq("user_id", user.id).single().then(({ data }) => {
-        if (data) setProfile(data);
-      });
-    }
-  }, [user]);
-
-  // Solve mode state for image solves
-  const [solveMode, setSolveMode] = useState<SolveMode>(() => {
-    const saved = localStorage.getItem("image_solve_mode");
-    return saved === "deep" ? "deep" : "instant";
-  });
-  const [keepMode, setKeepMode] = useState(() => {
-    return sessionStorage.getItem("keep_image_solve_mode") === "true";
-  });
-
-  useEffect(() => {
-    localStorage.setItem("image_solve_mode", solveMode);
-  }, [solveMode]);
-  useEffect(() => {
-    sessionStorage.setItem("keep_image_solve_mode", keepMode ? "true" : "false");
-  }, [keepMode]);
-
-  const solveUsage = useSolveUsage(user?.id, isPremium);
   
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
@@ -124,15 +91,13 @@ const Scanner = () => {
       
       const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
       const answerLanguage = await getAnswerLanguage(user?.id);
-      const effectiveMode = isPremium ? solveMode : "instant";
       const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: { 
           question: "", 
           image: imageData,
-          isPremium,
+          isPremium: false,
           animatedSteps: false,
           generateGraph: false,
-          solveMode: effectiveMode,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
           answerLanguage,
         },
@@ -171,11 +136,6 @@ const Scanner = () => {
     }
   };
 
-  const handleSolveModeChange = (mode: SolveMode) => {
-    if (mode === "essay") return; // Essay not available on image screen
-    setSolveMode(mode);
-  };
-
   const handleReset = useCallback(() => {
     // Clean up blob URLs
     if (selectedImage?.startsWith("blob:")) {
@@ -188,11 +148,7 @@ const Scanner = () => {
     setSelectedImage(null);
     setCroppedImage(null);
     setSolution(null);
-    // Reset mode if keep-mode is off
-    if (!keepMode) {
-      setSolveMode("instant");
-    }
-  }, [selectedImage, croppedImage, keepMode]);
+  }, [selectedImage, croppedImage]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -270,19 +226,6 @@ const Scanner = () => {
                     Our AI will extract the question and solve it step-by-step.
                   </p>
                 </div>
-
-                {/* Solve Mode Selector for Image Solves */}
-                <ModeSelector
-                  solveMode={solveMode === "essay" ? "instant" : solveMode}
-                  onSolveModeChange={handleSolveModeChange}
-                  keepMode={keepMode}
-                  onKeepModeChange={setKeepMode}
-                  isPremium={isPremium}
-                  solvesUsed={solveUsage.solvesUsed}
-                  maxSolves={solveUsage.maxSolves}
-                  canSolve={solveUsage.canSolve}
-                  isAuthenticated={!!user}
-                />
 
                 {/* Drop Zone */}
                 <ScannerDropZone 

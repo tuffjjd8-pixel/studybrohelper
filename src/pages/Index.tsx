@@ -449,8 +449,8 @@ const Index = () => {
                   </p>
                 </motion.div>}
 
-              {/* Mode Selector - text-only context: hide Instant/Deep, show Essay */}
-              <ModeSelector solveMode={solveMode === "essay" ? "essay" : "instant"} onSolveModeChange={handleSolveModeChange} keepMode={keepMode} onKeepModeChange={setKeepMode} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} hideImageModes />
+              {/* Mode Selector */}
+              <ModeSelector solveMode={solveMode === "essay" ? "essay" : (isPremium ? solveMode : "instant")} onSolveModeChange={handleSolveModeChange} keepMode={keepMode} onKeepModeChange={setKeepMode} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
 
               {/* Essay Controls - shown when Essay mode selected */}
               {solveMode === "essay" && (

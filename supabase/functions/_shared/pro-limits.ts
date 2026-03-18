@@ -4,11 +4,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // PRO MONTHLY LIMITS
 // ============================================================
 export const PRO_LIMITS = {
-  instant_solves: 100,   // image-only instant solves
-  deep_solves: 20,       // image-only deep solves
-  humanize: -1,          // unlimited (text)
-  followups: -1,         // unlimited (text)
-  quizzes: -1,           // unlimited (text)
+  instant_solves: 400,
+  deep_solves: 120,
+  humanize: 80,
+  followups: 200,
+  quizzes: 40,
 };
 
 // Feature types that map to pro_usage columns
@@ -59,8 +59,7 @@ export async function checkAndUseProFeature(
 
   const currentUsed = existing ? (existing as Record<string, any>)[feature] || 0 : 0;
 
-  // -1 means unlimited
-  if (limit !== -1 && currentUsed >= limit) {
+  if (currentUsed >= limit) {
     return { allowed: false, used: currentUsed, limit };
   }
 
