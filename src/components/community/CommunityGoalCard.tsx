@@ -225,15 +225,8 @@ export function CommunityGoalCard({ onParticipationChange }: CommunityGoalCardPr
           </div>
         )}
 
-        {/* Submit proof section */}
-        {participate === true && user && !hasSubmitted && !showSubmitForm && (
-          <Button
-            size="sm"
-            onClick={() => setShowSubmitForm(true)}
-            className="mt-2 gap-1"
-          >
-            <Upload className="w-3.5 h-3.5" /> Submit Proof
-          </Button>
+        {participate === true && user && !hasSubmitted && (
+          <p className="text-xs text-primary font-medium mt-2">Goal in progress</p>
         )}
 
         {participate === true && hasSubmitted && (
