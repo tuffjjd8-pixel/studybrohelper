@@ -411,20 +411,26 @@ const Index = () => {
               {/* Camera button */}
               <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
 
-              {/* Pending image preview */}
-              {pendingImage && <motion.div initial={{
+              {/* Pending image previews */}
+              {pendingImages.length > 0 && <motion.div initial={{
             opacity: 0,
             scale: 0.9
           }} animate={{
             opacity: 1,
             scale: 1
-          }} className="relative max-w-xs">
-                  <img src={pendingImage} alt="Pending homework" className="rounded-lg border-2 border-primary/50 max-h-32 object-contain" />
-                  <button onClick={handleClearPendingImage} className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs font-bold hover:bg-destructive/80">
-                    ×
-                  </button>
-                  <p className="text-xs text-primary text-center mt-2">
-                    Press Enter below to solve, or add a question
+          }} className="flex gap-3 flex-wrap max-w-md justify-center">
+                  {pendingImages.map((img, i) => (
+                    <div key={i} className="relative">
+                      <img src={img} alt={`Pending ${i + 1}`} className="rounded-lg border-2 border-primary/50 max-h-32 object-contain" />
+                      <button onClick={() => handleClearPendingImage(i)} className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs font-bold hover:bg-destructive/80">
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <p className="w-full text-xs text-primary text-center mt-1">
+                    {pendingImages.length < maxImages 
+                      ? `${pendingImages.length}/${maxImages} image${maxImages > 1 ? 's' : ''} — add more or press Enter`
+                      : "Press Enter below to solve, or add a question"}
                   </p>
                 </motion.div>}
 
