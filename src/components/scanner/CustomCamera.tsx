@@ -184,7 +184,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
         mimeType: "image/jpeg",
       });
       stopStream(false);
-      onCapture(optimized);
+      onCapture({ image: optimized, mode: cameraMode });
     } catch (err) {
       console.error("Gallery error:", err);
       // Ultimate fallback: just pass the raw file as data URL
