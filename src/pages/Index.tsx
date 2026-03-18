@@ -171,7 +171,9 @@ const Index = () => {
       setProfile(data);
     }
   };
-  const handleSolve = async (input: string, imageData?: string) => {
+  const maxImages = isPremium ? 2 : 1;
+
+  const handleSolve = async (input: string, imageData?: string | string[]) => {
     // Auth guard: require sign-in for AI features
     if (!user) {
       toast.error("Please sign in to use AI features.");
@@ -184,7 +186,7 @@ const Index = () => {
     }
     setIsLoading(true);
     setSolution(null);
-    setPendingImage(null);
+    setPendingImages([]);
     const startTime = Date.now();
     setSolveStartTime(startTime);
 
@@ -199,13 +201,20 @@ const Index = () => {
     }
     try {
       const answerLanguage = await getAnswerLanguage(user?.id);
+
+      // Normalize images: support single string or array
+      const imagesArray = imageData
+        ? (Array.isArray(imageData) ? imageData : [imageData])
+        : [];
+
       const {
         data,
         error
       } = await supabase.functions.invoke("solve-homework", {
         body: {
           question: input,
-          image: imageData,
+          ...(imagesArray.length === 1 ? { image: imagesArray[0] } : {}),
+          ...(imagesArray.length > 1 ? { images: imagesArray } : {}),
            isPremium,
            animatedSteps: false,
            generateGraph: false,
