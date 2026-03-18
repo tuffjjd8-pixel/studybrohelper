@@ -31,7 +31,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
   const [torchSupported, setTorchSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isCapturingRef = useRef(false);
-  const [cameraMode, setCameraMode] = useState<CameraMode>(() => {
+  const [cameraMode, setCameraMode] = useState<CameraSolveMode>(() => {
     const saved = localStorage.getItem("camera_solve_mode");
     return saved === "deep" ? "deep" : "instant";
   });
