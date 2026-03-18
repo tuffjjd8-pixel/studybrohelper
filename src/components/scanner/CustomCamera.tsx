@@ -63,10 +63,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     if (cameraMode === "instant") {
       setShowColorPanel(false);
     } else if (cameraMode === "deep") {
-      // Show panel if not previously closed
-      if (sessionStorage.getItem("deepColorPanelClosed") !== "true") {
-        setShowColorPanel(true);
-      }
     }
   }, [cameraMode]);
 
