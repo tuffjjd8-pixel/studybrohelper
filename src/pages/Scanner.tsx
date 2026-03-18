@@ -33,6 +33,36 @@ interface SolutionData {
 const Scanner = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // Profile for premium status
+  const [profile, setProfile] = useState<{ is_premium: boolean } | null>(null);
+  const isPremium = profile?.is_premium || false;
+
+  useEffect(() => {
+    if (user) {
+      supabase.from("profiles").select("is_premium").eq("user_id", user.id).single().then(({ data }) => {
+        if (data) setProfile(data);
+      });
+    }
+  }, [user]);
+
+  // Solve mode state for image solves
+  const [solveMode, setSolveMode] = useState<SolveMode>(() => {
+    const saved = localStorage.getItem("image_solve_mode");
+    return saved === "deep" ? "deep" : "instant";
+  });
+  const [keepMode, setKeepMode] = useState(() => {
+    return sessionStorage.getItem("keep_image_solve_mode") === "true";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("image_solve_mode", solveMode);
+  }, [solveMode]);
+  useEffect(() => {
+    sessionStorage.setItem("keep_image_solve_mode", keepMode ? "true" : "false");
+  }, [keepMode]);
+
+  const solveUsage = useSolveUsage(user?.id, isPremium);
   
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
