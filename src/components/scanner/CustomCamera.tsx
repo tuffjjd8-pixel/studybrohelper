@@ -3,12 +3,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen } from "lucide-react";
 import { fileToOptimizedDataUrl } from "@/lib/image";
 
-type CameraMode = "instant" | "deep";
+export type CameraSolveMode = "instant" | "deep";
 
+export interface CameraCaptureResult {
+  image: string;
+  mode: CameraSolveMode;
+}
 
 interface CustomCameraProps {
   isOpen: boolean;
-  onCapture: (imageData: string) => void;
+  onCapture: (result: CameraCaptureResult) => void;
   onClose: () => void;
 }
 
