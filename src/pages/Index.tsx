@@ -80,11 +80,7 @@ const Index = () => {
     return saved === "true";
   });
 
-  // Keep mode toggle (session persistence)
-  const [keepMode, setKeepMode] = useState(() => {
-    const saved = sessionStorage.getItem("keep_solve_mode");
-    return saved === "true";
-  });
+  // keepMode removed from home — now lives inside CustomCamera only
   const [speechInput, setSpeechInput] = useState(() => {
     const saved = localStorage.getItem("toggle_speech_input");
     return saved !== null ? JSON.parse(saved) : false;
