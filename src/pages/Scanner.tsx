@@ -37,7 +37,7 @@ const Scanner = () => {
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
-
+  const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
   const handleOpenCamera = useCallback(() => {
     setState("camera");
   }, []);
