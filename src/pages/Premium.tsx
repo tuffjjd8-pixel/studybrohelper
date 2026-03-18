@@ -92,6 +92,21 @@ const Premium = () => {
   const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectingPlan, setIsSelectingPlan] = useState(false);
+  const [userIsPremium, setUserIsPremium] = useState(false);
+
+  // Check if user is already premium
+  useEffect(() => {
+    if (!user) return;
+    const checkPremium = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_premium")
+        .eq("user_id", user.id)
+        .single();
+      if (data?.is_premium) setUserIsPremium(true);
+    };
+    checkPremium();
+  }, [user]);
 
 
   // Lock/unlock scroll based on overlay state
