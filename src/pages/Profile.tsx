@@ -67,6 +67,7 @@ const Profile = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [totalConfirmedLikes, setTotalConfirmedLikes] = useState(0);
+  const goalReached = useCommunityGoalReached();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showDeepColorPicker, setShowDeepColorPicker] = useState(false);
   const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
