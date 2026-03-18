@@ -184,17 +184,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
 
       const objectUrl = URL.createObjectURL(blob);
 
-      if (multiImage && isPremium) {
-        const newImages = [...collectedImages, objectUrl];
-        if (newImages.length >= 2) {
-          finishCapture(newImages);
-        } else {
-          setCollectedImages(newImages);
-          toast.info(`Image ${newImages.length}/2 captured. Take one more!`);
-        }
-      } else {
-        finishCapture(objectUrl);
-      }
+      finishCapture(objectUrl);
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
