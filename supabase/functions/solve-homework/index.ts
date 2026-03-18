@@ -807,7 +807,8 @@ serve(async (req) => {
       userGraphCount = 0,
       solveMode = "instant",
       deviceType = "web",
-      answerLanguage = "en"
+      answerLanguage = "en",
+      essaySettings = null,
     } = await req.json();
 
     // Normalize images: support single `image` string or `images` array
