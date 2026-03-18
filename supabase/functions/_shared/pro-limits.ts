@@ -1,6 +1,22 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ============================================================
+// ADMIN BYPASS — unlimited usage for admin accounts
+// ============================================================
+export async function isAdmin(userId: string): Promise<boolean> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+  return !!data;
+}
+
+// ============================================================
 // PRO MONTHLY LIMITS
 // ============================================================
 export const PRO_LIMITS = {
