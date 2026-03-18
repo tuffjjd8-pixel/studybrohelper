@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { CustomCamera } from "@/components/scanner/CustomCamera";
+import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/components/scanner/CustomCamera";
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
 import { supabase } from "@/integrations/supabase/client";
