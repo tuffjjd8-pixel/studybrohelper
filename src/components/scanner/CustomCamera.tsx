@@ -171,7 +171,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
     } finally {
       isCapturingRef.current = false;
     }
-  }, [stopStream, onCapture]);
+  }, [stopStream, onCapture, cameraMode]);
 
   const handleGalleryPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
