@@ -97,7 +97,13 @@ const Index = () => {
     const saved = localStorage.getItem("solve_mode");
     return saved === "deep" ? "deep" : saved === "essay" ? "essay" : "instant";
   });
-  const [essaySettings, setEssaySettings] = useState<EssaySettings>(DEFAULT_ESSAY_SETTINGS);
+  const [essaySettings, setEssaySettings] = useState<EssaySettings>(() => {
+    try {
+      const saved = localStorage.getItem("essay_settings");
+      if (saved) return { ...DEFAULT_ESSAY_SETTINGS, ...JSON.parse(saved) };
+    } catch (_) {}
+    return DEFAULT_ESSAY_SETTINGS;
+  });
   const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
     const saved = localStorage.getItem("deep_text_color");
     return (saved as DeepModeTextColor) || "gold";
@@ -120,6 +126,9 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem("deep_text_color", deepTextColor);
   }, [deepTextColor]);
+  useEffect(() => {
+    localStorage.setItem("essay_settings", JSON.stringify(essaySettings));
+  }, [essaySettings]);
 
   const handleSolveModeChange = (mode: "instant" | "deep" | "essay") => {
     setSolveMode(mode);
