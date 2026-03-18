@@ -236,7 +236,7 @@ const Index = () => {
           user_id: user.id,
           subject: data.subject || "other",
           question_text: input || null,
-          question_image_url: imageData || null,
+          question_image_url: imagesArray.length > 0 ? imagesArray[0] : null,
           solution_markdown: data.solution
         }).select("id").single();
 
