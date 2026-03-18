@@ -74,15 +74,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     sessionStorage.setItem("camera_multi_image", multiImage ? "true" : "false");
   }, [multiImage]);
 
-  const handleColorSelect = (color: DeepModeTextColor) => {
-    setDeepTextColor(color);
-    localStorage.setItem("deep_text_color", color);
-  };
-
-  const handleCloseColorPanel = () => {
-    setShowColorPanel(false);
-    sessionStorage.setItem("deepColorPanelClosed", "true");
-  };
 
   const stopStream = useCallback((releaseCache = false) => {
     if (videoRef.current) {
