@@ -19,7 +19,7 @@ export const TopSharerPopup = () => {
   const goalReached = useCommunityGoalReached();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !goalReached) return;
 
     // Check cooldown
     const lastDismissed = localStorage.getItem(POPUP_COOLDOWN_KEY);
