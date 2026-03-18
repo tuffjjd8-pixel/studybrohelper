@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -17,6 +18,8 @@ import {
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
+export type LengthPreset = "short" | "medium" | "long" | "custom";
+
 export interface EssaySettings {
   academicLevel: string;
   customGrade: string;
@@ -24,6 +27,8 @@ export interface EssaySettings {
   sentencesPerParagraph: number;
   tone: string;
   removeGreeting: boolean;
+  lengthPreset: LengthPreset;
+  customWordCount: number;
 }
 
 export const DEFAULT_ESSAY_SETTINGS: EssaySettings = {
@@ -33,7 +38,17 @@ export const DEFAULT_ESSAY_SETTINGS: EssaySettings = {
   sentencesPerParagraph: 5,
   tone: "standard",
   removeGreeting: true,
+  lengthPreset: "medium",
+  customWordCount: 200,
 };
+
+const LENGTH_LABELS: Record<Exclude<LengthPreset, "custom">, string> = {
+  short: "Short (100–150 words)",
+  medium: "Medium (150–250 words)",
+  long: "Long (250–400 words)",
+};
+
+const SLIDER_TO_PRESET: LengthPreset[] = ["short", "medium", "long", "custom"];
 
 interface EssayControlsProps {
   settings: EssaySettings;
@@ -48,6 +63,8 @@ export function EssayControls({ settings, onChange }: EssayControlsProps) {
 
   const clamp = (val: number, min: number, max: number) =>
     Math.max(min, Math.min(max, val));
+
+  const sliderIndex = SLIDER_TO_PRESET.indexOf(settings.lengthPreset);
 
   return (
     <motion.div
@@ -125,6 +142,48 @@ export function EssayControls({ settings, onChange }: EssayControlsProps) {
                 }
               />
               <p className="text-xs text-muted-foreground">1–10 sentences</p>
+            </div>
+
+            {/* Length */}
+            <div className="space-y-2">
+              <Label className="text-sm">Length</Label>
+              <Slider
+                min={0}
+                max={3}
+                step={1}
+                value={[sliderIndex >= 0 ? sliderIndex : 3]}
+                onValueChange={([v]) => {
+                  const preset = SLIDER_TO_PRESET[v];
+                  update({ lengthPreset: preset });
+                }}
+                className="w-full"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground px-0.5">
+                <span>Short</span>
+                <span>Medium</span>
+                <span>Long</span>
+                <span>Custom</span>
+              </div>
+              {settings.lengthPreset !== "custom" && (
+                <p className="text-xs text-muted-foreground">
+                  {LENGTH_LABELS[settings.lengthPreset]}
+                </p>
+              )}
+              {settings.lengthPreset === "custom" && (
+                <div className="space-y-1">
+                  <Input
+                    type="number"
+                    min={50}
+                    max={2000}
+                    value={settings.customWordCount}
+                    onChange={(e) =>
+                      update({ customWordCount: clamp(parseInt(e.target.value) || 200, 50, 2000) })
+                    }
+                    placeholder="Exact word count"
+                  />
+                  <p className="text-xs text-muted-foreground">50–2000 words</p>
+                </div>
+              )}
             </div>
 
             {/* Tone */}
