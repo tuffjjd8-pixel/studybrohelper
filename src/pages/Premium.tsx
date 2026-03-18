@@ -371,7 +371,7 @@ const Premium = () => {
 
       {/* Sticky CTA - only visible after selecting a plan */}
       <AnimatePresence>
-        {selectedPlan &&
+        {selectedPlan && !userIsPremium &&
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
