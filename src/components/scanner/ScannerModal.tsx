@@ -31,12 +31,14 @@ export function ScannerModal({
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
 
   // Open camera immediately when modal opens
   const cameraActive = isOpen && (state === "idle" || state === "camera");
 
-  const handleCameraCapture = useCallback((imageData: string) => {
-    setCapturedImage(imageData);
+  const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
+    setCapturedImage(result.image);
+    setSelectedMode(result.mode);
     setState("cropping");
   }, []);
 
