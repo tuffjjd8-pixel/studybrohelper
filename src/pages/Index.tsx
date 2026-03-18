@@ -210,6 +210,8 @@ const Index = () => {
         ? (Array.isArray(imageData) ? imageData : [imageData])
         : [];
 
+      const effectiveMode = solveMode === "essay" ? "essay" : (isPremium ? solveMode : "instant");
+
       const {
         data,
         error
@@ -221,9 +223,10 @@ const Index = () => {
            isPremium,
            animatedSteps: false,
            generateGraph: false,
-           solveMode: isPremium ? solveMode : "instant",
+           solveMode: effectiveMode,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-          answerLanguage
+          answerLanguage,
+          ...(solveMode === "essay" ? { essaySettings } : {}),
         }
       });
       if (error) throw error;
