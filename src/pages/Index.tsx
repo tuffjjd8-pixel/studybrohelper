@@ -454,7 +454,7 @@ const Index = () => {
 
               {/* Essay Controls - shown when Essay mode selected */}
               {solveMode === "essay" && (
-                <EssayControls settings={essaySettings} onChange={setEssaySettings} />
+                <EssayControls settings={essaySettings} onChange={setEssaySettings} isPremium={isPremium} />
               )}
 
               {/* Color Picker - shown when Deep Mode first toggled or user wants to change */}

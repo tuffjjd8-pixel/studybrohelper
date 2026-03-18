@@ -64,11 +64,11 @@ const COMPARISON: ComparisonItem[] = [
 { feature: "Daily Solves", free: "5/day", premium: "Unlimited" },
 { feature: "Instant Mode", free: "Included (5/day)", premium: "400/month" },
 { feature: "Deep Mode", free: false, premium: "120/month" },
+{ feature: "Essay Mode", free: "1/day (limited)", premium: "Unlimited (full)" },
 { feature: "Follow-Ups", free: "1 per solve", premium: "200/month" },
 { feature: "Humanize", free: false, premium: "80/month" },
 { feature: "Quiz Generator", free: "1/day (max 10 Qs)", premium: "40/month (max 20 Qs)" },
 { feature: "Strict Count Mode", free: false, premium: true },
-
 { feature: "Enhanced OCR", free: "Basic", premium: "Premium" },
 { feature: "Priority Speed", free: false, premium: true },
 { feature: "Ad-Free Experience", free: true, premium: true },
