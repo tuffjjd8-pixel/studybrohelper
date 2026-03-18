@@ -58,6 +58,11 @@ export async function checkAndUseProFeature(
   feature: ProFeature,
   action: "check" | "use" = "use"
 ): Promise<{ allowed: boolean; used: number; limit: number }> {
+  // Admin bypass — unlimited usage, no tracking
+  if (await isAdmin(userId)) {
+    return { allowed: true, used: 0, limit: 999999 };
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
