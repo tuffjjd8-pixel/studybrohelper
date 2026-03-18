@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles, Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { Header } from "@/components/layout/Header";
@@ -11,10 +11,13 @@ import { CustomCamera } from "@/components/scanner/CustomCamera";
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { SolutionDisplay } from "@/components/scanner/SolutionDisplay";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
+import { ModeSelector } from "@/components/solve/ModeSelector";
+import type { SolveMode } from "@/components/solve/ModeSelector";
 import { Button } from "@/components/ui/button";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSolveUsage } from "@/hooks/useSolveUsage";
 import { toast } from "sonner";
 
 type ScannerState = "idle" | "camera" | "cropping" | "scanning" | "solved";
