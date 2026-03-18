@@ -139,7 +139,7 @@ const CommunityGoalReward = () => {
             </button>
 
             {/* Premium reward unlocked message */}
-            {isPremium && goalVisible &&
+            {isPremium && goalReached &&
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
