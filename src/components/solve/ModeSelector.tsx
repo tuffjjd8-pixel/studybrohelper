@@ -31,6 +31,8 @@ interface ModeSelectorProps {
   speechLanguage?: string;
   onSpeechLanguageChange?: (value: string) => void;
   isAuthenticated?: boolean;
+  /** When true, hides Instant/Deep mode options and keep-mode toggle (text-only context) */
+  hideImageModes?: boolean;
 }
 
 export function ModeSelector({
@@ -47,6 +49,7 @@ export function ModeSelector({
   speechLanguage = "auto",
   onSpeechLanguageChange,
   isAuthenticated = false,
+  hideImageModes = false,
 }: ModeSelectorProps) {
   const solvesRemaining = isPremium ? -1 : Math.max(0, maxSolves - solvesUsed);
   const usagePercent = isPremium ? 0 : (solvesUsed / maxSolves) * 100;
@@ -88,13 +91,15 @@ export function ModeSelector({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="instant">Instant</SelectItem>
-              <SelectItem value="deep" disabled={!isPremium}>
-                <span className="flex items-center gap-1.5">
-                  Deep
-                  {!isPremium && <Crown className="w-3 h-3 text-amber-400" />}
-                </span>
-              </SelectItem>
+              {!hideImageModes && <SelectItem value="instant">Instant</SelectItem>}
+              {!hideImageModes && (
+                <SelectItem value="deep" disabled={!isPremium}>
+                  <span className="flex items-center gap-1.5">
+                    Deep
+                    {!isPremium && <Crown className="w-3 h-3 text-amber-400" />}
+                  </span>
+                </SelectItem>
+              )}
               <SelectItem value="essay">Essay</SelectItem>
             </SelectContent>
           </Select>
@@ -107,17 +112,19 @@ export function ModeSelector({
           </p>
         </div>
 
-        {/* Keep mode toggle */}
-        <div className="flex items-center justify-between">
-          <Label htmlFor="keep-mode" className="text-sm cursor-pointer">
-            Keep this mode for this session
-          </Label>
-          <Switch
-            id="keep-mode"
-            checked={keepMode}
-            onCheckedChange={onKeepModeChange}
-          />
-        </div>
+        {/* Keep mode toggle - hidden in text-only context */}
+        {!hideImageModes && (
+          <div className="flex items-center justify-between">
+            <Label htmlFor="keep-mode" className="text-sm cursor-pointer">
+              Keep this mode for this session
+            </Label>
+            <Switch
+              id="keep-mode"
+              checked={keepMode}
+              onCheckedChange={onKeepModeChange}
+            />
+          </div>
+        )}
 
         {/* Speech Input Toggle - Hidden */}
 
