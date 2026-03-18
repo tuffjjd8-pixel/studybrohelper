@@ -31,6 +31,7 @@ import { AdminSettings } from "@/components/profile/AdminSettings";
 import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
 import { openPremiumPage } from "@/lib/mobileDetection";
 import { getBadgeByKey } from "@/lib/badgeDefinitions";
+import { useCommunityGoalReached } from "@/hooks/useCommunityGoalReached";
 
 interface Profile {
   id: string;
@@ -66,6 +67,7 @@ const Profile = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [totalConfirmedLikes, setTotalConfirmedLikes] = useState(0);
+  const goalReached = useCommunityGoalReached();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showDeepColorPicker, setShowDeepColorPicker] = useState(false);
   const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
@@ -504,7 +506,8 @@ const Profile = () => {
               </Button>
             </motion.div>
 
-            {/* Community Reward Button */}
+            {/* Community Reward Button — only visible when goal is reached */}
+            {goalReached && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -528,6 +531,7 @@ const Profile = () => {
                 </div>
               </Button>
             </motion.div>
+            )}
 
             {/* Polls Button */}
             <motion.div
