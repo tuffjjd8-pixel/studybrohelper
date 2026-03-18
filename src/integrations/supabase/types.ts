@@ -668,8 +668,10 @@ export type Database = {
           created_at: string
           device_id: string | null
           id: string
+          image_solves_used: number
           last_reset_at: string
           solves_used: number
+          text_solves_used: number
           updated_at: string
           usage_date: string
           user_id: string | null
@@ -678,8 +680,10 @@ export type Database = {
           created_at?: string
           device_id?: string | null
           id?: string
+          image_solves_used?: number
           last_reset_at?: string
           solves_used?: number
+          text_solves_used?: number
           updated_at?: string
           usage_date?: string
           user_id?: string | null
@@ -688,8 +692,10 @@ export type Database = {
           created_at?: string
           device_id?: string | null
           id?: string
+          image_solves_used?: number
           last_reset_at?: string
           solves_used?: number
+          text_solves_used?: number
           updated_at?: string
           usage_date?: string
           user_id?: string | null
