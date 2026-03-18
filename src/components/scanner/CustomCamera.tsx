@@ -196,7 +196,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
           reader.readAsDataURL(file);
         });
         stopStream(false);
-        onCapture(dataUrl);
+        onCapture({ image: dataUrl, mode: cameraMode });
       } catch {
         console.error("Gallery fallback also failed");
       }
