@@ -441,7 +441,12 @@ const Index = () => {
                 </motion.div>}
 
               {/* Mode Selector */}
-              <ModeSelector solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={handleSolveModeChange} keepMode={keepMode} onKeepModeChange={setKeepMode} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
+              <ModeSelector solveMode={solveMode === "essay" ? "essay" : (isPremium ? solveMode : "instant")} onSolveModeChange={handleSolveModeChange} keepMode={keepMode} onKeepModeChange={setKeepMode} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
+
+              {/* Essay Controls - shown when Essay mode selected */}
+              {solveMode === "essay" && (
+                <EssayControls settings={essaySettings} onChange={setEssaySettings} />
+              )}
 
               {/* Color Picker - shown when Deep Mode first toggled or user wants to change */}
               {showColorPicker && isPremium && solveMode === "deep" && (
