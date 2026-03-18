@@ -37,21 +37,13 @@ export function ScannerModal({
   const cameraActive = isOpen && (state === "idle" || state === "camera");
 
   const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
+    setCapturedImage(result.image);
     setSelectedMode(result.mode);
-
-    if (result.images.length > 1) {
-      // Multi-image: skip cropping, solve directly
-      setState("scanning");
-      setLoadingStage("classifying");
-      solveMultiImage(result.images);
-    } else if (result.images.length === 1) {
-      // Single image: go through crop flow
-      setCapturedImage(result.images[0]);
-      setState("cropping");
-    }
+    setState("cropping");
   }, []);
 
   const handleCropComplete = useCallback((croppedImage: string) => {
+    // Clean up original capture
     if (capturedImage?.startsWith("blob:")) {
       URL.revokeObjectURL(capturedImage);
     }
@@ -76,6 +68,7 @@ export function ScannerModal({
   }, [onClose]);
 
   const solveProblem = async (imageData: string) => {
+    // Auth guard: require sign-in for AI features
     if (!userId) {
       toast.error("Please sign in to use AI features.");
       return;
@@ -104,6 +97,7 @@ export function ScannerModal({
 
       const extractedQuestion = data.question || data.extractedText || "Image-based question";
 
+      // Save to database if logged in
       if (userId) {
         await supabase.from("solves").insert({
           user_id: userId,
@@ -124,55 +118,6 @@ export function ScannerModal({
     }
   };
 
-  const solveMultiImage = async (images: string[]) => {
-    if (!userId) {
-      toast.error("Please sign in to use AI features.");
-      return;
-    }
-    try {
-      setLoadingStage("classifying");
-      await new Promise((r) => setTimeout(r, 200));
-      setLoadingStage("solving");
-
-      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
-      const answerLanguage = await getAnswerLanguage(userId);
-      const { data, error } = await supabase.functions.invoke("solve-homework", {
-        body: {
-          question: "",
-          images: images,
-          isPremium,
-          animatedSteps: false,
-          solveMode: isPremium ? selectedMode : "instant",
-          generateGraph: false,
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-          answerLanguage,
-        },
-      });
-
-      if (error) throw error;
-
-      const extractedQuestion = data.question || data.extractedText || "Multi-image question";
-
-      if (userId) {
-        await supabase.from("solves").insert({
-          user_id: userId,
-          subject: data.subject || "general",
-          question_text: extractedQuestion,
-          question_image_url: images[0]?.substring(0, 500),
-          solution_markdown: data.solution,
-        });
-      }
-
-      onSolved(extractedQuestion, data.solution, data.subject || "general", images[0]);
-      handleReset();
-      onClose();
-    } catch (error) {
-      console.error("Multi-image scan error:", error);
-      toast.error("Failed to scan homework. Please try again.");
-      handleReset();
-    }
-  };
-
   const handleReset = useCallback(() => {
     setState("idle");
     setProcessedImage(null);
@@ -186,7 +131,6 @@ export function ScannerModal({
         isOpen={cameraActive}
         onCapture={handleCameraCapture}
         onClose={handleCameraClose}
-        isPremium={isPremium}
       />
 
       {/* Manual crop screen */}

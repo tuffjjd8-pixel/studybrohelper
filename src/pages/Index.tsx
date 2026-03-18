@@ -80,7 +80,11 @@ const Index = () => {
     return saved === "true";
   });
 
-  // keepMode removed from home — now lives inside CustomCamera only
+  // Keep mode toggle (session persistence)
+  const [keepMode, setKeepMode] = useState(() => {
+    const saved = sessionStorage.getItem("keep_solve_mode");
+    return saved === "true";
+  });
   const [speechInput, setSpeechInput] = useState(() => {
     const saved = localStorage.getItem("toggle_speech_input");
     return saved !== null ? JSON.parse(saved) : false;
@@ -107,6 +111,9 @@ const Index = () => {
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Persist toggles
+  useEffect(() => {
+    sessionStorage.setItem("keep_solve_mode", keepMode ? "true" : "false");
+  }, [keepMode]);
   useEffect(() => {
     localStorage.setItem("toggle_speech_input", JSON.stringify(speechInput));
   }, [speechInput]);
@@ -362,8 +369,8 @@ const Index = () => {
   const handleReset = () => {
     setSolution(null);
     setPendingImages([]);
-    // Always reset to instant on home (deep is camera-only)
-    if (solveMode !== "essay") {
+    // If keepMode is off, reset to instant
+    if (!keepMode) {
       setSolveMode("instant");
     }
   };
@@ -442,26 +449,21 @@ const Index = () => {
                   </p>
                 </motion.div>}
 
+              {/* Mode Selector */}
+              <ModeSelector solveMode={solveMode === "essay" ? "essay" : (isPremium ? solveMode : "instant")} onSolveModeChange={handleSolveModeChange} keepMode={keepMode} onKeepModeChange={setKeepMode} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
+
               {/* Essay Controls - shown when Essay mode selected */}
               {solveMode === "essay" && (
                 <EssayControls settings={essaySettings} onChange={setEssaySettings} isPremium={isPremium} />
               )}
 
-              {/* Simple Essay toggle - replaces full ModeSelector on home */}
-              {solveMode !== "essay" ? (
-                <button
-                  onClick={() => setSolveMode("essay")}
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Switch to Essay Mode
-                </button>
-              ) : (
-                <button
-                  onClick={() => setSolveMode("instant")}
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Switch to Standard Mode
-                </button>
+              {/* Color Picker - shown when Deep Mode first toggled or user wants to change */}
+              {showColorPicker && isPremium && solveMode === "deep" && (
+                <DeepModeColorPicker
+                  selectedColor={deepTextColor}
+                  onSelect={(c) => setDeepTextColor(c)}
+                  onClose={() => setShowColorPicker(false)}
+                />
               )}
 
               {/* Divider */}

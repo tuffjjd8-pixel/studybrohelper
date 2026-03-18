@@ -1,13 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen, Images, Image as ImageSingle, Check } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen } from "lucide-react";
 import { fileToOptimizedDataUrl } from "@/lib/image";
 
 export type CameraSolveMode = "instant" | "deep";
 
 export interface CameraCaptureResult {
-  images: string[];
+  image: string;
   mode: CameraSolveMode;
 }
 
@@ -15,13 +14,12 @@ interface CustomCameraProps {
   isOpen: boolean;
   onCapture: (result: CameraCaptureResult) => void;
   onClose: () => void;
-  isPremium?: boolean;
 }
 
 // Module-level stream cache so reopening doesn't reinitialize the sensor
 let cachedStream: MediaStream | null = null;
 
-export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: CustomCameraProps) {
+export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -33,42 +31,14 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   const [torchSupported, setTorchSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isCapturingRef = useRef(false);
-
-  // Keep mode: persists selections within session
-  const [keepMode, setKeepMode] = useState(() => {
-    return sessionStorage.getItem("camera_keep_mode") === "true";
-  });
-
   const [cameraMode, setCameraMode] = useState<CameraSolveMode>(() => {
     const saved = localStorage.getItem("camera_solve_mode");
     return saved === "deep" ? "deep" : "instant";
   });
 
-  const [multiImageEnabled, setMultiImageEnabled] = useState(() => {
-    if (!isPremium) return false;
-    const saved = localStorage.getItem("camera_multi_image");
-    return saved === "true";
-  });
-
-  // Multi-image capture state
-  const [capturedImages, setCapturedImages] = useState<string[]>([]);
-
   useEffect(() => {
     localStorage.setItem("camera_solve_mode", cameraMode);
   }, [cameraMode]);
-
-  useEffect(() => {
-    localStorage.setItem("camera_multi_image", multiImageEnabled ? "true" : "false");
-  }, [multiImageEnabled]);
-
-  useEffect(() => {
-    sessionStorage.setItem("camera_keep_mode", keepMode ? "true" : "false");
-  }, [keepMode]);
-
-  // Reset multi-image if not premium
-  useEffect(() => {
-    if (!isPremium) setMultiImageEnabled(false);
-  }, [isPremium]);
 
   const stopStream = useCallback((releaseCache = false) => {
     if (videoRef.current) {
@@ -88,6 +58,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     setIsReady(false);
 
     try {
+      // Reuse cached stream if tracks are still live
       let stream = cachedStream;
       if (!stream || stream.getTracks().some((t) => t.readyState === "ended")) {
         if (cachedStream) {
@@ -96,6 +67,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
+            // Preview at 720p for fast startup; capture uses full resolution
             width: { ideal: 1280 },
             height: { ideal: 720 },
             frameRate: { ideal: 30 },
@@ -109,11 +81,13 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(() => {});
 
+        // Mark ready as soon as first frame has non-zero dimensions
         const onFrame = () => {
           const v = videoRef.current;
           if (v && v.videoWidth > 0 && v.videoHeight > 0) {
             isReadyRef.current = true;
             setIsReady(true);
+            // Non-blocking torch check
             const track = stream!.getVideoTracks()[0];
             const caps = track.getCapabilities?.() as MediaTrackCapabilities & { torch?: boolean };
             setTorchSupported(caps?.torch === true);
@@ -136,12 +110,12 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   useEffect(() => {
     if (isOpen) {
       startCamera();
-      // Reset captured images when opening
-      setCapturedImages([]);
     } else {
+      // Don't release the cached stream on close — just detach video
       stopStream(false);
       setTorchEnabled(false);
     }
+    // On unmount, release everything
     return () => stopStream(true);
   }, [isOpen, startCamera, stopStream]);
 
@@ -158,12 +132,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     }
   }, [torchEnabled, torchSupported]);
 
-  const finalizeCapture = useCallback((allImages: string[]) => {
-    stopStream(false);
-    onCapture({ images: allImages, mode: cameraMode });
-    setCapturedImages([]);
-  }, [stopStream, onCapture, cameraMode]);
-
   const capturePhoto = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || !isReadyRef.current || isCapturingRef.current) return;
     isCapturingRef.current = true;
@@ -176,6 +144,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
         throw new Error("Video not ready");
       }
 
+      // Full resolution capture from the sensor
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
@@ -193,86 +162,54 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
       });
 
       const objectUrl = URL.createObjectURL(blob);
-
-      if (multiImageEnabled && capturedImages.length === 0) {
-        // First image in multi-image mode — keep camera open for second
-        setCapturedImages([objectUrl]);
-      } else if (multiImageEnabled && capturedImages.length === 1) {
-        // Second image — finalize
-        finalizeCapture([...capturedImages, objectUrl]);
-      } else {
-        // Single image mode
-        finalizeCapture([objectUrl]);
-      }
+      // Don't release the cached stream — just detach
+      stopStream(false);
+      onCapture({ image: objectUrl, mode: cameraMode });
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
     } finally {
       isCapturingRef.current = false;
     }
-  }, [stopStream, onCapture, cameraMode, multiImageEnabled, capturedImages, finalizeCapture]);
+  }, [stopStream, onCapture, cameraMode]);
 
   const handleGalleryPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
+    const file = e.target.files?.[0];
+    if (!file) return;
     try {
-      const maxFiles = multiImageEnabled ? 2 : 1;
-      const selectedFiles = Array.from(files).slice(0, maxFiles);
-      
-      const processedImages = await Promise.all(
-        selectedFiles.map(async (file) => {
-          try {
-            return await fileToOptimizedDataUrl(file, {
-              maxDimension: 2048,
-              quality: 0.92,
-              mimeType: "image/jpeg",
-            });
-          } catch {
-            // Fallback: raw file as data URL
-            const reader = new FileReader();
-            return new Promise<string>((resolve, reject) => {
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(file);
-            });
-          }
-        })
-      );
-
-      finalizeCapture(processedImages);
+      const optimized = await fileToOptimizedDataUrl(file, {
+        maxDimension: 2048,
+        quality: 0.92,
+        // Use jpeg for max compatibility (older Safari, Android WebView)
+        mimeType: "image/jpeg",
+      });
+      stopStream(false);
+      onCapture({ image: optimized, mode: cameraMode });
     } catch (err) {
       console.error("Gallery error:", err);
+      // Ultimate fallback: just pass the raw file as data URL
+      try {
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        stopStream(false);
+        onCapture({ image: dataUrl, mode: cameraMode });
+      } catch {
+        console.error("Gallery fallback also failed");
+      }
     }
     if (e.target) e.target.value = "";
-  }, [finalizeCapture, multiImageEnabled]);
+  }, [stopStream, onCapture, cameraMode]);
 
   const handleClose = useCallback(() => {
-    // Clean up any captured images
-    capturedImages.forEach((img) => {
-      if (img.startsWith("blob:")) URL.revokeObjectURL(img);
-    });
-    setCapturedImages([]);
-
-    // If keep mode is off, reset to defaults
-    if (!keepMode) {
-      setCameraMode("instant");
-      setMultiImageEnabled(false);
-    }
-
-    stopStream(true);
+    stopStream(true); // Release cache on explicit close
     onClose();
-  }, [stopStream, onClose, keepMode, capturedImages]);
-
-  const handleDoneMultiImage = useCallback(() => {
-    if (capturedImages.length > 0) {
-      finalizeCapture(capturedImages);
-    }
-  }, [capturedImages, finalizeCapture]);
+  }, [stopStream, onClose]);
 
   if (!isOpen) return null;
-
-  const isMultiCapturing = multiImageEnabled && capturedImages.length > 0;
 
   return (
     <AnimatePresence>
@@ -291,7 +228,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
           accept="image/*,image/heic,image/heif"
           onChange={handleGalleryPick}
           className="hidden"
-          multiple={multiImageEnabled}
           style={{ position: "absolute", top: -9999, left: -9999, opacity: 0 }}
         />
 
@@ -359,32 +295,8 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
             )}
           </div>
 
-          {/* Multi-image captured thumbnail */}
-          {isMultiCapturing && (
-            <div className="absolute top-20 left-0 right-0 px-5 z-20 flex justify-center">
-              <div className="flex items-center gap-3 p-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/15">
-                <img
-                  src={capturedImages[0]}
-                  alt="Captured 1"
-                  className="w-16 h-16 rounded-lg object-cover border-2 border-primary/60"
-                />
-                <div className="text-white text-sm">
-                  <p className="font-medium">1/2 captured</p>
-                  <p className="text-white/60 text-xs">Take second photo</p>
-                </div>
-                <button
-                  onClick={handleDoneMultiImage}
-                  className="ml-2 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium"
-                >
-                  Done (1)
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Solve Mode + Multi-Image Selectors — above bottom controls */}
-          <div className="absolute bottom-36 left-0 right-0 px-5 z-20 flex flex-col items-center gap-2">
-            {/* Solve Mode Selector */}
+          {/* Solve Mode Selector — above bottom controls */}
+          <div className="absolute bottom-32 left-0 right-0 px-5 z-20 flex justify-center">
             <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15">
               <button
                 onClick={() => setCameraMode("instant")}
@@ -410,51 +322,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
                 <Crown className="w-3 h-3 text-amber-400" />
               </button>
             </div>
-
-            {/* Multi-Image Toggle (Pro only) */}
-            <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15">
-              <button
-                onClick={() => setMultiImageEnabled(false)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-                  !multiImageEnabled
-                    ? "bg-white/20 text-white shadow-lg"
-                    : "text-white/50 hover:text-white/70"
-                }`}
-              >
-                <ImageSingle className="w-3 h-3" />
-                Single
-              </button>
-              <button
-                onClick={() => {
-                  if (!isPremium) {
-                    // Could show toast but we keep it simple with visual lock
-                    return;
-                  }
-                  setMultiImageEnabled(true);
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-                  multiImageEnabled
-                    ? "bg-white/20 text-white shadow-lg"
-                    : isPremium
-                    ? "text-white/50 hover:text-white/70"
-                    : "text-white/30 cursor-not-allowed"
-                }`}
-              >
-                <Images className="w-3 h-3" />
-                Multi (2)
-                {!isPremium && <Crown className="w-3 h-3 text-amber-400" />}
-              </button>
-            </div>
-
-            {/* Keep this mode checkbox */}
-            <label className="flex items-center gap-2 cursor-pointer">
-              <Checkbox
-                checked={keepMode}
-                onCheckedChange={(checked) => setKeepMode(checked === true)}
-                className="border-white/40 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-              />
-              <span className="text-xs text-white/60">Keep this mode for this session</span>
-            </label>
           </div>
 
           {/* Bottom controls */}
@@ -477,14 +344,12 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
               className="relative w-[76px] h-[76px] flex items-center justify-center"
             >
               {/* Outer ring */}
-              <div className={`absolute inset-0 rounded-full border-[4px] ${isMultiCapturing ? "border-primary/90" : "border-white/90"}`} />
+              <div className="absolute inset-0 rounded-full border-[4px] border-white/90" />
               {/* Inner button */}
               <div
                 className={`w-[64px] h-[64px] rounded-full transition-all duration-150 ${
                   isReady
-                    ? isMultiCapturing
-                      ? "bg-primary active:bg-primary/70 active:scale-90"
-                      : "bg-white active:bg-white/70 active:scale-90"
+                    ? "bg-white active:bg-white/70 active:scale-90"
                     : "bg-white/30"
                 }`}
               />
