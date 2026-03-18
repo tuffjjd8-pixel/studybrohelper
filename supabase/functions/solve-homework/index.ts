@@ -519,8 +519,42 @@ async function callGroqVision(imageBase64: string, mimeType: string): Promise<st
 // ============================================================
 // OCR: External OCR endpoint — exact text, equations, tables
 // ============================================================
-async function callExternalOCR(imageBase64: string, mimeType: string): Promise<string> {
-  console.log("[OCR] Extracting text via external OCR API...");
+
+// Map ISO 639-1 answer language codes to PaddleOCR language codes
+const ANSWER_LANG_TO_OCR: Record<string, string> = {
+  en: "en",
+  es: "es",
+  hi: "hi",
+  ar: "ar",
+  zh: "ch",
+  fr: "fr",
+  de: "german",
+  ko: "korean",
+  ja: "japan",
+  pt: "pt",
+  it: "it",
+  tr: "tr",
+  bn: "bn",         // Bengali (Bangla)
+  ur: "ur",
+  te: "te",
+  ta: "ta",
+  vi: "vi",
+  ru: "ru",
+  id: "id",          // Indonesian
+  ne: "ne",
+  th: "th",
+  pl: "pl",
+  nl: "nl",
+  uk: "uk",
+};
+
+function getOcrLang(answerLanguage: string): string {
+  return ANSWER_LANG_TO_OCR[answerLanguage] || "en";
+}
+
+async function callExternalOCR(imageBase64: string, mimeType: string, answerLanguage: string = "en"): Promise<string> {
+  const ocrLang = getOcrLang(answerLanguage);
+  console.log("[OCR] Extracting text via external OCR API, lang:", ocrLang);
 
   // Convert base64 to binary
   const binaryString = atob(imageBase64);
@@ -535,6 +569,7 @@ async function callExternalOCR(imageBase64: string, mimeType: string): Promise<s
   const formData = new FormData();
   const blob = new Blob([bytes], { type: mimeType });
   formData.append("file", blob, fileName);
+  formData.append("lang", ocrLang);
 
   const response = await fetch("http://46.224.199.130:8000/ocr", {
     method: "POST",
@@ -558,12 +593,12 @@ async function callExternalOCR(imageBase64: string, mimeType: string): Promise<s
 // COMBINED PIPELINE: Vision + OCR → merged result
 // Runs both in parallel for speed
 // ============================================================
-async function extractTextFromImage(imageBase64: string, mimeType: string): Promise<{ vision: string; ocr: string; combined_text: string }> {
-  console.log("[Pipeline] Running Vision + OCR in parallel...");
+async function extractTextFromImage(imageBase64: string, mimeType: string, answerLanguage: string = "en"): Promise<{ vision: string; ocr: string; combined_text: string }> {
+  console.log("[Pipeline] Running Vision + OCR in parallel, answerLanguage:", answerLanguage);
 
   const [visionResult, ocrResult] = await Promise.allSettled([
     callGroqVision(imageBase64, mimeType),
-    callExternalOCR(imageBase64, mimeType),
+    callExternalOCR(imageBase64, mimeType, answerLanguage),
   ]);
 
   const vision = visionResult.status === "fulfilled" ? visionResult.value : "";
@@ -844,7 +879,7 @@ serve(async (req) => {
 
       // Step 1: Run Vision + OCR in parallel
       ocrEngineUsed = "groq_vision+external_ocr";
-      const { vision, ocr, combined_text } = await extractTextFromImage(base64Data, mimeType);
+      const { vision, ocr, combined_text } = await extractTextFromImage(base64Data, mimeType, answerLanguage);
       console.log("[Pipeline] Vision:", vision.length, "chars, OCR:", ocr.length, "chars, Combined:", combined_text.length, "chars");
 
       // Step 2: Send combined text to GPT-OSS for reasoning
