@@ -271,6 +271,19 @@ const Scanner = () => {
                   </p>
                 </div>
 
+                {/* Solve Mode Selector for Image Solves */}
+                <ModeSelector
+                  solveMode={solveMode === "essay" ? "instant" : solveMode}
+                  onSolveModeChange={handleSolveModeChange}
+                  keepMode={keepMode}
+                  onKeepModeChange={setKeepMode}
+                  isPremium={isPremium}
+                  solvesUsed={solveUsage.solvesUsed}
+                  maxSolves={solveUsage.maxSolves}
+                  canSolve={solveUsage.canSolve}
+                  isAuthenticated={!!user}
+                />
+
                 {/* Drop Zone */}
                 <ScannerDropZone 
                   onImageSelect={handleImageSelect} 

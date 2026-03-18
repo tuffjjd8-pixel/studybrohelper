@@ -59,7 +59,8 @@ export async function checkAndUseProFeature(
 
   const currentUsed = existing ? (existing as Record<string, any>)[feature] || 0 : 0;
 
-  if (currentUsed >= limit) {
+  // -1 means unlimited
+  if (limit !== -1 && currentUsed >= limit) {
     return { allowed: false, used: currentUsed, limit };
   }
 
