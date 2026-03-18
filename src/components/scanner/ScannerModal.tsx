@@ -86,7 +86,7 @@ export function ScannerModal({
           image: imageData,
           isPremium,
           animatedSteps: false,
-          solveMode: isPremium ? solveMode : "instant",
+          solveMode: isPremium ? selectedMode : "instant",
           generateGraph: false,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
           answerLanguage,
