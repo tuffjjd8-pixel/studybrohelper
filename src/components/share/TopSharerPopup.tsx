@@ -16,6 +16,7 @@ export const TopSharerPopup = () => {
   const navigate = useNavigate();
   const [show, setShow] = useState(false);
   const [totalLikes, setTotalLikes] = useState(0);
+  const goalReached = useCommunityGoalReached();
 
   useEffect(() => {
     if (!user) return;

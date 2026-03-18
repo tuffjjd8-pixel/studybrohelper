@@ -506,7 +506,8 @@ const Profile = () => {
               </Button>
             </motion.div>
 
-            {/* Community Reward Button */}
+            {/* Community Reward Button — only visible when goal is reached */}
+            {goalReached && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -530,6 +531,7 @@ const Profile = () => {
                 </div>
               </Button>
             </motion.div>
+            )}
 
             {/* Polls Button */}
             <motion.div
