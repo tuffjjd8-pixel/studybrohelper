@@ -59,11 +59,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
 
   useEffect(() => {
     localStorage.setItem("camera_solve_mode", cameraMode);
-    // When switching to instant, hide color panel
-    if (cameraMode === "instant") {
-      setShowColorPanel(false);
-    } else if (cameraMode === "deep") {
-    }
   }, [cameraMode]);
 
   useEffect(() => {
