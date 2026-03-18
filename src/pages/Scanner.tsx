@@ -43,7 +43,7 @@ const Scanner = () => {
   }, []);
 
   const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
-    setSelectedImage(result.image);
+    setSelectedImage(result.images[0]);
     setSelectedMode(result.mode);
     setState("cropping");
   }, []);
