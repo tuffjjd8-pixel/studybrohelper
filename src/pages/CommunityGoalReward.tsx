@@ -17,8 +17,7 @@ const CommunityGoalReward = () => {
   const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<CommunityPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [goalVisible, setGoalVisible] = useState<boolean | null>(null);
-  const [rewardScreenEnabled, setRewardScreenEnabled] = useState<boolean | null>(null);
+  const [goalReached, setGoalReached] = useState<boolean | null>(null);
   const [rewardClaimingEnabled, setRewardClaimingEnabled] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
 

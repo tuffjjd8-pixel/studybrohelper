@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCommunityGoalReached } from "@/hooks/useCommunityGoalReached";
 
 const TOP_SHARER_THRESHOLD = 50; // Confirmed likes threshold
 const POPUP_COOLDOWN_KEY = "top_sharer_popup_dismissed";
