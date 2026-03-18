@@ -442,21 +442,26 @@ const Index = () => {
                   </p>
                 </motion.div>}
 
-              {/* Mode Selector */}
-              <ModeSelector solveMode={solveMode === "essay" ? "essay" : (isPremium ? solveMode : "instant")} onSolveModeChange={handleSolveModeChange} keepMode={keepMode} onKeepModeChange={setKeepMode} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
-
               {/* Essay Controls - shown when Essay mode selected */}
               {solveMode === "essay" && (
                 <EssayControls settings={essaySettings} onChange={setEssaySettings} isPremium={isPremium} />
               )}
 
-              {/* Color Picker - shown when Deep Mode first toggled or user wants to change */}
-              {showColorPicker && isPremium && solveMode === "deep" && (
-                <DeepModeColorPicker
-                  selectedColor={deepTextColor}
-                  onSelect={(c) => setDeepTextColor(c)}
-                  onClose={() => setShowColorPicker(false)}
-                />
+              {/* Simple Essay toggle - replaces full ModeSelector on home */}
+              {solveMode !== "essay" ? (
+                <button
+                  onClick={() => setSolveMode("essay")}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Switch to Essay Mode
+                </button>
+              ) : (
+                <button
+                  onClick={() => setSolveMode("instant")}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Switch to Standard Mode
+                </button>
               )}
 
               {/* Divider */}
