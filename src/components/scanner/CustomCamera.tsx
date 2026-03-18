@@ -203,17 +203,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
         mimeType: "image/jpeg",
       });
 
-      if (multiImage && isPremium) {
-        const newImages = [...collectedImages, optimized];
-        if (newImages.length >= 2) {
-          finishCapture(newImages);
-        } else {
-          setCollectedImages(newImages);
-          toast.info(`Image ${newImages.length}/2 added. Add one more!`);
-        }
-      } else {
-        finishCapture(optimized);
-      }
+      finishCapture(optimized);
     } catch (err) {
       console.error("Gallery error:", err);
       try {
