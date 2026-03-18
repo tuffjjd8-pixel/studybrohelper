@@ -938,7 +938,7 @@ serve(async (req) => {
       }
       
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode, answerLanguage);
+      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode, answerLanguage, essaySettings);
     } else if (question) {
       // Text-only input → route to tier-appropriate text model
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
