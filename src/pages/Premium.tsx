@@ -61,9 +61,9 @@ const PLANS: PlanOption[] = [
 
 
 const COMPARISON: ComparisonItem[] = [
-{ feature: "Daily Solves", free: "5/day", premium: "Unlimited" },
-{ feature: "Instant Mode", free: "Included (5/day)", premium: "400/month" },
-{ feature: "Deep Mode", free: false, premium: "120/month" },
+{ feature: "Instant Mode (Image)", free: "3/day", premium: "300/month" },
+{ feature: "Ask (Text Solves)", free: "4/day", premium: "300/month" },
+{ feature: "Deep Mode", free: false, premium: "100/month" },
 { feature: "Essay Mode", free: "1/day (limited)", premium: "Unlimited (full)" },
 { feature: "Follow-Ups", free: "1 per solve", premium: "200/month" },
 { feature: "Humanize", free: false, premium: "80/month" },
@@ -78,7 +78,7 @@ const COMPARISON: ComparisonItem[] = [
 
 
 const PREMIUM_BENEFITS = [
-{ icon: Brain, title: "520 Solves/Month", description: "400 Instant + 120 Deep combined" },
+{ icon: Brain, title: "400 Solves/Month", description: "300 Instant + 100 Deep combined" },
 { icon: Calculator, title: "Scientific Calculator", description: "Advanced reasoning & logic" },
 { icon: Target, title: "Premium OCR", description: "Enhanced image recognition" },
 { icon: Zap, title: "Priority Speed", description: "Skip the queue" },
@@ -92,6 +92,21 @@ const Premium = () => {
   const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectingPlan, setIsSelectingPlan] = useState(false);
+  const [userIsPremium, setUserIsPremium] = useState(false);
+
+  // Check if user is already premium
+  useEffect(() => {
+    if (!user) return;
+    const checkPremium = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_premium")
+        .eq("user_id", user.id)
+        .single();
+      if (data?.is_premium) setUserIsPremium(true);
+    };
+    checkPremium();
+  }, [user]);
 
 
   // Lock/unlock scroll based on overlay state
@@ -200,8 +215,24 @@ const Premium = () => {
               </p>
             </div>
 
+            {/* Already Premium Banner */}
+            {userIsPremium && (
+              <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 text-center space-y-2">
+                <div className="flex items-center justify-center gap-2">
+                  <Crown className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-primary">You're already Premium!</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Cancel your current subscription first before purchasing a new plan.
+                </p>
+                <Button variant="outline" size="sm" onClick={() => navigate("/profile")}>
+                  Manage Subscription
+                </Button>
+              </div>
+            )}
+
             {/* Plan Selection */}
-            <div className="space-y-3">
+            <div className={`space-y-3 ${userIsPremium ? "opacity-50 pointer-events-none" : ""}`}>
               <h2 className="font-semibold text-lg text-center">Choose Your Plan</h2>
               <div className="space-y-3">
                 {PLANS.map((plan) => {
@@ -340,7 +371,7 @@ const Premium = () => {
 
       {/* Sticky CTA - only visible after selecting a plan */}
       <AnimatePresence>
-        {selectedPlan &&
+        {selectedPlan && !userIsPremium &&
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}

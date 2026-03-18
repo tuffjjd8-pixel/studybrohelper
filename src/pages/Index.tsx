@@ -166,8 +166,15 @@ const Index = () => {
       toast.error("Please sign in to use AI features.");
       return;
     }
+
+    const imagesArray = imageData
+      ? (Array.isArray(imageData) ? imageData : [imageData])
+      : [];
+    const solveType: "image" | "text" = imagesArray.length > 0 ? "image" : "text";
+
     if (!solveUsage.isPremium && !solveUsage.canSolve) {
-      toast.error("You've used all 5 free solves today. Upgrade to Pro for unlimited solves!");
+      const limitLabel = solveType === "image" ? "image" : "text";
+      toast.error(`You've used all free ${limitLabel} solves today. Upgrade to Pro for more!`);
       return;
     }
     setIsLoading(true);
@@ -177,9 +184,9 @@ const Index = () => {
     setSolveStartTime(startTime);
 
     if (!isPremium) {
-      const solveAllowed = await solveUsage.useSolve();
+      const solveAllowed = await solveUsage.useSolve(solveType);
       if (!solveAllowed) {
-        toast.error("Daily solve limit reached. Upgrade to Pro for unlimited!");
+        toast.error(`Daily ${solveType} solve limit reached. Upgrade to Pro!`);
         setIsLoading(false);
         return;
       }

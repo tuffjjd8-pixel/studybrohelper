@@ -7,9 +7,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const FREE_SOLVES_PER_DAY = 5;
+const FREE_IMAGE_SOLVES_PER_DAY = 3;
+const FREE_TEXT_SOLVES_PER_DAY = 4;
 
-// In-memory cache for premium status (avoids repeated DB lookups within same cold-start)
+// In-memory cache for premium status
 const premiumCache = new Map<string, { isPremium: boolean; ts: number }>();
 const CACHE_TTL_MS = 15_000;
 
@@ -24,7 +25,6 @@ function setCachedPremium(userId: string, isPremium: boolean) {
   premiumCache.set(userId, { isPremium, ts: Date.now() });
 }
 
-// Get today's date in CST (UTC-6)
 function getTodayCST(): string {
   const now = new Date();
   const cstOffset = -6 * 60;
@@ -43,10 +43,15 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { action, deviceId } = await req.json();
+    const { action, deviceId, solveType } = await req.json();
     const todayCST = getTodayCST();
 
-    // Derive userId from verified JWT instead of trusting request body
+    // solveType: "image" | "text" (defaults to "text" for backward compat)
+    const isImageSolve = solveType === "image";
+    const dailyLimit = isImageSolve ? FREE_IMAGE_SOLVES_PER_DAY : FREE_TEXT_SOLVES_PER_DAY;
+    const usageColumn = isImageSolve ? "image_solves_used" : "text_solves_used";
+
+    // Derive userId from verified JWT
     let verifiedUserId: string | null = null;
     const authHeader = req.headers.get("Authorization");
     if (authHeader?.startsWith("Bearer ")) {
@@ -70,7 +75,7 @@ serve(async (req) => {
       );
     }
 
-    // === ADMIN BYPASS: unlimited usage ===
+    // === ADMIN BYPASS ===
     if (verifiedUserId) {
       const { isAdmin } = await import("../_shared/pro-limits.ts");
       if (await isAdmin(verifiedUserId)) {
@@ -89,7 +94,7 @@ serve(async (req) => {
       }
     }
 
-    // === FAST PATH: Premium check with in-memory cache ===
+    // === Premium check ===
     let isPremium = false;
     if (verifiedUserId) {
       const cached = getCachedPremium(verifiedUserId);
@@ -106,7 +111,6 @@ serve(async (req) => {
       }
     }
 
-    // Premium users: return Pro monthly usage summary
     if (isPremium) {
       const { getProUsageSummary } = await import("../_shared/pro-limits.ts");
       const proUsage = await getProUsageSummary(verifiedUserId!);
@@ -116,7 +120,7 @@ serve(async (req) => {
           canSolve: true,
           solvesUsed: 0,
           solvesRemaining: -1,
-          maxSolves: FREE_SOLVES_PER_DAY,
+          maxSolves: dailyLimit,
           isPremium: true,
           proUsage,
         }),
@@ -124,57 +128,63 @@ serve(async (req) => {
       );
     }
 
-    // === FREE USER: Single query to get today's usage ===
+    // === FREE USER ===
     const filterCol = lookupByUser ? "user_id" : "device_id";
     const { data: existing } = await supabase
       .from("solve_usage")
-      .select("id, solves_used")
+      .select(`id, solves_used, image_solves_used, text_solves_used`)
       .eq(filterCol, lookupId)
       .eq("usage_date", todayCST)
       .maybeSingle();
 
-    const currentUsed = existing?.solves_used || 0;
+    const currentUsed = existing ? (existing as Record<string, any>)[usageColumn] || 0 : 0;
 
-    // === ACTION: check — read-only, no deduction ===
     if (action === "check") {
-      const solvesRemaining = Math.max(0, FREE_SOLVES_PER_DAY - currentUsed);
+      const solvesRemaining = Math.max(0, dailyLimit - currentUsed);
       return new Response(
         JSON.stringify({
           canSolve: solvesRemaining > 0,
           solvesUsed: currentUsed,
           solvesRemaining,
-          maxSolves: FREE_SOLVES_PER_DAY,
+          maxSolves: dailyLimit,
           isPremium: false,
+          imageLimit: FREE_IMAGE_SOLVES_PER_DAY,
+          textLimit: FREE_TEXT_SOLVES_PER_DAY,
+          imageSolvesUsed: existing?.image_solves_used || 0,
+          textSolvesUsed: existing?.text_solves_used || 0,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // === ACTION: use OR check_and_use — atomic check + deduct in one call ===
     if (action === "use" || action === "check_and_use") {
-      if (currentUsed >= FREE_SOLVES_PER_DAY) {
+      if (currentUsed >= dailyLimit) {
         return new Response(
           JSON.stringify({
             success: false,
             canSolve: false,
-            error: "Daily solve limit reached",
+            error: `Daily ${isImageSolve ? "image" : "text"} solve limit reached`,
             solvesUsed: currentUsed,
             solvesRemaining: 0,
-            maxSolves: FREE_SOLVES_PER_DAY,
+            maxSolves: dailyLimit,
             isPremium: false,
           }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // Single upsert: update if exists, insert if not
+      // Also increment the legacy solves_used for backward compat
       if (existing) {
         await supabase
           .from("solve_usage")
-          .update({ solves_used: currentUsed + 1 })
+          .update({
+            [usageColumn]: currentUsed + 1,
+            solves_used: (existing.solves_used || 0) + 1,
+          })
           .eq("id", existing.id);
       } else {
         const insertData: Record<string, unknown> = {
+          [usageColumn]: 1,
           solves_used: 1,
           usage_date: todayCST,
         };
@@ -187,10 +197,10 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          canSolve: Math.max(0, FREE_SOLVES_PER_DAY - newUsed) > 0,
+          canSolve: Math.max(0, dailyLimit - newUsed) > 0,
           solvesUsed: newUsed,
-          solvesRemaining: Math.max(0, FREE_SOLVES_PER_DAY - newUsed),
-          maxSolves: FREE_SOLVES_PER_DAY,
+          solvesRemaining: Math.max(0, dailyLimit - newUsed),
+          maxSolves: dailyLimit,
           isPremium: false,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
