@@ -302,7 +302,7 @@ const Index = () => {
         subject: data.subject || "other",
         question: input || "Image question",
         answer: data.solution,
-        image: imageData,
+        image: imagesArray.length > 0 ? imagesArray[0] : undefined,
         solveId,
       });
       setShowConfetti(true);
@@ -319,7 +319,13 @@ const Index = () => {
     }
   };
   const handleImageCapture = (imageData: string) => {
-    setPendingImage(imageData);
+    setPendingImages(prev => {
+      if (prev.length >= maxImages) {
+        toast.error(`You can add up to ${maxImages} image${maxImages > 1 ? 's' : ''} per solve.${!isPremium ? ' Upgrade to Pro for 2 images!' : ''}`);
+        return prev;
+      }
+      return [...prev, imageData];
+    });
     toast.info("Image ready! Press Enter or type a question to solve.");
   };
   const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string) => {
@@ -334,27 +340,31 @@ const Index = () => {
     fetchProfile();
   };
   const handleTextSubmit = (text: string) => {
-    if (pendingImage) {
-      handleSolve(text, pendingImage);
+    if (pendingImages.length > 0) {
+      handleSolve(text, pendingImages);
     } else {
       handleSolve(text);
     }
   };
   const handleSolveWithPendingImage = () => {
-    if (pendingImage) {
-      handleSolve("", pendingImage);
+    if (pendingImages.length > 0) {
+      handleSolve("", pendingImages);
     }
   };
   const handleReset = () => {
     setSolution(null);
-    setPendingImage(null);
+    setPendingImages([]);
     // If keepMode is off, reset to instant
     if (!keepMode) {
       setSolveMode("instant");
     }
   };
-  const handleClearPendingImage = () => {
-    setPendingImage(null);
+  const handleClearPendingImage = (index?: number) => {
+    if (index !== undefined) {
+      setPendingImages(prev => prev.filter((_, i) => i !== index));
+    } else {
+      setPendingImages([]);
+    }
   };
   const isDeepModeActive = isPremium && solveMode === "deep";
   return <div className="min-h-screen bg-background">
