@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Zap, ZapOff, ImageIcon } from "lucide-react";
+import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen } from "lucide-react";
 import { fileToOptimizedDataUrl } from "@/lib/image";
+
+type CameraMode = "instant" | "deep";
+
 
 interface CustomCameraProps {
   isOpen: boolean;
@@ -24,6 +27,14 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
   const [torchSupported, setTorchSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isCapturingRef = useRef(false);
+  const [cameraMode, setCameraMode] = useState<CameraMode>(() => {
+    const saved = localStorage.getItem("camera_solve_mode");
+    return saved === "deep" ? "deep" : "instant";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("camera_solve_mode", cameraMode);
+  }, [cameraMode]);
 
   const stopStream = useCallback((releaseCache = false) => {
     if (videoRef.current) {
@@ -278,6 +289,35 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
                 )}
               </button>
             )}
+          </div>
+
+          {/* Solve Mode Selector — above bottom controls */}
+          <div className="absolute bottom-32 left-0 right-0 px-5 z-20 flex justify-center">
+            <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15">
+              <button
+                onClick={() => setCameraMode("instant")}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  cameraMode === "instant"
+                    ? "bg-primary text-primary-foreground shadow-lg"
+                    : "text-white/70 hover:text-white"
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5" />
+                Instant
+              </button>
+              <button
+                onClick={() => setCameraMode("deep")}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  cameraMode === "deep"
+                    ? "bg-primary text-primary-foreground shadow-lg"
+                    : "text-white/70 hover:text-white"
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                Deep
+                <Crown className="w-3 h-3 text-amber-400" />
+              </button>
+            </div>
           </div>
 
           {/* Bottom controls */}
