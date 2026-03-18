@@ -93,10 +93,11 @@ const Index = () => {
     const saved = localStorage.getItem("speech_language");
     return saved ?? "auto";
   });
-  const [solveMode, setSolveMode] = useState<"instant" | "deep">(() => {
+  const [solveMode, setSolveMode] = useState<"instant" | "deep" | "essay">(() => {
     const saved = localStorage.getItem("solve_mode");
-    return (saved === "deep" ? "deep" : "instant");
+    return saved === "deep" ? "deep" : saved === "essay" ? "essay" : "instant";
   });
+  const [essaySettings, setEssaySettings] = useState<EssaySettings>(DEFAULT_ESSAY_SETTINGS);
   const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
     const saved = localStorage.getItem("deep_text_color");
     return (saved as DeepModeTextColor) || "gold";
