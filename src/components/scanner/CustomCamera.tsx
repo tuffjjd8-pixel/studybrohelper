@@ -222,19 +222,12 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   }, [finishCapture]);
 
   const handleClose = useCallback(() => {
-    // Clean up collected blob URLs
-    collectedImages.forEach(img => {
-      if (img.startsWith("blob:")) URL.revokeObjectURL(img);
-    });
-    setCollectedImages([]);
     stopStream(true);
-    // Reset mode if keepMode is off
     if (!keepMode) {
       setCameraMode("instant");
-      setMultiImage(false);
     }
     onClose();
-  }, [stopStream, onClose, keepMode, collectedImages]);
+  }, [stopStream, onClose, keepMode]);
 
   if (!isOpen) return null;
 
