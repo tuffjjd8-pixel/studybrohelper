@@ -26,25 +26,21 @@ const CommunityGoalReward = () => {
       const { data } = await supabase.
       from("app_settings").
       select("key, value").
-      in("key", ["enable_reward_screen", "reward_claiming_enabled"]);
+      in("key", ["reward_claiming_enabled"]);
 
       if (data) {
-        const rewardScreen = data.find((r) => r.key === "enable_reward_screen");
         const rewardClaiming = data.find((r) => r.key === "reward_claiming_enabled");
-        setRewardScreenEnabled(rewardScreen?.value !== "false");
         setRewardClaimingEnabled(rewardClaiming?.value !== "false");
-      } else {
-        setRewardScreenEnabled(true);
       }
     };
 
-    const checkGoal = async () => {
+    const checkGoalReached = async () => {
       const { data } = await supabase.
       from("community_goal_content").
-      select("visible").
+      select("current_count, target_count").
       limit(1).
-      single();
-      setGoalVisible(data?.visible ?? false);
+      maybeSingle();
+      setGoalReached(data ? data.current_count >= data.target_count : false);
     };
 
     const checkPremium = async () => {
@@ -58,21 +54,16 @@ const CommunityGoalReward = () => {
     };
 
     fetchSettings();
-    checkGoal();
+    checkGoalReached();
     checkPremium();
   }, [user]);
 
   useEffect(() => {
-    if (rewardScreenEnabled === false) {
-      toast.error("Reward screen is currently disabled");
-      navigate("/");
-      return;
-    }
-    if (goalVisible === false) {
+    if (goalReached === false) {
       toast.error("Community goal not yet reached");
       navigate("/");
     }
-  }, [goalVisible, rewardScreenEnabled, navigate]);
+  }, [goalReached, navigate]);
 
   const handleCheckout = async (plan: CommunityPlan) => {
     if (!rewardClaimingEnabled) {
