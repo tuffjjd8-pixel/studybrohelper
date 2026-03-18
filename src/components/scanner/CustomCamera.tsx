@@ -353,24 +353,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
             )}
           </div>
 
-          {/* Deep Mode Color Panel */}
-          {cameraMode === "deep" && showColorPanel && isPremium && (
-            <div className="absolute top-20 left-4 right-4 z-20">
-              <div className="relative">
-                <button
-                  onClick={handleCloseColorPanel}
-                  className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center z-10 border border-white/20"
-                >
-                  <X className="w-4 h-4 text-white" />
-                </button>
-                <DeepModeColorPicker
-                  selectedColor={deepTextColor}
-                  onSelect={handleColorSelect}
-                  onClose={handleCloseColorPanel}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Multi-image progress indicator */}
           {multiImage && isPremium && collectedImages.length > 0 && (
