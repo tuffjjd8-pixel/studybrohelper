@@ -888,28 +888,37 @@ serve(async (req) => {
     let ocrEngineUsed: string = "none";
 
     // Route to appropriate model based on input type and tier
-    if (image) {
-      // PIPELINE: Groq Vision + External OCR (parallel) → GPT-OSS Reasoning
-      const matches = image.match(/^data:([^;]+);base64,(.+)$/);
-      if (!matches) {
-        throw new Error("Invalid image format");
-      }
-      const mimeType = matches[1];
-      const base64Data = matches[2];
-
-      // Step 1: Run Vision + OCR in parallel
+    if (allImages.length > 0) {
+      // Process each image through Vision + OCR pipeline
       ocrEngineUsed = "groq_vision+external_ocr";
-      const { vision, ocr, combined_text } = await extractTextFromImage(base64Data, mimeType, answerLanguage);
-      console.log("[Pipeline] Vision:", vision.length, "chars, OCR:", ocr.length, "chars, Combined:", combined_text.length, "chars");
+      const combinedParts: string[] = [];
+
+      for (let i = 0; i < allImages.length; i++) {
+        const img = allImages[i];
+        const matches = img.match(/^data:([^;]+);base64,(.+)$/);
+        if (!matches) {
+          throw new Error(`Invalid image format for image ${i + 1}`);
+        }
+        const mimeType = matches[1];
+        const base64Data = matches[2];
+
+        const { vision, ocr, combined_text } = await extractTextFromImage(base64Data, mimeType, answerLanguage);
+        console.log(`[Pipeline] Image ${i + 1}: Vision:`, vision.length, "chars, OCR:", ocr.length, "chars");
+        
+        const label = allImages.length > 1 ? `[Image ${i + 1}]\n` : "";
+        combinedParts.push(label + combined_text);
+      }
+
+      const fullCombined = combinedParts.join("\n\n");
 
       // Step 2: Send combined text to GPT-OSS for reasoning
       let combinedQuestion = question 
-        ? `${question}\n\n${combined_text}` 
-        : combined_text;
+        ? `${question}\n\n${fullCombined}` 
+        : fullCombined;
       
       // In Deep Mode, ensure image-only solves get a clear instruction to explain
       if (effectiveMode === "deep" && !question) {
-        combinedQuestion = `Solve the following problem and explain your reasoning in full detail:\n\n${combined_text}`;
+        combinedQuestion = `Solve the following problem and explain your reasoning in full detail:\n\n${fullCombined}`;
       }
       
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
