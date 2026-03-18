@@ -10,6 +10,8 @@ import { RecentSolves } from "@/components/home/RecentSolves";
 import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { ModeSelector } from "@/components/solve/ModeSelector";
+import { EssayControls, DEFAULT_ESSAY_SETTINGS } from "@/components/solve/EssayControls";
+import type { EssaySettings } from "@/components/solve/EssayControls";
 import { DeepModeColorPicker } from "@/components/solve/DeepModeEffectPicker";
 import type { DeepModeTextColor } from "@/components/solve/DeepModeReveal";
 import { Header } from "@/components/layout/Header";
