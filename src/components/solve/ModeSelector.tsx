@@ -31,6 +31,8 @@ interface ModeSelectorProps {
   speechLanguage?: string;
   onSpeechLanguageChange?: (value: string) => void;
   isAuthenticated?: boolean;
+  /** When true, hides Instant/Deep mode options and keep-mode toggle (text-only context) */
+  hideImageModes?: boolean;
 }
 
 export function ModeSelector({
