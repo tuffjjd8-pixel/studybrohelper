@@ -121,7 +121,7 @@ const Index = () => {
     localStorage.setItem("deep_text_color", deepTextColor);
   }, [deepTextColor]);
 
-  const handleSolveModeChange = (mode: "instant" | "deep") => {
+  const handleSolveModeChange = (mode: "instant" | "deep" | "essay") => {
     setSolveMode(mode);
     if (mode === "deep") {
       const hasChosen = localStorage.getItem("deep_color_chosen");
