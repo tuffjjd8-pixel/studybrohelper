@@ -800,6 +800,7 @@ serve(async (req) => {
     const { 
       question, 
       image, 
+      images,
       isPremium = false,
       animatedSteps = false,
       generateGraph = false,
@@ -808,6 +809,25 @@ serve(async (req) => {
       deviceType = "web",
       answerLanguage = "en"
     } = await req.json();
+
+    // Normalize images: support single `image` string or `images` array
+    const allImages: string[] = images
+      ? (Array.isArray(images) ? images : [images])
+      : (image ? [image] : []);
+
+    // Enforce image count limits: Free = 1, Pro = 2
+    const maxImages = isPremium ? 2 : 1;
+    if (allImages.length > maxImages) {
+      return new Response(
+        JSON.stringify({
+          error: "image_limit_exceeded",
+          message: `You can upload up to ${maxImages} image${maxImages > 1 ? 's' : ''} per solve.${!isPremium ? ' Upgrade to Pro for 2 images!' : ''}`,
+          maxImages,
+          sent: allImages.length,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Check if user is banned or limited
     let requestUserId: string | null = null;
@@ -868,28 +888,37 @@ serve(async (req) => {
     let ocrEngineUsed: string = "none";
 
     // Route to appropriate model based on input type and tier
-    if (image) {
-      // PIPELINE: Groq Vision + External OCR (parallel) → GPT-OSS Reasoning
-      const matches = image.match(/^data:([^;]+);base64,(.+)$/);
-      if (!matches) {
-        throw new Error("Invalid image format");
-      }
-      const mimeType = matches[1];
-      const base64Data = matches[2];
-
-      // Step 1: Run Vision + OCR in parallel
+    if (allImages.length > 0) {
+      // Process each image through Vision + OCR pipeline
       ocrEngineUsed = "groq_vision+external_ocr";
-      const { vision, ocr, combined_text } = await extractTextFromImage(base64Data, mimeType, answerLanguage);
-      console.log("[Pipeline] Vision:", vision.length, "chars, OCR:", ocr.length, "chars, Combined:", combined_text.length, "chars");
+      const combinedParts: string[] = [];
+
+      for (let i = 0; i < allImages.length; i++) {
+        const img = allImages[i];
+        const matches = img.match(/^data:([^;]+);base64,(.+)$/);
+        if (!matches) {
+          throw new Error(`Invalid image format for image ${i + 1}`);
+        }
+        const mimeType = matches[1];
+        const base64Data = matches[2];
+
+        const { vision, ocr, combined_text } = await extractTextFromImage(base64Data, mimeType, answerLanguage);
+        console.log(`[Pipeline] Image ${i + 1}: Vision:`, vision.length, "chars, OCR:", ocr.length, "chars");
+        
+        const label = allImages.length > 1 ? `[Image ${i + 1}]\n` : "";
+        combinedParts.push(label + combined_text);
+      }
+
+      const fullCombined = combinedParts.join("\n\n");
 
       // Step 2: Send combined text to GPT-OSS for reasoning
       let combinedQuestion = question 
-        ? `${question}\n\n${combined_text}` 
-        : combined_text;
+        ? `${question}\n\n${fullCombined}` 
+        : fullCombined;
       
       // In Deep Mode, ensure image-only solves get a clear instruction to explain
       if (effectiveMode === "deep" && !question) {
-        combinedQuestion = `Solve the following problem and explain your reasoning in full detail:\n\n${combined_text}`;
+        combinedQuestion = `Solve the following problem and explain your reasoning in full detail:\n\n${fullCombined}`;
       }
       
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;

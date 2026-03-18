@@ -69,7 +69,7 @@ const Index = () => {
   const [scannerOpen, setScannerOpen] = useState(false);
 
   // Pending image state
-  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
 
   // Community goal participation
   const [goalParticipation, setGoalParticipation] = useState<boolean | null>(() => {
@@ -171,7 +171,9 @@ const Index = () => {
       setProfile(data);
     }
   };
-  const handleSolve = async (input: string, imageData?: string) => {
+  const maxImages = isPremium ? 2 : 1;
+
+  const handleSolve = async (input: string, imageData?: string | string[]) => {
     // Auth guard: require sign-in for AI features
     if (!user) {
       toast.error("Please sign in to use AI features.");
@@ -184,7 +186,7 @@ const Index = () => {
     }
     setIsLoading(true);
     setSolution(null);
-    setPendingImage(null);
+    setPendingImages([]);
     const startTime = Date.now();
     setSolveStartTime(startTime);
 
@@ -199,13 +201,20 @@ const Index = () => {
     }
     try {
       const answerLanguage = await getAnswerLanguage(user?.id);
+
+      // Normalize images: support single string or array
+      const imagesArray = imageData
+        ? (Array.isArray(imageData) ? imageData : [imageData])
+        : [];
+
       const {
         data,
         error
       } = await supabase.functions.invoke("solve-homework", {
         body: {
           question: input,
-          image: imageData,
+          ...(imagesArray.length === 1 ? { image: imagesArray[0] } : {}),
+          ...(imagesArray.length > 1 ? { images: imagesArray } : {}),
            isPremium,
            animatedSteps: false,
            generateGraph: false,
@@ -227,7 +236,7 @@ const Index = () => {
           user_id: user.id,
           subject: data.subject || "other",
           question_text: input || null,
-          question_image_url: imageData || null,
+          question_image_url: imagesArray.length > 0 ? imagesArray[0] : null,
           solution_markdown: data.solution
         }).select("id").single();
 
@@ -293,7 +302,7 @@ const Index = () => {
         subject: data.subject || "other",
         question: input || "Image question",
         answer: data.solution,
-        image: imageData,
+        image: imagesArray.length > 0 ? imagesArray[0] : undefined,
         solveId,
       });
       setShowConfetti(true);
@@ -310,7 +319,13 @@ const Index = () => {
     }
   };
   const handleImageCapture = (imageData: string) => {
-    setPendingImage(imageData);
+    setPendingImages(prev => {
+      if (prev.length >= maxImages) {
+        toast.error(`You can add up to ${maxImages} image${maxImages > 1 ? 's' : ''} per solve.${!isPremium ? ' Upgrade to Pro for 2 images!' : ''}`);
+        return prev;
+      }
+      return [...prev, imageData];
+    });
     toast.info("Image ready! Press Enter or type a question to solve.");
   };
   const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string) => {
@@ -325,27 +340,31 @@ const Index = () => {
     fetchProfile();
   };
   const handleTextSubmit = (text: string) => {
-    if (pendingImage) {
-      handleSolve(text, pendingImage);
+    if (pendingImages.length > 0) {
+      handleSolve(text, pendingImages);
     } else {
       handleSolve(text);
     }
   };
   const handleSolveWithPendingImage = () => {
-    if (pendingImage) {
-      handleSolve("", pendingImage);
+    if (pendingImages.length > 0) {
+      handleSolve("", pendingImages);
     }
   };
   const handleReset = () => {
     setSolution(null);
-    setPendingImage(null);
+    setPendingImages([]);
     // If keepMode is off, reset to instant
     if (!keepMode) {
       setSolveMode("instant");
     }
   };
-  const handleClearPendingImage = () => {
-    setPendingImage(null);
+  const handleClearPendingImage = (index?: number) => {
+    if (index !== undefined) {
+      setPendingImages(prev => prev.filter((_, i) => i !== index));
+    } else {
+      setPendingImages([]);
+    }
   };
   const isDeepModeActive = isPremium && solveMode === "deep";
   return <div className="min-h-screen bg-background">
@@ -392,20 +411,26 @@ const Index = () => {
               {/* Camera button */}
               <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
 
-              {/* Pending image preview */}
-              {pendingImage && <motion.div initial={{
+              {/* Pending image previews */}
+              {pendingImages.length > 0 && <motion.div initial={{
             opacity: 0,
             scale: 0.9
           }} animate={{
             opacity: 1,
             scale: 1
-          }} className="relative max-w-xs">
-                  <img src={pendingImage} alt="Pending homework" className="rounded-lg border-2 border-primary/50 max-h-32 object-contain" />
-                  <button onClick={handleClearPendingImage} className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs font-bold hover:bg-destructive/80">
-                    ×
-                  </button>
-                  <p className="text-xs text-primary text-center mt-2">
-                    Press Enter below to solve, or add a question
+          }} className="flex gap-3 flex-wrap max-w-md justify-center">
+                  {pendingImages.map((img, i) => (
+                    <div key={i} className="relative">
+                      <img src={img} alt={`Pending ${i + 1}`} className="rounded-lg border-2 border-primary/50 max-h-32 object-contain" />
+                      <button onClick={() => handleClearPendingImage(i)} className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs font-bold hover:bg-destructive/80">
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <p className="w-full text-xs text-primary text-center mt-1">
+                    {pendingImages.length < maxImages 
+                      ? `${pendingImages.length}/${maxImages} image${maxImages > 1 ? 's' : ''} — add more or press Enter`
+                      : "Press Enter below to solve, or add a question"}
                   </p>
                 </motion.div>}
 
@@ -425,13 +450,13 @@ const Index = () => {
               <div className="flex items-center gap-4 w-full max-w-md">
                 <div className="flex-1 h-px bg-border" />
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                  {pendingImage ? "add details or press enter" : "or type it"}
+                  {pendingImages.length > 0 ? "add details or press enter" : "or type it"}
                 </span>
                 <div className="flex-1 h-px bg-border" />
               </div>
 
               {/* Text input */}
-              <TextInputBox onSubmit={handleTextSubmit} onEmptySubmit={handleSolveWithPendingImage} onImagePaste={handleImageCapture} isLoading={isLoading} hasPendingImage={!!pendingImage} placeholder={pendingImage ? "Add details or press Enter to solve..." : "Paste or type your homework question..."} speechInputEnabled={speechInput} isPremium={isPremium} speechLanguage={speechLanguage} onSpeechUsed={handleSpeechUsed} isAuthenticated={!!user} canUseSpeechClip={speechClips.canUseClip} speechClipsRemaining={speechClips.clipsRemaining} maxSpeechClips={speechClips.maxClips} hoursUntilReset={speechClips.hoursUntilReset} />
+              <TextInputBox onSubmit={handleTextSubmit} onEmptySubmit={handleSolveWithPendingImage} onImagePaste={handleImageCapture} isLoading={isLoading} hasPendingImage={pendingImages.length > 0} placeholder={pendingImages.length > 0 ? "Add details or press Enter to solve..." : "Paste or type your homework question..."} speechInputEnabled={speechInput} isPremium={isPremium} speechLanguage={speechLanguage} onSpeechUsed={handleSpeechUsed} isAuthenticated={!!user} canUseSpeechClip={speechClips.canUseClip} speechClipsRemaining={speechClips.clipsRemaining} maxSpeechClips={speechClips.maxClips} hoursUntilReset={speechClips.hoursUntilReset} />
 
 
               {/* Recent solves */}
