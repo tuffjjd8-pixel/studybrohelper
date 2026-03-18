@@ -343,11 +343,6 @@ const Index = () => {
     }
   };
 
-  // Read deep text color from localStorage for solution display
-  const deepTextColor = (() => {
-    const saved = localStorage.getItem("deep_text_color");
-    return (saved as any) || "gold";
-  })();
 
   return (
     <div className="min-h-screen bg-background">
@@ -499,7 +494,7 @@ const Index = () => {
                 solveId={solution.solveId}
                 isPremium={isPremium}
                 isDeepMode={false}
-                deepTextColor={deepTextColor}
+                deepTextColor="gold"
                 isAuthenticated={!!user}
               />
             </motion.div>

@@ -2,8 +2,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen, Images, Image as ImageSingle } from "lucide-react";
 import { fileToOptimizedDataUrl } from "@/lib/image";
-import { DeepModeColorPicker } from "@/components/solve/DeepModeEffectPicker";
-import type { DeepModeTextColor } from "@/components/solve/DeepModeReveal";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -49,16 +47,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     return saved === "true";
   });
 
-  // Deep Mode color panel visibility
-  const [showColorPanel, setShowColorPanel] = useState(() => {
-    return sessionStorage.getItem("deepColorPanelClosed") !== "true";
-  });
-
-  // Deep text color — reads from localStorage (master setting from Profile)
-  const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
-    const saved = localStorage.getItem("deep_text_color");
-    return (saved as DeepModeTextColor) || "gold";
-  });
 
   // Multi-image toggle
   const [multiImage, setMultiImage] = useState(() => {
@@ -71,15 +59,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
 
   useEffect(() => {
     localStorage.setItem("camera_solve_mode", cameraMode);
-    // When switching to instant, hide color panel
-    if (cameraMode === "instant") {
-      setShowColorPanel(false);
-    } else if (cameraMode === "deep") {
-      // Show panel if not previously closed
-      if (sessionStorage.getItem("deepColorPanelClosed") !== "true") {
-        setShowColorPanel(true);
-      }
-    }
   }, [cameraMode]);
 
   useEffect(() => {
@@ -90,15 +69,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     sessionStorage.setItem("camera_multi_image", multiImage ? "true" : "false");
   }, [multiImage]);
 
-  const handleColorSelect = (color: DeepModeTextColor) => {
-    setDeepTextColor(color);
-    localStorage.setItem("deep_text_color", color);
-  };
-
-  const handleCloseColorPanel = () => {
-    setShowColorPanel(false);
-    sessionStorage.setItem("deepColorPanelClosed", "true");
-  };
 
   const stopStream = useCallback((releaseCache = false) => {
     if (videoRef.current) {
@@ -378,24 +348,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
             )}
           </div>
 
-          {/* Deep Mode Color Panel */}
-          {cameraMode === "deep" && showColorPanel && isPremium && (
-            <div className="absolute top-20 left-4 right-4 z-20">
-              <div className="relative">
-                <button
-                  onClick={handleCloseColorPanel}
-                  className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center z-10 border border-white/20"
-                >
-                  <X className="w-4 h-4 text-white" />
-                </button>
-                <DeepModeColorPicker
-                  selectedColor={deepTextColor}
-                  onSelect={handleColorSelect}
-                  onClose={handleCloseColorPanel}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Multi-image progress indicator */}
           {multiImage && isPremium && collectedImages.length > 0 && (

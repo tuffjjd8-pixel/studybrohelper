@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import type { DeepModeTextColor } from "@/components/solve/DeepModeReveal";
-import { DeepModeColorPicker } from "@/components/solve/DeepModeEffectPicker";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
@@ -23,8 +21,7 @@ import {
   Award,
   Target,
   BarChart3,
-  ClipboardList,
-  Palette } from
+  ClipboardList } from
 "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
@@ -69,17 +66,6 @@ const Profile = () => {
   const [totalConfirmedLikes, setTotalConfirmedLikes] = useState(0);
   const goalReached = useCommunityGoalReached();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showDeepColorPicker, setShowDeepColorPicker] = useState(false);
-  const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
-    const saved = localStorage.getItem("deep_text_color");
-    return (saved as DeepModeTextColor) || "gold";
-  });
-
-  const handleDeepColorSelect = (color: DeepModeTextColor) => {
-    setDeepTextColor(color);
-    localStorage.setItem("deep_text_color", color);
-    toast.success(`Deep Mode color set to ${color}`);
-  };
 
 
   // No redirect - profile is accessible, but shows sign-in prompt for guests
@@ -580,42 +566,6 @@ const Profile = () => {
               </Button>
             </motion.div>
 
-            {/* Deep Mode Text Color - Premium/Admin only */}
-            {(profile?.is_premium || isAdmin) && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.36 }}>
-                
-                <Button
-                  onClick={() => setShowDeepColorPicker(!showDeepColorPicker)}
-                  variant="outline"
-                  className="w-full h-auto py-4 border-border hover:border-primary/50">
-                  
-                  <div className="flex items-center gap-4 w-full">
-                    <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <Palette className="w-6 h-6 text-primary" />
-                    </div>
-                    <div className="text-left flex-1">
-                      <div className="font-heading font-bold">Deep Mode Text Color</div>
-                      <div className="text-xs text-muted-foreground capitalize">
-                        Currently: {deepTextColor}
-                      </div>
-                    </div>
-                  </div>
-                </Button>
-
-                {showDeepColorPicker && (
-                  <div className="mt-2">
-                    <DeepModeColorPicker
-                      selectedColor={deepTextColor}
-                      onSelect={handleDeepColorSelect}
-                      onClose={() => setShowDeepColorPicker(false)}
-                    />
-                  </div>
-                )}
-              </motion.div>
-            )}
 
             {!profile?.is_premium &&
             <motion.div
