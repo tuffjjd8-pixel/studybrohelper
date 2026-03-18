@@ -15,7 +15,7 @@ import {
 import { WHISPER_LANGUAGES, getLanguageDisplayName } from "@/lib/whisperLanguages";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-export type SolveMode = "instant" | "deep";
+export type SolveMode = "instant" | "deep" | "essay";
 
 interface SolveTogglesProps {
   solveFlow: boolean;

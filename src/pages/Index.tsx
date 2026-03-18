@@ -10,6 +10,8 @@ import { RecentSolves } from "@/components/home/RecentSolves";
 import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { ModeSelector } from "@/components/solve/ModeSelector";
+import { EssayControls, DEFAULT_ESSAY_SETTINGS } from "@/components/solve/EssayControls";
+import type { EssaySettings } from "@/components/solve/EssayControls";
 import { DeepModeColorPicker } from "@/components/solve/DeepModeEffectPicker";
 import type { DeepModeTextColor } from "@/components/solve/DeepModeReveal";
 import { Header } from "@/components/layout/Header";
@@ -91,10 +93,11 @@ const Index = () => {
     const saved = localStorage.getItem("speech_language");
     return saved ?? "auto";
   });
-  const [solveMode, setSolveMode] = useState<"instant" | "deep">(() => {
+  const [solveMode, setSolveMode] = useState<"instant" | "deep" | "essay">(() => {
     const saved = localStorage.getItem("solve_mode");
-    return (saved === "deep" ? "deep" : "instant");
+    return saved === "deep" ? "deep" : saved === "essay" ? "essay" : "instant";
   });
+  const [essaySettings, setEssaySettings] = useState<EssaySettings>(DEFAULT_ESSAY_SETTINGS);
   const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
     const saved = localStorage.getItem("deep_text_color");
     return (saved as DeepModeTextColor) || "gold";
@@ -118,7 +121,7 @@ const Index = () => {
     localStorage.setItem("deep_text_color", deepTextColor);
   }, [deepTextColor]);
 
-  const handleSolveModeChange = (mode: "instant" | "deep") => {
+  const handleSolveModeChange = (mode: "instant" | "deep" | "essay") => {
     setSolveMode(mode);
     if (mode === "deep") {
       const hasChosen = localStorage.getItem("deep_color_chosen");
@@ -207,6 +210,8 @@ const Index = () => {
         ? (Array.isArray(imageData) ? imageData : [imageData])
         : [];
 
+      const effectiveMode = solveMode === "essay" ? "essay" : (isPremium ? solveMode : "instant");
+
       const {
         data,
         error
@@ -218,9 +223,10 @@ const Index = () => {
            isPremium,
            animatedSteps: false,
            generateGraph: false,
-           solveMode: isPremium ? solveMode : "instant",
+           solveMode: effectiveMode,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-          answerLanguage
+          answerLanguage,
+          ...(solveMode === "essay" ? { essaySettings } : {}),
         }
       });
       if (error) throw error;
@@ -435,7 +441,12 @@ const Index = () => {
                 </motion.div>}
 
               {/* Mode Selector */}
-              <ModeSelector solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={handleSolveModeChange} keepMode={keepMode} onKeepModeChange={setKeepMode} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
+              <ModeSelector solveMode={solveMode === "essay" ? "essay" : (isPremium ? solveMode : "instant")} onSolveModeChange={handleSolveModeChange} keepMode={keepMode} onKeepModeChange={setKeepMode} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} />
+
+              {/* Essay Controls - shown when Essay mode selected */}
+              {solveMode === "essay" && (
+                <EssayControls settings={essaySettings} onChange={setEssaySettings} />
+              )}
 
               {/* Color Picker - shown when Deep Mode first toggled or user wants to change */}
               {showColorPicker && isPremium && solveMode === "deep" && (
@@ -494,7 +505,7 @@ const Index = () => {
       <TopSharerPopup />
       
       {/* Scanner Modal */}
-      <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} solveMode={isPremium ? solveMode : "instant"} />
+      <ScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onSolved={handleScannerSolved} userId={user?.id} isPremium={isPremium} solveMode={solveMode === "essay" ? "essay" : (isPremium ? solveMode : "instant")} />
     </div>;
 };
 export default Index;

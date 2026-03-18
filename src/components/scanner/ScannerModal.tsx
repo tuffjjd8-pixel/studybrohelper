@@ -16,7 +16,7 @@ interface ScannerModalProps {
   onSolved: (question: string, solution: string, subject: string, image?: string) => void;
   userId?: string;
   isPremium?: boolean;
-  solveMode?: "instant" | "deep";
+  solveMode?: "instant" | "deep" | "essay";
 }
 
 export function ScannerModal({

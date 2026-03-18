@@ -439,11 +439,26 @@ async function callGroqText(
   isPremium: boolean,
   animatedSteps: boolean,
   solveMode: string = "instant",
-  answerLanguage: string = "en"
+  answerLanguage: string = "en",
+  essaySettings: Record<string, unknown> | null = null,
 ): Promise<string> {
   // Select prompt based on solveMode
   let systemPrompt = BASE_SYSTEM_PROMPT;
-  systemPrompt += solveMode === "deep" ? DEEP_MODE_INSTRUCTIONS : INSTANT_MODE_INSTRUCTIONS;
+
+  if (solveMode === "essay" && essaySettings) {
+    // Build essay-specific instructions
+    const level = essaySettings.academicLevel === "custom" && essaySettings.customGrade
+      ? String(essaySettings.customGrade)
+      : String(essaySettings.academicLevel || "high-school").replace("-", " ");
+    const pCount = Number(essaySettings.paragraphCount) || 4;
+    const sCount = Number(essaySettings.sentencesPerParagraph) || 5;
+    const tone = String(essaySettings.tone || "standard");
+    const noGreeting = essaySettings.removeGreeting !== false;
+
+    systemPrompt += `\n\n## SOLVE MODE: ESSAY\n\nYou are writing a structured essay.\n\nRULES:\n- Write exactly ${pCount} paragraphs.\n- Each paragraph must have approximately ${sCount} sentences.\n- Use a ${level} reading level.\n- Use a ${tone} tone.\n${noGreeting ? "- Do NOT start with any greeting, filler, or preamble. Start directly with the essay content.\n- No \"Hey!\", \"Sure!\", \"Of course!\", or any opening pleasantries.\n" : ""}- Structure the essay with a clear introduction, body, and conclusion.\n- Keep the writing natural and well-organized.\n- Do NOT use labels like \"Introduction:\", \"Body:\", \"Conclusion:\".\n- Do NOT mention that you are following essay rules or parameters.`;
+  } else {
+    systemPrompt += solveMode === "deep" ? DEEP_MODE_INSTRUCTIONS : INSTANT_MODE_INSTRUCTIONS;
+  }
   
   // Add breakdown sections instruction
   if (animatedSteps) {
@@ -459,7 +474,7 @@ async function callGroqText(
   }
   
   const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-  console.log("Calling Groq Text API with model:", textModel, "Premium:", isPremium, "AnimatedSteps:", animatedSteps);
+  console.log("Calling Groq Text API with model:", textModel, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "Mode:", solveMode);
 
   const response = await callGroqWithRotation(
     "https://api.groq.com/openai/v1/chat/completions",
@@ -807,7 +822,8 @@ serve(async (req) => {
       userGraphCount = 0,
       solveMode = "instant",
       deviceType = "web",
-      answerLanguage = "en"
+      answerLanguage = "en",
+      essaySettings = null,
     } = await req.json();
 
     // Normalize images: support single `image` string or `images` array
@@ -922,11 +938,11 @@ serve(async (req) => {
       }
       
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode, answerLanguage);
+      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode, answerLanguage, essaySettings);
     } else if (question) {
       // Text-only input → route to tier-appropriate text model
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-      solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode, answerLanguage);
+      solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode, answerLanguage, essaySettings);
     } else {
       throw new Error("Please provide a question or image");
     }

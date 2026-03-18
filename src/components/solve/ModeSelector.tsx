@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
-export type SolveMode = "instant" | "deep";
+export type SolveMode = "instant" | "deep" | "essay";
 
 interface ModeSelectorProps {
   solveMode: SolveMode;
@@ -95,10 +95,15 @@ export function ModeSelector({
                   {!isPremium && <Crown className="w-3 h-3 text-amber-400" />}
                 </span>
               </SelectItem>
+              <SelectItem value="essay">Essay</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            {solveMode === "deep" ? "Answer + step-by-step explanation" : "Final answer only"}
+            {solveMode === "deep"
+              ? "Answer + step-by-step explanation"
+              : solveMode === "essay"
+              ? "Structured essay with custom controls"
+              : "Final answer only"}
           </p>
         </div>
 
