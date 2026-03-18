@@ -126,6 +126,9 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem("deep_text_color", deepTextColor);
   }, [deepTextColor]);
+  useEffect(() => {
+    localStorage.setItem("essay_settings", JSON.stringify(essaySettings));
+  }, [essaySettings]);
 
   const handleSolveModeChange = (mode: "instant" | "deep" | "essay") => {
     setSolveMode(mode);
