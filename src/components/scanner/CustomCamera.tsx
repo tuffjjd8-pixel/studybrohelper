@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Zap, ZapOff, ImageIcon } from "lucide-react";
+import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen } from "lucide-react";
 import { fileToOptimizedDataUrl } from "@/lib/image";
+
+type CameraMode = "instant" | "deep";
+
 
 interface CustomCameraProps {
   isOpen: boolean;
