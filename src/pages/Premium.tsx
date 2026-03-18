@@ -78,7 +78,7 @@ const COMPARISON: ComparisonItem[] = [
 
 
 const PREMIUM_BENEFITS = [
-{ icon: Brain, title: "520 Solves/Month", description: "400 Instant + 120 Deep combined" },
+{ icon: Brain, title: "400 Solves/Month", description: "300 Instant + 100 Deep combined" },
 { icon: Calculator, title: "Scientific Calculator", description: "Advanced reasoning & logic" },
 { icon: Target, title: "Premium OCR", description: "Enhanced image recognition" },
 { icon: Zap, title: "Priority Speed", description: "Skip the queue" },
