@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen, Images, Image as ImageSingle } from "lucide-react";
+import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen } from "lucide-react";
 import { fileToOptimizedDataUrl } from "@/lib/image";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -48,14 +48,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   });
 
 
-  // Multi-image toggle
-  const [multiImage, setMultiImage] = useState(() => {
-    const saved = sessionStorage.getItem("camera_multi_image");
-    return saved === "true" && isPremium;
-  });
-
-  // Collected images for multi-image mode
-  const [collectedImages, setCollectedImages] = useState<string[]>([]);
 
   useEffect(() => {
     localStorage.setItem("camera_solve_mode", cameraMode);
@@ -65,9 +57,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     sessionStorage.setItem("keep_camera_mode", keepMode ? "true" : "false");
   }, [keepMode]);
 
-  useEffect(() => {
-    sessionStorage.setItem("camera_multi_image", multiImage ? "true" : "false");
-  }, [multiImage]);
 
 
   const stopStream = useCallback((releaseCache = false) => {
@@ -136,7 +125,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   useEffect(() => {
     if (isOpen) {
       startCamera();
-      setCollectedImages([]);
     } else {
       stopStream(false);
       setTorchEnabled(false);
@@ -193,24 +181,14 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
 
       const objectUrl = URL.createObjectURL(blob);
 
-      if (multiImage && isPremium) {
-        const newImages = [...collectedImages, objectUrl];
-        if (newImages.length >= 2) {
-          finishCapture(newImages);
-        } else {
-          setCollectedImages(newImages);
-          toast.info(`Image ${newImages.length}/2 captured. Take one more!`);
-        }
-      } else {
-        finishCapture(objectUrl);
-      }
+      finishCapture(objectUrl);
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
     } finally {
       isCapturingRef.current = false;
     }
-  }, [stopStream, finishCapture, cameraMode, multiImage, isPremium, collectedImages]);
+  }, [stopStream, finishCapture, cameraMode]);
 
   const handleGalleryPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -222,17 +200,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
         mimeType: "image/jpeg",
       });
 
-      if (multiImage && isPremium) {
-        const newImages = [...collectedImages, optimized];
-        if (newImages.length >= 2) {
-          finishCapture(newImages);
-        } else {
-          setCollectedImages(newImages);
-          toast.info(`Image ${newImages.length}/2 added. Add one more!`);
-        }
-      } else {
-        finishCapture(optimized);
-      }
+      finishCapture(optimized);
     } catch (err) {
       console.error("Gallery error:", err);
       try {
@@ -248,22 +216,15 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
       }
     }
     if (e.target) e.target.value = "";
-  }, [finishCapture, multiImage, isPremium, collectedImages]);
+  }, [finishCapture]);
 
   const handleClose = useCallback(() => {
-    // Clean up collected blob URLs
-    collectedImages.forEach(img => {
-      if (img.startsWith("blob:")) URL.revokeObjectURL(img);
-    });
-    setCollectedImages([]);
     stopStream(true);
-    // Reset mode if keepMode is off
     if (!keepMode) {
       setCameraMode("instant");
-      setMultiImage(false);
     }
     onClose();
-  }, [stopStream, onClose, keepMode, collectedImages]);
+  }, [stopStream, onClose, keepMode]);
 
   if (!isOpen) return null;
 
@@ -349,54 +310,8 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
           </div>
 
 
-          {/* Multi-image progress indicator */}
-          {multiImage && isPremium && collectedImages.length > 0 && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20">
-              <div className="bg-black/60 backdrop-blur-md rounded-full px-4 py-2 border border-white/20">
-                <span className="text-white text-sm font-medium">
-                  {collectedImages.length}/2 images captured
-                </span>
-              </div>
-            </div>
-          )}
-
           {/* Controls area above bottom */}
           <div className="absolute bottom-36 left-0 right-0 px-5 z-20 space-y-3">
-            {/* Multi-Image Toggle */}
-            <div className="flex justify-center">
-              <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15">
-                <button
-                  onClick={() => setMultiImage(false)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-                    !multiImage
-                      ? "bg-white/20 text-white"
-                      : "text-white/50"
-                  }`}
-                >
-                  <ImageSingle className="w-3 h-3" />
-                  Single
-                </button>
-                <button
-                  onClick={() => {
-                    if (!isPremium) {
-                      toast("Upgrade to Pro for Multi-Image", { icon: "👑" });
-                      return;
-                    }
-                    setMultiImage(true);
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-                    multiImage && isPremium
-                      ? "bg-white/20 text-white"
-                      : "text-white/50"
-                  }`}
-                >
-                  <Images className="w-3 h-3" />
-                  Multi
-                  {!isPremium && <Crown className="w-3 h-3 text-amber-400" />}
-                </button>
-              </div>
-            </div>
-
             {/* Solve Mode Selector */}
             <div className="flex justify-center">
               <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15">
