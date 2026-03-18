@@ -124,13 +124,15 @@ const Scanner = () => {
       
       const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
       const answerLanguage = await getAnswerLanguage(user?.id);
+      const effectiveMode = isPremium ? solveMode : "instant";
       const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: { 
           question: "", 
           image: imageData,
-          isPremium: false,
+          isPremium,
           animatedSteps: false,
           generateGraph: false,
+          solveMode: effectiveMode,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
           answerLanguage,
         },
