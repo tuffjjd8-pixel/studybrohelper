@@ -48,14 +48,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   });
 
 
-  // Multi-image toggle
-  const [multiImage, setMultiImage] = useState(() => {
-    const saved = sessionStorage.getItem("camera_multi_image");
-    return saved === "true" && isPremium;
-  });
-
-  // Collected images for multi-image mode
-  const [collectedImages, setCollectedImages] = useState<string[]>([]);
 
   useEffect(() => {
     localStorage.setItem("camera_solve_mode", cameraMode);
