@@ -98,6 +98,7 @@ const Scanner = () => {
           image: imageData,
           isPremium: false,
           animatedSteps: false,
+          solveMode: selectedMode,
           generateGraph: false,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
           answerLanguage,
