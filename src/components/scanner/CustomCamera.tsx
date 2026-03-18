@@ -219,7 +219,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
       }
     }
     if (e.target) e.target.value = "";
-  }, [finishCapture, multiImage, isPremium, collectedImages]);
+  }, [finishCapture]);
 
   const handleClose = useCallback(() => {
     // Clean up collected blob URLs
