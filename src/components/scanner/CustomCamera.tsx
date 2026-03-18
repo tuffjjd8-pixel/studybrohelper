@@ -47,16 +47,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     return saved === "true";
   });
 
-  // Deep Mode color panel visibility
-  const [showColorPanel, setShowColorPanel] = useState(() => {
-    return sessionStorage.getItem("deepColorPanelClosed") !== "true";
-  });
-
-  // Deep text color — reads from localStorage (master setting from Profile)
-  const [deepTextColor, setDeepTextColor] = useState<DeepModeTextColor>(() => {
-    const saved = localStorage.getItem("deep_text_color");
-    return (saved as DeepModeTextColor) || "gold";
-  });
 
   // Multi-image toggle
   const [multiImage, setMultiImage] = useState(() => {
