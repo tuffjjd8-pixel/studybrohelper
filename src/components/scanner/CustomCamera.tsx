@@ -128,7 +128,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   useEffect(() => {
     if (isOpen) {
       startCamera();
-      setCollectedImages([]);
     } else {
       stopStream(false);
       setTorchEnabled(false);
