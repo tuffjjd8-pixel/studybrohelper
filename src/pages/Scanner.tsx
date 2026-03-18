@@ -7,7 +7,7 @@ import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { ScannerDropZone } from "@/components/scanner/ScannerDropZone";
-import { CustomCamera } from "@/components/scanner/CustomCamera";
+import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/components/scanner/CustomCamera";
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { SolutionDisplay } from "@/components/scanner/SolutionDisplay";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
@@ -37,13 +37,14 @@ const Scanner = () => {
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
-
+  const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
   const handleOpenCamera = useCallback(() => {
     setState("camera");
   }, []);
 
-  const handleCameraCapture = useCallback((imageData: string) => {
-    setSelectedImage(imageData);
+  const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
+    setSelectedImage(result.image);
+    setSelectedMode(result.mode);
     setState("cropping");
   }, []);
 
@@ -97,6 +98,7 @@ const Scanner = () => {
           image: imageData,
           isPremium: false,
           animatedSteps: false,
+          solveMode: selectedMode,
           generateGraph: false,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
           answerLanguage,

@@ -3,12 +3,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen } from "lucide-react";
 import { fileToOptimizedDataUrl } from "@/lib/image";
 
-type CameraMode = "instant" | "deep";
+export type CameraSolveMode = "instant" | "deep";
 
+export interface CameraCaptureResult {
+  image: string;
+  mode: CameraSolveMode;
+}
 
 interface CustomCameraProps {
   isOpen: boolean;
-  onCapture: (imageData: string) => void;
+  onCapture: (result: CameraCaptureResult) => void;
   onClose: () => void;
 }
 
@@ -27,7 +31,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
   const [torchSupported, setTorchSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isCapturingRef = useRef(false);
-  const [cameraMode, setCameraMode] = useState<CameraMode>(() => {
+  const [cameraMode, setCameraMode] = useState<CameraSolveMode>(() => {
     const saved = localStorage.getItem("camera_solve_mode");
     return saved === "deep" ? "deep" : "instant";
   });
@@ -160,14 +164,14 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
       const objectUrl = URL.createObjectURL(blob);
       // Don't release the cached stream — just detach
       stopStream(false);
-      onCapture(objectUrl);
+      onCapture({ image: objectUrl, mode: cameraMode });
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
     } finally {
       isCapturingRef.current = false;
     }
-  }, [stopStream, onCapture]);
+  }, [stopStream, onCapture, cameraMode]);
 
   const handleGalleryPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -180,7 +184,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
         mimeType: "image/jpeg",
       });
       stopStream(false);
-      onCapture(optimized);
+      onCapture({ image: optimized, mode: cameraMode });
     } catch (err) {
       console.error("Gallery error:", err);
       // Ultimate fallback: just pass the raw file as data URL
@@ -192,13 +196,13 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
           reader.readAsDataURL(file);
         });
         stopStream(false);
-        onCapture(dataUrl);
+        onCapture({ image: dataUrl, mode: cameraMode });
       } catch {
         console.error("Gallery fallback also failed");
       }
     }
     if (e.target) e.target.value = "";
-  }, [stopStream, onCapture]);
+  }, [stopStream, onCapture, cameraMode]);
 
   const handleClose = useCallback(() => {
     stopStream(true); // Release cache on explicit close

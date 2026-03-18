@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { CustomCamera } from "@/components/scanner/CustomCamera";
+import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/components/scanner/CustomCamera";
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,12 +31,14 @@ export function ScannerModal({
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
 
   // Open camera immediately when modal opens
   const cameraActive = isOpen && (state === "idle" || state === "camera");
 
-  const handleCameraCapture = useCallback((imageData: string) => {
-    setCapturedImage(imageData);
+  const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
+    setCapturedImage(result.image);
+    setSelectedMode(result.mode);
     setState("cropping");
   }, []);
 
@@ -84,7 +86,7 @@ export function ScannerModal({
           image: imageData,
           isPremium,
           animatedSteps: false,
-          solveMode: isPremium ? solveMode : "instant",
+          solveMode: isPremium ? selectedMode : "instant",
           generateGraph: false,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
           answerLanguage,
