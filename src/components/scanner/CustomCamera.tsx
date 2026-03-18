@@ -202,7 +202,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
       }
     }
     if (e.target) e.target.value = "";
-  }, [stopStream, onCapture]);
+  }, [stopStream, onCapture, cameraMode]);
 
   const handleClose = useCallback(() => {
     stopStream(true); // Release cache on explicit close
