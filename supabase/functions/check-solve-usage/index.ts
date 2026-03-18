@@ -70,6 +70,25 @@ serve(async (req) => {
       );
     }
 
+    // === ADMIN BYPASS: unlimited usage ===
+    if (verifiedUserId) {
+      const { isAdmin } = await import("../_shared/pro-limits.ts");
+      if (await isAdmin(verifiedUserId)) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            canSolve: true,
+            solvesUsed: 0,
+            solvesRemaining: 999999,
+            maxSolves: 999999,
+            isPremium: true,
+            isAdmin: true,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // === FAST PATH: Premium check with in-memory cache ===
     let isPremium = false;
     if (verifiedUserId) {
