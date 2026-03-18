@@ -69,7 +69,7 @@ const Index = () => {
   const [scannerOpen, setScannerOpen] = useState(false);
 
   // Pending image state
-  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
 
   // Community goal participation
   const [goalParticipation, setGoalParticipation] = useState<boolean | null>(() => {
