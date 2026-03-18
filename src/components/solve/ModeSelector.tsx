@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
-export type SolveMode = "instant" | "deep";
+export type SolveMode = "instant" | "deep" | "essay";
 
 interface ModeSelectorProps {
   solveMode: SolveMode;
