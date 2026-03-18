@@ -57,9 +57,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     sessionStorage.setItem("keep_camera_mode", keepMode ? "true" : "false");
   }, [keepMode]);
 
-  useEffect(() => {
-    sessionStorage.setItem("camera_multi_image", multiImage ? "true" : "false");
-  }, [multiImage]);
 
 
   const stopStream = useCallback((releaseCache = false) => {
