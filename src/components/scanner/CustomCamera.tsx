@@ -313,54 +313,8 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
           </div>
 
 
-          {/* Multi-image progress indicator */}
-          {multiImage && isPremium && collectedImages.length > 0 && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20">
-              <div className="bg-black/60 backdrop-blur-md rounded-full px-4 py-2 border border-white/20">
-                <span className="text-white text-sm font-medium">
-                  {collectedImages.length}/2 images captured
-                </span>
-              </div>
-            </div>
-          )}
-
           {/* Controls area above bottom */}
           <div className="absolute bottom-36 left-0 right-0 px-5 z-20 space-y-3">
-            {/* Multi-Image Toggle */}
-            <div className="flex justify-center">
-              <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15">
-                <button
-                  onClick={() => setMultiImage(false)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-                    !multiImage
-                      ? "bg-white/20 text-white"
-                      : "text-white/50"
-                  }`}
-                >
-                  <ImageSingle className="w-3 h-3" />
-                  Single
-                </button>
-                <button
-                  onClick={() => {
-                    if (!isPremium) {
-                      toast("Upgrade to Pro for Multi-Image", { icon: "👑" });
-                      return;
-                    }
-                    setMultiImage(true);
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-                    multiImage && isPremium
-                      ? "bg-white/20 text-white"
-                      : "text-white/50"
-                  }`}
-                >
-                  <Images className="w-3 h-3" />
-                  Multi
-                  {!isPremium && <Crown className="w-3 h-3 text-amber-400" />}
-                </button>
-              </div>
-            </div>
-
             {/* Solve Mode Selector */}
             <div className="flex justify-center">
               <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15">
