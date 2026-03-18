@@ -879,7 +879,7 @@ serve(async (req) => {
 
       // Step 1: Run Vision + OCR in parallel
       ocrEngineUsed = "groq_vision+external_ocr";
-      const { vision, ocr, combined_text } = await extractTextFromImage(base64Data, mimeType);
+      const { vision, ocr, combined_text } = await extractTextFromImage(base64Data, mimeType, answerLanguage);
       console.log("[Pipeline] Vision:", vision.length, "chars, OCR:", ocr.length, "chars, Combined:", combined_text.length, "chars");
 
       // Step 2: Send combined text to GPT-OSS for reasoning
