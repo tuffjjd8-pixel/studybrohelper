@@ -453,8 +453,20 @@ async function callGroqText(
     const sCount = Number(essaySettings.sentencesPerParagraph) || 5;
     const tone = String(essaySettings.tone || "standard");
     const noGreeting = essaySettings.removeGreeting !== false;
+    const lengthPreset = String(essaySettings.lengthPreset || "medium");
+    const customWordCount = Number(essaySettings.customWordCount) || 200;
 
-    systemPrompt += `\n\n## SOLVE MODE: ESSAY\n\nYou are writing a structured essay.\n\nRULES:\n- Write exactly ${pCount} paragraphs.\n- Each paragraph must have approximately ${sCount} sentences.\n- Use a ${level} reading level.\n- Use a ${tone} tone.\n${noGreeting ? "- Do NOT start with any greeting, filler, or preamble. Start directly with the essay content.\n- No \"Hey!\", \"Sure!\", \"Of course!\", or any opening pleasantries.\n" : ""}- Structure the essay with a clear introduction, body, and conclusion.\n- Keep the writing natural and well-organized.\n- Do NOT use labels like \"Introduction:\", \"Body:\", \"Conclusion:\".\n- Do NOT mention that you are following essay rules or parameters.`;
+    // Determine word count instruction
+    let lengthInstruction: string;
+    switch (lengthPreset) {
+      case "short": lengthInstruction = "100–150 words"; break;
+      case "medium": lengthInstruction = "150–250 words"; break;
+      case "long": lengthInstruction = "250–400 words"; break;
+      case "custom": lengthInstruction = `exactly ${customWordCount} words`; break;
+      default: lengthInstruction = "150–250 words";
+    }
+
+    systemPrompt += `\n\n## SOLVE MODE: ESSAY\n\nYou are writing a structured essay.\n\nRULES:\n- Write EXACTLY ${pCount} paragraphs.\n- Each paragraph must have EXACTLY ${sCount} sentences.\n- Use a ${level} reading level.\n- Use a ${tone} tone.\n- Target length: ${lengthInstruction}.\n${noGreeting ? "- Do NOT start with any greeting, filler, or preamble. Start directly with the essay content.\n- No \"Hey!\", \"Sure!\", \"Of course!\", or any opening pleasantries.\n" : ""}- Structure the essay with a clear introduction, body, and conclusion.\n- Keep the writing natural and well-organized.\n- Do NOT use labels like \"Introduction:\", \"Body:\", \"Conclusion:\".\n- Do NOT mention that you are following essay rules or parameters.\n\n## STRICT STRUCTURE ENFORCEMENT:\n- You MUST follow the exact structure. Do NOT write more or fewer paragraphs or sentences than specified.\n- Do NOT merge sentences with commas or semicolons to cheat the count.\n- Each sentence must end with a period.\n- Internally plan the essay using this template before writing:\n  Paragraph 1: Sentence 1. Sentence 2. ... Sentence ${sCount}.\n  Paragraph 2: Sentence 1. Sentence 2. ... Sentence ${sCount}.\n  ...repeat for all ${pCount} paragraphs.\n- Output ONLY the final essay text with no labels, no numbering, no template markers.\n- If you cannot follow the structure, regenerate until the structure is correct.`;
   } else {
     systemPrompt += solveMode === "deep" ? DEEP_MODE_INSTRUCTIONS : INSTANT_MODE_INSTRUCTIONS;
   }
