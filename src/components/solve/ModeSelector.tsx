@@ -49,6 +49,7 @@ export function ModeSelector({
   speechLanguage = "auto",
   onSpeechLanguageChange,
   isAuthenticated = false,
+  hideImageModes = false,
 }: ModeSelectorProps) {
   const solvesRemaining = isPremium ? -1 : Math.max(0, maxSolves - solvesUsed);
   const usagePercent = isPremium ? 0 : (solvesUsed / maxSolves) * 100;
