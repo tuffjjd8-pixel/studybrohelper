@@ -164,7 +164,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
       const objectUrl = URL.createObjectURL(blob);
       // Don't release the cached stream — just detach
       stopStream(false);
-      onCapture(objectUrl);
+      onCapture({ image: objectUrl, mode: cameraMode });
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
