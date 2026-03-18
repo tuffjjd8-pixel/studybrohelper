@@ -362,8 +362,8 @@ const Index = () => {
   const handleReset = () => {
     setSolution(null);
     setPendingImages([]);
-    // If keepMode is off, reset to instant
-    if (!keepMode) {
+    // Always reset to instant on home (deep is camera-only)
+    if (solveMode !== "essay") {
       setSolveMode("instant");
     }
   };
