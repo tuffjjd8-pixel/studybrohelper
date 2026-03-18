@@ -20,8 +20,8 @@ export async function isAdmin(userId: string): Promise<boolean> {
 // PRO MONTHLY LIMITS
 // ============================================================
 export const PRO_LIMITS = {
-  instant_solves: 400,
-  deep_solves: 120,
+  instant_solves: 300,
+  deep_solves: 100,
   humanize: 80,
   followups: 200,
   quizzes: 40,
