@@ -10,7 +10,7 @@ const corsHeaders = {
 const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 1;
-const PREMIUM_DAILY_QUIZZES = 999999; // Unlimited for pro (capped by monthly pro_usage)
+const PREMIUM_MONTHLY_QUIZZES = 899;
 
 // Always use GPT-OSS-120B for quizzes (20B cannot reliably generate math symbols)
 const GROQ_MODELS = [
