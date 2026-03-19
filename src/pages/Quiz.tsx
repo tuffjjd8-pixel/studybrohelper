@@ -340,8 +340,9 @@ const Quiz = () => {
             }
           });
           if (error) throw error;
-          if (data?.error === "daily_limit_reached") {
-            toast.error(data.message || "Daily quiz limit reached");
+          if (data?.error === true || data?.error === "daily_limit_reached") {
+            toast.error(data.message || "Daily limit reached. Upgrade to Pro for more quizzes.");
+            setGenerationError(data.message || "Daily limit reached. Upgrade to Pro for more quizzes.");
             return;
           }
           if (data?.error === "generation_failed" && data?.retryable) {

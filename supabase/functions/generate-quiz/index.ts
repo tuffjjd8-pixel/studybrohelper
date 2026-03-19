@@ -844,7 +844,7 @@ ${quizLangBlock}`;
 
     // Log usage (fire-and-forget)
     const { logUsage } = await import("../_shared/usage-logger.ts");
-    logUsage("quiz", 0.0015, userId);
+    logUsage("quiz", 0.00034, userId);
 
     return new Response(
       JSON.stringify({

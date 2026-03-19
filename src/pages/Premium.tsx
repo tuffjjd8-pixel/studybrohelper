@@ -63,18 +63,18 @@ const PLANS: PlanOption[] = [
 const COMPARISON: ComparisonItem[] = [
 { feature: "Instant Mode (Image)", free: "3/day", premium: "300/month" },
 { feature: "Ask (Text Solves)", free: "4/day", premium: "300/month" },
-{ feature: "Deep Mode", free: false, premium: "100/month" },
+{ feature: "Deep Mode", free: "100/month", premium: "Unlimited" },
 { feature: "Essay Mode", free: "1/day (limited)", premium: "Unlimited (full)" },
 { feature: "Follow-Ups", free: "1 per solve", premium: "200/month" },
 { feature: "Humanize", free: false, premium: "80/month" },
-{ feature: "Quiz Generator", free: "1/day (max 10 Qs)", premium: "40/month (max 20 Qs)" },
+{ feature: "Quiz Generator", free: "1/day (max 10 Qs)", premium: "899/month (max 20 Qs)" },
 { feature: "Strict Count Mode", free: false, premium: true },
 { feature: "Enhanced OCR", free: "Basic", premium: "Premium" },
 { feature: "Priority Speed", free: false, premium: true },
 { feature: "Ad-Free Experience", free: true, premium: true },
 { feature: "Full Quiz Review", free: false, premium: true },
 { feature: "History", free: "Today only", premium: "Unlimited" },
-{ feature: "Language Control", free: false, premium: "Unlimited" }];
+{ feature: "Language Control", free: "Unlimited", premium: "Unlimited" }];
 
 
 const PREMIUM_BENEFITS = [

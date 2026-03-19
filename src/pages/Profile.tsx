@@ -518,7 +518,7 @@ const Profile = () => {
                   Go Premium, Bro!
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  16 Solve Flows, 15 speech clips/day, enhanced solving
+                  300 solves/month, 899 quizzes, unlimited essays & more
                 </p>
                 <Button
                 onClick={() => openPremiumPage(navigate)}

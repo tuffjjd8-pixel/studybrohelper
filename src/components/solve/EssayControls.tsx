@@ -99,8 +99,8 @@ export function EssayControls({ settings, onChange, isPremium = false }: EssayCo
   const sliderIndex = SLIDER_TO_PRESET.indexOf(settings.lengthPreset);
 
   // Free user limits
-  const maxParagraphs = isPremium ? 10 : 3;
-  const maxSentences = isPremium ? 10 : 3;
+  const maxParagraphs = isPremium ? 10 : 5;
+  const maxSentences = isPremium ? 10 : 5;
 
   return (
     <motion.div
