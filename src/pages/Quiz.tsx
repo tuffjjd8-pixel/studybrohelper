@@ -277,7 +277,7 @@ const Quiz = () => {
 
     // Check daily limit (skip for unlimited users)
     if (!hasUnlimitedQuizzes && !canGenerateQuiz) {
-      toast.error("Daily quiz limit reached. Try again tomorrow or upgrade for more.");
+      toast.error("Daily limit reached — you can generate 1 free quiz per day. Upgrade to Premium for unlimited quizzes.");
       return;
     }
 
