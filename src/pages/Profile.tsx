@@ -358,30 +358,6 @@ const Profile = () => {
                 <div className="text-xs text-muted-foreground">Problems Solved</div>
               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-                className="p-4 bg-card rounded-xl border border-border text-center">
-                
-                <div className="mx-auto mb-2"><AIBrainIcon size="xl" glowIntensity="strong" /></div>
-                <div className="text-2xl font-bold">{solveFlowUsed}/{maxSolveFlow}</div>
-                <div className="text-xs text-muted-foreground">Solve Flow Today</div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.25 }}
-                className="p-4 bg-card rounded-xl border border-border text-center">
-                
-                <Mic className="w-8 h-8 text-secondary mx-auto mb-2" />
-                <div className="text-2xl font-bold">{speechClipsRemaining}/{maxSpeechClips}</div>
-                <div className="text-xs text-muted-foreground">Speech Clips Left</div>
-                {speechClipsRemaining === 0 &&
-                <div className="text-xs text-orange-500 mt-1">Resets in {hoursUntilReset()}h</div>
-                }
-              </motion.div>
             </div>
 
             {/* Member since */}
