@@ -40,20 +40,10 @@ interface Profile {
   referral_code: string | null;
   created_at: string;
   avatar_url: string | null;
-  animated_steps_used_today: number; // DB column name unchanged
-  speech_clips_used: number;
-  last_speech_reset: string | null;
   premium_until: string | null;
   subscription_id: string | null;
   equipped_badge: string | null;
 }
-
-// Speech clips reset daily (24 hours)
-const FREE_SPEECH_CLIPS = 3;
-const PREMIUM_SPEECH_CLIPS = 15; // Daily limit for premium
-const SPEECH_RESET_HOURS = 24;
-const FREE_SOLVE_FLOW_PER_DAY = 5;
-const PREMIUM_SOLVE_FLOW_PER_DAY = 16;
 
 const Profile = () => {
   const navigate = useNavigate();
