@@ -258,12 +258,12 @@ const Quiz = () => {
   const filteredSolves = solves.filter((solve) => solve.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) || solve.subject.toLowerCase().includes(searchQuery.toLowerCase()));
   const isAdmin = user?.email === ADMIN_EMAIL;
   const isPremium = profile?.is_premium === true;
-  const hasUnlimitedQuizzes = isPremium || isAdmin;
+  const hasUnlimitedQuizzes = isAdmin;
   const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
-  const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
-  const quizzesRemaining = hasUnlimitedQuizzes ? Infinity : dailyLimit - quizzesUsedToday;
+  const dailyLimit = isPremium ? PREMIUM_MONTHLY_QUIZZES : FREE_DAILY_QUIZZES;
+  const quizzesRemaining = hasUnlimitedQuizzes ? Infinity : isPremium ? PREMIUM_MONTHLY_QUIZZES : (dailyLimit - quizzesUsedToday);
   const canGenerateQuiz = hasUnlimitedQuizzes || quizzesRemaining > 0;
-  const usagePercent = hasUnlimitedQuizzes ? 0 : (quizzesUsedToday / dailyLimit) * 100;
+  const usagePercent = hasUnlimitedQuizzes ? 0 : isPremium ? 0 : (quizzesUsedToday / dailyLimit) * 100;
   const handleGenerate = async () => {
     // Auth guard: require sign-in for AI features
     if (!user) {
