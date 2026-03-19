@@ -268,32 +268,6 @@ const Profile = () => {
   const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
   const isAdmin = user?.email === ADMIN_EMAIL;
 
-  const maxSpeechClips = profile?.is_premium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS;
-  const maxSolveFlow = profile?.is_premium ? PREMIUM_SOLVE_FLOW_PER_DAY : FREE_SOLVE_FLOW_PER_DAY;
-  const solveFlowUsed = profile?.animated_steps_used_today || 0;
-
-  // Calculate speech clips with 72h reset logic
-  const getSpeechClipsRemaining = () => {
-    if (!profile) return maxSpeechClips;
-    const lastReset = profile.last_speech_reset ? new Date(profile.last_speech_reset) : null;
-    if (!lastReset) return maxSpeechClips;
-
-    const hoursSinceReset = (Date.now() - lastReset.getTime()) / (1000 * 60 * 60);
-    if (hoursSinceReset >= SPEECH_RESET_HOURS) {
-      return maxSpeechClips; // Reset happened
-    }
-    return Math.max(0, maxSpeechClips - (profile.speech_clips_used || 0));
-  };
-
-  const speechClipsRemaining = getSpeechClipsRemaining();
-  const hoursUntilReset = () => {
-    if (!profile?.last_speech_reset) return 0;
-    const lastReset = new Date(profile.last_speech_reset);
-    const resetTime = new Date(lastReset.getTime() + SPEECH_RESET_HOURS * 60 * 60 * 1000);
-    const hours = Math.max(0, Math.ceil((resetTime.getTime() - Date.now()) / (1000 * 60 * 60)));
-    return hours;
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
