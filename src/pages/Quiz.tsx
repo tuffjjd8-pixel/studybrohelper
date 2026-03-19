@@ -41,8 +41,8 @@ interface Profile {
 // Tier constants
 const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
-const FREE_DAILY_QUIZZES = 7;
-const PREMIUM_DAILY_QUIZZES = 13;
+const FREE_DAILY_QUIZZES = 1;
+const PREMIUM_DAILY_QUIZZES = 999999; // Unlimited for pro (capped by monthly pro_usage)
 // Subject fallback map for when topic is missing/vague
 const SUBJECT_FALLBACK_TOPICS: Record<string, string> = {
   math: "General Math Skills",
