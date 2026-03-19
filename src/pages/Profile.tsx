@@ -87,7 +87,7 @@ const Profile = () => {
     try {
       const { data, error } = await supabase.
       from("profiles").
-      select("id, display_name, streak_count, total_solves, is_premium, daily_solves_used, referral_code, created_at, avatar_url, animated_steps_used_today, speech_clips_used, last_speech_reset, premium_until, subscription_id, equipped_badge").
+      select("id, display_name, streak_count, total_solves, is_premium, daily_solves_used, referral_code, created_at, avatar_url, premium_until, subscription_id, equipped_badge").
       eq("user_id", user?.id).
       maybeSingle();
 
