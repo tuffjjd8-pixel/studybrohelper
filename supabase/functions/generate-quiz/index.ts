@@ -669,13 +669,13 @@ serve(async (req) => {
       }
     }
 
-    // Check daily limit (free users)
-    if (quizzesUsedToday >= dailyLimit) {
+    // Check daily limit (free users only — pro users have unlimited daily)
+    if (!isPremium && quizzesUsedToday >= dailyLimit) {
       return new Response(
         JSON.stringify({
           error: "daily_limit_reached",
           message:
-            "Daily quiz limit reached. Try again tomorrow or upgrade for more.",
+            "Daily limit reached — free users can generate 1 quiz per day. Upgrade to Premium for unlimited quizzes.",
           quizzesUsed: quizzesUsedToday,
           dailyLimit,
         }),
