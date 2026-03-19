@@ -34,8 +34,8 @@ export interface EssaySettings {
 export const DEFAULT_ESSAY_SETTINGS: EssaySettings = {
   academicLevel: "elementary",
   customGrade: "",
-  paragraphCount: 3,
-  sentencesPerParagraph: 3,
+  paragraphCount: 5,
+  sentencesPerParagraph: 5,
   tone: "simple",
   removeGreeting: true,
   lengthPreset: "short",
