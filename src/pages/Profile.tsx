@@ -16,7 +16,6 @@ import {
   Crown,
   Calendar,
   Camera,
-  Mic,
   Settings,
   Award,
   Target,
