@@ -41,8 +41,8 @@ interface Profile {
 // Tier constants
 const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
-const FREE_DAILY_QUIZZES = 7;
-const PREMIUM_DAILY_QUIZZES = 13;
+const FREE_DAILY_QUIZZES = 1;
+const PREMIUM_DAILY_QUIZZES = 999999; // Unlimited for pro (capped by monthly pro_usage)
 // Subject fallback map for when topic is missing/vague
 const SUBJECT_FALLBACK_TOPICS: Record<string, string> = {
   math: "General Math Skills",
@@ -261,9 +261,9 @@ const Quiz = () => {
   const hasUnlimitedQuizzes = isPremium || isAdmin;
   const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
   const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
-  const quizzesRemaining = dailyLimit - quizzesUsedToday;
+  const quizzesRemaining = hasUnlimitedQuizzes ? Infinity : dailyLimit - quizzesUsedToday;
   const canGenerateQuiz = hasUnlimitedQuizzes || quizzesRemaining > 0;
-  const usagePercent = quizzesUsedToday / dailyLimit * 100;
+  const usagePercent = hasUnlimitedQuizzes ? 0 : (quizzesUsedToday / dailyLimit) * 100;
   const handleGenerate = async () => {
     // Auth guard: require sign-in for AI features
     if (!user) {
@@ -277,7 +277,7 @@ const Quiz = () => {
 
     // Check daily limit (skip for unlimited users)
     if (!hasUnlimitedQuizzes && !canGenerateQuiz) {
-      toast.error("Daily quiz limit reached. Try again tomorrow or upgrade for more.");
+      toast.error("Daily limit reached — you can generate 1 free quiz per day. Upgrade to Premium for unlimited quizzes.");
       return;
     }
 

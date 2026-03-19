@@ -9,13 +9,12 @@ const corsHeaders = {
 // Tier limits
 const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
-const FREE_DAILY_QUIZZES = 7;
-const PREMIUM_DAILY_QUIZZES = 13;
+const FREE_DAILY_QUIZZES = 1;
+const PREMIUM_DAILY_QUIZZES = 999999; // Unlimited for pro (capped by monthly pro_usage)
 
-// Primary + backup Groq models (try both before Lovable AI)
+// Always use GPT-OSS-120B for quizzes (20B cannot reliably generate math symbols)
 const GROQ_MODELS = [
   "openai/gpt-oss-120b",
-  "openai/gpt-oss-20b",
 ];
 
 // ============================================================
@@ -670,13 +669,13 @@ serve(async (req) => {
       }
     }
 
-    // Check daily limit (free users)
-    if (quizzesUsedToday >= dailyLimit) {
+    // Check daily limit (free users only — pro users have unlimited daily)
+    if (!isPremium && quizzesUsedToday >= dailyLimit) {
       return new Response(
         JSON.stringify({
           error: "daily_limit_reached",
           message:
-            "Daily quiz limit reached. Try again tomorrow or upgrade for more.",
+            "Daily limit reached — free users can generate 1 quiz per day. Upgrade to Premium for unlimited quizzes.",
           quizzesUsed: quizzesUsedToday,
           dailyLimit,
         }),
