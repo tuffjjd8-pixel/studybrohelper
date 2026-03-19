@@ -24,7 +24,7 @@ export const PRO_LIMITS = {
   deep_solves: 100,
   humanize: 80,
   followups: 200,
-  quizzes: 40,
+  quizzes: 899,
 };
 
 // Feature types that map to pro_usage columns

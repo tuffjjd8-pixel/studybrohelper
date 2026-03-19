@@ -42,7 +42,7 @@ interface Profile {
 const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 1;
-const PREMIUM_DAILY_QUIZZES = 999999; // Unlimited for pro (capped by monthly pro_usage)
+const PREMIUM_MONTHLY_QUIZZES = 899;
 // Subject fallback map for when topic is missing/vague
 const SUBJECT_FALLBACK_TOPICS: Record<string, string> = {
   math: "General Math Skills",
@@ -258,12 +258,12 @@ const Quiz = () => {
   const filteredSolves = solves.filter((solve) => solve.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) || solve.subject.toLowerCase().includes(searchQuery.toLowerCase()));
   const isAdmin = user?.email === ADMIN_EMAIL;
   const isPremium = profile?.is_premium === true;
-  const hasUnlimitedQuizzes = isPremium || isAdmin;
+  const hasUnlimitedQuizzes = isAdmin;
   const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
-  const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
-  const quizzesRemaining = hasUnlimitedQuizzes ? Infinity : dailyLimit - quizzesUsedToday;
+  const dailyLimit = isPremium ? PREMIUM_MONTHLY_QUIZZES : FREE_DAILY_QUIZZES;
+  const quizzesRemaining = hasUnlimitedQuizzes ? Infinity : isPremium ? PREMIUM_MONTHLY_QUIZZES : (dailyLimit - quizzesUsedToday);
   const canGenerateQuiz = hasUnlimitedQuizzes || quizzesRemaining > 0;
-  const usagePercent = hasUnlimitedQuizzes ? 0 : (quizzesUsedToday / dailyLimit) * 100;
+  const usagePercent = hasUnlimitedQuizzes ? 0 : isPremium ? 0 : (quizzesUsedToday / dailyLimit) * 100;
   const handleGenerate = async () => {
     // Auth guard: require sign-in for AI features
     if (!user) {
@@ -276,8 +276,8 @@ const Quiz = () => {
     }
 
     // Check daily limit (skip for unlimited users)
-    if (!hasUnlimitedQuizzes && !canGenerateQuiz) {
-      toast.error("Daily limit reached — you can generate 1 free quiz per day. Upgrade to Premium for unlimited quizzes.");
+    if (!hasUnlimitedQuizzes && !isPremium && quizzesUsedToday >= FREE_DAILY_QUIZZES) {
+      toast.error("Daily limit reached. Upgrade to Pro for more quizzes.");
       return;
     }
 
@@ -340,8 +340,9 @@ const Quiz = () => {
             }
           });
           if (error) throw error;
-          if (data?.error === "daily_limit_reached") {
-            toast.error(data.message || "Daily quiz limit reached");
+          if (data?.error === true || data?.error === "daily_limit_reached") {
+            toast.error(data.message || "Daily limit reached. Upgrade to Pro for more quizzes.");
+            setGenerationError(data.message || "Daily limit reached. Upgrade to Pro for more quizzes.");
             return;
           }
           if (data?.error === "generation_failed" && data?.retryable) {

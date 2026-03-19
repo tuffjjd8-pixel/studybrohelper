@@ -10,7 +10,7 @@ const corsHeaders = {
 const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 1;
-const PREMIUM_DAILY_QUIZZES = 999999; // Unlimited for pro (capped by monthly pro_usage)
+const PREMIUM_MONTHLY_QUIZZES = 899;
 
 // Always use GPT-OSS-120B for quizzes (20B cannot reliably generate math symbols)
 const GROQ_MODELS = [
@@ -655,7 +655,6 @@ serve(async (req) => {
 
     // Determine limits based on tier
     const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
-    const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
 
     // === PRO MONTHLY LIMIT CHECK ===
     if (isPremium && userId) {
@@ -663,21 +662,18 @@ serve(async (req) => {
       const result = await checkAndUseProFeature(userId, "quiz_count", "use");
       if (!result.allowed) {
         return new Response(
-          JSON.stringify({ error: "monthly_limit_reached", message: `Monthly quiz limit reached (${result.limit}/month).`, used: result.used, limit: result.limit }),
+          JSON.stringify({ error: true, message: `Monthly quiz limit reached (${result.limit}/month). You've used all ${result.limit} quizzes this month.` }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }
 
-    // Check daily limit (free users only — pro users have unlimited daily)
-    if (!isPremium && quizzesUsedToday >= dailyLimit) {
+    // Check daily limit (free users only)
+    if (!isPremium && quizzesUsedToday >= FREE_DAILY_QUIZZES) {
       return new Response(
         JSON.stringify({
-          error: "daily_limit_reached",
-          message:
-            "Daily limit reached — free users can generate 1 quiz per day. Upgrade to Premium for unlimited quizzes.",
-          quizzesUsed: quizzesUsedToday,
-          dailyLimit,
+          error: true,
+          message: "Daily limit reached. Upgrade to Pro for more quizzes.",
         }),
         {
           status: 429,
@@ -848,7 +844,7 @@ ${quizLangBlock}`;
 
     // Log usage (fire-and-forget)
     const { logUsage } = await import("../_shared/usage-logger.ts");
-    logUsage("quiz", 0.0015, userId);
+    logUsage("quiz", 0.00034, userId);
 
     return new Response(
       JSON.stringify({
