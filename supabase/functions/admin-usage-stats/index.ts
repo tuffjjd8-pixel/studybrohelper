@@ -46,6 +46,42 @@ serve(async (req) => {
       });
     }
 
+    // Check for delete action
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch { /* no body is fine */ }
+
+    if (body?.action === "delete_all") {
+      await supabase.from("api_usage_logs").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      return new Response(
+        JSON.stringify({ success: true, message: "All usage data deleted" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Verify admin
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+
+    if (userError || !user || user.email !== ADMIN_EMAIL) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Get today's date in CST
     const now = new Date();
     const cstOffset = -6 * 60;
