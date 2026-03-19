@@ -261,9 +261,9 @@ const Quiz = () => {
   const hasUnlimitedQuizzes = isPremium || isAdmin;
   const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
   const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
-  const quizzesRemaining = dailyLimit - quizzesUsedToday;
+  const quizzesRemaining = hasUnlimitedQuizzes ? Infinity : dailyLimit - quizzesUsedToday;
   const canGenerateQuiz = hasUnlimitedQuizzes || quizzesRemaining > 0;
-  const usagePercent = quizzesUsedToday / dailyLimit * 100;
+  const usagePercent = hasUnlimitedQuizzes ? 0 : (quizzesUsedToday / dailyLimit) * 100;
   const handleGenerate = async () => {
     // Auth guard: require sign-in for AI features
     if (!user) {
