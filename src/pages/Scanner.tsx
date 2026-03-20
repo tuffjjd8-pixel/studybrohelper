@@ -38,7 +38,7 @@ const Scanner = () => {
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
-  const [followUpText, setFollowUpText] = useState("");
+  
 
   const handleOpenCamera = useCallback(() => {
     setState("camera");
