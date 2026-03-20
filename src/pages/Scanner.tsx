@@ -11,6 +11,7 @@ import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { SolutionDisplay } from "@/components/scanner/SolutionDisplay";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
+import { FollowUpInput } from "@/components/chat/FollowUpInput";
 import { Button } from "@/components/ui/button";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { supabase } from "@/integrations/supabase/client";
