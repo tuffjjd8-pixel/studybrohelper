@@ -28,7 +28,68 @@ interface SolutionData {
   image?: string;
 }
 
-const Scanner = () => {
+/** Collapsed follow-up bar with auto-expand after inactivity */
+function FollowUpBar({ onSubmit }: { onSubmit: (text: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const autoExpandTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-expand after 6s of inactivity on the result screen
+  useEffect(() => {
+    autoExpandTimer.current = setTimeout(() => {
+      setExpanded(true);
+    }, 6000);
+    return () => {
+      if (autoExpandTimer.current) clearTimeout(autoExpandTimer.current);
+    };
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.25 }}
+      className="w-full max-w-lg mx-auto"
+    >
+      <AnimatePresence mode="wait">
+        {!expanded ? (
+          <motion.button
+            key="collapsed"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, height: 0 }}
+            onClick={() => setExpanded(true)}
+            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-muted/40 hover:bg-muted/70 text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            Still confused? Ask a question
+          </motion.button>
+        ) : (
+          <motion.div
+            key="expanded"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="space-y-1"
+          >
+            <FollowUpInput
+              onSubmit={onSubmit}
+              placeholder="Ask about this problem..."
+            />
+            <button
+              onClick={() => setExpanded(false)}
+              className="flex items-center gap-1 text-xs text-muted-foreground/60 hover:text-muted-foreground ml-1 transition-colors"
+            >
+              <ChevronDown className="w-3 h-3 rotate-180" />
+              Collapse
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+
   const navigate = useNavigate();
   const { user } = useAuth();
   
