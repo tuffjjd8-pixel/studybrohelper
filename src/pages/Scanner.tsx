@@ -103,7 +103,6 @@ const Scanner = () => {
     }
     setCapturedImage(null);
     setSolution(null);
-    setShowFollowUp(false);
     setState("camera");
   }, [capturedImage]);
 
