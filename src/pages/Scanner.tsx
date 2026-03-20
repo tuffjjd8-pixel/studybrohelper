@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Sparkles, Camera, MessageCircle, Crop, RotateCcw, Wand2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Camera, MessageCircle, Crop, RotateCcw, Wand2, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { Header } from "@/components/layout/Header";
