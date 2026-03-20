@@ -89,7 +89,7 @@ function FollowUpBar({ onSubmit }: { onSubmit: (text: string) => void }) {
   );
 }
 
-
+const Scanner = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
