@@ -388,59 +388,12 @@ const Scanner = () => {
                   </Button>
                 </motion.div>
 
-                {/* 3. Secondary: Follow-up collapsed bar */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.25 }}
-                  className="flex justify-center"
-                >
-                  {!showFollowUp ? (
-                    <button
-                      onClick={() => setShowFollowUp(true)}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-muted/60 hover:bg-muted text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      Still confused? Ask a question
-                    </button>
-                  ) : (
-                    <div className="w-full max-w-lg space-y-2">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={followUpText}
-                          onChange={(e) => setFollowUpText(e.target.value)}
-                          placeholder="Ask about this problem..."
-                          className="flex-1 px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && followUpText.trim()) {
-                              toast.info("Follow-up feature coming soon!");
-                              setFollowUpText("");
-                            }
-                          }}
-                        />
-                        <Button
-                          size="sm"
-                          className="rounded-xl px-4"
-                          onClick={() => {
-                            if (followUpText.trim()) {
-                              toast.info("Follow-up feature coming soon!");
-                              setFollowUpText("");
-                            }
-                          }}
-                        >
-                          Ask
-                        </Button>
-                      </div>
-                      <button
-                        onClick={() => setShowFollowUp(false)}
-                        className="text-xs text-muted-foreground hover:text-foreground ml-1"
-                      >
-                        Collapse
-                      </button>
-                    </div>
-                  )}
-                </motion.div>
+                {/* 3. Secondary: Follow-up collapsed bar with auto-expand */}
+                <FollowUpBar
+                  onSubmit={(text) => {
+                    toast.info("Follow-up sent!");
+                  }}
+                />
 
                 {/* 4. Tertiary: Retake / Crop / extras */}
                 <motion.div
