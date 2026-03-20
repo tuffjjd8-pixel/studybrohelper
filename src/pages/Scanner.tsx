@@ -171,8 +171,6 @@ const Scanner = () => {
     setState("idle");
     setCapturedImage(null);
     setSolution(null);
-    setShowFollowUp(false);
-    setFollowUpText("");
   }, [capturedImage]);
 
   return (
