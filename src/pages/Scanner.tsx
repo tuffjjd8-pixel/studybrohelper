@@ -10,6 +10,7 @@ import { ScannerDropZone } from "@/components/scanner/ScannerDropZone";
 import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/components/scanner/CustomCamera";
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { SolutionDisplay } from "@/components/scanner/SolutionDisplay";
+import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
 import { Button } from "@/components/ui/button";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
