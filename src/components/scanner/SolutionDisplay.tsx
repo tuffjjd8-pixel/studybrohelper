@@ -74,7 +74,8 @@ export function SolutionDisplay({
   extractedQuestion, 
   subject, 
   solution,
-  questionImage 
+  questionImage,
+  isDeepMode = false,
 }: SolutionDisplayProps) {
   const [copiedQuestion, setCopiedQuestion] = useState(false);
   const [copiedSolution, setCopiedSolution] = useState(false);
