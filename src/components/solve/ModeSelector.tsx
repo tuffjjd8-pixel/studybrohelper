@@ -53,6 +53,7 @@ export function ModeSelector({
   const solvesRemaining = isPremium ? -1 : Math.max(0, maxSolves - solvesUsed);
   const usagePercent = isPremium ? 0 : (solvesUsed / maxSolves) * 100;
   const canShowPremiumFeatures = isAuthenticated && isPremium;
+  const [deepGateOpen, setDeepGateOpen] = useState(false);
 
   return (
     <motion.div
