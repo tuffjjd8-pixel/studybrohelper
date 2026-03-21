@@ -158,6 +158,12 @@ export function ModeSelector({
           </div>
         )}
       </div>
+
+      <DeepModeGate
+        open={deepGateOpen}
+        onClose={() => setDeepGateOpen(false)}
+        onContinueBasic={() => onSolveModeChange("instant")}
+      />
     </motion.div>
   );
 }
