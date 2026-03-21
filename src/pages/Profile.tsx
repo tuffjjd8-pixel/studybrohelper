@@ -69,6 +69,7 @@ const Profile = () => {
     if (user) {
       fetchProfile();
       fetchConfirmedLikes();
+      fetchProUsage();
     }
   }, [user]);
 
