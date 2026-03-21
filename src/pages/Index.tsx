@@ -16,6 +16,8 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ScannerModal } from "@/components/scanner/ScannerModal";
 import { TopSharerPopup } from "@/components/share/TopSharerPopup";
 import { CommunityGoalCard } from "@/components/community/CommunityGoalCard";
+import { ScarcityMessage } from "@/components/solve/ScarcityMessage";
+import { SoftUpgradeBanner } from "@/components/solve/SoftUpgradeBanner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
