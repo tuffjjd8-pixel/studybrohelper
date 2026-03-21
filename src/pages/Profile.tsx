@@ -44,6 +44,11 @@ interface Profile {
   equipped_badge: string | null;
 }
 
+interface ProUsage {
+  instant_solves: number;
+  deep_solves: number;
+}
+
 const Profile = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();

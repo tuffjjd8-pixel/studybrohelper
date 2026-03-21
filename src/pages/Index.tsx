@@ -475,6 +475,9 @@ const Index = () => {
                 hoursUntilReset={speechClips.hoursUntilReset}
               />
 
+              {/* Soft upgrade banner */}
+              <SoftUpgradeBanner isPremium={isPremium} isAuthenticated={!!user} />
+
               {/* Recent solves */}
               <RecentSolves solves={recentSolves} />
             </motion.div>
