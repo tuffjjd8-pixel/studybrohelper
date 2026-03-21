@@ -367,6 +367,7 @@ const Scanner = () => {
                   subject={solution.subject}
                   solution={solution.solution}
                   questionImage={solution.image}
+                  isDeepMode={selectedMode === "deep"}
                 />
 
                 {/* 2. Primary CTA: Scan next problem */}

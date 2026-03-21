@@ -9,12 +9,14 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { preprocessMath } from "@/lib/mathPreprocess";
+import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
 
 interface SolutionDisplayProps {
   extractedQuestion: string;
   subject: string;
   solution: string;
   questionImage?: string;
+  isDeepMode?: boolean;
 }
 
 const subjectConfig: Record<string, { bg: string; text: string; border: string; label: string }> = {
