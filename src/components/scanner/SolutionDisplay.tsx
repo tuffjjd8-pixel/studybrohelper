@@ -9,12 +9,14 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { preprocessMath } from "@/lib/mathPreprocess";
+import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
 
 interface SolutionDisplayProps {
   extractedQuestion: string;
   subject: string;
   solution: string;
   questionImage?: string;
+  isDeepMode?: boolean;
 }
 
 const subjectConfig: Record<string, { bg: string; text: string; border: string; label: string }> = {
@@ -72,7 +74,8 @@ export function SolutionDisplay({
   extractedQuestion, 
   subject, 
   solution,
-  questionImage 
+  questionImage,
+  isDeepMode = false,
 }: SolutionDisplayProps) {
   const [copiedQuestion, setCopiedQuestion] = useState(false);
   const [copiedSolution, setCopiedSolution] = useState(false);
@@ -185,18 +188,22 @@ export function SolutionDisplay({
           </Button>
         </div>
         <div className="p-4 bg-card/80 backdrop-blur-sm">
-          <div className="prose prose-invert prose-sm max-w-none math-solution">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
-                strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
-              }}
-            >
-              {preprocessMath(solution)}
-            </ReactMarkdown>
-          </div>
+          {isDeepMode ? (
+            <DeepModeReveal content={solution} textColor="gold" />
+          ) : (
+            <div className="prose prose-invert prose-sm max-w-none math-solution">
+              <ReactMarkdown
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+                components={{
+                  p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
+                  strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
+                }}
+              >
+                {preprocessMath(solution)}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
