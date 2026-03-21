@@ -382,6 +382,29 @@ const Profile = () => {
                 <div className="text-xs text-muted-foreground">Problems Solved</div>
               </motion.div>
 
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+                className="p-4 bg-card rounded-xl border border-border text-center">
+                
+                <BarChart3 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                <div className="text-2xl font-bold">{proUsage.instant_solves}</div>
+                <div className="text-xs text-muted-foreground">Instant Solves</div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.25 }}
+                className="p-4 bg-card rounded-xl border border-border text-center">
+                
+                <ClipboardList className="w-8 h-8 text-violet-500 mx-auto mb-2" />
+                <div className="text-2xl font-bold">{proUsage.deep_solves}</div>
+                <div className="text-xs text-muted-foreground">Deep Solves</div>
+              </motion.div>
+              </motion.div>
+
             </div>
 
             {/* Member since */}
