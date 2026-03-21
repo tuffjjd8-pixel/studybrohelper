@@ -479,7 +479,7 @@ const Index = () => {
               <RecentSolves solves={recentSolves} />
             </motion.div>
           ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-8">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-8 space-y-4">
               {/* Solve Another chip */}
               <div className="flex justify-center mb-5 mt-1">
                 <button
@@ -504,6 +504,14 @@ const Index = () => {
                 isPremium={isPremium}
                 isDeepMode={false}
                 deepTextColor="gold"
+                isAuthenticated={!!user}
+              />
+
+              {/* Inline scarcity message under result */}
+              <ScarcityMessage
+                solvesRemaining={solveUsage.solvesRemaining}
+                maxSolves={solveUsage.maxSolves}
+                isPremium={isPremium}
                 isAuthenticated={!!user}
               />
             </motion.div>
