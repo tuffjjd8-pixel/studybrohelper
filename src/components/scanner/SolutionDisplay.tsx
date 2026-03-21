@@ -188,18 +188,22 @@ export function SolutionDisplay({
           </Button>
         </div>
         <div className="p-4 bg-card/80 backdrop-blur-sm">
-          <div className="prose prose-invert prose-sm max-w-none math-solution">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
-                strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
-              }}
-            >
-              {preprocessMath(solution)}
-            </ReactMarkdown>
-          </div>
+          {isDeepMode ? (
+            <DeepModeReveal content={solution} textColor="gold" />
+          ) : (
+            <div className="prose prose-invert prose-sm max-w-none math-solution">
+              <ReactMarkdown
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+                components={{
+                  p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
+                  strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
+                }}
+              >
+                {preprocessMath(solution)}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
