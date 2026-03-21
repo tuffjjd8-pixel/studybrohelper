@@ -481,6 +481,14 @@ const Scanner = () => {
                   </Button>
                 </motion.div>
 
+                {/* Scarcity message */}
+                <ScarcityMessage
+                  solvesRemaining={solveUsage.solvesRemaining}
+                  maxSolves={solveUsage.maxSolves}
+                  isPremium={solveUsage.isPremium}
+                  isAuthenticated={!!user}
+                />
+
                 {/* Reset link */}
                 <div className="flex justify-center pt-2">
                   <button
