@@ -89,6 +89,24 @@ const Profile = () => {
     }
   };
 
+  const fetchProUsage = async () => {
+    if (!user) return;
+    try {
+      const month = new Date().toISOString().slice(0, 7);
+      const { data } = await supabase
+        .from("pro_usage")
+        .select("instant_solves, deep_solves")
+        .eq("user_id", user.id)
+        .eq("usage_month", month)
+        .maybeSingle();
+      if (data) {
+        setProUsage({ instant_solves: data.instant_solves || 0, deep_solves: data.deep_solves || 0 });
+      }
+    } catch (e) {
+      console.error("Error fetching pro usage:", e);
+    }
+  };
+
   const fetchProfile = async () => {
     try {
       const { data, error } = await supabase.
