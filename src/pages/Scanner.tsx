@@ -11,10 +11,13 @@ import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { SolutionDisplay } from "@/components/scanner/SolutionDisplay";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
+import { ScarcityMessage } from "@/components/solve/ScarcityMessage";
+import { SoftUpgradeBanner } from "@/components/solve/SoftUpgradeBanner";
 import { Button } from "@/components/ui/button";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSolveUsage } from "@/hooks/useSolveUsage";
 import { toast } from "sonner";
 
 type ScannerState = "idle" | "camera" | "previewing" | "scanning" | "cropping" | "solved";
