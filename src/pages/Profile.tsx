@@ -403,8 +403,6 @@ const Profile = () => {
                 <div className="text-2xl font-bold">{proUsage.deep_solves}</div>
                 <div className="text-xs text-muted-foreground">Deep Solves</div>
               </motion.div>
-              </motion.div>
-
             </div>
 
             {/* Member since */}
