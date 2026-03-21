@@ -81,7 +81,7 @@ export function ModeSelector({
             value={solveMode}
             onValueChange={(val) => {
               if (val === "deep" && !isPremium) {
-                toast("Upgrade to Pro to unlock Deep Mode", { icon: "👑" });
+                setDeepGateOpen(true);
                 return;
               }
               onSolveModeChange(val as SolveMode);
