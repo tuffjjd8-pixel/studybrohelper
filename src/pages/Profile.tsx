@@ -24,7 +24,6 @@ import {
 "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
-import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
 import { openPremiumPage } from "@/lib/mobileDetection";
 import { getBadgeByKey } from "@/lib/badgeDefinitions";
 import { useCommunityGoalReached } from "@/hooks/useCommunityGoalReached";
@@ -578,11 +577,6 @@ const Profile = () => {
               </motion.div>
             }
 
-            {/* Subscription management buttons for premium users */}
-            <SubscriptionButtons
-              isPremium={profile?.is_premium || false}
-              premiumSince={profile?.premium_until ? new Date(new Date(profile.premium_until).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() : null}
-              subscriptionId={profile?.subscription_id} />
             
 
             {/* Admin-only: Review Community Goal Submissions */}
