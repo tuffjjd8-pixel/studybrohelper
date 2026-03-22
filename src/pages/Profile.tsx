@@ -24,7 +24,6 @@ import {
 "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
-import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
 import { openPremiumPage } from "@/lib/mobileDetection";
 import { getBadgeByKey } from "@/lib/badgeDefinitions";
 import { useCommunityGoalReached } from "@/hooks/useCommunityGoalReached";
