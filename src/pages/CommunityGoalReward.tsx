@@ -81,7 +81,7 @@ const CommunityGoalReward = () => {
     setIsLoading(true);
 
     try {
-      // Redirect to external premium page (Stripe removed, Play Billing handled natively)
+      // Redirect to external premium page (Play Billing handled natively)
       window.open("https://www.studybro.trade/premium", "_blank");
       toast.success("Redirecting to premium page...");
     } catch (err) {
