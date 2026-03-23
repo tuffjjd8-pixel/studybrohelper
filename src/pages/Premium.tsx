@@ -16,6 +16,10 @@ import {
 } from "lucide-react";
 import { playBillingService } from "@/lib/playBilling";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
+import { SpinWheel } from "@/components/premium/SpinWheel";
+
+// Admin toggle — set to true to show the spin wheel section
+const showWheel = false;
 
 // Google Play product ID — configure this in Google Play Console
 const PLAY_SUBSCRIPTION_PRODUCT_ID = "studybro_premium_monthly";
@@ -238,51 +242,17 @@ const Premium = () => {
               </motion.div>
             </div>
 
-            {/* Premium Monthly $7.99 + Spin section */}
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5"
-            >
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                {/* Left: price details */}
-                <div className="flex-1 text-center sm:text-left">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    Applies to:
-                  </p>
-                  <p className="font-heading font-bold text-foreground">
-                    Premium Monthly ($7.99)
-                  </p>
-                  <p className="text-2xl font-heading font-bold text-foreground mt-1">
-                    $7.99
-                    <span className="text-sm font-normal text-muted-foreground">
-                      /month
-                    </span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    ≈ $4.99/month &middot; Save $12/year
-                  </p>
-                </div>
-
-                {/* Right: Spin wheel placeholder */}
-                <div className="relative w-32 h-32 shrink-0">
-                  <div className="w-full h-full rounded-full border-4 border-primary/40 bg-gradient-to-br from-primary/20 via-secondary/20 to-destructive/20 flex items-center justify-center">
-                    <div className="w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
-                      <span className="text-primary-foreground font-heading font-bold text-sm">
-                        SPIN
-                      </span>
-                    </div>
-                  </div>
-                  {/* Indicator */}
-                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full border-2 border-primary-foreground" />
-                </div>
-              </div>
-
-              <p className="text-center text-xs text-primary mt-3 font-medium">
-                Spin to unlock a discount on Premium Monthly ($7.99)
-              </p>
-            </motion.div>
+            {/* Premium Monthly $7.99 + Spin Wheel */}
+            {showWheel && (
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5"
+              >
+                <SpinWheel />
+              </motion.div>
+            )}
 
             {/* Community Rewards Coming Soon */}
             <motion.div
