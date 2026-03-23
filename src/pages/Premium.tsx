@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -10,85 +10,51 @@ import { Button } from "@/components/ui/button";
 import {
   Crown,
   Check,
-  ArrowLeft,
-  Loader2,
+  X,
   Zap,
-  BookOpen,
+  Target,
+  ArrowLeft,
+  Calculator,
+  Heart,
   Shield,
   Brain,
-  Star,
+  Loader2,
 } from "lucide-react";
 import { playBillingService } from "@/lib/playBilling";
 
-const PLAY_SUBSCRIPTION_PRODUCT_ID = "studybro_premium_monthly";
-
-interface PlanCard {
-  id: string;
-  name: string;
-  price: string;
-  period: string;
-  description: string;
-  badge?: string;
-  badgeColor?: string;
-  wheelEligible?: boolean;
+interface ComparisonItem {
+  feature: string;
+  free: string | boolean;
+  premium: string | boolean;
 }
 
-const PLANS: PlanCard[] = [
-  {
-    id: "weekly",
-    name: "Weekly",
-    price: "$6.99",
-    period: "/week",
-    description: "Try Pro risk-free for a week",
-  },
-  {
-    id: "pro_monthly",
-    name: "Pro Monthly",
-    price: "$5.99",
-    period: "/month",
-    description: "Unlimited solves + Deep Mode",
-    badge: "MOST POPULAR",
-    badgeColor: "bg-primary text-primary-foreground",
-  },
-  {
-    id: "premium_monthly",
-    name: "Premium Monthly",
-    price: "$7.99",
-    period: "/month",
-    description: "Everything in Pro + Wheel discounts",
-    wheelEligible: true,
-  },
-  {
-    id: "pro_yearly",
-    name: "Pro Yearly",
-    price: "$59.99",
-    period: "/year",
-    description: "≈ $4.99/mo — Save $12/year",
-    badge: "BEST VALUE",
-    badgeColor: "bg-secondary text-secondary-foreground",
-  },
-  {
-    id: "community_monthly",
-    name: "Community Monthly",
-    price: "$4.99",
-    period: "/month",
-    description: "Support the community & get Pro",
-  },
-  {
-    id: "two_year",
-    name: "2-Year Pro",
-    price: "$84.99",
-    period: "one-time",
-    description: "Lock in 2 years of Pro access",
-  },
+const COMPARISON: ComparisonItem[] = [
+  { feature: "Instant Mode (Image)", free: "3/day", premium: "300/month" },
+  { feature: "Ask (Text Solves)", free: "4/day", premium: "300/month" },
+  { feature: "Deep Mode", free: "100/month", premium: "Unlimited" },
+  { feature: "Essay Mode", free: "1/day (limited)", premium: "Unlimited (full)" },
+  { feature: "Follow-Ups", free: "1 per solve", premium: "200/month" },
+  { feature: "Humanize", free: false, premium: "80/month" },
+  { feature: "Quiz Generator", free: "1/day (max 10 Qs)", premium: "899/month (max 20 Qs)" },
+  { feature: "Strict Count Mode", free: false, premium: true },
+  { feature: "Enhanced OCR", free: "Basic", premium: "Premium" },
+  { feature: "Priority Speed", free: false, premium: true },
+  { feature: "Ad-Free Experience", free: true, premium: true },
+  { feature: "Full Quiz Review", free: false, premium: true },
+  { feature: "History", free: "Today only", premium: "Unlimited" },
+  { feature: "Language Control", free: "Unlimited", premium: "Unlimited" },
 ];
 
-const BENEFITS = [
-  { icon: Brain, title: "Unlimited AI Homework Help", description: "Solve any problem, any subject, any time" },
-  { icon: BookOpen, title: "Step-by-Step Explanations", description: "Understand every solution clearly" },
-  { icon: Star, title: "Test Mode", description: "Practice with AI-generated quizzes" },
-  { icon: Zap, title: "Priority Features", description: "Faster solves & early access to new tools" },
+const PREMIUM_BENEFITS = [
+  { icon: Brain, title: "400 Solves/Month", description: "300 Instant + 100 Deep combined" },
+  { icon: Calculator, title: "Scientific Calculator", description: "Advanced reasoning & logic" },
+  { icon: Target, title: "Premium OCR", description: "Enhanced image recognition" },
+  { icon: Zap, title: "Priority Speed", description: "Skip the queue" },
+  { icon: Shield, title: "Ad-Free", description: "Distraction-free learning" },
 ];
+
+// Google Play product ID — configure this in Google Play Console
+const PLAY_SUBSCRIPTION_PRODUCT_ID = "studybro_premium_monthly";
 
 const Premium = () => {
   const navigate = useNavigate();
@@ -115,9 +81,12 @@ const Premium = () => {
       navigate("/auth");
       return;
     }
+
     setIsLoading(true);
+
     try {
       if (playBillingService.isAvailable()) {
+        // Native Google Play Billing flow
         const purchase = await playBillingService.purchaseSubscription(PLAY_SUBSCRIPTION_PRODUCT_ID);
         if (purchase) {
           toast.success("Subscription activated! 🎉");
@@ -126,6 +95,7 @@ const Premium = () => {
           toast.error("Purchase was cancelled or failed");
         }
       } else {
+        // Web fallback — direct to external page
         window.open("https://www.studybro.trade/premium", "_blank");
       }
     } catch (err) {
@@ -141,156 +111,153 @@ const Premium = () => {
       <Header streak={0} totalSolves={0} isPremium={false} />
 
       <main className="pt-20 pb-32 px-4">
-        <div className="max-w-2xl mx-auto space-y-10">
-          {/* Back */}
-          <button
-            onClick={() => navigate(-1)}
-            className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-
-          {/* Hero */}
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
+        <div className="max-w-lg mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center space-y-3 pt-2"
+            className="space-y-6"
           >
-            <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mx-auto">
-              <Crown className="w-8 h-8 text-primary" />
-            </div>
-            <h1 className="text-3xl font-heading font-bold tracking-tight">
-              Unlock <span className="text-primary">StudyBro Pro</span>
-            </h1>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Choose the plan that fits your study journey
-            </p>
-            <p className="text-xs text-muted-foreground/70">Trusted by thousands of students</p>
-          </motion.section>
+            {/* Back button */}
+            <button
+              onClick={() => navigate(-1)}
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
 
-          {/* Already Premium */}
-          {userIsPremium && (
-            <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 text-center space-y-1">
-              <div className="flex items-center justify-center gap-2">
-                <Crown className="w-5 h-5 text-primary" />
-                <span className="font-semibold text-primary">You're already Pro!</span>
+            {/* Hero */}
+            <div className="text-center py-6">
+              <motion.div
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", bounce: 0.5 }}
+                className="w-20 h-20 rounded-full bg-gradient-to-br from-primary via-secondary to-primary flex items-center justify-center mx-auto mb-4"
+              >
+                <Crown className="w-10 h-10 text-primary-foreground" />
+              </motion.div>
+              <h1 className="text-3xl font-heading font-bold mb-2">
+                Go <span className="text-gradient">Premium</span>
+              </h1>
+              <p className="text-muted-foreground">
+                Unlock the full power of StudyBro AI
+              </p>
+            </div>
+
+            {/* Already Premium Banner */}
+            {userIsPremium && (
+              <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 text-center space-y-2">
+                <div className="flex items-center justify-center gap-2">
+                  <Crown className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-primary">You're already Premium!</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Manage your subscription in Google Play Store settings.
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Manage your subscription in Google Play Store settings.
-              </p>
-            </div>
-          )}
+            )}
 
-          {/* Benefits */}
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-center">What you get</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {BENEFITS.map((b, i) => (
-                <motion.div
-                  key={b.title}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="p-4 rounded-xl border border-border bg-card space-y-2"
+            {/* Subscribe Button */}
+            {!userIsPremium && (
+              <div className="space-y-3">
+                <Button
+                  onClick={handleSubscribe}
+                  disabled={isLoading}
+                  className="w-full h-14 text-lg font-bold gap-2"
                 >
-                  <b.icon className="w-5 h-5 text-primary" />
-                  <p className="text-sm font-medium leading-tight">{b.title}</p>
-                  <p className="text-xs text-muted-foreground">{b.description}</p>
-                </motion.div>
-              ))}
-            </div>
-          </section>
-
-          {/* Pricing Grid */}
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-center">Plans</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {PLANS.map((plan, i) => (
-                <motion.div
-                  key={plan.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.05 * i }}
-                  className={`relative p-5 rounded-xl border bg-card space-y-3 ${
-                    plan.badge ? "border-primary/40" : "border-border"
-                  }`}
-                >
-                  {plan.badge && (
-                    <span
-                      className={`absolute -top-2.5 left-4 px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full ${plan.badgeColor}`}
-                    >
-                      {plan.badge}
-                    </span>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Crown className="w-5 h-5" />
+                      Subscribe to Premium
+                    </>
                   )}
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">{plan.name}</p>
-                    <p className="text-2xl font-heading font-bold">
-                      {plan.price}
-                      <span className="text-sm font-normal text-muted-foreground">
-                        {plan.period}
-                      </span>
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{plan.description}</p>
-                  <Button
-                    onClick={handleSubscribe}
-                    disabled={isLoading || userIsPremium}
-                    variant={plan.badge ? "default" : "outline"}
-                    className="w-full"
-                    size="sm"
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Cancel anytime via Google Play Store. No questions asked.
+                </p>
+              </div>
+            )}
+
+            {/* Comparison Table */}
+            <div className="space-y-3">
+              <h2 className="font-semibold text-lg text-center">Free vs Premium</h2>
+              <div className="rounded-xl border border-border overflow-hidden">
+                <div className="grid grid-cols-3 bg-muted/50 p-3 font-medium text-sm">
+                  <div>Feature</div>
+                  <div className="text-center">Free</div>
+                  <div className="text-center text-primary">Premium</div>
+                </div>
+                {COMPARISON.map((item, index) => (
+                  <div
+                    key={item.feature}
+                    className={`grid grid-cols-3 p-3 text-sm ${
+                      index % 2 === 0 ? "bg-card" : "bg-muted/20"
+                    }`}
                   >
-                    {isLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : userIsPremium ? (
-                      "Current Plan"
-                    ) : (
-                      "Continue"
-                    )}
-                  </Button>
-                </motion.div>
-              ))}
+                    <div className="font-medium">{item.feature}</div>
+                    <div className="text-center">
+                      {typeof item.free === "boolean" ? (
+                        item.free ? (
+                          <Check className="w-4 h-4 text-green-500 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 mx-auto text-muted-foreground" />
+                        )
+                      ) : (
+                        <span className="text-muted-foreground">{item.free}</span>
+                      )}
+                    </div>
+                    <div className="text-center">
+                      {typeof item.premium === "boolean" ? (
+                        item.premium ? (
+                          <Check className="w-4 h-4 text-green-500 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 text-muted-foreground mx-auto" />
+                        )
+                      ) : (
+                        <span className="text-primary font-medium">{item.premium}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </section>
 
-          {/* Wheel Section */}
-          <section className="space-y-4 text-center">
-            <h2 className="text-lg font-semibold">Spin the Wheel for a Special Price</h2>
-            <p className="text-xs text-muted-foreground">
-              Applies to Premium Monthly ($7.99) only
-            </p>
-            <div className="mx-auto w-48 h-48 rounded-full border-2 border-dashed border-border flex items-center justify-center bg-card">
-              <span className="text-muted-foreground text-sm">Wheel Placeholder</span>
+            {/* Premium Benefits */}
+            <div className="space-y-3">
+              <h2 className="font-semibold text-lg">Premium Benefits</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {PREMIUM_BENEFITS.map((benefit, index) => (
+                  <motion.div
+                    key={benefit.title}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="p-3 bg-card rounded-lg border border-border"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <benefit.icon className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">{benefit.title}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{benefit.description}</p>
+                  </motion.div>
+                ))}
+              </div>
             </div>
-            <Button variant="outline" size="lg" className="gap-2">
-              <Star className="w-4 h-4" />
-              Spin Now
-            </Button>
-          </section>
 
-          {/* Community Rewards teaser */}
-          <section className="p-4 rounded-xl border border-border bg-card text-center space-y-1">
-            <p className="text-sm font-medium">Community Rewards Coming Soon</p>
-            <p className="text-xs text-muted-foreground">
-              $4.99/month & 2-Year Pro Deal — Help us reach our goal!
-            </p>
-          </section>
-
-          {/* Bottom CTAs */}
-          {!userIsPremium && (
-            <div className="space-y-3 pt-2">
-              <Button onClick={handleSubscribe} disabled={isLoading} className="w-full h-14 text-base font-bold gap-2">
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Crown className="w-5 h-5" />}
-                {isLoading ? "Processing..." : "Continue with Premium"}
-              </Button>
-              <Button variant="ghost" className="w-full" onClick={() => navigate(-1)}>
-                Continue with Free
-              </Button>
-              <p className="text-[11px] text-muted-foreground text-center">
-                Cancel anytime via Google Play Store. No questions asked.
+            {/* Support */}
+            <div className="p-4 bg-card rounded-lg border border-border text-center">
+              <Heart className="w-6 h-6 text-red-500 mx-auto mb-2" />
+              <p className="text-sm font-medium">Support Student Development</p>
+              <p className="text-xs text-muted-foreground">
+                Your subscription helps us build better learning tools
               </p>
             </div>
-          )}
+          </motion.div>
         </div>
       </main>
 
