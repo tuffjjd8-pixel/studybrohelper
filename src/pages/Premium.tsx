@@ -16,6 +16,10 @@ import {
 } from "lucide-react";
 import { playBillingService } from "@/lib/playBilling";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
+import { SpinWheel } from "@/components/premium/SpinWheel";
+
+// Admin toggle — set to true to show the spin wheel section
+const showWheel = false;
 
 // Google Play product ID — configure this in Google Play Console
 const PLAY_SUBSCRIPTION_PRODUCT_ID = "studybro_premium_monthly";
