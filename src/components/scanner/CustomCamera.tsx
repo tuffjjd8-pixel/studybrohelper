@@ -401,8 +401,28 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
             )}
           </div>
 
+          {/* Voice hint */}
+          {isReady && (
+            <div
+              className="absolute left-0 right-0 flex justify-center z-10"
+              style={{ top: "calc(env(safe-area-inset-top, 12px) + 68px)" }}
+            >
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md">
+                {voiceActive ? (
+                  <Mic className="w-3.5 h-3.5 text-primary animate-pulse" />
+                ) : (
+                  <MicOff className="w-3.5 h-3.5 text-muted-foreground" />
+                )}
+                <span className="text-xs text-white/70">
+                  {voiceDenied
+                    ? "Mic permission needed for voice commands"
+                    : "Say \"Go\" to snap hands‑free"}
+                </span>
+              </div>
+            </div>
+          )}
 
-          {/* Controls area above bottom */}
+
           <div className="absolute bottom-36 left-0 right-0 px-5 z-20 space-y-3">
             {/* Solve Mode Selector */}
             <div className="flex justify-center">
