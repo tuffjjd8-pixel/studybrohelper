@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen } from "lucide-react";
+import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen, Mic, MicOff } from "lucide-react";
 import { fileToOptimizedDataUrl } from "@/lib/image";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
