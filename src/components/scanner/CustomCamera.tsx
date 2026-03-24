@@ -131,9 +131,97 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     } else {
       stopStream(false);
       setTorchEnabled(false);
+      stopVoiceRecognition();
     }
-    return () => stopStream(true);
+    return () => {
+      stopStream(true);
+      stopVoiceRecognition();
+    };
   }, [isOpen, startCamera, stopStream]);
+
+  // --- Voice recognition ---
+  const capturePhotoRef = useRef<() => void>();
+  capturePhotoRef.current = () => {
+    if (!videoRef.current || !canvasRef.current || !isReadyRef.current || isCapturingRef.current) return;
+    isCapturingRef.current = true;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (video.videoWidth === 0 || video.videoHeight === 0) { isCapturingRef.current = false; return; }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { isCapturingRef.current = false; return; }
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob(
+      (b) => {
+        isCapturingRef.current = false;
+        if (!b) return;
+        const objectUrl = URL.createObjectURL(b);
+        finishCapture(objectUrl);
+      },
+      "image/webp",
+      0.92
+    );
+  };
+
+  const stopVoiceRecognition = useCallback(() => {
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch {}
+      recognitionRef.current = null;
+    }
+    setVoiceActive(false);
+  }, []);
+
+  const startVoiceRecognition = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event: any) => {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript.trim().toLowerCase();
+        if (transcript.includes("go") || transcript.includes("next")) {
+          capturePhotoRef.current?.();
+          return;
+        }
+      }
+    };
+
+    recognition.onerror = (e: any) => {
+      if (e.error === "not-allowed") {
+        setVoiceDenied(true);
+        setVoiceActive(false);
+      }
+    };
+
+    recognition.onend = () => {
+      // Auto-restart if still open
+      if (recognitionRef.current === recognition) {
+        try { recognition.start(); } catch {}
+      }
+    };
+
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+      setVoiceActive(true);
+      setVoiceDenied(false);
+    } catch {
+      setVoiceDenied(true);
+    }
+  }, []);
+
+  // Auto-start voice when camera is ready
+  useEffect(() => {
+    if (isOpen && isReady) {
+      startVoiceRecognition();
+    }
+    return () => stopVoiceRecognition();
+  }, [isOpen, isReady, startVoiceRecognition, stopVoiceRecognition]);
 
   const toggleTorch = useCallback(async () => {
     if (!cachedStream || !torchSupported) return;
