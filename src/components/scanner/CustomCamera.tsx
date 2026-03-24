@@ -310,12 +310,13 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   }, [finishCapture]);
 
   const handleClose = useCallback(() => {
+    stopVoiceRecognition();
     stopStream(true);
     if (!keepMode) {
       setCameraMode("instant");
     }
     onClose();
-  }, [stopStream, onClose, keepMode]);
+  }, [stopStream, onClose, keepMode, stopVoiceRecognition]);
 
   if (!isOpen) return null;
 
