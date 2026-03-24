@@ -34,6 +34,9 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   const [torchSupported, setTorchSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isCapturingRef = useRef(false);
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceDenied, setVoiceDenied] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   // Camera mode (instant/deep) — persisted in localStorage
   const [cameraMode, setCameraMode] = useState<CameraSolveMode>(() => {
