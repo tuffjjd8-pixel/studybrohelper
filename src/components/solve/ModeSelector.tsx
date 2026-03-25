@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Crown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -15,7 +14,6 @@ import { WHISPER_LANGUAGES, getLanguageDisplayName } from "@/lib/whisperLanguage
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { DeepModeGate } from "@/components/solve/DeepModeGate";
 
 export type SolveMode = "instant" | "deep" | "essay";
 
@@ -53,7 +51,6 @@ export function ModeSelector({
   const solvesRemaining = isPremium ? -1 : Math.max(0, maxSolves - solvesUsed);
   const usagePercent = isPremium ? 0 : (solvesUsed / maxSolves) * 100;
   const canShowPremiumFeatures = isAuthenticated && isPremium;
-  const [deepGateOpen, setDeepGateOpen] = useState(false);
 
   return (
     <motion.div
@@ -81,7 +78,7 @@ export function ModeSelector({
             value={solveMode}
             onValueChange={(val) => {
               if (val === "deep" && !isPremium) {
-                setDeepGateOpen(true);
+                toast("Upgrade to Pro to unlock Deep Mode", { icon: "👑" });
                 return;
               }
               onSolveModeChange(val as SolveMode);
@@ -158,12 +155,6 @@ export function ModeSelector({
           </div>
         )}
       </div>
-
-      <DeepModeGate
-        open={deepGateOpen}
-        onClose={() => setDeepGateOpen(false)}
-        onContinueBasic={() => onSolveModeChange("instant")}
-      />
     </motion.div>
   );
 }

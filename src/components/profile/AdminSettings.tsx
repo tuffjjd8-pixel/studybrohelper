@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, BarChart3, Activity, Shield } from "lucide-react";
+import { Settings, CreditCard, BarChart3, Activity, Shield } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
@@ -35,6 +35,8 @@ const TOGGLE_DEFS: { key: ToggleKey; label: string }[] = [
 
 export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
   const navigate = useNavigate();
+  const [stripeMode, setStripeMode] = useState<"test" | "live">("live");
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [toggles, setToggles] = useState<Record<ToggleKey, boolean>>({
     reward_claiming_enabled: false,
@@ -67,16 +69,21 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
       if (error) throw error;
 
       const newToggles = { ...toggles };
+      let loadedStripeMode: "test" | "live" = "live";
+      
 
       data?.forEach((row) => {
-        if (row.key in newToggles) {
+        if (row.key === "stripe_mode") {
+          loadedStripeMode = row.value as "test" | "live";
+        } else if (row.key in newToggles) {
           newToggles[row.key as ToggleKey] = row.value === "true";
         }
       });
 
+      setStripeMode(loadedStripeMode);
       setToggles(newToggles);
       
-      console.log("[Admin] Settings loaded successfully", { toggles: newToggles });
+      console.log("[Admin] Settings loaded successfully", { toggles: newToggles, stripeMode: loadedStripeMode });
     } catch (error) {
       console.error("[Admin] Failed to load settings:", error);
     } finally {
@@ -106,6 +113,29 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
       setSavingToggle(null);
     }
   };
+
+  const handleStripeModeToggle = async (checked: boolean) => {
+    const newMode = checked ? "test" : "live";
+    setIsUpdating(true);
+
+    try {
+      const { error } = await supabase
+        .from("app_settings")
+        .update({ value: newMode, updated_at: new Date().toISOString() })
+        .eq("key", "stripe_mode");
+
+      if (error) throw error;
+
+      setStripeMode(newMode);
+      toast.success(`Stripe mode switched to ${newMode.toUpperCase()}`);
+    } catch (error) {
+      console.error("Error updating stripe mode:", error);
+      toast.error("Failed to update Stripe mode");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
 
   const handleResetCommunityGoal = async () => {
     console.log("[Admin] Resetting community goal...");
@@ -165,7 +195,38 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         <h3 className="font-heading font-bold text-lg">Admin Controls</h3>
       </div>
 
-      {/* Feature Toggles */}
+      {/* Stripe Mode Toggle */}
+      <div className="p-4 bg-card rounded-xl border border-primary/30">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CreditCard className="w-5 h-5 text-primary" />
+            <div>
+              <p className="font-medium">Stripe Mode</p>
+              <p className="text-xs text-muted-foreground">
+                Currently: <span className={stripeMode === "test" ? "text-orange-500" : "text-green-500"}>
+                  {stripeMode.toUpperCase()}
+                </span>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Live</span>
+            <Switch
+              checked={stripeMode === "test"}
+              onCheckedChange={handleStripeModeToggle}
+              disabled={isUpdating || isLoading}
+            />
+            <span className="text-xs text-orange-500">Test</span>
+          </div>
+        </div>
+        {stripeMode === "test" && (
+          <p className="text-xs text-orange-500 mt-2">
+            ⚠️ Test mode active - payments won't be real
+          </p>
+        )}
+      </div>
+
+      {/* 8 Feature Toggles */}
       <div className="p-4 bg-card rounded-xl border border-border space-y-3">
         <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Feature Toggles</p>
         {TOGGLE_DEFS.map((t) => (
@@ -202,6 +263,7 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         <BarChart3 className="w-4 h-4" />
         Manage Polls
       </Button>
+
 
       {/* Security Events Log */}
       <Button
