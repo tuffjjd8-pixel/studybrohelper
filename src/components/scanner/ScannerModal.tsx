@@ -200,7 +200,7 @@ export function ScannerModal({
                   exit={{ opacity: 0 }}
                 >
                   <ScannerLoadingState
-                    image={capturedImage || undefined}
+                    image={previewUrl || undefined}
                     stage={loadingStage}
                   />
                 </motion.div>

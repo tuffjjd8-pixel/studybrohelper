@@ -1,10 +1,9 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Upload } from "lucide-react";
 import { motion } from "framer-motion";
-import { fileToOptimizedDataUrl } from "@/lib/image";
 
 interface ScannerDropZoneProps {
-  onImageSelect: (imageData: string) => void;
+  onImageSelect: (file: File) => void;
   onOpenCamera: () => void;
   isLoading?: boolean;
 }
@@ -13,18 +12,9 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const processFile = useCallback(async (file: File) => {
+  const processFile = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
-    try {
-      const optimized = await fileToOptimizedDataUrl(file, {
-        maxDimension: 2048,
-        quality: 0.92,
-        mimeType: "image/webp",
-      });
-      onImageSelect(optimized);
-    } catch (error) {
-      console.error("Image processing error:", error);
-    }
+    onImageSelect(file);
   }, [onImageSelect]);
 
   // Process blob URL (from camera)
