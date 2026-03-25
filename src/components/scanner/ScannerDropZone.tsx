@@ -1,10 +1,9 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Upload } from "lucide-react";
 import { motion } from "framer-motion";
-import { fileToOptimizedDataUrl } from "@/lib/image";
 
 interface ScannerDropZoneProps {
-  onImageSelect: (imageData: string) => void;
+  onImageSelect: (file: File) => void;
   onOpenCamera: () => void;
   isLoading?: boolean;
 }
@@ -13,38 +12,14 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const processFile = useCallback(async (file: File) => {
+  const processFile = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
-    try {
-      const optimized = await fileToOptimizedDataUrl(file, {
-        maxDimension: 2048,
-        quality: 0.92,
-        mimeType: "image/webp",
-      });
-      onImageSelect(optimized);
-    } catch (error) {
-      console.error("Image processing error:", error);
-    }
+    onImageSelect(file);
   }, [onImageSelect]);
-
-  // Process blob URL (from camera)
-  const processBlobUrl = useCallback(async (blobUrl: string) => {
-    try {
-      const response = await fetch(blobUrl);
-      const blob = await response.blob();
-      const file = new File([blob], "camera-capture.webp", { type: blob.type });
-      await processFile(file);
-      // Clean up blob URL
-      URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error("Blob processing error:", error);
-    }
-  }, [processFile]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processFile(file);
-    // Reset input
     if (e.target) e.target.value = "";
   };
 
@@ -78,19 +53,10 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
     }
   }, [processFile]);
 
-  // Paste event listener
   useEffect(() => {
     document.addEventListener("paste", handlePaste);
     return () => document.removeEventListener("paste", handlePaste);
   }, [handlePaste]);
-
-  // Expose processBlobUrl for camera captures
-  useEffect(() => {
-    (window as unknown as { processCameraCapture?: (url: string) => void }).processCameraCapture = processBlobUrl;
-    return () => {
-      delete (window as unknown as { processCameraCapture?: (url: string) => void }).processCameraCapture;
-    };
-  }, [processBlobUrl]);
 
   const handleZoneClick = () => {
     // On mobile, try camera first, fallback to file picker

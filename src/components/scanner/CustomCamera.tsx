@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen, Mic, MicOff } from "lucide-react";
-import { fileToOptimizedDataUrl } from "@/lib/image";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -9,7 +8,8 @@ import { toast } from "sonner";
 export type CameraSolveMode = "instant" | "deep";
 
 export interface CameraCaptureResult {
-  images: string[];
+  file: File;
+  previewUrl: string;
   mode: CameraSolveMode;
 }
 
@@ -156,10 +156,10 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
       (b) => {
         isCapturingRef.current = false;
         if (!b) return;
-        const objectUrl = URL.createObjectURL(b);
-        finishCapture(objectUrl);
+        const file = new File([b], "photo.jpg", { type: "image/jpeg" });
+        finishCapture(file);
       },
-      "image/webp",
+      "image/jpeg",
       0.92
     );
   };
@@ -236,10 +236,10 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     }
   }, [torchEnabled, torchSupported]);
 
-  const finishCapture = useCallback((imageOrImages: string | string[]) => {
-    const images = Array.isArray(imageOrImages) ? imageOrImages : [imageOrImages];
+  const finishCapture = useCallback((file: File) => {
+    const previewUrl = URL.createObjectURL(file);
     stopStream(false);
-    onCapture({ images, mode: cameraMode });
+    onCapture({ file, previewUrl, mode: cameraMode });
   }, [stopStream, onCapture, cameraMode]);
 
   const capturePhoto = useCallback(async () => {
@@ -265,14 +265,13 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error("Blob creation failed"))),
-          "image/webp",
+          "image/jpeg",
           0.92
         );
       });
 
-      const objectUrl = URL.createObjectURL(blob);
-
-      finishCapture(objectUrl);
+      const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
+      finishCapture(file);
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
@@ -282,30 +281,11 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   }, [stopStream, finishCapture, cameraMode]);
 
   const handleGalleryPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const optimized = await fileToOptimizedDataUrl(file, {
-        maxDimension: 2048,
-        quality: 0.92,
-        mimeType: "image/jpeg",
-      });
-
-      finishCapture(optimized);
-    } catch (err) {
-      console.error("Gallery error:", err);
-      try {
-        const reader = new FileReader();
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        finishCapture(dataUrl);
-      } catch {
-        console.error("Gallery fallback also failed");
-      }
-    }
+    const pickedFile = e.target.files?.[0];
+    if (!pickedFile) return;
+    // Wrap in a new File with a consistent name if needed
+    const file = new File([pickedFile], pickedFile.name || "gallery.jpg", { type: pickedFile.type || "image/jpeg" });
+    finishCapture(file);
     if (e.target) e.target.value = "";
   }, [finishCapture]);
 
