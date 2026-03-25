@@ -90,7 +90,7 @@ export function ScannerModal({
     onClose();
   }, [onClose]);
 
-  const solveProblem = async (imageData: string) => {
+  const solveProblem = async (file: File) => {
     if (!userId) {
       toast.error("Please sign in to use AI features.");
       return;
@@ -102,9 +102,8 @@ export function ScannerModal({
 
       const mode = isPremium ? "solve_pro" : "solve_free";
 
-      const blob = await imageToBlob(imageData);
       const formData = new FormData();
-      formData.append("file", blob, "photo.jpg");
+      formData.append("file", file);
       formData.append("mode", mode);
 
       const response = await fetch("http://46.224.199.130:8000/ocr", {
@@ -125,12 +124,12 @@ export function ScannerModal({
           user_id: userId,
           subject: "general",
           question_text: extractedQuestion,
-          question_image_url: imageData.substring(0, 500),
+          question_image_url: file.name,
           solution_markdown: data.solution,
         });
       }
 
-      onSolved(extractedQuestion, data.solution, "general", imageData);
+      onSolved(extractedQuestion, data.solution, "general", previewUrl || undefined);
       handleReset();
       onClose();
     } catch (error) {
