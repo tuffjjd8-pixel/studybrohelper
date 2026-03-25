@@ -196,9 +196,9 @@ const Scanner = () => {
       />
 
       {/* Optional crop UI */}
-      {state === "cropping" && capturedImage && (
+      {state === "cropping" && previewUrl && (
         <ImageCropper
-          imageSrc={capturedImage}
+          imageSrc={previewUrl}
           onCropComplete={handleCropComplete}
           onCancel={handleCropCancel}
         />
