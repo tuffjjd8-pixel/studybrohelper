@@ -175,15 +175,14 @@ const Scanner = () => {
   };
 
   const handleReset = useCallback(() => {
-    if (capturedImage?.startsWith("blob:")) {
-      URL.revokeObjectURL(capturedImage);
-    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setState("idle");
-    setCapturedImage(null);
+    setCapturedFile(null);
+    setPreviewUrl(null);
     setSolution(null);
     setShowFollowUp(false);
     setFollowUpText("");
-  }, [capturedImage]);
+  }, [previewUrl]);
 
   return (
     <div className="min-h-screen bg-background">
