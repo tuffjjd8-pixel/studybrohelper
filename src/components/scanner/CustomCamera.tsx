@@ -156,10 +156,10 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
       (b) => {
         isCapturingRef.current = false;
         if (!b) return;
-        const objectUrl = URL.createObjectURL(b);
-        finishCapture(objectUrl);
+        const file = new File([b], "photo.jpg", { type: "image/jpeg" });
+        finishCapture(file);
       },
-      "image/webp",
+      "image/jpeg",
       0.92
     );
   };
