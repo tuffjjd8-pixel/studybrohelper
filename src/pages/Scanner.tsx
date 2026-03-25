@@ -111,6 +111,11 @@ const Scanner = () => {
     setState("camera");
   }, [capturedImage]);
 
+  const imageToBlob = async (imageData: string): Promise<Blob> => {
+    const res = await fetch(imageData);
+    return res.blob();
+  };
+
   const solveProblem = async (imageData: string) => {
     if (!user) {
       toast.error("Please sign in to use AI features.");
@@ -122,28 +127,30 @@ const Scanner = () => {
       setLoadingStage("classifying");
       await new Promise((r) => setTimeout(r, 200));
       setLoadingStage("solving");
-      
-      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
-      const answerLanguage = await getAnswerLanguage(user?.id);
-      const { data, error } = await supabase.functions.invoke("solve-homework", {
-        body: { 
-          question: "", 
-          image: imageData,
-          isPremium: false,
-          animatedSteps: false,
-          solveMode: selectedMode,
-          generateGraph: false,
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-          answerLanguage,
-        },
+
+      const isPro = solveUsage.isPremium;
+      const mode = isPro ? "solve_pro" : "solve_free";
+
+      const blob = await imageToBlob(imageData);
+      const formData = new FormData();
+      formData.append("file", blob, "photo.jpg");
+      formData.append("mode", mode);
+
+      const response = await fetch("http://46.224.199.130:8000/ocr", {
+        method: "POST",
+        body: formData,
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
 
-      const extractedQuestion = data.question || data.extractedText || "Image-based question";
+      const data = await response.json();
+
+      const extractedQuestion = data.extracted_text || "Image-based question";
 
       setSolution({
-        subject: data.subject || "general",
+        subject: "general",
         question: extractedQuestion,
         solution: data.solution,
         image: imageData,
@@ -152,7 +159,7 @@ const Scanner = () => {
       if (user) {
         await supabase.from("solves").insert({
           user_id: user.id,
-          subject: data.subject || "general",
+          subject: "general",
           question_text: extractedQuestion,
           question_image_url: imageData.substring(0, 500),
           solution_markdown: data.solution,
