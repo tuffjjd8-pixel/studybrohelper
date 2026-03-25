@@ -47,47 +47,48 @@ export function ScannerModal({
 
   // Auto-transition from preview → scanning after 400ms
   useEffect(() => {
-    if (state !== "previewing" || !capturedImage) return;
+    if (state !== "previewing" || !capturedFile) return;
     const timer = setTimeout(() => {
       setState("scanning");
       setLoadingStage("classifying");
-      solveProblem(capturedImage);
+      solveProblem(capturedFile);
     }, 400);
     return () => clearTimeout(timer);
-  }, [state, capturedImage]);
+  }, [state, capturedFile]);
 
   const handleCropRequest = useCallback(() => {
     setState("cropping");
   }, []);
 
   const handleCropComplete = useCallback((croppedImage: string) => {
-    if (capturedImage?.startsWith("blob:")) URL.revokeObjectURL(capturedImage);
-    setCapturedImage(croppedImage);
-    setState("scanning");
-    setLoadingStage("classifying");
-    solveProblem(croppedImage);
-  }, [capturedImage]);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    fetch(croppedImage)
+      .then(r => r.blob())
+      .then(blob => {
+        const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
+        setCapturedFile(file);
+        setPreviewUrl(croppedImage);
+        setState("scanning");
+        setLoadingStage("classifying");
+        solveProblem(file);
+      });
+  }, [previewUrl]);
 
   const handleCropCancel = useCallback(() => {
-    // Return to scanning state
     setState("scanning");
   }, []);
 
   const handleRetake = useCallback(() => {
-    if (capturedImage?.startsWith("blob:")) URL.revokeObjectURL(capturedImage);
-    setCapturedImage(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setCapturedFile(null);
+    setPreviewUrl(null);
     setState("idle");
-  }, [capturedImage]);
+  }, [previewUrl]);
 
   const handleCameraClose = useCallback(() => {
     handleReset();
     onClose();
   }, [onClose]);
-
-  const imageToBlob = async (imageData: string): Promise<Blob> => {
-    const res = await fetch(imageData);
-    return res.blob();
-  };
 
   const solveProblem = async (imageData: string) => {
     if (!userId) {
