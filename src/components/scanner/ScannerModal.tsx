@@ -31,14 +31,16 @@ export function ScannerModal({
 }: ScannerModalProps) {
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedFile, setCapturedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
 
   const cameraActive = isOpen && (state === "idle" || state === "camera");
 
   // Auto-solve after capture: brief preview then solve
   const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
-    setCapturedImage(result.images[0]);
+    setCapturedFile(result.file);
+    setPreviewUrl(result.previewUrl);
     setSelectedMode(result.mode);
     setState("previewing");
   }, []);
