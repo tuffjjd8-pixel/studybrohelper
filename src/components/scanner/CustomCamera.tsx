@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen, Mic, MicOff } from "lucide-react";
-import { fileToOptimizedDataUrl } from "@/lib/image";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -9,7 +8,8 @@ import { toast } from "sonner";
 export type CameraSolveMode = "instant" | "deep";
 
 export interface CameraCaptureResult {
-  images: string[];
+  file: File;
+  previewUrl: string;
   mode: CameraSolveMode;
 }
 
