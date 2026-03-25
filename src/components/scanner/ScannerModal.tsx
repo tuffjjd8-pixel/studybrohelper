@@ -166,12 +166,12 @@ export function ScannerModal({
       )}
 
       {/* Preview flash */}
-      {state === "previewing" && capturedImage && (
+      {state === "previewing" && previewUrl && (
         <Dialog open onOpenChange={() => {}}>
           <DialogContent className="max-w-lg w-[95vw] p-0 bg-background border-border">
             <div className="flex items-center justify-center p-6">
               <img
-                src={capturedImage}
+                src={previewUrl}
                 alt="Preview"
                 className="max-h-48 rounded-xl object-contain border border-primary/30"
                 style={{ boxShadow: "0 0 30px hsl(var(--primary) / 0.2)" }}
