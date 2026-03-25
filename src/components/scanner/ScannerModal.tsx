@@ -141,8 +141,10 @@ export function ScannerModal({
 
   const handleReset = useCallback(() => {
     setState("idle");
-    setCapturedImage(null);
-  }, []);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setCapturedFile(null);
+    setPreviewUrl(null);
+  }, [previewUrl]);
 
   return (
     <>
