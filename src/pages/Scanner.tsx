@@ -294,7 +294,7 @@ const Scanner = () => {
             )}
 
             {/* Brief preview flash before auto-solve */}
-            {state === "previewing" && capturedImage && (
+            {state === "previewing" && previewUrl && (
               <motion.div
                 key="previewing"
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -307,7 +307,7 @@ const Scanner = () => {
                   style={{ boxShadow: "0 0 40px hsl(var(--primary) / 0.3)" }}
                 >
                   <img
-                    src={capturedImage}
+                    src={previewUrl}
                     alt="Captured"
                     className="max-h-64 object-contain"
                   />
