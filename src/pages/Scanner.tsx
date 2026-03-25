@@ -37,7 +37,8 @@ const Scanner = () => {
   
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedFile, setCapturedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
@@ -50,29 +51,30 @@ const Scanner = () => {
 
   // After capture: brief preview then auto-solve
   const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
-    const img = result.images[0];
-    setCapturedImage(img);
+    setCapturedFile(result.file);
+    setPreviewUrl(result.previewUrl);
     setSelectedMode(result.mode);
     setState("previewing");
   }, []);
 
   // Auto-transition from preview → scanning after 400ms
   useEffect(() => {
-    if (state !== "previewing" || !capturedImage) return;
+    if (state !== "previewing" || !capturedFile) return;
     const timer = setTimeout(() => {
       setState("scanning");
-      solveProblem(capturedImage);
+      solveProblem(capturedFile);
     }, 400);
     return () => clearTimeout(timer);
-  }, [state, capturedImage]);
+  }, [state, capturedFile]);
 
   const handleCameraClose = useCallback(() => {
     setState("idle");
   }, []);
 
   // Gallery/drop-zone: also auto-solve immediately
-  const handleImageSelect = useCallback((imageData: string) => {
-    setCapturedImage(imageData);
+  const handleImageSelect = useCallback((file: File) => {
+    setCapturedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
     setState("previewing");
   }, []);
 
