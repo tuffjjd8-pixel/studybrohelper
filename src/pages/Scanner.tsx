@@ -84,17 +84,20 @@ const Scanner = () => {
   }, []);
 
   const handleCropComplete = useCallback((croppedData: string) => {
-    // Clean up old blob
-    if (capturedImage?.startsWith("blob:")) {
-      URL.revokeObjectURL(capturedImage);
-    }
-    setCapturedImage(croppedData);
-    setState("scanning");
-    solveProblem(croppedData);
-  }, [capturedImage]);
+    // Convert cropped data URL back to File
+    fetch(croppedData)
+      .then(r => r.blob())
+      .then(blob => {
+        const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setCapturedFile(file);
+        setPreviewUrl(croppedData);
+        setState("scanning");
+        solveProblem(file);
+      });
+  }, [previewUrl]);
 
   const handleCropCancel = useCallback(() => {
-    // Go back to scanning/solved state depending on where we were
     if (solution) {
       setState("solved");
     } else {
@@ -104,21 +107,15 @@ const Scanner = () => {
 
   // Retake: go back to camera
   const handleRetake = useCallback(() => {
-    if (capturedImage?.startsWith("blob:")) {
-      URL.revokeObjectURL(capturedImage);
-    }
-    setCapturedImage(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setCapturedFile(null);
+    setPreviewUrl(null);
     setSolution(null);
     setShowFollowUp(false);
     setState("camera");
-  }, [capturedImage]);
+  }, [previewUrl]);
 
-  const imageToBlob = async (imageData: string): Promise<Blob> => {
-    const res = await fetch(imageData);
-    return res.blob();
-  };
-
-  const solveProblem = async (imageData: string) => {
+  const solveProblem = async (file: File) => {
     if (!user) {
       toast.error("Please sign in to use AI features.");
       return;
