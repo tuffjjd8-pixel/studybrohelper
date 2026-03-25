@@ -326,7 +326,7 @@ const Scanner = () => {
                 className="space-y-4"
               >
                 <ScannerLoadingState 
-                  image={capturedImage || undefined}
+                  image={previewUrl || undefined}
                   stage={loadingStage}
                 />
 
