@@ -157,9 +157,9 @@ export function ScannerModal({
       />
 
       {/* Optional crop screen */}
-      {state === "cropping" && capturedImage && (
+      {state === "cropping" && previewUrl && (
         <ImageCropper
-          imageSrc={capturedImage}
+          imageSrc={previewUrl}
           onCropComplete={handleCropComplete}
           onCancel={handleCropCancel}
         />
