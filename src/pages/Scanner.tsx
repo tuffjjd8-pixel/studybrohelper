@@ -130,9 +130,8 @@ const Scanner = () => {
       const isPro = solveUsage.isPremium;
       const mode = isPro ? "solve_pro" : "solve_free";
 
-      const blob = await imageToBlob(imageData);
       const formData = new FormData();
-      formData.append("file", blob, "photo.jpg");
+      formData.append("file", file);
       formData.append("mode", mode);
 
       const response = await fetch("http://46.224.199.130:8000/ocr", {
@@ -152,7 +151,7 @@ const Scanner = () => {
         subject: "general",
         question: extractedQuestion,
         solution: data.solution,
-        image: imageData,
+        image: previewUrl || undefined,
       });
 
       if (user) {
@@ -160,7 +159,7 @@ const Scanner = () => {
           user_id: user.id,
           subject: "general",
           question_text: extractedQuestion,
-          question_image_url: imageData.substring(0, 500),
+          question_image_url: file.name,
           solution_markdown: data.solution,
         });
       }
@@ -171,7 +170,7 @@ const Scanner = () => {
       console.error("Scan error:", error);
       toast.error("Failed to scan homework. Please try again.");
       setState("idle");
-      setCapturedImage(null);
+      setCapturedFile(null);
     }
   };
 
