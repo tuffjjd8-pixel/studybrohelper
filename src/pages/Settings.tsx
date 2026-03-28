@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useAnswerLanguage } from "@/hooks/useAnswerLanguage";
-import { AnswerLanguageSelector } from "@/components/settings/AnswerLanguageSelector";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -9,8 +7,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ProUsageDisplay } from "@/components/pro/ProUsageDisplay";
-import { ProLimitWarning } from "@/components/pro/ProLimitWarning";
 import { 
   ArrowLeft, 
   Settings as SettingsIcon, 
@@ -45,16 +41,13 @@ const Settings = () => {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [proUsage, setProUsage] = useState<any>(null);
   
   const isPremium = profile?.is_premium || false;
   const speechClips = useSpeechClips(user?.id, isPremium);
-  const { answerLanguage, updateLanguage } = useAnswerLanguage(user?.id, isPremium);
 
   useEffect(() => {
     if (user) {
       fetchProfile();
-      fetchProUsage();
     } else {
       loadGuestLimits();
     }
@@ -84,19 +77,6 @@ const Settings = () => {
       console.error("Error fetching profile:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchProUsage = async () => {
-    try {
-      const { data } = await supabase.functions.invoke("check-solve-usage", {
-        body: { action: "check" },
-      });
-      if (data?.proUsage) {
-        setProUsage(data.proUsage);
-      }
-    } catch (e) {
-      console.error("Error fetching pro usage:", e);
     }
   };
 
@@ -241,21 +221,33 @@ const Settings = () => {
                 </p>
               </motion.div>
 
-            {/* Speech Clips - Hidden */}
+              {/* Speech Clips - Only show for premium */}
+              {isPremium && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.15 }}
+                  className="p-4 bg-card rounded-xl border border-border"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <Mic className="w-5 h-5 text-secondary" />
+                    <div className="flex-1">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium">Speech Clips</span>
+                        <span className="text-sm text-muted-foreground">
+                          {speechClips.clipsRemaining}/{speechClips.maxClips}
+                        </span>
+                      </div>
+                      <Progress value={speechUsagePercent} className="h-2" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {speechClips.clipsRemaining} remaining
+                    {speechClips.hoursUntilReset > 0 && ` • Resets in ${speechClips.hoursUntilReset}h`}
+                  </p>
+                </motion.div>
+              )}
             </div>
-
-            {/* Pro Limit Warnings */}
-            {isPremium && proUsage && <ProLimitWarning proUsage={proUsage} />}
-
-            {/* Pro Monthly Usage */}
-            {isPremium && proUsage && <ProUsageDisplay proUsage={proUsage} />}
-
-            {/* Answer Language */}
-            <AnswerLanguageSelector
-              value={answerLanguage}
-              onChange={updateLanguage}
-              isPremium={isPremium}
-            />
 
             {/* Sign In / Sign Out Section */}
             <motion.div

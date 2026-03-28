@@ -5,10 +5,9 @@ import type { HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider
 
 interface UseHumanizeOptions {
   isPremium: boolean;
-  isAuthenticated?: boolean;
 }
 
-export function useHumanize({ isPremium, isAuthenticated = true }: UseHumanizeOptions) {
+export function useHumanize({ isPremium }: UseHumanizeOptions) {
   const [isHumanizing, setIsHumanizing] = useState(false);
   const [isHumanized, setIsHumanized] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
@@ -16,11 +15,6 @@ export function useHumanize({ isPremium, isAuthenticated = true }: UseHumanizeOp
   const humanize = useCallback(
     async (solution: string, subject: string, strength: HumanizeStrength = "auto"): Promise<string | null> => {
       if (isHumanizing) return null;
-
-      if (!isAuthenticated) {
-        toast.error("Please sign in to use AI features.");
-        return null;
-      }
 
       if (!isPremium) {
         setLimitReached(true);
@@ -30,10 +24,8 @@ export function useHumanize({ isPremium, isAuthenticated = true }: UseHumanizeOp
       setIsHumanizing(true);
 
       try {
-        const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
-        const answerLanguage = await getAnswerLanguage(undefined);
         const { data, error } = await supabase.functions.invoke("humanize-answer", {
-          body: { solution, subject, humanize_strength: strength, answerLanguage },
+          body: { solution, subject, humanize_strength: strength },
         });
 
         if (error) {
@@ -63,7 +55,7 @@ export function useHumanize({ isPremium, isAuthenticated = true }: UseHumanizeOp
         setIsHumanizing(false);
       }
     },
-    [isHumanizing, isPremium, isAuthenticated]
+    [isHumanizing, isPremium]
   );
 
   const reset = useCallback(() => {

@@ -9,9 +9,9 @@ const corsHeaders = {
 
 // ============================================================
 // MODEL CONFIGURATION
-// Use openai/gpt-oss-120b for ALL text/reasoning tasks
+// Use llama-3.3-70b-versatile for ALL text/reasoning tasks
 // ============================================================
-const GROQ_MODEL = "openai/gpt-oss-120b";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -20,7 +20,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, context, history, answerLanguage = "en" } = await req.json();
+    const { message, context, history } = await req.json();
     
     // Import key rotation and security
     const { callGroqWithRotation } = await import("../_shared/groq-key-manager.ts");
@@ -54,24 +54,7 @@ serve(async (req) => {
       }
     }
 
-    // === PRO MONTHLY LIMIT CHECK ===
-    if (requestUserId) {
-      const { createClient: createSB } = await import("https://esm.sh/@supabase/supabase-js@2");
-      const sbCheck = createSB(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authH! } } });
-      const { data: profile } = await sbCheck.from("profiles").select("is_premium").eq("user_id", requestUserId).single();
-      if (profile?.is_premium) {
-        const { checkAndUseProFeature } = await import("../_shared/pro-limits.ts");
-        const result = await checkAndUseProFeature(requestUserId, "followup_count", "use");
-        if (!result.allowed) {
-          return new Response(
-            JSON.stringify({ error: "monthly_limit_reached", message: `Monthly follow-up limit reached (${result.limit}/month).`, used: result.used, limit: result.limit }),
-            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      }
-    }
-
-    let systemPrompt = `You are StudyBro AI, a warm and supportive homework tutor. You are continuing an ongoing conversation about a ${context?.subject || "homework"} problem.
+    const systemPrompt = `You are StudyBro AI, a warm and supportive homework tutor. You are continuing an ongoing conversation about a ${context?.subject || "homework"} problem.
 
 ## CONVERSATION RULES:
 - Treat every follow-up as part of the same conversation thread. Never replace or ignore earlier follow-ups.
@@ -100,13 +83,6 @@ Original question: ${context?.question || "Image question"}
 
 Previous solution:
 ${context?.solution || "No previous solution"}`;
-
-    // Inject answer language
-    if (answerLanguage && answerLanguage !== "en") {
-      const { getLanguageName } = await import("../_shared/language-names.ts");
-      const langName = getLanguageName(answerLanguage);
-      systemPrompt += `\n\nYou MUST ALWAYS respond in ${langName}, regardless of the language of the user's question.\nDo NOT mirror or match the user's input language.\nIf the user writes in English, Nepali, Hindi, Arabic, or any other language, you STILL respond ONLY in ${langName}.\nNever switch languages unless the user changes their Answer Language setting.\nKeep all LaTeX math notation exactly as-is. Do NOT translate LaTeX.`;
-    }
 
     // Build messages array for Groq
     const messages: { role: string; content: string }[] = [

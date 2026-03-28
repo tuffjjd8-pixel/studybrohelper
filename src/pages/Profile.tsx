@@ -16,6 +16,7 @@ import {
   Crown,
   Calendar,
   Camera,
+  Mic,
   Settings,
   Award,
   Target,
@@ -24,9 +25,9 @@ import {
 "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { AdminSettings } from "@/components/profile/AdminSettings";
+import { SubscriptionButtons } from "@/components/profile/SubscriptionButtons";
 import { openPremiumPage } from "@/lib/mobileDetection";
 import { getBadgeByKey } from "@/lib/badgeDefinitions";
-import { useCommunityGoalReached } from "@/hooks/useCommunityGoalReached";
 
 interface Profile {
   id: string;
@@ -38,15 +39,20 @@ interface Profile {
   referral_code: string | null;
   created_at: string;
   avatar_url: string | null;
+  animated_steps_used_today: number; // DB column name unchanged
+  speech_clips_used: number;
+  last_speech_reset: string | null;
   premium_until: string | null;
   subscription_id: string | null;
   equipped_badge: string | null;
 }
 
-interface ProUsage {
-  instant_solves: number;
-  deep_solves: number;
-}
+// Speech clips reset daily (24 hours)
+const FREE_SPEECH_CLIPS = 3;
+const PREMIUM_SPEECH_CLIPS = 15; // Daily limit for premium
+const SPEECH_RESET_HOURS = 24;
+const FREE_SOLVE_FLOW_PER_DAY = 5;
+const PREMIUM_SOLVE_FLOW_PER_DAY = 16;
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -57,10 +63,7 @@ const Profile = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [totalConfirmedLikes, setTotalConfirmedLikes] = useState(0);
-  const [proUsage, setProUsage] = useState<ProUsage>({ instant_solves: 0, deep_solves: 0 });
-  const goalReached = useCommunityGoalReached();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
 
   // No redirect - profile is accessible, but shows sign-in prompt for guests
 
@@ -68,7 +71,6 @@ const Profile = () => {
     if (user) {
       fetchProfile();
       fetchConfirmedLikes();
-      fetchProUsage();
     }
   }, [user]);
 
@@ -88,29 +90,11 @@ const Profile = () => {
     }
   };
 
-  const fetchProUsage = async () => {
-    if (!user) return;
-    try {
-      const month = new Date().toISOString().slice(0, 7);
-      const { data } = await supabase
-        .from("pro_usage")
-        .select("instant_solves, deep_solves")
-        .eq("user_id", user.id)
-        .eq("usage_month", month)
-        .maybeSingle();
-      if (data) {
-        setProUsage({ instant_solves: data.instant_solves || 0, deep_solves: data.deep_solves || 0 });
-      }
-    } catch (e) {
-      console.error("Error fetching pro usage:", e);
-    }
-  };
-
   const fetchProfile = async () => {
     try {
       const { data, error } = await supabase.
       from("profiles").
-      select("id, display_name, streak_count, total_solves, is_premium, daily_solves_used, referral_code, created_at, avatar_url, premium_until, subscription_id, equipped_badge").
+      select("id, display_name, streak_count, total_solves, is_premium, daily_solves_used, referral_code, created_at, avatar_url, animated_steps_used_today, speech_clips_used, last_speech_reset, premium_until, subscription_id, equipped_badge").
       eq("user_id", user?.id).
       maybeSingle();
 
@@ -291,6 +275,32 @@ const Profile = () => {
   const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
   const isAdmin = user?.email === ADMIN_EMAIL;
 
+  const maxSpeechClips = profile?.is_premium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS;
+  const maxSolveFlow = profile?.is_premium ? PREMIUM_SOLVE_FLOW_PER_DAY : FREE_SOLVE_FLOW_PER_DAY;
+  const solveFlowUsed = profile?.animated_steps_used_today || 0;
+
+  // Calculate speech clips with 72h reset logic
+  const getSpeechClipsRemaining = () => {
+    if (!profile) return maxSpeechClips;
+    const lastReset = profile.last_speech_reset ? new Date(profile.last_speech_reset) : null;
+    if (!lastReset) return maxSpeechClips;
+
+    const hoursSinceReset = (Date.now() - lastReset.getTime()) / (1000 * 60 * 60);
+    if (hoursSinceReset >= SPEECH_RESET_HOURS) {
+      return maxSpeechClips; // Reset happened
+    }
+    return Math.max(0, maxSpeechClips - (profile.speech_clips_used || 0));
+  };
+
+  const speechClipsRemaining = getSpeechClipsRemaining();
+  const hoursUntilReset = () => {
+    if (!profile?.last_speech_reset) return 0;
+    const lastReset = new Date(profile.last_speech_reset);
+    const resetTime = new Date(lastReset.getTime() + SPEECH_RESET_HOURS * 60 * 60 * 1000);
+    const hours = Math.max(0, Math.ceil((resetTime.getTime() - Date.now()) / (1000 * 60 * 60)));
+    return hours;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
@@ -387,9 +397,9 @@ const Profile = () => {
                 transition={{ delay: 0.2 }}
                 className="p-4 bg-card rounded-xl border border-border text-center">
                 
-                <BarChart3 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold">{proUsage.instant_solves}</div>
-                <div className="text-xs text-muted-foreground">Instant Solves</div>
+                <div className="mx-auto mb-2"><AIBrainIcon size="xl" glowIntensity="strong" /></div>
+                <div className="text-2xl font-bold">{solveFlowUsed}/{maxSolveFlow}</div>
+                <div className="text-xs text-muted-foreground">Solve Flow Today</div>
               </motion.div>
 
               <motion.div
@@ -398,9 +408,12 @@ const Profile = () => {
                 transition={{ delay: 0.25 }}
                 className="p-4 bg-card rounded-xl border border-border text-center">
                 
-                <ClipboardList className="w-8 h-8 text-violet-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold">{proUsage.deep_solves}</div>
-                <div className="text-xs text-muted-foreground">Deep Solves</div>
+                <Mic className="w-8 h-8 text-secondary mx-auto mb-2" />
+                <div className="text-2xl font-bold">{speechClipsRemaining}/{maxSpeechClips}</div>
+                <div className="text-xs text-muted-foreground">Speech Clips Left</div>
+                {speechClipsRemaining === 0 &&
+                <div className="text-xs text-orange-500 mt-1">Resets in {hoursUntilReset()}h</div>
+                }
               </motion.div>
             </div>
 
@@ -458,7 +471,7 @@ const Profile = () => {
               transition={{ delay: 0.33 }}>
               
               <Button
-                onClick={() => navigate('/community-goal-submissions')}
+                onClick={() => navigate('/share-likes')}
                 variant="outline"
                 className="w-full h-auto py-4 border-primary/30 hover:border-primary/50">
                 
@@ -476,8 +489,7 @@ const Profile = () => {
               </Button>
             </motion.div>
 
-            {/* Community Reward Button — only visible when goal is reached */}
-            {goalReached && (
+            {/* Community Reward Button */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -501,7 +513,6 @@ const Profile = () => {
                 </div>
               </Button>
             </motion.div>
-            )}
 
             {/* Polls Button */}
             <motion.div
@@ -550,7 +561,7 @@ const Profile = () => {
               </Button>
             </motion.div>
 
-
+            {/* Premium upsell */}
             {!profile?.is_premium &&
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -563,7 +574,7 @@ const Profile = () => {
                   Go Premium, Bro!
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  300 solves/month, 899 quizzes, unlimited essays & more
+                  16 Solve Flows, 15 speech clips/day, enhanced solving
                 </p>
                 <Button
                 onClick={() => openPremiumPage(navigate)}
@@ -577,30 +588,35 @@ const Profile = () => {
               </motion.div>
             }
 
+            {/* Subscription management buttons for premium users */}
+            <SubscriptionButtons
+              isPremium={profile?.is_premium || false}
+              premiumSince={profile?.premium_until ? new Date(new Date(profile.premium_until).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() : null}
+              subscriptionId={profile?.subscription_id} />
             
 
             {/* Admin-only: Review Community Goal Submissions */}
-            {isAdmin &&
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.48 }}>
+            {isAdmin && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.48 }}>
                 <Button
-                onClick={() => navigate('/review-community-submissions')}
-                variant="outline"
-                className="w-full h-auto py-4 border-primary/30 hover:border-primary/50">
+                  onClick={() => navigate('/community-goal-submissions')}
+                  variant="outline"
+                  className="w-full h-auto py-4 border-primary/30 hover:border-primary/50">
                   <div className="flex items-center gap-4 w-full">
                     <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
                       <ClipboardList className="w-6 h-6 text-primary" />
                     </div>
                     <div className="text-left flex-1">
-                      <div className="font-heading font-bold">Review Community Submissions</div>
+                      <div className="font-heading font-bold">Community Goal Submissions</div>
                       <div className="text-xs text-muted-foreground">Review and approve proof</div>
                     </div>
                   </div>
                 </Button>
               </motion.div>
-            }
+            )}
 
             {/* Admin Settings - only visible to admin */}
             <AdminSettings userEmail={user?.email} />

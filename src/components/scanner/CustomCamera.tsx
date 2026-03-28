@@ -1,66 +1,29 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen, Mic, MicOff } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-
-export type CameraSolveMode = "instant" | "deep";
-
-export interface CameraCaptureResult {
-  file: File;
-  previewUrl: string;
-  mode: CameraSolveMode;
-}
+import { X, Zap, ZapOff, ImageIcon } from "lucide-react";
+import { fileToOptimizedDataUrl } from "@/lib/image";
 
 interface CustomCameraProps {
   isOpen: boolean;
-  onCapture: (result: CameraCaptureResult) => void;
+  onCapture: (imageData: string) => void;
   onClose: () => void;
-  isPremium?: boolean;
 }
 
 // Module-level stream cache so reopening doesn't reinitialize the sensor
 let cachedStream: MediaStream | null = null;
 
-export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: CustomCameraProps) {
+export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Use refs for perf-sensitive state to avoid layout thrashing
   const isReadyRef = useRef(false);
   const [isReady, setIsReady] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isCapturingRef = useRef(false);
-  const [voiceActive, setVoiceActive] = useState(false);
-  const [voiceDenied, setVoiceDenied] = useState(false);
-  const recognitionRef = useRef<any>(null);
-
-  // Camera mode (instant/deep) — persisted in localStorage
-  const [cameraMode, setCameraMode] = useState<CameraSolveMode>(() => {
-    const saved = localStorage.getItem("camera_solve_mode");
-    return saved === "deep" ? "deep" : "instant";
-  });
-
-  // Keep mode for session
-  const [keepMode, setKeepMode] = useState(() => {
-    const saved = sessionStorage.getItem("keep_camera_mode");
-    return saved === "true";
-  });
-
-
-
-  useEffect(() => {
-    localStorage.setItem("camera_solve_mode", cameraMode);
-  }, [cameraMode]);
-
-  useEffect(() => {
-    sessionStorage.setItem("keep_camera_mode", keepMode ? "true" : "false");
-  }, [keepMode]);
-
-
 
   const stopStream = useCallback((releaseCache = false) => {
     if (videoRef.current) {
@@ -80,6 +43,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     setIsReady(false);
 
     try {
+      // Reuse cached stream if tracks are still live
       let stream = cachedStream;
       if (!stream || stream.getTracks().some((t) => t.readyState === "ended")) {
         if (cachedStream) {
@@ -88,6 +52,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
+            // Preview at 720p for fast startup; capture uses full resolution
             width: { ideal: 1280 },
             height: { ideal: 720 },
             frameRate: { ideal: 30 },
@@ -101,11 +66,13 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(() => {});
 
+        // Mark ready as soon as first frame has non-zero dimensions
         const onFrame = () => {
           const v = videoRef.current;
           if (v && v.videoWidth > 0 && v.videoHeight > 0) {
             isReadyRef.current = true;
             setIsReady(true);
+            // Non-blocking torch check
             const track = stream!.getVideoTracks()[0];
             const caps = track.getCapabilities?.() as MediaTrackCapabilities & { torch?: boolean };
             setTorchSupported(caps?.torch === true);
@@ -129,99 +96,13 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     if (isOpen) {
       startCamera();
     } else {
+      // Don't release the cached stream on close — just detach video
       stopStream(false);
       setTorchEnabled(false);
-      stopVoiceRecognition();
     }
-    return () => {
-      stopStream(true);
-      stopVoiceRecognition();
-    };
+    // On unmount, release everything
+    return () => stopStream(true);
   }, [isOpen, startCamera, stopStream]);
-
-  // --- Voice recognition ---
-  const capturePhotoRef = useRef<() => void>();
-  capturePhotoRef.current = () => {
-    if (!videoRef.current || !canvasRef.current || !isReadyRef.current || isCapturingRef.current) return;
-    isCapturingRef.current = true;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (video.videoWidth === 0 || video.videoHeight === 0) { isCapturingRef.current = false; return; }
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) { isCapturingRef.current = false; return; }
-    ctx.drawImage(video, 0, 0);
-    canvas.toBlob(
-      (b) => {
-        isCapturingRef.current = false;
-        if (!b) return;
-        const file = new File([b], "photo.jpg", { type: "image/jpeg" });
-        finishCapture(file);
-      },
-      "image/jpeg",
-      0.92
-    );
-  };
-
-  const stopVoiceRecognition = useCallback(() => {
-    if (recognitionRef.current) {
-      try { recognitionRef.current.abort(); } catch {}
-      recognitionRef.current = null;
-    }
-    setVoiceActive(false);
-  }, []);
-
-  const startVoiceRecognition = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onresult = (event: any) => {
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript.trim().toLowerCase();
-        if (transcript.includes("go") || transcript.includes("next")) {
-          capturePhotoRef.current?.();
-          return;
-        }
-      }
-    };
-
-    recognition.onerror = (e: any) => {
-      if (e.error === "not-allowed") {
-        setVoiceDenied(true);
-        setVoiceActive(false);
-      }
-    };
-
-    recognition.onend = () => {
-      // Auto-restart if still open
-      if (recognitionRef.current === recognition) {
-        try { recognition.start(); } catch {}
-      }
-    };
-
-    recognitionRef.current = recognition;
-    try {
-      recognition.start();
-      setVoiceActive(true);
-      setVoiceDenied(false);
-    } catch {
-      setVoiceDenied(true);
-    }
-  }, []);
-
-  // Auto-start voice when camera is ready
-  useEffect(() => {
-    if (isOpen && isReady) {
-      startVoiceRecognition();
-    }
-    return () => stopVoiceRecognition();
-  }, [isOpen, isReady, startVoiceRecognition, stopVoiceRecognition]);
 
   const toggleTorch = useCallback(async () => {
     if (!cachedStream || !torchSupported) return;
@@ -236,12 +117,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     }
   }, [torchEnabled, torchSupported]);
 
-  const finishCapture = useCallback((file: File) => {
-    const previewUrl = URL.createObjectURL(file);
-    stopStream(false);
-    onCapture({ file, previewUrl, mode: cameraMode });
-  }, [stopStream, onCapture, cameraMode]);
-
   const capturePhoto = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || !isReadyRef.current || isCapturingRef.current) return;
     isCapturingRef.current = true;
@@ -254,6 +129,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
         throw new Error("Video not ready");
       }
 
+      // Full resolution capture from the sensor
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
@@ -265,38 +141,58 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error("Blob creation failed"))),
-          "image/jpeg",
+          "image/webp",
           0.92
         );
       });
 
-      const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
-      finishCapture(file);
+      const objectUrl = URL.createObjectURL(blob);
+      // Don't release the cached stream — just detach
+      stopStream(false);
+      onCapture(objectUrl);
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
     } finally {
       isCapturingRef.current = false;
     }
-  }, [stopStream, finishCapture, cameraMode]);
+  }, [stopStream, onCapture]);
 
   const handleGalleryPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const pickedFile = e.target.files?.[0];
-    if (!pickedFile) return;
-    // Wrap in a new File with a consistent name if needed
-    const file = new File([pickedFile], pickedFile.name || "gallery.jpg", { type: pickedFile.type || "image/jpeg" });
-    finishCapture(file);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const optimized = await fileToOptimizedDataUrl(file, {
+        maxDimension: 2048,
+        quality: 0.92,
+        // Use jpeg for max compatibility (older Safari, Android WebView)
+        mimeType: "image/jpeg",
+      });
+      stopStream(false);
+      onCapture(optimized);
+    } catch (err) {
+      console.error("Gallery error:", err);
+      // Ultimate fallback: just pass the raw file as data URL
+      try {
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        stopStream(false);
+        onCapture(dataUrl);
+      } catch {
+        console.error("Gallery fallback also failed");
+      }
+    }
     if (e.target) e.target.value = "";
-  }, [finishCapture]);
+  }, [stopStream, onCapture]);
 
   const handleClose = useCallback(() => {
-    stopVoiceRecognition();
-    stopStream(true);
-    if (!keepMode) {
-      setCameraMode("instant");
-    }
+    stopStream(true); // Release cache on explicit close
     onClose();
-  }, [stopStream, onClose, keepMode, stopVoiceRecognition]);
+  }, [stopStream, onClose]);
 
   if (!isOpen) return null;
 
@@ -308,7 +204,9 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 bg-black"
       >
+        {/* Hidden canvas for capture */}
         <canvas ref={canvasRef} className="hidden" />
+        {/* Hidden file input for gallery */}
         <input
           ref={fileInputRef}
           type="file"
@@ -318,6 +216,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
           style={{ position: "absolute", top: -9999, left: -9999, opacity: 0 }}
         />
 
+        {/* Full-screen edge-to-edge camera feed */}
         <div className="relative h-full w-full">
           <video
             ref={videoRef}
@@ -381,77 +280,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
             )}
           </div>
 
-          {/* Voice hint */}
-          {isReady && (
-            <div
-              className="absolute left-0 right-0 flex justify-center z-10"
-              style={{ top: "calc(env(safe-area-inset-top, 12px) + 68px)" }}
-            >
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md">
-                {voiceActive ? (
-                  <Mic className="w-3.5 h-3.5 text-primary animate-pulse" />
-                ) : (
-                  <MicOff className="w-3.5 h-3.5 text-muted-foreground" />
-                )}
-                <span className="text-xs text-white/70">
-                  {voiceDenied
-                    ? "Mic permission needed for voice commands"
-                    : "Say \"Go\" to snap hands‑free"}
-                </span>
-              </div>
-            </div>
-          )}
-
-
-          <div className="absolute bottom-36 left-0 right-0 px-5 z-20 space-y-3">
-            {/* Solve Mode Selector */}
-            <div className="flex justify-center">
-              <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15">
-                <button
-                  onClick={() => setCameraMode("instant")}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                    cameraMode === "instant"
-                      ? "bg-primary text-primary-foreground shadow-lg"
-                      : "text-white/70 hover:text-white"
-                  }`}
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  Instant
-                </button>
-                <button
-                  onClick={() => {
-                    if (!isPremium) {
-                      toast("Upgrade to Pro to unlock Deep Mode", { icon: "👑" });
-                      return;
-                    }
-                    setCameraMode("deep");
-                  }}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                    cameraMode === "deep"
-                      ? "bg-primary text-primary-foreground shadow-lg"
-                      : "text-white/70 hover:text-white"
-                  }`}
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  Deep
-                  {!isPremium && <Crown className="w-3 h-3 text-amber-400" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Keep mode toggle */}
-            <div className="flex justify-center">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Switch
-                  checked={keepMode}
-                  onCheckedChange={setKeepMode}
-                  className="scale-75"
-                />
-                <span className="text-xs text-white/60">Keep this mode for this session</span>
-              </label>
-            </div>
-          </div>
-
           {/* Bottom controls */}
           <div
             className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-10 z-10"
@@ -471,7 +299,9 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
               disabled={!isReady}
               className="relative w-[76px] h-[76px] flex items-center justify-center"
             >
+              {/* Outer ring */}
               <div className="absolute inset-0 rounded-full border-[4px] border-white/90" />
+              {/* Inner button */}
               <div
                 className={`w-[64px] h-[64px] rounded-full transition-all duration-150 ${
                   isReady

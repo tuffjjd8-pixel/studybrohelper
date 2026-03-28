@@ -8,37 +8,30 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-device-id, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const GROQ_MODEL = "openai/gpt-oss-120b";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
-const BASE_PROMPT = `Rewrite the text so it sounds like a real student wrote it — natural, conversational, and genuine.
+const BASE_PROMPT = `Rewrite the text to sound fully human and natural.
 
-CORE RULES:
-- Keep the original meaning, facts, and math EXACTLY the same.
-- Do not add new information or remove important details.
-- Do NOT shorten full essays — keep the full original length.
-- Only condense overly wordy internal sentences, not entire sections.
+Keep the original meaning exactly.
+Do not add new information.
+Do not remove important details.
+Do NOT shorten full essays — keep the full original length.
+Only shorten overly long internal explanations.
+Avoid robotic, academic, or AI-style phrasing.
+Remove patterns like "It is important to note that", "Furthermore", "In conclusion", "This demonstrates that".
+Use natural flow, varied sentence length, and realistic tone.
+Break up long paragraphs into shorter natural ones.
+Make it sound like a real student wrote it.
+Keep all LaTeX math formatting exactly the same ($$...$$ and $...$).
+Do not add errors or change math.
 
-HUMANIZATION:
-- Replace robotic patterns: "It is important to note that" → just state the point. "Furthermore" → "Also" or "On top of that". "In conclusion" → "So basically" or "To wrap up". "This demonstrates that" → "This shows" or "So we can see".
-- Vary sentence length naturally. Mix short punchy sentences with slightly longer ones.
-- Use contractions where natural: "it's", "that's", "doesn't", "we've".
-- Add natural filler sparingly: "basically", "pretty much", "so yeah", "honestly".
-- Break up long paragraphs into shorter, more readable chunks.
-- Use a casual but intelligent tone — like a student who understands the material well.
-- Avoid over-polished academic language that no student would naturally write.
-
-MATH & FORMATTING:
-- Keep all LaTeX math formatting EXACTLY the same ($$...$$, $...$, \\(...\\), \\[...\\]).
-- Do not modify, reformat, or "fix" any math expressions.
-- Do not add errors or change any calculations.
-
-OUTPUT: Return ONLY the rewritten text. No commentary, no meta-text.`;
+OUTPUT: Return ONLY the rewritten text. No commentary.`;
 
 const MODE_MODIFIERS: Record<string, string> = {
-  soft: "Light rewrite only. Keep the structure and most phrasing the same. Just fix the most obviously robotic sentences and smooth out awkward flow. Minimal changes.",
-  medium: "Moderate rewrite. Improve sentence flow and naturalness throughout. Restructure some sentences and replace academic phrasing, but keep the overall organization intact.",
-  strong: "Full rewrite in a natural student voice. Restructure paragraphs, simplify explanations, replace all academic/AI phrasing with casual language. Maximum naturalness while keeping all meaning.",
-  auto: "Automatically choose rewriting strength based on text length and how robotic it sounds: Short answers (under 300 words) → Strong rewrite. Medium length (300-800 words) → Medium rewrite. Long essays (over 800 words) → Soft to Medium to preserve structure. If the text already sounds natural, use Soft regardless of length.",
+  soft: "Light rewrite. Keep structure mostly the same. Fix robotic phrasing and awkward flow. Minimal structural changes.",
+  medium: "Rewrite more naturally. Improve sentence flow, clarity, and structure. Restructure some sentences but keep overall organization.",
+  strong: "Fully rewrite in a natural human style. Restructure paragraphs and simplify explanations without losing meaning. Maximum naturalness.",
+  auto: "Automatically choose the best rewriting strength based on text length: Short answers (under 300 words) → use Strong rewriting. Medium length (300-800 words) → use Medium rewriting. Long essays (over 800 words) → use Soft to Medium rewriting to preserve structure.",
 };
 
 serve(async (req) => {
@@ -47,7 +40,7 @@ serve(async (req) => {
   }
 
   try {
-    const { solution, subject, action, humanize_strength, answerLanguage = "en" } = await req.json();
+    const { solution, subject, action, humanize_strength } = await req.json();
 
     // Auth check
     const authHeader = req.headers.get("Authorization");
@@ -88,18 +81,6 @@ serve(async (req) => {
       );
     }
 
-    // === PRO MONTHLY LIMIT CHECK ===
-    if (isPremium && userId) {
-      const { checkAndUseProFeature } = await import("../_shared/pro-limits.ts");
-      const result = await checkAndUseProFeature(userId, "humanize_count", "use");
-      if (!result.allowed) {
-        return new Response(
-          JSON.stringify({ error: "monthly_limit_reached", message: `Monthly humanize limit reached (${result.limit}/month).`, used: result.used, limit: result.limit }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-
     if (!solution) {
       return new Response(
         JSON.stringify({ error: "No solution provided" }),
@@ -112,19 +93,12 @@ serve(async (req) => {
     const strength: string = humanize_strength && MODE_MODIFIERS[humanize_strength] ? humanize_strength : "auto";
     console.log("Humanize request — subject:", subject, "strength:", strength);
 
-    let systemPrompt = `${BASE_PROMPT}
+    const systemPrompt = `${BASE_PROMPT}
 
 Mode: ${strength}
 
 Instructions:
 ${MODE_MODIFIERS[strength]}`;
-
-    // Inject answer language
-    if (answerLanguage && answerLanguage !== "en") {
-      const { getLanguageName } = await import("../_shared/language-names.ts");
-      const langName = getLanguageName(answerLanguage);
-      systemPrompt += `\n\nYou MUST ALWAYS rewrite the text in ${langName}, regardless of the original language.\nDo NOT keep the text in its original language. Output MUST be in ${langName}.\nKeep all LaTeX math notation exactly as-is. Do NOT translate LaTeX.`;
-    }
 
     const response = await callGroqWithRotation(
       "https://api.groq.com/openai/v1/chat/completions",

@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
-import { MathText } from "@/components/quiz/MathText";
 import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -13,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -41,124 +40,20 @@ interface Profile {
 // Tier constants
 const FREE_MAX_QUESTIONS = 10;
 const PREMIUM_MAX_QUESTIONS = 20;
-const FREE_DAILY_QUIZZES = 1;
-const PREMIUM_MONTHLY_QUIZZES = 899;
-// Subject fallback map for when topic is missing/vague
-const SUBJECT_FALLBACK_TOPICS: Record<string, string> = {
-  math: "General Math Skills",
-  science: "General Science Concepts",
-  english: "Reading Comprehension",
-  history: "World History Basics",
-  geography: "World Geography",
-  economics: "Basic Economic Principles",
-  physics: "Physics Fundamentals",
-  chemistry: "Chemistry Fundamentals",
-  biology: "Biology Fundamentals",
-};
-
-const getTopicFromSubject = (subject: string): string => {
-  const s = subject.toLowerCase().trim();
-  if (s.includes("algebra") || s.includes("equation") || s.includes("polynomial")) return "Algebra";
-  if (s.includes("geometry") || s.includes("triangle") || s.includes("circle") || s.includes("angle")) return "Geometry";
-  if (s.includes("calculus") || s.includes("derivative") || s.includes("integral") || s.includes("limit")) return "Calculus";
-  if (s.includes("trigonometry") || s.includes("trig") || s.includes("sine") || s.includes("cosine")) return "Trigonometry";
-  if (s.includes("statistics") || s.includes("probability") || s.includes("standard deviation")) return "Statistics";
-  if (s.includes("fraction") || s.includes("decimal") || s.includes("percent")) return "Fractions";
-  if (s.includes("linear") || s.includes("slope") || s.includes("graph")) return "Linear Equations";
-  if (s.includes("quantum") || s.includes("relativity") || s.includes("mechanics") || s.includes("force") || s.includes("energy") || s.includes("momentum") || s.includes("newton") || s.includes("physics")) return "Physics";
-  if (s.includes("chemistry") || s.includes("reaction") || s.includes("molecule") || s.includes("atom") || s.includes("bond")) return "Chemistry";
-  if (s.includes("biology") || s.includes("cell") || s.includes("dna") || s.includes("evolution") || s.includes("photosynthesis")) return "Biology";
-  if (s.includes("history") || s.includes("war") || s.includes("revolution") || s.includes("civilization")) return "History";
-  if (s.includes("english") || s.includes("grammar") || s.includes("essay") || s.includes("literature")) return "English";
-  if (s.includes("psychology") || s.includes("cognitive") || s.includes("behavior")) return "Psychology";
-  if (s.includes("economics") || s.includes("supply") || s.includes("demand") || s.includes("market")) return "Economics";
-  if (s.includes("math") || s.includes("arithmetic") || s.includes("number")) return "Math";
-  if (s.includes("science")) return "Science";
-  if (s.includes("geography") || s.includes("continent") || s.includes("country") || s.includes("capital")) return "Geography";
-  if (s.includes("computer") || s.includes("programming") || s.includes("algorithm") || s.includes("code")) return "Computer Science";
-  // Clean up: capitalize first letter, avoid returning "general" or "other"
-  const cleaned = subject.replace(/[^a-zA-Z0-9\s]/g, "").trim();
-  if (!cleaned || cleaned.toLowerCase() === "general" || cleaned.toLowerCase() === "other") return "General Knowledge";
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-};
-
-/**
- * Sanitize a topic string: strip LaTeX, symbols, newlines, and ensure it's a clean human-readable string.
- * If the result is empty/vague, return a fallback based on detected subject.
- */
-const sanitizeTopic = (topic: string, detectedSubject?: string): string => {
-  if (!topic) return getFallbackTopic(detectedSubject);
-  // Strip LaTeX delimiters and commands
-  let clean = topic
-    .replace(/\\\(|\\\)|\\\[|\\\]|\$\$/g, "")
-    .replace(/\$([^$]*)\$/g, "$1")
-    .replace(/\\[a-zA-Z]+/g, " ")
-    .replace(/[{}^_]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  // Remove non-alphanumeric noise
-  clean = clean.replace(/[^a-zA-Z0-9\s'-]/g, "").trim();
-  const lower = clean.toLowerCase();
-  if (!clean || lower === "other" || lower === "general" || lower === "topic" || lower === "quiz" || clean.length < 2) {
-    return getFallbackTopic(detectedSubject);
-  }
-  return clean.charAt(0).toUpperCase() + clean.slice(1);
-};
-
-const getFallbackTopic = (subject?: string): string => {
-  if (!subject) return "General Knowledge";
-  const s = subject.toLowerCase().trim();
-  for (const [key, fallback] of Object.entries(SUBJECT_FALLBACK_TOPICS)) {
-    if (s.includes(key)) return fallback;
-  }
-  return "General Knowledge";
-};
-
-/**
- * Extract a specific topic from a quiz question's text content.
- * Used to build per-question topic breakdown for weak-point analysis.
- */
-const extractTopicFromQuestion = (questionText: string, fallbackSubject: string): string => {
-  const q = questionText.toLowerCase();
-
-  // Math topics
-  if (/\bfraction|numerator|denominator\b/.test(q)) return "Fractions";
-  if (/\bquadratic|ax\^?2|discriminant\b/.test(q)) return "Quadratic Equations";
-  if (/\bslope|intercept|linear\b/.test(q)) return "Linear Equations";
-  if (/\bderivative|differentiat|d\/dx\b/.test(q)) return "Derivatives";
-  if (/\bintegral|integrat|antiderivative\b/.test(q)) return "Integrals";
-  if (/\blimit|lim\b/.test(q)) return "Limits";
-  if (/\btrigonometr|sin|cos|tan\b/.test(q)) return "Trigonometry";
-  if (/\bmatrix|matrices|determinant\b/.test(q)) return "Matrices";
-  if (/\bprobability|combinat|permut\b/.test(q)) return "Probability";
-  if (/\bstatistic|mean|median|standard deviation\b/.test(q)) return "Statistics";
-  if (/\bgeometr|area|perimeter|volume|triangle|circle\b/.test(q)) return "Geometry";
-  if (/\balgebra|equation|variable|polynomial\b/.test(q)) return "Algebra";
-  if (/\blogarithm|log|exponential\b/.test(q)) return "Logarithms";
-
-  // Science topics
-  if (/\bnewton|force|acceleration|velocity|momentum\b/.test(q)) return "Mechanics";
-  if (/\belectri|circuit|voltage|current|resistance\b/.test(q)) return "Electricity";
-  if (/\bwave|frequency|wavelength|amplitude\b/.test(q)) return "Waves";
-  if (/\bquantum|photon|planck|wave.?function\b/.test(q)) return "Quantum Physics";
-  if (/\bthermodynamic|heat|entropy|temperature\b/.test(q)) return "Thermodynamics";
-  if (/\bchemical|reaction|mole|stoichiom\b/.test(q)) return "Chemical Reactions";
-  if (/\borganic|hydrocarbon|alkane|alkene\b/.test(q)) return "Organic Chemistry";
-  if (/\bacid|base|ph\b/.test(q)) return "Acids and Bases";
-  if (/\bcell|mitosis|meiosis|organelle\b/.test(q)) return "Cell Biology";
-  if (/\bdna|rna|gene|mutation|genetic\b/.test(q)) return "Genetics";
-  if (/\bevolution|natural selection|adaptation\b/.test(q)) return "Evolution";
-  if (/\bphotosynthesis|respiration|atp\b/.test(q)) return "Biochemistry";
-  if (/\becosystem|ecology|food chain|biome\b/.test(q)) return "Ecology";
-
-  // Humanities
-  if (/\bworld war|revolution|civil war|empire|dynasty\b/.test(q)) return "World History";
-  if (/\bgrammar|syntax|verb|noun|sentence\b/.test(q)) return "Grammar";
-  if (/\bliterature|novel|poem|author|shakespeare\b/.test(q)) return "Literature";
-  if (/\bpsycholog|cognitive|behavior|freud\b/.test(q)) return "Psychology";
-  if (/\beconom|gdp|inflation|supply|demand\b/.test(q)) return "Economics";
-
-  return getTopicFromSubject(fallbackSubject);
+const FREE_DAILY_QUIZZES = 7;
+const PREMIUM_DAILY_QUIZZES = 13;
+const getTopicFromSubject = (subject: string) => {
+  const s = subject.toLowerCase();
+  if (s.includes("algebra") || s.includes("equation")) return "Algebra";
+  if (s.includes("geometry") || s.includes("triangle") || s.includes("circle")) return "Geometry";
+  if (s.includes("calculus") || s.includes("derivative") || s.includes("integral")) return "Calculus";
+  if (s.includes("statistics") || s.includes("probability")) return "Statistics";
+  if (s.includes("physics")) return "Physics";
+  if (s.includes("chemistry")) return "Chemistry";
+  if (s.includes("biology")) return "Biology";
+  if (s.includes("history")) return "History";
+  if (s.includes("english") || s.includes("grammar")) return "English";
+  return subject.charAt(0).toUpperCase() + subject.slice(1) || "General";
 };
 
 const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
@@ -166,8 +61,7 @@ const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
 const Quiz = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const recommendedTopic = searchParams.get("topic") || (location.state as any)?.recommendedTopic as string | undefined;
+  const recommendedTopic = (location.state as any)?.recommendedTopic as string | undefined;
   const {
     user,
     loading: authLoading
@@ -190,7 +84,7 @@ const Quiz = () => {
   const [reviewMode, setReviewMode] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizzesUsedToday, setQuizzesUsedToday] = useState(0);
-  const shimmerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shimmerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Detect if user is typing equation-related content
   const showSolveRedirect = useMemo(() => {
@@ -258,26 +152,21 @@ const Quiz = () => {
   const filteredSolves = solves.filter((solve) => solve.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) || solve.subject.toLowerCase().includes(searchQuery.toLowerCase()));
   const isAdmin = user?.email === ADMIN_EMAIL;
   const isPremium = profile?.is_premium === true;
-  const hasUnlimitedQuizzes = isAdmin;
+  const hasUnlimitedQuizzes = isPremium || isAdmin;
   const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
-  const dailyLimit = isPremium ? PREMIUM_MONTHLY_QUIZZES : FREE_DAILY_QUIZZES;
-  const quizzesRemaining = hasUnlimitedQuizzes ? Infinity : isPremium ? PREMIUM_MONTHLY_QUIZZES : (dailyLimit - quizzesUsedToday);
+  const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
+  const quizzesRemaining = dailyLimit - quizzesUsedToday;
   const canGenerateQuiz = hasUnlimitedQuizzes || quizzesRemaining > 0;
-  const usagePercent = hasUnlimitedQuizzes ? 0 : isPremium ? 0 : (quizzesUsedToday / dailyLimit) * 100;
+  const usagePercent = quizzesUsedToday / dailyLimit * 100;
   const handleGenerate = async () => {
-    // Auth guard: require sign-in for AI features
-    if (!user) {
-      toast.error("Please sign in to use AI features.");
-      return;
-    }
     if (!selectedSolve && !topicInput.trim()) {
       toast.error("Please select a conversation or enter a topic");
       return;
     }
 
     // Check daily limit (skip for unlimited users)
-    if (!hasUnlimitedQuizzes && !isPremium && quizzesUsedToday >= FREE_DAILY_QUIZZES) {
-      toast.error("Daily limit reached. Upgrade to Pro for more quizzes.");
+    if (!hasUnlimitedQuizzes && !canGenerateQuiz) {
+      toast.error("Daily quiz limit reached. Try again tomorrow or upgrade for more.");
       return;
     }
 
@@ -308,72 +197,45 @@ const Quiz = () => {
     try {
       const validCount = Math.min(Math.max(count, 1), maxQuestions);
 
-      // Sanitize subject and topic before sending
-      const rawSubject = selectedSolve?.subject || topicInput.trim();
-      const cleanSubject = sanitizeTopic(rawSubject);
-      
       // Build context: use selected conversation if available, otherwise use topic
       const conversationText = selectedSolve ?
       `Question: ${selectedSolve.question_text || "Image-based question"}\n\nSolution: ${selectedSolve.solution_markdown}` :
-      `Topic: ${cleanSubject}\n\nGenerate quiz questions about this topic.`;
+      `Topic: ${topicInput.trim()}\n\nGenerate quiz questions about this topic.`;
+      const subject = selectedSolve?.subject || topicInput.trim();
 
-      // Try generation, with one auto-retry using broader topic on failure
-      let lastErr: Error | null = null;
-      const attempts = [cleanSubject, getFallbackTopic(cleanSubject)];
-      // Deduplicate attempts
-      const uniqueAttempts = [...new Set(attempts)];
-      
-      for (const attemptSubject of uniqueAttempts) {
-        try {
-          const attemptText = selectedSolve ? conversationText : 
-            `Topic: ${attemptSubject}\n\nGenerate quiz questions about this topic.`;
-
-          const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
-          const answerLanguage = await getAnswerLanguage(user?.id);
-          const { data, error } = await supabase.functions.invoke("generate-quiz", {
-            body: {
-              conversationText: attemptText,
-              questionCount: validCount,
-              subject: attemptSubject,
-              strictCountMode: isPremium ? strictCountMode : false,
-              answerLanguage,
-            }
-          });
-          if (error) throw error;
-          if (data?.error === true || data?.error === "daily_limit_reached") {
-            toast.error(data.message || "Daily limit reached. Upgrade to Pro for more quizzes.");
-            setGenerationError(data.message || "Daily limit reached. Upgrade to Pro for more quizzes.");
-            return;
-          }
-          if (data?.error === "generation_failed" && data?.retryable) {
-            lastErr = new Error(data.message || "Quiz generation failed");
-            continue; // Try next attempt
-          }
-          if (data?.quiz && Array.isArray(data.quiz) && data.quiz.length > 0) {
-            const validQuiz = data.quiz.filter((q: QuizQuestion) => q.question && Array.isArray(q.options) && q.options.length === 4 && q.answer && ['A', 'B', 'C', 'D'].includes(q.answer.toUpperCase()));
-            if (validQuiz.length === 0) {
-              lastErr = new Error("Generated quiz has invalid structure");
-              continue;
-            }
-            setQuizResult(validQuiz);
-            setQuizzesUsedToday(data.quizzesUsed || quizzesUsedToday + 1);
-            toast.success(`Generated ${validQuiz.length} questions`);
-            return; // Success — exit
-          } else {
-            lastErr = new Error("Invalid response from quiz generator");
-            continue;
-          }
-        } catch (err) {
-          lastErr = err as Error;
-          console.warn(`Quiz attempt with "${attemptSubject}" failed:`, err);
-          // If it's the selected solve attempt, don't retry with broader topic (conversation context is fine)
-          if (selectedSolve) break;
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke("generate-quiz", {
+        body: {
+          conversationText,
+          questionCount: validCount,
+          subject,
+          strictCountMode: isPremium ? strictCountMode : false
         }
+      });
+      if (error) throw error;
+      if (data?.error === "daily_limit_reached") {
+        toast.error(data.message || "Daily quiz limit reached");
+        return;
       }
-      // All attempts failed
-      console.error("Quiz generation error:", lastErr);
-      setGenerationError("Quiz generation failed. Please try again.");
-      toast.error("Failed to generate quiz. Tap retry to try again.");
+      if (data?.error === "generation_failed" && data?.retryable) {
+        setGenerationError(data.message || "Quiz generation failed. Please try again.");
+        toast.error("Quiz generation failed. Tap retry to try again.");
+        return;
+      }
+      if (data?.quiz && Array.isArray(data.quiz) && data.quiz.length > 0) {
+        // Validate quiz structure
+        const validQuiz = data.quiz.filter((q: QuizQuestion) => q.question && Array.isArray(q.options) && q.options.length === 4 && q.answer && ['A', 'B', 'C', 'D'].includes(q.answer.toUpperCase()));
+        if (validQuiz.length === 0) {
+          throw new Error("Generated quiz has invalid structure");
+        }
+        setQuizResult(validQuiz);
+        setQuizzesUsedToday(data.quizzesUsed || quizzesUsedToday + 1);
+        toast.success(`Generated ${validQuiz.length} questions`);
+      } else {
+        throw new Error("Invalid response from quiz generator");
+      }
     } catch (error) {
       console.error("Quiz generation error:", error);
       setGenerationError("Quiz generation failed. Please try again.");
@@ -443,10 +305,8 @@ const Quiz = () => {
     // Store real quiz results for the Results page
     const quizScore = calculateScore();
     const topicMap: Record<string, {total: number;correct: number;}> = {};
-    const fallbackSubject = selectedSolve?.subject || topicInput || "General";
     quizResult.forEach((q, idx) => {
-      // Extract topic from each question's content for granular weak-point analysis
-      const topic = extractTopicFromQuestion(q.question, fallbackSubject);
+      const topic = getTopicFromSubject(selectedSolve?.subject || topicInput || "General");
       if (!topicMap[topic]) topicMap[topic] = { total: 0, correct: 0 };
       topicMap[topic].total++;
       const selectedOption = selectedAnswers[idx];
@@ -462,11 +322,7 @@ const Quiz = () => {
       pct: Math.round(d.correct / d.total * 100)
     }));
 
-    // Weak topics: only include topics where user got questions wrong
-    const weakTopics = topicBreakdown
-      .filter((t) => t.pct < 80 && t.correct < t.total)
-      .sort((a, b) => a.pct - b.pct)
-      .map((t) => t.name);
+    const weakTopics = topicBreakdown.filter((t) => t.pct < 80).map((t) => t.name);
 
     const quizResultData = {
       totalQuestions: quizScore.total,
@@ -475,7 +331,7 @@ const Quiz = () => {
       scorePercentage: Math.round(quizScore.correct / quizScore.total * 100),
       weakTopics,
       topicBreakdown,
-      subject: getTopicFromSubject(fallbackSubject),
+      subject: selectedSolve?.subject || topicInput || "General",
       quizName: selectedSolve?.question_text || topicInput || selectedSolve?.subject || "Quiz",
       timestamp: Date.now()
     };
@@ -628,74 +484,95 @@ const Quiz = () => {
           }} transition={{
             delay: 0.1
           }} className="bg-card border border-border rounded-xl p-6 mb-6">
-              {/* Recommended Topic Mode — shown when navigating from Results */}
-              {recommendedTopic ? (
-                <div className="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-xl">
-                  <p className="text-sm font-semibold">Recommended Topic: <span className="text-primary">{recommendedTopic}</span></p>
-                </div>
-              ) : (
-                <>
-                  {/* Topic Input — Admin only */}
-                  {isAdmin &&
-                    <div className="space-y-2 mb-6">
-                      <Label htmlFor="topicInput">Topic</Label>
-                      <Input
-                        id="topicInput"
-                        placeholder="Enter a topic (e.g. Fractions, Photosynthesis)..."
-                        value={topicInput}
-                        onChange={(e) => setTopicInput(e.target.value)}
-                        className="bg-background" />
-                      <p className="text-xs text-muted-foreground">
-                        Enter a topic directly, or select a conversation below for more targeted questions
-                      </p>
-                    </div>
-                  }
-
-                  {/* Conversation Selector */}
-                  <div className="space-y-2 mb-6">
-                    <Label>Select a conversation <span className="text-muted-foreground">(optional)</span></Label>
-                    <Popover open={open} onOpenChange={setOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between text-left font-normal h-auto min-h-11 py-2">
-                          {selectedSolve ? <span className="truncate">
-                              {selectedSolve.question_text || "Image question"} ({selectedSolve.subject})
-                            </span> : <span className="text-muted-foreground">Choose a solved problem...</span>}
-                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Search conversations..." value={searchQuery} onValueChange={setSearchQuery} />
-                          <CommandList>
-                            {showSolveRedirect && <div className="p-3 border-b border-border bg-primary/5">
-                                <div className="flex items-start gap-2">
-                                  <Calculator className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-primary">Looking to solve equations?</p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">Use Solve Homework for equations and calculations.</p>
-                                    <Button size="sm" variant="outline" className="mt-2 h-7 text-xs" onClick={() => { setOpen(false); navigate("/"); }}>
-                                      Go to Solve Homework
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>}
-                            <CommandEmpty>{loading ? "Loading..." : "No conversations found."}</CommandEmpty>
-                            <CommandGroup>
-                              {filteredSolves.map((solve) => <CommandItem key={solve.id} value={solve.id} onSelect={() => { setSelectedSolve(solve); setOpen(false); setSearchQuery(""); }} className="cursor-pointer">
-                                  <Check className={cn("mr-2 h-4 w-4", selectedSolve?.id === solve.id ? "opacity-100" : "opacity-0")} />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="truncate text-sm">{solve.question_text || "Image question"}</p>
-                                    <p className="text-xs text-muted-foreground capitalize">{solve.subject}</p>
-                                  </div>
-                                </CommandItem>)}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+              {/* Recommended Topic Banner — Admin only */}
+              {isAdmin && recommendedTopic &&
+            <div className="mb-6 p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center gap-3">
+                  <Target className="w-5 h-5 text-primary shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold">Recommended: {recommendedTopic}</p>
+                    <p className="text-xs text-muted-foreground">Based on your weakest quiz performance</p>
                   </div>
-                </>
-              )}
+                </div>
+            }
+
+              {/* Topic Input — Admin only */}
+              {isAdmin &&
+            <div className="space-y-2 mb-6">
+                <Label htmlFor="topicInput">Topic</Label>
+                <Input
+                id="topicInput"
+                placeholder="Enter a topic (e.g. Fractions, Photosynthesis)..."
+                value={topicInput}
+                onChange={(e) => setTopicInput(e.target.value)}
+                className="bg-background" />
+              
+                <p className="text-xs text-muted-foreground">
+                  Enter a topic directly, or select a conversation below for more targeted questions
+                </p>
+              </div>
+            }
+
+              {/* Conversation Selector */}
+              <div className="space-y-2 mb-6">
+                <Label>Select a conversation <span className="text-muted-foreground">(optional)</span></Label>
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between text-left font-normal h-auto min-h-11 py-2">
+                      {selectedSolve ? <span className="truncate">
+                          {selectedSolve.question_text || "Image question"} ({selectedSolve.subject})
+                        </span> : <span className="text-muted-foreground">Choose a solved problem...</span>}
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search conversations..." value={searchQuery} onValueChange={setSearchQuery} />
+                      <CommandList>
+                        {/* Show redirect message when user types equation-related terms */}
+                        {showSolveRedirect && <div className="p-3 border-b border-border bg-primary/5">
+                            <div className="flex items-start gap-2">
+                              <Calculator className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-primary">
+                                  Looking to solve equations?
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  Use Solve Homework for equations and calculations.
+                                </p>
+                                <Button size="sm" variant="outline" className="mt-2 h-7 text-xs" onClick={() => {
+                              setOpen(false);
+                              navigate("/");
+                            }}>
+                                  Go to Solve Homework
+                                </Button>
+                              </div>
+                            </div>
+                          </div>}
+                        <CommandEmpty>
+                          {loading ? "Loading..." : "No conversations found."}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {filteredSolves.map((solve) => <CommandItem key={solve.id} value={solve.id} onSelect={() => {
+                          setSelectedSolve(solve);
+                          setOpen(false);
+                          setSearchQuery("");
+                        }} className="cursor-pointer">
+                              <Check className={cn("mr-2 h-4 w-4", selectedSolve?.id === solve.id ? "opacity-100" : "opacity-0")} />
+                              <div className="flex-1 min-w-0">
+                                <p className="truncate text-sm">
+                                  {solve.question_text || "Image question"}
+                                </p>
+                                <p className="text-xs text-muted-foreground capitalize">
+                                  {solve.subject}
+                                </p>
+                              </div>
+                            </CommandItem>)}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
 
               {/* Question Count Input */}
               <div className="space-y-2 mb-6">
@@ -865,7 +742,7 @@ const Quiz = () => {
                 x: -20
               }} className="bg-card border border-border rounded-xl p-6">
                   <h2 className="text-lg font-medium mb-6">
-                    <MathText>{quizResult[currentQuestion].question}</MathText>
+                    {quizResult[currentQuestion].question}
                   </h2>
 
                   {/* Options */}
@@ -885,7 +762,7 @@ const Quiz = () => {
                     submitted && isCorrect ? "bg-green-500/10 border-green-500 text-foreground" : submitted && isSelected && !isCorrect ? "bg-destructive/10 border-destructive text-foreground"
                     // During quiz after selection: show if user was correct/wrong
                     : isSelected && userSelectedCorrect ? "bg-green-500/10 border-green-500 text-foreground" : isSelected && userSelectedWrong ? "bg-destructive/10 border-destructive text-foreground" : isSelected ? "bg-primary/10 border-primary text-foreground" : hasAnswered ? "bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60" : "bg-card border-border hover:border-primary/50 text-foreground", (hasAnswered || submitted) && "cursor-default")}>
-                          <span className="font-medium"><MathText>{option}</MathText></span>
+                          <span className="font-medium">{option}</span>
                         </motion.button>;
                   })}
                   </div>
@@ -900,7 +777,7 @@ const Quiz = () => {
                 }} className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
                       <p className="text-sm text-green-400 flex items-start gap-2">
                         <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
-                        <span className="font-medium">Correct! <MathText>{quizResult[currentQuestion].explanation}</MathText></span>
+                        <span className="font-medium">Correct! {quizResult[currentQuestion].explanation}</span>
                       </p>
                     </motion.div>}
 
@@ -1006,7 +883,7 @@ const Quiz = () => {
                         </span>
                       </div>
                       
-                      <h3 className="font-medium mb-4 text-sm sm:text-base break-words"><MathText>{q.question}</MathText></h3>
+                      <h3 className="font-medium mb-4 text-sm sm:text-base break-words">{q.question}</h3>
 
                       {/* Options - Different view for Free vs Premium */}
                       <div className="space-y-2 mb-4">
@@ -1016,7 +893,7 @@ const Quiz = () => {
                       const isCorrectOption = getOptionLetter(option) === q.answer;
                       const isUserSelection = userAnswer === option;
                       return <div key={optIdx} className={cn("p-3 rounded-xl border text-sm break-words", isCorrectOption ? "bg-green-500/10 border-green-500/50 text-foreground" : isUserSelection ? "bg-destructive/10 border-destructive/50 text-foreground" : "bg-muted/30 border-border text-muted-foreground")}>
-                                <span className="break-words"><MathText>{option}</MathText></span>
+                                <span className="break-words">{option}</span>
                                 {isCorrectOption && <span className="ml-2 text-green-500 text-xs font-medium">✓ Correct</span>}
                                 {isUserSelection && !isCorrectOption && <span className="ml-2 text-destructive text-xs font-medium">Your answer</span>}
                               </div>;
@@ -1025,7 +902,7 @@ const Quiz = () => {
                     <div className="space-y-2">
                             <div className={cn("p-3 rounded-xl border text-sm", isCorrect ? "bg-green-500/10 border-green-500/50" : "bg-destructive/10 border-destructive/50")}>
                               <span className="text-xs text-muted-foreground block mb-1">Your answer:</span>
-                              <span className="break-words"><MathText>{typeof userAnswer === 'string' ? userAnswer : "Not answered"}</MathText></span>
+                              <span className="break-words">{userAnswer || "Not answered"}</span>
                             </div>
                             {!isCorrect && <div className="p-3 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 text-sm">
                                 <Lock className="w-3 h-3 inline mr-1.5 text-muted-foreground" />
@@ -1040,7 +917,7 @@ const Quiz = () => {
                       {isPremium ? <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
                           <p className="text-sm">
                             <span className="font-medium text-primary block mb-1">Why this is correct:</span>
-                            <span className="text-muted-foreground break-words"><MathText>{q.explanation}</MathText></span>
+                            <span className="text-muted-foreground break-words">{q.explanation}</span>
                           </p>
                         </div> : <div className="p-3 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-xl text-center">
                           <Lock className="w-4 h-4 inline mr-1.5 text-muted-foreground" />

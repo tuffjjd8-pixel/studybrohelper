@@ -94,7 +94,36 @@ const LockedCard = ({ title, icon: Icon, children }: { title: string; icon: Reac
   </Card>
 );
 
-// Recommended topic is simply the subject of the quiz just completed
+const getRecommendedTopic = (): string | null => {
+  try {
+    const history: QuizResultData[] = JSON.parse(localStorage.getItem("quiz_result_history") || "[]");
+    if (history.length === 0) return null;
+
+    // Aggregate per-topic performance across all quiz history
+    const topicStats: Record<string, { total: number; correct: number }> = {};
+    history.forEach((result) => {
+      (result.topicBreakdown || []).forEach((t) => {
+        if (!topicStats[t.name]) topicStats[t.name] = { total: 0, correct: 0 };
+        topicStats[t.name].total += t.total;
+        topicStats[t.name].correct += t.correct;
+      });
+    });
+
+    // Find the topic with the lowest accuracy
+    let worstTopic: string | null = null;
+    let worstPct = 101;
+    Object.entries(topicStats).forEach(([name, d]) => {
+      const pct = d.total > 0 ? (d.correct / d.total) * 100 : 100;
+      if (pct < worstPct) {
+        worstPct = pct;
+        worstTopic = name;
+      }
+    });
+    return worstTopic;
+  } catch {
+    return null;
+  }
+};
 
 const Results = ({ embedded }: { embedded?: boolean }) => {
   const { user, loading: authLoading } = useAuth();
@@ -102,6 +131,7 @@ const Results = ({ embedded }: { embedded?: boolean }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizData, setQuizData] = useState<QuizResultData | null>(null);
   const [loading, setLoading] = useState(true);
+  const recommendedTopic = getRecommendedTopic();
 
   useEffect(() => {
     try {
@@ -346,48 +376,25 @@ const Results = ({ embedded }: { embedded?: boolean }) => {
             </motion.div>
           )}
 
-          {/* Recommended Quiz — only after quiz completion */}
-          {subject && (
+          {/* Recommended Quiz */}
+          {recommendedTopic && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
-              {user ? (
-                (() => {
-                  const weakestTopic = weakTopics.length > 0
-                    ? weakTopics[0]
-                    : (topicBreakdown.length > 0
-                      ? [...topicBreakdown].sort((a, b) => a.pct - b.pct)[0]?.name
-                      : null);
-                  const recommendedLabel = weakestTopic && weakestTopic !== "Other" && weakestTopic !== "General"
-                    ? weakestTopic
-                    : subject;
-                  return (
-                    <Card
-                      className="border-primary/30 hover:border-primary/60 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/quiz?topic=${encodeURIComponent(recommendedLabel)}`)}
-                    >
-                      <CardContent className="pt-6 flex items-center gap-4">
-                        <div className="p-3 rounded-xl bg-primary/10">
-                          <Target className="w-6 h-6 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-sm">Recommended Quiz</p>
-                          <p className="text-xs text-muted-foreground">
-                            Practice more: <span className="font-medium text-foreground">{recommendedLabel}</span>
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })()
-              ) : (
-                <Card className="border-border">
-                  <CardContent className="pt-6 text-center">
-                    <p className="text-sm text-muted-foreground">Sign in to take a recommended quiz.</p>
-                    <Link to="/auth">
-                      <Button variant="outline" size="sm" className="mt-2">Sign In</Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              )}
+              <Card
+                className="border-primary/30 hover:border-primary/60 transition-colors cursor-pointer"
+                onClick={() => navigate("/quiz", { state: { recommendedTopic } })}
+              >
+                <CardContent className="pt-6 flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-primary/10">
+                    <Target className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">Recommended Quiz</p>
+                    <p className="text-xs text-muted-foreground">
+                      Practice your weakest topic: <span className="font-medium text-foreground">{recommendedTopic}</span>
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
           )}
 

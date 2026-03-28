@@ -8,13 +8,13 @@ const corsHeaders = {
 
 const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
 
-// Groq cost estimates per request type (USD) — updated with actual model costs
+// Groq cost estimates per request type (USD)
 const COST_PER_REQUEST: Record<string, number> = {
-  solve: 0.00034,        // GPT-OSS-120B for deep / 0.00020-0.00025 for instant (20B)
-  "follow-up": 0.00034,  // GPT-OSS-120B
-  humanize: 0.00034,     // GPT-OSS-120B
-  quiz: 0.00034,         // GPT-OSS-120B (always 120B for quizzes)
-  transcribe: 0.00038,   // Llama-4-Scout-17B Vision
+  solve: 0.0012,
+  "follow-up": 0.0008,
+  humanize: 0.0010,
+  quiz: 0.0015,
+  transcribe: 0.0006,
 };
 
 serve(async (req) => {
@@ -44,20 +44,6 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    }
-
-    // Check for delete action
-    let body: any = {};
-    try {
-      body = await req.json();
-    } catch { /* no body is fine */ }
-
-    if (body?.action === "delete_all") {
-      await supabase.from("api_usage_logs").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      return new Response(
-        JSON.stringify({ success: true, message: "All usage data deleted" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
     // Get today's date in CST

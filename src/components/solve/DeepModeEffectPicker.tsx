@@ -1,50 +1,55 @@
-import type { DeepModeTextColor } from "./DeepModeReveal";
+import { motion } from "framer-motion";
+import type { DeepModeEffect } from "./DeepModeReveal";
 
-interface DeepModeColorPickerProps {
-  selectedColor: DeepModeTextColor;
-  onSelect: (color: DeepModeTextColor) => void;
+interface DeepModeEffectPickerProps {
+  selectedEffect: DeepModeEffect;
+  onSelect: (effect: DeepModeEffect) => void;
   onClose: () => void;
 }
 
-const COLORS: { id: DeepModeTextColor; label: string; swatch: string }[] = [
-  { id: "default", label: "Default", swatch: "bg-[hsl(0,0%,95%)]" },
-  { id: "gold", label: "Gold", swatch: "bg-[hsl(45,90%,55%)]" },
-  { id: "sky", label: "Sky", swatch: "bg-[hsl(200,85%,60%)]" },
-  { id: "purple", label: "Purple", swatch: "bg-[hsl(270,70%,60%)]" },
-  { id: "rose", label: "Rose", swatch: "bg-[hsl(340,75%,55%)]" },
-  { id: "orange", label: "Orange", swatch: "bg-[hsl(25,95%,55%)]" },
+const EFFECTS: { id: DeepModeEffect; label: string; emoji: string; description: string }[] = [
+  { id: "fire", label: "Fire", emoji: "🔥", description: "Orange glow & flicker" },
+  { id: "water", label: "Water", emoji: "💧", description: "Ripple distortion" },
+  { id: "neon", label: "Neon", emoji: "💚", description: "Bright glow" },
+  { id: "glitch", label: "Glitch", emoji: "⚡", description: "Jitter & RGB split" },
+  { id: "sparkle", label: "Sparkle", emoji: "✨", description: "Particle bursts" },
 ];
 
-export function DeepModeColorPicker({ selectedColor, onSelect, onClose }: DeepModeColorPickerProps) {
+export function DeepModeEffectPicker({ selectedEffect, onSelect, onClose }: DeepModeEffectPickerProps) {
   return (
-    <div className="glass-card p-4 space-y-3">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="glass-card p-4 space-y-3"
+    >
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Text Color
+          Choose Your Effect
         </h4>
         <button onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">
           Done
         </button>
       </div>
 
-      <div className="grid grid-cols-6 gap-2">
-        {COLORS.map((c) => (
+      <div className="grid grid-cols-5 gap-2">
+        {EFFECTS.map((fx) => (
           <button
-            key={c.id}
-            onClick={() => onSelect(c.id)}
+            key={fx.id}
+            onClick={() => onSelect(fx.id)}
             className={`
-              flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all
-              ${selectedColor === c.id
+              flex flex-col items-center gap-1 p-2 rounded-xl transition-all
+              ${selectedEffect === fx.id
                 ? "bg-primary/20 ring-2 ring-primary scale-105"
                 : "bg-muted/50 hover:bg-muted"
               }
             `}
           >
-            <span className={`w-5 h-5 rounded-full ${c.swatch}`} />
-            <span className="text-[10px] font-medium">{c.label}</span>
+            <span className="text-xl">{fx.emoji}</span>
+            <span className="text-[10px] font-medium">{fx.label}</span>
           </button>
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }

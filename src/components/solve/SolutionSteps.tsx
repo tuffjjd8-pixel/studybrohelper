@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
 import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider";
 import { useNavigate } from "react-router-dom";
-import { DeepModeReveal, type DeepModeTextColor } from "@/components/solve/DeepModeReveal";
+import { DeepModeReveal, type DeepModeEffect } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
 
 interface SolutionStepsProps {
@@ -28,8 +28,7 @@ interface SolutionStepsProps {
   followUpCount?: number;
   maxFollowUps?: number;
   isDeepMode?: boolean;
-  deepTextColor?: DeepModeTextColor;
-  isAuthenticated?: boolean;
+  deepModeEffect?: DeepModeEffect;
 }
 
 const subjectIcons: Record<string, React.ReactNode> = {
@@ -48,7 +47,7 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, deepTextColor = "gold", isAuthenticated = false }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, deepModeEffect = "none" }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -56,8 +55,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const [displayedSolution, setDisplayedSolution] = useState(solution);
   const [localFollowUpCount, setLocalFollowUpCount] = useState(followUpCount);
   const [humanizeStrength, setHumanizeStrength] = useState<HumanizeStrength>("auto");
-  const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
-  const [humanizeUsed, setHumanizeUsed] = useState(false);
+  const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium });
   const navigate = useNavigate();
 
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
@@ -87,11 +85,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
   const handleFollowUpSubmit = async () => {
     if (!followUpText.trim() || isAsking) return;
-    // Auth guard: require sign-in for AI features
-    if (!solveId) {
-      toast.error("Please sign in to use AI features.");
-      return;
-    }
     if (followUpLimitReached) {
       toast.error("Follow-up limit reached. Upgrade to Pro for unlimited!");
       return;
@@ -99,8 +92,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
     setIsAsking(true);
     try {
-      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
-      const answerLanguage = await getAnswerLanguage(undefined);
       const { data, error } = await supabase.functions.invoke("follow-up-chat", {
         body: {
           solveId,
@@ -113,7 +104,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           history: followUpResponse ? [
             { role: "assistant", content: followUpResponse }
           ] : [],
-          answerLanguage,
         },
       });
 
@@ -139,14 +129,9 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       });
       return;
     }
-    if (humanizeUsed) {
-      toast.info("Humanize can only be used once per answer.");
-      return;
-    }
     const result = await humanize(displayedSolution, subject, humanizeStrength);
     if (result) {
       setDisplayedSolution(result);
-      setHumanizeUsed(true);
       toast.success("Answer humanized! ✨");
     }
   };
@@ -219,33 +204,11 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </Button>
           </div>
         </div>
-      {isDeepMode ? (
-          <div className={`deep-text-${deepTextColor}`}>
-            {isHistory ? (
-              <div className="prose prose-invert prose-sm max-w-none math-solution">
-                <ReactMarkdown
-                  remarkPlugins={[remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                  components={{
-                    h1: ({ children }) => <h1 className="text-xl font-bold mb-3 inherit-color">{children}</h1>,
-                    h2: ({ children }) => <h2 className="text-lg font-semibold mb-2 mt-4 inherit-color">{children}</h2>,
-                    h3: ({ children }) => <h3 className="text-base font-medium mb-2 mt-3 inherit-color">{children}</h3>,
-                    p: ({ children }) => <p className="mb-3 leading-relaxed inherit-color">{children}</p>,
-                    strong: ({ children }) => <strong className="font-bold inherit-color">{children}</strong>,
-                    em: ({ children }) => <em className="italic inherit-color">{children}</em>,
-                    code: ({ children }) => <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono inherit-color">{children}</code>,
-                  }}
-                >
-                  {preprocessMath(displayedSolution)}
-                </ReactMarkdown>
-              </div>
-            ) : (
-              <DeepModeReveal
-                content={displayedSolution}
-                textColor={deepTextColor}
-              />
-            )}
-          </div>
+        {isDeepMode && !isHistory ? (
+          <DeepModeReveal
+            content={displayedSolution}
+            effect={deepModeEffect}
+          />
         ) : (
           <div className="prose prose-invert prose-sm max-w-none math-solution">
             <ReactMarkdown
@@ -303,7 +266,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
-                {isHumanized || humanizeUsed ? (
+                {isHumanized ? (
                   <span className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary bg-secondary/10 px-3 py-1.5 rounded-full">
                     <Sparkles className="w-3 h-3" />
                     Humanized ✨
@@ -329,7 +292,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                   </Button>
                 )}
               </div>
-              {!isHumanized && !humanizeUsed && (
+              {!isHumanized && (
                 <HumanizeStrengthSlider
                   value={humanizeStrength}
                   onChange={setHumanizeStrength}

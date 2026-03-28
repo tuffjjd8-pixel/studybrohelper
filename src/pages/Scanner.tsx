@@ -1,26 +1,23 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Sparkles, Camera, MessageCircle, Crop, RotateCcw, Wand2 } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
 import { ScannerDropZone } from "@/components/scanner/ScannerDropZone";
-import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/components/scanner/CustomCamera";
+import { CustomCamera } from "@/components/scanner/CustomCamera";
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { SolutionDisplay } from "@/components/scanner/SolutionDisplay";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
-import { ScarcityMessage } from "@/components/solve/ScarcityMessage";
-import { SoftUpgradeBanner } from "@/components/solve/SoftUpgradeBanner";
 import { Button } from "@/components/ui/button";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useSolveUsage } from "@/hooks/useSolveUsage";
 import { toast } from "sonner";
 
-type ScannerState = "idle" | "camera" | "previewing" | "scanning" | "cropping" | "solved";
+type ScannerState = "idle" | "camera" | "cropping" | "scanning" | "solved";
 type LoadingStage = "extracting" | "classifying" | "solving";
 
 interface SolutionData {
@@ -33,133 +30,89 @@ interface SolutionData {
 const Scanner = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const solveUsage = useSolveUsage(user?.id, false);
   
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
-  const [capturedFile, setCapturedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [croppedImage, setCroppedImage] = useState<string | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
-  const [showFollowUp, setShowFollowUp] = useState(false);
-  const [followUpText, setFollowUpText] = useState("");
 
   const handleOpenCamera = useCallback(() => {
     setState("camera");
   }, []);
 
-  // After capture: brief preview then auto-solve
-  const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
-    setCapturedFile(result.file);
-    setPreviewUrl(result.previewUrl);
-    setSelectedMode(result.mode);
-    setState("previewing");
+  const handleCameraCapture = useCallback((imageData: string) => {
+    setSelectedImage(imageData);
+    setState("cropping");
   }, []);
-
-  // Auto-transition from preview → scanning after 400ms
-  useEffect(() => {
-    if (state !== "previewing" || !capturedFile) return;
-    const timer = setTimeout(() => {
-      setState("scanning");
-      solveProblem(capturedFile);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [state, capturedFile]);
 
   const handleCameraClose = useCallback(() => {
     setState("idle");
   }, []);
 
-  // Gallery/drop-zone: also auto-solve immediately
-  const handleImageSelect = useCallback((file: File) => {
-    setCapturedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
-    setState("previewing");
-  }, []);
-
-  // Optional crop: user chose to crop
-  const handleCropRequest = useCallback(() => {
+  const handleImageSelect = useCallback((imageData: string) => {
+    setSelectedImage(imageData);
     setState("cropping");
   }, []);
 
-  const handleCropComplete = useCallback((croppedData: string) => {
-    // Convert cropped data URL back to File
-    fetch(croppedData)
-      .then(r => r.blob())
-      .then(blob => {
-        const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
-        setCapturedFile(file);
-        setPreviewUrl(croppedData);
-        setState("scanning");
-        solveProblem(file);
-      });
-  }, [previewUrl]);
+  const handleCropComplete = useCallback(async (croppedData: string) => {
+    setCroppedImage(croppedData);
+    setState("scanning");
+    await solveProblem(croppedData);
+  }, []);
 
   const handleCropCancel = useCallback(() => {
-    if (solution) {
-      setState("solved");
-    } else {
-      setState("scanning");
+    // Clean up blob URL if needed
+    if (selectedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(selectedImage);
     }
-  }, [solution]);
+    setSelectedImage(null);
+    setState("idle");
+  }, [selectedImage]);
 
-  // Retake: go back to camera
-  const handleRetake = useCallback(() => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setCapturedFile(null);
-    setPreviewUrl(null);
-    setSolution(null);
-    setShowFollowUp(false);
-    setState("camera");
-  }, [previewUrl]);
-
-  const solveProblem = async (file: File) => {
-    if (!user) {
-      toast.error("Please sign in to use AI features.");
-      return;
-    }
+  const solveProblem = async (imageData: string) => {
     try {
+      // Stage 1: Extracting
       setLoadingStage("extracting");
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 500));
+      
+      // Stage 2: Classifying
       setLoadingStage("classifying");
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 300));
+      
+      // Stage 3: Solving
       setLoadingStage("solving");
-
-      const isPro = solveUsage.isPremium;
-      const mode = isPro ? "solve_pro" : "solve_free";
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("mode", mode);
-
-      const response = await fetch("http://46.224.199.130:8000/ocr", {
-        method: "POST",
-        body: formData,
+      
+      const { data, error } = await supabase.functions.invoke("solve-homework", {
+        body: { 
+          question: "", 
+          image: imageData,
+          isPremium: false,
+          animatedSteps: false,
+          generateGraph: false,
+          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+        },
       });
 
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
+      if (error) throw error;
 
-      const data = await response.json();
-
-      const extractedQuestion = data.extracted_text || "Image-based question";
+      const extractedQuestion = data.question || data.extractedText || "Image-based question";
 
       setSolution({
-        subject: "general",
+        subject: data.subject || "general",
         question: extractedQuestion,
         solution: data.solution,
-        image: previewUrl || undefined,
+        image: imageData,
       });
 
+      // Save to database if logged in
       if (user) {
         await supabase.from("solves").insert({
           user_id: user.id,
-          subject: "general",
+          subject: data.subject || "general",
           question_text: extractedQuestion,
-          question_image_url: file.name,
+          question_image_url: imageData.substring(0, 500), // Truncate for storage
           solution_markdown: data.solution,
         });
       }
@@ -170,39 +123,35 @@ const Scanner = () => {
       console.error("Scan error:", error);
       toast.error("Failed to scan homework. Please try again.");
       setState("idle");
-      setCapturedFile(null);
+      setSelectedImage(null);
+      setCroppedImage(null);
     }
   };
 
   const handleReset = useCallback(() => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    // Clean up blob URLs
+    if (selectedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(selectedImage);
+    }
+    if (croppedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(croppedImage);
+    }
     setState("idle");
-    setCapturedFile(null);
-    setPreviewUrl(null);
+    setSelectedImage(null);
+    setCroppedImage(null);
     setSolution(null);
-    setShowFollowUp(false);
-    setFollowUpText("");
-  }, [previewUrl]);
+  }, [selectedImage, croppedImage]);
 
   return (
     <div className="min-h-screen bg-background">
       <Header streak={0} totalSolves={0} />
 
-      {/* Camera */}
+      {/* Custom Camera Modal */}
       <CustomCamera
         isOpen={state === "camera"}
         onCapture={handleCameraCapture}
         onClose={handleCameraClose}
       />
-
-      {/* Optional crop UI */}
-      {state === "cropping" && previewUrl && (
-        <ImageCropper
-          imageSrc={previewUrl}
-          onCropComplete={handleCropComplete}
-          onCancel={handleCropCancel}
-        />
-      )}
 
       <main 
         className="pt-20 pb-32 px-4"
@@ -248,6 +197,7 @@ const Scanner = () => {
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center gap-8"
               >
+                {/* Hero Section */}
                 <div className="text-center space-y-3">
                   <motion.div
                     initial={{ scale: 0.9 }}
@@ -269,11 +219,13 @@ const Scanner = () => {
                   </p>
                 </div>
 
+                {/* Drop Zone */}
                 <ScannerDropZone 
                   onImageSelect={handleImageSelect} 
                   onOpenCamera={handleOpenCamera}
                 />
 
+                {/* Large Scan Button */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -293,73 +245,37 @@ const Scanner = () => {
               </motion.div>
             )}
 
-            {/* Brief preview flash before auto-solve */}
-            {state === "previewing" && previewUrl && (
+            {state === "cropping" && selectedImage && (
               <motion.div
-                key="previewing"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+                key="cropping"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex flex-col items-center gap-4"
+                className="flex flex-col items-center"
               >
-                <div 
-                  className="rounded-2xl overflow-hidden border-2 border-primary/40"
-                  style={{ boxShadow: "0 0 40px hsl(var(--primary) / 0.3)" }}
-                >
-                  <img
-                    src={previewUrl}
-                    alt="Captured"
-                    className="max-h-64 object-contain"
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground animate-pulse">Solving...</p>
+                <h2 className="text-lg font-heading font-semibold mb-4">Crop Your Image</h2>
+                <ImageCropper
+                  imageSrc={selectedImage}
+                  onCropComplete={handleCropComplete}
+                  onCancel={handleCropCancel}
+                />
               </motion.div>
             )}
 
-            {/* Scanning / loading */}
             {state === "scanning" && (
               <motion.div
                 key="scanning"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-4"
               >
                 <ScannerLoadingState 
-                  image={previewUrl || undefined}
+                  image={croppedImage || undefined}
                   stage={loadingStage}
                 />
-
-                {/* Optional retake/crop bar during loading */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="flex justify-center gap-3"
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRetake}
-                    className="gap-1.5 text-xs rounded-full border-border"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    Retake
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCropRequest}
-                    className="gap-1.5 text-xs rounded-full border-border"
-                  >
-                    <Crop className="w-3.5 h-3.5" />
-                    Crop / Edit
-                  </Button>
-                </motion.div>
               </motion.div>
             )}
 
-            {/* Result screen */}
             {state === "solved" && solution && (
               <motion.div
                 key="solved"
@@ -368,7 +284,6 @@ const Scanner = () => {
                 exit={{ opacity: 0 }}
                 className="space-y-6"
               >
-                {/* 1. Answer at the top */}
                 <SolutionDisplay
                   extractedQuestion={solution.question}
                   subject={solution.subject}
@@ -376,131 +291,17 @@ const Scanner = () => {
                   questionImage={solution.image}
                 />
 
-                {/* 2. Primary CTA: Scan next problem */}
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15 }}
-                  className="flex justify-center pt-2"
-                >
+                <div className="flex justify-center pt-4">
                   <Button
-                    onClick={handleOpenCamera}
-                    className="gap-3 px-10 py-6 text-base font-heading font-bold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90"
+                    onClick={handleReset}
+                    className="gap-3 px-8 py-6 text-base font-heading font-bold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90"
                     style={{
-                      boxShadow: "0 0 35px hsl(var(--primary) / 0.35), 0 4px 18px hsl(var(--primary) / 0.25)",
+                      boxShadow: "0 0 30px hsl(var(--primary) / 0.3), 0 4px 15px hsl(var(--primary) / 0.25)",
                     }}
                   >
-                    <Camera className="w-5 h-5" />
-                    Scan Next Problem
+                    <AIBrainIcon className="w-5 h-5" />
+                    Scan Another
                   </Button>
-                </motion.div>
-
-                {/* 3. Secondary: Follow-up collapsed bar */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.25 }}
-                  className="flex justify-center"
-                >
-                  {!showFollowUp ? (
-                    <button
-                      onClick={() => setShowFollowUp(true)}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-muted/60 hover:bg-muted text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      Still confused? Ask a question
-                    </button>
-                  ) : (
-                    <div className="w-full max-w-lg space-y-2">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={followUpText}
-                          onChange={(e) => setFollowUpText(e.target.value)}
-                          placeholder="Ask about this problem..."
-                          className="flex-1 px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && followUpText.trim()) {
-                              toast.info("Follow-up feature coming soon!");
-                              setFollowUpText("");
-                            }
-                          }}
-                        />
-                        <Button
-                          size="sm"
-                          className="rounded-xl px-4"
-                          onClick={() => {
-                            if (followUpText.trim()) {
-                              toast.info("Follow-up feature coming soon!");
-                              setFollowUpText("");
-                            }
-                          }}
-                        >
-                          Ask
-                        </Button>
-                      </div>
-                      <button
-                        onClick={() => setShowFollowUp(false)}
-                        className="text-xs text-muted-foreground hover:text-foreground ml-1"
-                      >
-                        Collapse
-                      </button>
-                    </div>
-                  )}
-                </motion.div>
-
-                {/* 4. Tertiary: Retake / Crop / extras */}
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.35 }}
-                  className="flex justify-center gap-2 flex-wrap"
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRetake}
-                    className="gap-1.5 text-xs text-muted-foreground rounded-full"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    Retake
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleCropRequest}
-                    className="gap-1.5 text-xs text-muted-foreground rounded-full"
-                  >
-                    <Crop className="w-3.5 h-3.5" />
-                    Crop
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toast.info("Humanize coming soon!")}
-                    className="gap-1.5 text-xs text-muted-foreground rounded-full"
-                  >
-                    <Wand2 className="w-3.5 h-3.5" />
-                    Humanize
-                  </Button>
-                </motion.div>
-
-                {/* Scarcity message */}
-                <ScarcityMessage
-                  solvesRemaining={solveUsage.solvesRemaining}
-                  maxSolves={solveUsage.maxSolves}
-                  isPremium={solveUsage.isPremium}
-                  isAuthenticated={!!user}
-                />
-
-                {/* Reset link */}
-                <div className="flex justify-center pt-2">
-                  <button
-                    onClick={handleReset}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Start over
-                  </button>
                 </div>
               </motion.div>
             )}

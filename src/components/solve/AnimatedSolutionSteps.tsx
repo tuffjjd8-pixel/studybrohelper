@@ -39,7 +39,6 @@ export function AnimatedSolutionSteps({
   const [displayedContent, setDisplayedContent] = useState("");
   const [isFinished, setIsFinished] = useState(false);
   const [showFinishConfetti, setShowFinishConfetti] = useState(false);
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   const totalSteps = Math.min(steps.length, maxSteps);
   const progress = ((currentStep + 1) / totalSteps) * 100;
@@ -50,14 +49,6 @@ export function AnimatedSolutionSteps({
     if (!steps[currentStep]) return;
     
     const content = steps[currentStep].content;
-
-    // If this step was already fully animated, show instantly
-    if (completedSteps.has(currentStep)) {
-      setDisplayedContent(content);
-      setIsTypewriting(false);
-      return;
-    }
-
     setDisplayedContent("");
     setIsTypewriting(true);
 
@@ -108,7 +99,6 @@ export function AnimatedSolutionSteps({
       setDisplayedContent(content.slice(0, safePoints[pointIndex]));
       if (pointIndex >= safePoints.length - 1) {
         setIsTypewriting(false);
-        setCompletedSteps(prev => new Set(prev).add(currentStep));
         clearInterval(timer);
       }
     }, speed);

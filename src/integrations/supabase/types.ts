@@ -183,7 +183,6 @@ export type Database = {
           downloads_count: number
           goal_id: string
           id: string
-          message: string | null
           reviewed_at: string | null
           screenshot_urls: string[]
           status: string
@@ -196,7 +195,6 @@ export type Database = {
           downloads_count?: number
           goal_id: string
           id?: string
-          message?: string | null
           reviewed_at?: string | null
           screenshot_urls?: string[]
           status?: string
@@ -209,7 +207,6 @@ export type Database = {
           downloads_count?: number
           goal_id?: string
           id?: string
-          message?: string | null
           reviewed_at?: string | null
           screenshot_urls?: string[]
           status?: string
@@ -429,49 +426,9 @@ export type Database = {
         }
         Relationships: []
       }
-      pro_usage: {
-        Row: {
-          created_at: string
-          deep_solves: number
-          followup_count: number
-          humanize_count: number
-          id: string
-          instant_solves: number
-          quiz_count: number
-          updated_at: string
-          usage_month: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          deep_solves?: number
-          followup_count?: number
-          humanize_count?: number
-          id?: string
-          instant_solves?: number
-          quiz_count?: number
-          updated_at?: string
-          usage_month: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          deep_solves?: number
-          followup_count?: number
-          humanize_count?: number
-          id?: string
-          instant_solves?: number
-          quiz_count?: number
-          updated_at?: string
-          usage_month?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           animated_steps_used_today: number | null
-          answer_language: string
           avatar_url: string | null
           created_at: string
           daily_solves_used: number
@@ -503,7 +460,6 @@ export type Database = {
         }
         Insert: {
           animated_steps_used_today?: number | null
-          answer_language?: string
           avatar_url?: string | null
           created_at?: string
           daily_solves_used?: number
@@ -535,7 +491,6 @@ export type Database = {
         }
         Update: {
           animated_steps_used_today?: number | null
-          answer_language?: string
           avatar_url?: string | null
           created_at?: string
           daily_solves_used?: number
@@ -668,10 +623,8 @@ export type Database = {
           created_at: string
           device_id: string | null
           id: string
-          image_solves_used: number
           last_reset_at: string
           solves_used: number
-          text_solves_used: number
           updated_at: string
           usage_date: string
           user_id: string | null
@@ -680,10 +633,8 @@ export type Database = {
           created_at?: string
           device_id?: string | null
           id?: string
-          image_solves_used?: number
           last_reset_at?: string
           solves_used?: number
-          text_solves_used?: number
           updated_at?: string
           usage_date?: string
           user_id?: string | null
@@ -692,10 +643,8 @@ export type Database = {
           created_at?: string
           device_id?: string | null
           id?: string
-          image_solves_used?: number
           last_reset_at?: string
           solves_used?: number
-          text_solves_used?: number
           updated_at?: string
           usage_date?: string
           user_id?: string | null

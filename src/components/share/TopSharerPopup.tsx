@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useCommunityGoalReached } from "@/hooks/useCommunityGoalReached";
 
 const TOP_SHARER_THRESHOLD = 50; // Confirmed likes threshold
 const POPUP_COOLDOWN_KEY = "top_sharer_popup_dismissed";
@@ -16,10 +15,9 @@ export const TopSharerPopup = () => {
   const navigate = useNavigate();
   const [show, setShow] = useState(false);
   const [totalLikes, setTotalLikes] = useState(0);
-  const goalReached = useCommunityGoalReached();
 
   useEffect(() => {
-    if (!user || !goalReached) return;
+    if (!user) return;
 
     // Check cooldown
     const lastDismissed = localStorage.getItem(POPUP_COOLDOWN_KEY);
