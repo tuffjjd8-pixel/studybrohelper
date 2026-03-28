@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Settings, BarChart3, Activity, Shield } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -20,7 +21,8 @@ type ToggleKey =
   | "sync_enabled"
   | "enable_reward_screen"
   | "enable_progress_bar"
-  | "participate_in_community_goal";
+  | "participate_in_community_goal"
+  ;
 
 const TOGGLE_DEFS: { key: ToggleKey; label: string }[] = [
   { key: "reward_claiming_enabled", label: "Enable Reward Claiming" },
@@ -43,6 +45,7 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
     participate_in_community_goal: true,
   });
   const [savingToggle, setSavingToggle] = useState<string | null>(null);
+  
   const [isResetting, setIsResetting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -55,6 +58,7 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
   }, [isAdmin]);
 
   const fetchAllSettings = async () => {
+    console.log("[Admin] Loading all settings...");
     try {
       const { data, error } = await supabase
         .from("app_settings")
@@ -63,6 +67,7 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
       if (error) throw error;
 
       const newToggles = { ...toggles };
+
       data?.forEach((row) => {
         if (row.key in newToggles) {
           newToggles[row.key as ToggleKey] = row.value === "true";
@@ -70,6 +75,8 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
       });
 
       setToggles(newToggles);
+      
+      console.log("[Admin] Settings loaded successfully", { toggles: newToggles });
     } catch (error) {
       console.error("[Admin] Failed to load settings:", error);
     } finally {
@@ -78,7 +85,9 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
   };
 
   const handleToggleChange = async (key: ToggleKey, checked: boolean) => {
+    console.log(`[Admin] Toggle clicked: ${key} → ${checked}`);
     setSavingToggle(key);
+
     try {
       const { error } = await supabase
         .from("app_settings")
@@ -86,7 +95,9 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         .eq("key", key);
 
       if (error) throw error;
+
       setToggles((prev) => ({ ...prev, [key]: checked }));
+      console.log(`[Admin] Toggle saved: ${key} = ${checked}`);
       toast.success(`${TOGGLE_DEFS.find((t) => t.key === key)?.label} ${checked ? "enabled" : "disabled"}`);
     } catch (error) {
       console.error(`[Admin] Toggle save failed: ${key}`, error);
@@ -97,7 +108,9 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
   };
 
   const handleResetCommunityGoal = async () => {
+    console.log("[Admin] Resetting community goal...");
     setIsResetting(true);
+
     try {
       const { error } = await supabase
         .from("community_goal_content")
@@ -105,7 +118,9 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         .neq("id", "00000000-0000-0000-0000-000000000000");
 
       if (error) throw error;
+
       localStorage.removeItem("community_goal_cache");
+      console.log("[Admin] Community goal reset successfully");
       toast.success("Community goal reset to 0");
     } catch (error) {
       console.error("[Admin] Community goal reset failed:", error);
@@ -116,11 +131,14 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
   };
 
   const handleSyncNow = async () => {
+    console.log("[Admin] Syncing community goal data...");
     setIsSyncing(true);
+
     try {
       localStorage.removeItem("community_goal_cache");
       localStorage.removeItem("community_goal_flags");
       await fetchAllSettings();
+      console.log("[Admin] Sync completed successfully");
       toast.success("Sync completed — data refreshed");
     } catch (error) {
       console.error("[Admin] Sync failed:", error);
@@ -130,7 +148,9 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
     }
   };
 
-  if (!isAdmin) return null;
+  if (!isAdmin) {
+    return null;
+  }
 
   return (
     <motion.div
@@ -139,6 +159,7 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
       transition={{ delay: 0.55 }}
       className="space-y-4"
     >
+      {/* Admin Section Header */}
       <div className="flex items-center gap-2 text-primary">
         <Settings className="w-5 h-5" />
         <h3 className="font-heading font-bold text-lg">Admin Controls</h3>
@@ -159,8 +180,10 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         ))}
       </div>
 
+      {/* Community Goal Editor */}
       <CommunityGoalEditor userEmail={userEmail} />
 
+      {/* Usage & Cost Dashboard */}
       <Button
         variant="outline"
         onClick={() => navigate("/admin/usage")}
@@ -170,6 +193,7 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         Usage & Cost Dashboard
       </Button>
 
+      {/* Poll Management Button */}
       <Button
         variant="outline"
         onClick={() => navigate("/polls")}
@@ -179,6 +203,7 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         Manage Polls
       </Button>
 
+      {/* Security Events Log */}
       <Button
         variant="outline"
         onClick={() => navigate("/admin/security-events")}
@@ -188,6 +213,7 @@ export const AdminSettings = ({ userEmail }: AdminSettingsProps) => {
         🛡 Security Events Log
       </Button>
 
+      {/* Settings Button */}
       <Button
         variant="outline"
         onClick={() => navigate("/settings")}
