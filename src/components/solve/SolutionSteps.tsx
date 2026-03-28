@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
 import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider";
 import { useNavigate } from "react-router-dom";
+import { DeepModeReveal, type DeepModeTextColor } from "@/components/solve/DeepModeReveal";
+import { preprocessMath } from "@/lib/mathPreprocess";
 
 interface SolutionStepsProps {
   subject: string;
@@ -25,6 +27,9 @@ interface SolutionStepsProps {
   isHistory?: boolean;
   followUpCount?: number;
   maxFollowUps?: number;
+  isDeepMode?: boolean;
+  deepTextColor?: DeepModeTextColor;
+  isAuthenticated?: boolean;
 }
 
 const subjectIcons: Record<string, React.ReactNode> = {
@@ -43,7 +48,7 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2 }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, deepTextColor = "gold", isAuthenticated = false }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -51,11 +56,12 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const [displayedSolution, setDisplayedSolution] = useState(solution);
   const [localFollowUpCount, setLocalFollowUpCount] = useState(followUpCount);
   const [humanizeStrength, setHumanizeStrength] = useState<HumanizeStrength>("auto");
-  const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium });
+  const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
+  const [humanizeUsed, setHumanizeUsed] = useState(false);
   const navigate = useNavigate();
 
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
-  const showFollowUp = !isHistory || isPremium;
+  const showFollowUp = !isHistory;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(solution);
@@ -81,6 +87,11 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
   const handleFollowUpSubmit = async () => {
     if (!followUpText.trim() || isAsking) return;
+    // Auth guard: require sign-in for AI features
+    if (!solveId) {
+      toast.error("Please sign in to use AI features.");
+      return;
+    }
     if (followUpLimitReached) {
       toast.error("Follow-up limit reached. Upgrade to Pro for unlimited!");
       return;
@@ -88,6 +99,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
     setIsAsking(true);
     try {
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(undefined);
       const { data, error } = await supabase.functions.invoke("follow-up-chat", {
         body: {
           solveId,
@@ -100,6 +113,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           history: followUpResponse ? [
             { role: "assistant", content: followUpResponse }
           ] : [],
+          answerLanguage,
         },
       });
 
@@ -125,9 +139,14 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       });
       return;
     }
+    if (humanizeUsed) {
+      toast.info("Humanize can only be used once per answer.");
+      return;
+    }
     const result = await humanize(displayedSolution, subject, humanizeStrength);
     if (result) {
       setDisplayedSolution(result);
+      setHumanizeUsed(true);
       toast.success("Answer humanized! ✨");
     }
   };
@@ -174,7 +193,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ duration: 0.15 }}
         className="glass-card p-6 neon-border"
       >
         <div className="flex items-center justify-between mb-4">
@@ -200,62 +219,91 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </Button>
           </div>
         </div>
-        <div className="prose prose-invert prose-sm max-w-none math-solution">
-          <ReactMarkdown
-            remarkPlugins={[remarkMath]}
-            rehypePlugins={[rehypeKatex]}
-            components={{
-              h1: ({ children }) => <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>,
-              h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>,
-              h3: ({ children }) => <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>,
-              p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
-              ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-foreground/90">{children}</ul>,
-              ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-foreground/90">{children}</ol>,
-              li: ({ children }) => <li className="text-foreground/90">{children}</li>,
-              strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
-              em: ({ children }) => <em className="text-secondary italic">{children}</em>,
-              code: ({ children }) => (
-                <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">
-                  {children}
-                </code>
-              ),
-              pre: ({ children }) => (
-                <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-3">
-                  {children}
-                </pre>
-              ),
-              table: ({ children }) => (
-                <div className="overflow-x-auto my-4">
-                  <table className="min-w-full border border-border rounded-lg">
+      {isDeepMode ? (
+          <div className={`deep-text-${deepTextColor}`}>
+            {isHistory ? (
+              <div className="prose prose-invert prose-sm max-w-none math-solution">
+                <ReactMarkdown
+                  remarkPlugins={[remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    h1: ({ children }) => <h1 className="text-xl font-bold mb-3 inherit-color">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-lg font-semibold mb-2 mt-4 inherit-color">{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-base font-medium mb-2 mt-3 inherit-color">{children}</h3>,
+                    p: ({ children }) => <p className="mb-3 leading-relaxed inherit-color">{children}</p>,
+                    strong: ({ children }) => <strong className="font-bold inherit-color">{children}</strong>,
+                    em: ({ children }) => <em className="italic inherit-color">{children}</em>,
+                    code: ({ children }) => <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono inherit-color">{children}</code>,
+                  }}
+                >
+                  {preprocessMath(displayedSolution)}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <DeepModeReveal
+                content={displayedSolution}
+                textColor={deepTextColor}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="prose prose-invert prose-sm max-w-none math-solution">
+            <ReactMarkdown
+              remarkPlugins={[remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              components={{
+                h1: ({ children }) => <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>,
+                h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>,
+                h3: ({ children }) => <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>,
+                p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
+                ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-foreground/90">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-foreground/90">{children}</ol>,
+                li: ({ children }) => <li className="text-foreground/90">{children}</li>,
+                strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
+                em: ({ children }) => <em className="text-secondary italic">{children}</em>,
+                code: ({ children }) => (
+                  <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">
                     {children}
-                  </table>
-                </div>
-              ),
-              thead: ({ children }) => (
-                <thead className="bg-primary/10">{children}</thead>
-              ),
-              th: ({ children }) => (
-                <th className="px-4 py-2 text-left font-semibold text-foreground border-b border-border">
-                  {children}
-                </th>
-              ),
-              td: ({ children }) => (
-                <td className="px-4 py-2 text-foreground/90 border-b border-border/50">
-                  {children}
-                </td>
-              ),
-            }}
-          >
-            {displayedSolution}
-          </ReactMarkdown>
-        </div>
+                  </code>
+                ),
+                pre: ({ children }) => (
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-3">
+                    {children}
+                  </pre>
+                ),
+                table: ({ children }) => (
+                  <div className="overflow-x-auto my-4">
+                    <table className="min-w-full border border-border rounded-lg">
+                      {children}
+                    </table>
+                  </div>
+                ),
+                thead: ({ children }) => (
+                  <thead className="bg-primary/10">{children}</thead>
+                ),
+                th: ({ children }) => (
+                  <th className="px-4 py-2 text-left font-semibold text-foreground border-b border-border">
+                    {children}
+                  </th>
+                ),
+                td: ({ children }) => (
+                  <td className="px-4 py-2 text-foreground/90 border-b border-border/50">
+                    {children}
+                  </td>
+                ),
+              }}
+            >
+              {preprocessMath(displayedSolution)}
+            </ReactMarkdown>
+          </div>
+        )}
 
         {/* Humanize section */}
         {!isHistory || isPremium ? (
           <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
-                {isHumanized ? (
+                {isHumanized || humanizeUsed ? (
                   <span className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary bg-secondary/10 px-3 py-1.5 rounded-full">
                     <Sparkles className="w-3 h-3" />
                     Humanized ✨
@@ -281,7 +329,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                   </Button>
                 )}
               </div>
-              {!isHumanized && (
+              {!isHumanized && !humanizeUsed && (
                 <HumanizeStrengthSlider
                   value={humanizeStrength}
                   onChange={setHumanizeStrength}
@@ -313,7 +361,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                 strong: ({ children }) => <strong className="font-bold text-secondary">{children}</strong>,
               }}
             >
-              {followUpResponse}
+              {preprocessMath(followUpResponse)}
             </ReactMarkdown>
           </div>
         </motion.div>
@@ -385,19 +433,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         </motion.div>
       )}
 
-      {/* History: no follow-ups for free users */}
-      {isHistory && !isPremium && (
-        <div className="glass-card p-4 text-center">
-          <Lock className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-          <p className="text-xs text-muted-foreground">
-            Follow-ups and humanize are not available in history for free users.
-          </p>
-          <span className="text-xs text-primary flex items-center justify-center gap-1 mt-1">
-            <Crown className="w-3 h-3" />
-            Upgrade to Pro for full access
-          </span>
-        </div>
-      )}
 
     </motion.div>
   );

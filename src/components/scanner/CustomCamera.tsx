@@ -1,29 +1,63 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Zap, ZapOff, ImageIcon } from "lucide-react";
+import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen } from "lucide-react";
 import { fileToOptimizedDataUrl } from "@/lib/image";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+
+export type CameraSolveMode = "instant" | "deep";
+
+export interface CameraCaptureResult {
+  images: string[];
+  mode: CameraSolveMode;
+}
 
 interface CustomCameraProps {
   isOpen: boolean;
-  onCapture: (imageData: string) => void;
+  onCapture: (result: CameraCaptureResult) => void;
   onClose: () => void;
+  isPremium?: boolean;
 }
 
 // Module-level stream cache so reopening doesn't reinitialize the sensor
 let cachedStream: MediaStream | null = null;
 
-export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) {
+export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: CustomCameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Use refs for perf-sensitive state to avoid layout thrashing
   const isReadyRef = useRef(false);
   const [isReady, setIsReady] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isCapturingRef = useRef(false);
+
+  // Camera mode (instant/deep) — persisted in localStorage
+  const [cameraMode, setCameraMode] = useState<CameraSolveMode>(() => {
+    const saved = localStorage.getItem("camera_solve_mode");
+    return saved === "deep" ? "deep" : "instant";
+  });
+
+  // Keep mode for session
+  const [keepMode, setKeepMode] = useState(() => {
+    const saved = sessionStorage.getItem("keep_camera_mode");
+    return saved === "true";
+  });
+
+
+
+  useEffect(() => {
+    localStorage.setItem("camera_solve_mode", cameraMode);
+  }, [cameraMode]);
+
+  useEffect(() => {
+    sessionStorage.setItem("keep_camera_mode", keepMode ? "true" : "false");
+  }, [keepMode]);
+
+
 
   const stopStream = useCallback((releaseCache = false) => {
     if (videoRef.current) {
@@ -43,7 +77,6 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
     setIsReady(false);
 
     try {
-      // Reuse cached stream if tracks are still live
       let stream = cachedStream;
       if (!stream || stream.getTracks().some((t) => t.readyState === "ended")) {
         if (cachedStream) {
@@ -52,7 +85,6 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
-            // Preview at 720p for fast startup; capture uses full resolution
             width: { ideal: 1280 },
             height: { ideal: 720 },
             frameRate: { ideal: 30 },
@@ -66,13 +98,11 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(() => {});
 
-        // Mark ready as soon as first frame has non-zero dimensions
         const onFrame = () => {
           const v = videoRef.current;
           if (v && v.videoWidth > 0 && v.videoHeight > 0) {
             isReadyRef.current = true;
             setIsReady(true);
-            // Non-blocking torch check
             const track = stream!.getVideoTracks()[0];
             const caps = track.getCapabilities?.() as MediaTrackCapabilities & { torch?: boolean };
             setTorchSupported(caps?.torch === true);
@@ -96,11 +126,9 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
     if (isOpen) {
       startCamera();
     } else {
-      // Don't release the cached stream on close — just detach video
       stopStream(false);
       setTorchEnabled(false);
     }
-    // On unmount, release everything
     return () => stopStream(true);
   }, [isOpen, startCamera, stopStream]);
 
@@ -117,6 +145,12 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
     }
   }, [torchEnabled, torchSupported]);
 
+  const finishCapture = useCallback((imageOrImages: string | string[]) => {
+    const images = Array.isArray(imageOrImages) ? imageOrImages : [imageOrImages];
+    stopStream(false);
+    onCapture({ images, mode: cameraMode });
+  }, [stopStream, onCapture, cameraMode]);
+
   const capturePhoto = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || !isReadyRef.current || isCapturingRef.current) return;
     isCapturingRef.current = true;
@@ -129,7 +163,6 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
         throw new Error("Video not ready");
       }
 
-      // Full resolution capture from the sensor
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
@@ -147,16 +180,15 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
       });
 
       const objectUrl = URL.createObjectURL(blob);
-      // Don't release the cached stream — just detach
-      stopStream(false);
-      onCapture(objectUrl);
+
+      finishCapture(objectUrl);
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
     } finally {
       isCapturingRef.current = false;
     }
-  }, [stopStream, onCapture]);
+  }, [stopStream, finishCapture, cameraMode]);
 
   const handleGalleryPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -165,14 +197,12 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
       const optimized = await fileToOptimizedDataUrl(file, {
         maxDimension: 2048,
         quality: 0.92,
-        // Use jpeg for max compatibility (older Safari, Android WebView)
         mimeType: "image/jpeg",
       });
-      stopStream(false);
-      onCapture(optimized);
+
+      finishCapture(optimized);
     } catch (err) {
       console.error("Gallery error:", err);
-      // Ultimate fallback: just pass the raw file as data URL
       try {
         const reader = new FileReader();
         const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -180,19 +210,21 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
           reader.onerror = reject;
           reader.readAsDataURL(file);
         });
-        stopStream(false);
-        onCapture(dataUrl);
+        finishCapture(dataUrl);
       } catch {
         console.error("Gallery fallback also failed");
       }
     }
     if (e.target) e.target.value = "";
-  }, [stopStream, onCapture]);
+  }, [finishCapture]);
 
   const handleClose = useCallback(() => {
-    stopStream(true); // Release cache on explicit close
+    stopStream(true);
+    if (!keepMode) {
+      setCameraMode("instant");
+    }
     onClose();
-  }, [stopStream, onClose]);
+  }, [stopStream, onClose, keepMode]);
 
   if (!isOpen) return null;
 
@@ -204,9 +236,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 bg-black"
       >
-        {/* Hidden canvas for capture */}
         <canvas ref={canvasRef} className="hidden" />
-        {/* Hidden file input for gallery */}
         <input
           ref={fileInputRef}
           type="file"
@@ -216,7 +246,6 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
           style={{ position: "absolute", top: -9999, left: -9999, opacity: 0 }}
         />
 
-        {/* Full-screen edge-to-edge camera feed */}
         <div className="relative h-full w-full">
           <video
             ref={videoRef}
@@ -280,6 +309,57 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
             )}
           </div>
 
+
+          {/* Controls area above bottom */}
+          <div className="absolute bottom-36 left-0 right-0 px-5 z-20 space-y-3">
+            {/* Solve Mode Selector */}
+            <div className="flex justify-center">
+              <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15">
+                <button
+                  onClick={() => setCameraMode("instant")}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                    cameraMode === "instant"
+                      ? "bg-primary text-primary-foreground shadow-lg"
+                      : "text-white/70 hover:text-white"
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  Instant
+                </button>
+                <button
+                  onClick={() => {
+                    if (!isPremium) {
+                      toast("Upgrade to Pro to unlock Deep Mode", { icon: "👑" });
+                      return;
+                    }
+                    setCameraMode("deep");
+                  }}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                    cameraMode === "deep"
+                      ? "bg-primary text-primary-foreground shadow-lg"
+                      : "text-white/70 hover:text-white"
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  Deep
+                  {!isPremium && <Crown className="w-3 h-3 text-amber-400" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Keep mode toggle */}
+            <div className="flex justify-center">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Switch
+                  checked={keepMode}
+                  onCheckedChange={setKeepMode}
+                  className="scale-75"
+                />
+                <span className="text-xs text-white/60">Keep this mode for this session</span>
+              </label>
+            </div>
+          </div>
+
           {/* Bottom controls */}
           <div
             className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-10 z-10"
@@ -299,9 +379,7 @@ export function CustomCamera({ isOpen, onCapture, onClose }: CustomCameraProps) 
               disabled={!isReady}
               className="relative w-[76px] h-[76px] flex items-center justify-center"
             >
-              {/* Outer ring */}
               <div className="absolute inset-0 rounded-full border-[4px] border-white/90" />
-              {/* Inner button */}
               <div
                 className={`w-[64px] h-[64px] rounded-full transition-all duration-150 ${
                   isReady

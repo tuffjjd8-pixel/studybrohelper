@@ -44,14 +44,37 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Verify caller identity from JWT
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: callerUser }, error: userError } = await userClient.auth.getUser();
+    if (userError || !callerUser) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const verifiedUserId = callerUser.id;
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { userId, email, isResend } = await req.json();
+    const { email, isResend } = await req.json();
 
-    if (!userId || !email) {
+    if (!email) {
       return new Response(
-        JSON.stringify({ error: "Missing userId or email" }),
+        JSON.stringify({ error: "Missing email" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -72,7 +95,7 @@ Deno.serve(async (req) => {
       await supabase
         .from("email_verification_codes")
         .update({ used: true })
-        .eq("user_id", userId)
+        .eq("user_id", verifiedUserId)
         .eq("used", false);
     }
 
@@ -84,7 +107,7 @@ Deno.serve(async (req) => {
     const { error: insertError } = await supabase
       .from("email_verification_codes")
       .insert({
-        user_id: userId,
+        user_id: verifiedUserId,
         email: email,
         code: code,
         expires_at: expiresAt.toISOString(),
@@ -140,7 +163,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Verification email sent to ${email} for user ${userId}`);
+    console.log(`Verification email sent to ${email} for user ${verifiedUserId}`);
 
     return new Response(
       JSON.stringify({ success: true, message: "Verification code sent" }),

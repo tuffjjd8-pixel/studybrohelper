@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Search, Trash2, MessageCircle, BookOpen, Clock, Lock, Crown } from "lucide-react";
+import { Search, Trash2, BookOpen, Clock, Lock, Crown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow, isToday } from "date-fns";
@@ -273,16 +273,10 @@ const History = () => {
                       </pre>
                     </div>
 
-                    <div className="flex gap-3">
-                      <Button variant="outline" size="lg" onClick={() => navigate(`/solve/${selectedSolve.id}`)} className="flex-1 min-h-[48px]">
-                        <BookOpen className="w-4 h-4 mr-2" />
-                        View Full
-                      </Button>
-                      <Button size="lg" onClick={() => navigate(`/chat/${selectedSolve.id}`)} className="flex-1 min-h-[48px]">
-                        <MessageCircle className="w-4 h-4 mr-2" />
-                        Follow Up
-                      </Button>
-                    </div>
+                    <Button variant="outline" size="lg" onClick={() => navigate(`/solve/${selectedSolve.id}`)} className="w-full min-h-[48px]">
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      View Full
+                    </Button>
                   </motion.div> : <div className="sticky top-24 p-8 bg-card/50 rounded-xl border border-dashed border-border text-center">
                     <p className="text-muted-foreground">
                       Select a problem to view details

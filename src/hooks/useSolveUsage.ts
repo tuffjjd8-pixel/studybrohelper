@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-const FREE_SOLVES_PER_DAY = 5;
+const FREE_IMAGE_SOLVES_PER_DAY = 3;
+const FREE_TEXT_SOLVES_PER_DAY = 4;
 
 function getDeviceId(): string {
   let deviceId = localStorage.getItem("studybro_device_id");
@@ -19,15 +20,18 @@ interface SolveUsageState {
   canSolve: boolean;
   isPremium: boolean;
   loading: boolean;
+  imageSolvesUsed: number;
+  textSolvesUsed: number;
+  imageLimit: number;
+  textLimit: number;
 }
 
-// Client-side cache to avoid redundant network calls
 const usageCache: { data: SolveUsageState | null; ts: number; key: string } = {
   data: null,
   ts: 0,
   key: "",
 };
-const CACHE_TTL = 20_000; // 20 seconds
+const CACHE_TTL = 20_000;
 
 export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
   const [state, setState] = useState<SolveUsageState>(() => {
@@ -35,13 +39,16 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
       return {
         solvesUsed: 0,
         solvesRemaining: -1,
-        maxSolves: FREE_SOLVES_PER_DAY,
+        maxSolves: FREE_TEXT_SOLVES_PER_DAY,
         canSolve: true,
         isPremium: true,
         loading: false,
+        imageSolvesUsed: 0,
+        textSolvesUsed: 0,
+        imageLimit: FREE_IMAGE_SOLVES_PER_DAY,
+        textLimit: FREE_TEXT_SOLVES_PER_DAY,
       };
     }
-    // Check client cache for instant hydration
     const deviceId = getDeviceId();
     const cacheKey = userId || deviceId;
     if (usageCache.key === cacheKey && Date.now() - usageCache.ts < CACHE_TTL && usageCache.data) {
@@ -49,32 +56,38 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
     }
     return {
       solvesUsed: 0,
-      solvesRemaining: FREE_SOLVES_PER_DAY,
-      maxSolves: FREE_SOLVES_PER_DAY,
+      solvesRemaining: FREE_TEXT_SOLVES_PER_DAY,
+      maxSolves: FREE_TEXT_SOLVES_PER_DAY,
       canSolve: true,
       isPremium: false,
       loading: true,
+      imageSolvesUsed: 0,
+      textSolvesUsed: 0,
+      imageLimit: FREE_IMAGE_SOLVES_PER_DAY,
+      textLimit: FREE_TEXT_SOLVES_PER_DAY,
     };
   });
 
   const deviceId = getDeviceId();
   const cacheKey = userId || deviceId;
 
-  // Initial check on mount — single "check" call, cached for 20s
   const checkUsage = useCallback(async () => {
     if (isPremium) {
       setState({
         solvesUsed: 0,
         solvesRemaining: -1,
-        maxSolves: FREE_SOLVES_PER_DAY,
+        maxSolves: FREE_TEXT_SOLVES_PER_DAY,
         canSolve: true,
         isPremium: true,
         loading: false,
+        imageSolvesUsed: 0,
+        textSolvesUsed: 0,
+        imageLimit: FREE_IMAGE_SOLVES_PER_DAY,
+        textLimit: FREE_TEXT_SOLVES_PER_DAY,
       });
       return;
     }
 
-    // Check client-side cache
     if (usageCache.key === cacheKey && Date.now() - usageCache.ts < CACHE_TTL && usageCache.data) {
       setState(usageCache.data);
       return;
@@ -86,6 +99,7 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
           action: "check",
           userId: userId || null,
           deviceId: userId ? null : deviceId,
+          solveType: "text",
         },
       });
 
@@ -96,12 +110,16 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
       }
 
       const newState: SolveUsageState = {
-        solvesUsed: data.solvesUsed ?? 0,
-        solvesRemaining: data.solvesRemaining ?? FREE_SOLVES_PER_DAY,
-        maxSolves: data.maxSolves ?? FREE_SOLVES_PER_DAY,
+        solvesUsed: data.textSolvesUsed ?? data.solvesUsed ?? 0,
+        solvesRemaining: data.solvesRemaining ?? FREE_TEXT_SOLVES_PER_DAY,
+        maxSolves: data.maxSolves ?? FREE_TEXT_SOLVES_PER_DAY,
         canSolve: data.canSolve ?? true,
         isPremium: data.isPremium ?? false,
         loading: false,
+        imageSolvesUsed: data.imageSolvesUsed ?? 0,
+        textSolvesUsed: data.textSolvesUsed ?? 0,
+        imageLimit: data.imageLimit ?? FREE_IMAGE_SOLVES_PER_DAY,
+        textLimit: data.textLimit ?? FREE_TEXT_SOLVES_PER_DAY,
       };
       setState(newState);
       usageCache.data = newState;
@@ -113,8 +131,10 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
     }
   }, [userId, deviceId, isPremium, cacheKey]);
 
-  // Atomic check_and_use: single call that checks limits AND deducts in one round-trip
-  const useSolve = useCallback(async (): Promise<boolean> => {
+  /**
+   * @param solveType "image" or "text"
+   */
+  const useSolve = useCallback(async (solveType: "image" | "text" = "text"): Promise<boolean> => {
     if (isPremium) return true;
 
     try {
@@ -123,6 +143,7 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
           action: "check_and_use",
           userId: userId || null,
           deviceId: userId ? null : deviceId,
+          solveType,
         },
       });
 
@@ -135,10 +156,14 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
         const newState: SolveUsageState = {
           solvesUsed: data.solvesUsed ?? 0,
           solvesRemaining: data.solvesRemaining ?? 0,
-          maxSolves: data.maxSolves ?? FREE_SOLVES_PER_DAY,
+          maxSolves: data.maxSolves ?? FREE_TEXT_SOLVES_PER_DAY,
           canSolve: data.canSolve ?? false,
           isPremium: data.isPremium ?? false,
           loading: false,
+          imageSolvesUsed: state.imageSolvesUsed + (solveType === "image" ? 1 : 0),
+          textSolvesUsed: state.textSolvesUsed + (solveType === "text" ? 1 : 0),
+          imageLimit: state.imageLimit,
+          textLimit: state.textLimit,
         };
         setState(newState);
         usageCache.data = newState;
@@ -158,7 +183,7 @@ export function useSolveUsage(userId: string | undefined, isPremium: boolean) {
       console.error("Use solve error:", e);
       return false;
     }
-  }, [userId, deviceId, isPremium, cacheKey]);
+  }, [userId, deviceId, isPremium, cacheKey, state.imageSolvesUsed, state.textSolvesUsed, state.imageLimit, state.textLimit]);
 
   useEffect(() => {
     checkUsage();

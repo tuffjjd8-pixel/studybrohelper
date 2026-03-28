@@ -122,6 +122,11 @@ const Chat = () => {
 
   const handleSend = async (message: string) => {
     if (!message.trim() || !solve) return;
+    // Auth guard: require sign-in for AI features
+    if (!user) {
+      toast.error("Please sign in to use AI features.");
+      return;
+    }
     if (followUpLimitReached) {
       toast.error("Follow-up limit reached. Upgrade to Pro for unlimited!");
       return;
@@ -141,6 +146,8 @@ const Chat = () => {
 
     try {
       // Call AI for response
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(user?.id);
       const { data, error } = await supabase.functions.invoke("follow-up-chat", {
         body: {
           solveId: solve.id,
@@ -151,6 +158,7 @@ const Chat = () => {
             solution: solve.solution_markdown,
           },
           history: messages.map((m) => ({ role: m.role, content: m.content })),
+          answerLanguage,
         },
       });
 

@@ -10,7 +10,6 @@ import VerifyEmail from "./pages/VerifyEmail";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
 import Premium from "./pages/Premium";
-import PremiumSuccess from "./pages/PremiumSuccess";
 import PremiumCancel from "./pages/PremiumCancel";
 import SolveDetail from "./pages/SolveDetail";
 import Chat from "./pages/Chat";
@@ -23,7 +22,12 @@ import AdminUsage from "./pages/AdminUsage";
 import CommunityGoalReward from "./pages/CommunityGoalReward";
 import ShareLikes from "./pages/ShareLikes";
 import AdminShareLikes from "./pages/AdminShareLikes";
+import AdminCommunityGoal from "./pages/AdminCommunityGoal";
+import CommunityGoalSubmissions from "./pages/CommunityGoalSubmissions";
+import ReviewCommunitySubmissions from "./pages/ReviewCommunitySubmissions";
+import SecurityEventsLog from "./pages/SecurityEventsLog";
 import NotFound from "./pages/NotFound";
+import { GlobalBadgeUnlock } from "./components/badges/GlobalBadgeUnlock";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -32,6 +36,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <GlobalBadgeUnlock />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -40,7 +45,6 @@ const App = () => (
             <Route path="/history" element={<History />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/premium" element={<Premium />} />
-            <Route path="/premium/success" element={<PremiumSuccess />} />
             <Route path="/premium/cancel" element={<PremiumCancel />} />
             <Route path="/solve/:id" element={<SolveDetail />} />
             <Route path="/chat/:id" element={<Chat />} />
@@ -53,6 +57,10 @@ const App = () => (
             <Route path="/community-reward" element={<CommunityGoalReward />} />
             <Route path="/share-likes" element={<ShareLikes />} />
             <Route path="/admin/share-likes" element={<AdminShareLikes />} />
+            <Route path="/admin/community-goal" element={<AdminCommunityGoal />} />
+            <Route path="/community-goal-submissions" element={<CommunityGoalSubmissions />} />
+            <Route path="/review-community-submissions" element={<ReviewCommunitySubmissions />} />
+            <Route path="/admin/security-events" element={<SecurityEventsLog />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
