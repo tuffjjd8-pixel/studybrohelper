@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
@@ -13,15 +13,15 @@ import {
   X,
   Zap,
   Target,
-  MessageSquare,
   ArrowLeft,
   Calculator,
   Heart,
   Shield,
   Brain,
-  Loader2 } from
-"lucide-react";
-import { isMobileApp } from "@/lib/mobileDetection";
+  Loader2,
+  RotateCcw,
+} from "lucide-react";
+import { PLAY_PRODUCTS, PlayBillingService, type PlayProduct } from "@/lib/playBilling";
 
 interface ComparisonItem {
   feature: string;
@@ -29,72 +29,39 @@ interface ComparisonItem {
   premium: string | boolean;
 }
 
-type PlanType = "monthly" | "weekend" | "yearly";
-
-interface PlanOption {
-  id: PlanType;
-  name: string;
-  price: number;
-  period: string;
-  description: string;
-  badge?: string;
-  savings?: string;
-}
-
-const PLANS: PlanOption[] = [
-{
-  id: "monthly",
-  name: "Monthly",
-  price: 5.99,
-  period: "/month",
-  description: "Full premium access"
-},
-{
-  id: "yearly",
-  name: "Yearly",
-  price: 40,
-  period: "/year",
-  description: "Best value",
-  badge: "BEST VALUE",
-  savings: "Save $31.88/year"
-}];
-
-
 const COMPARISON: ComparisonItem[] = [
-{ feature: "Instant Mode (Image)", free: "3/day", premium: "300/month" },
-{ feature: "Ask (Text Solves)", free: "4/day", premium: "300/month" },
-{ feature: "Deep Mode", free: "100/month", premium: "Unlimited" },
-{ feature: "Essay Mode", free: "1/day (limited)", premium: "Unlimited (full)" },
-{ feature: "Follow-Ups", free: "1 per solve", premium: "200/month" },
-{ feature: "Humanize", free: false, premium: "80/month" },
-{ feature: "Quiz Generator", free: "1/day (max 10 Qs)", premium: "899/month (max 20 Qs)" },
-{ feature: "Strict Count Mode", free: false, premium: true },
-{ feature: "Enhanced OCR", free: "Basic", premium: "Premium" },
-{ feature: "Priority Speed", free: false, premium: true },
-{ feature: "Ad-Free Experience", free: true, premium: true },
-{ feature: "Full Quiz Review", free: false, premium: true },
-{ feature: "History", free: "Today only", premium: "Unlimited" },
-{ feature: "Language Control", free: "Unlimited", premium: "Unlimited" }];
-
+  { feature: "Instant Mode (Image)", free: "3/day", premium: "300/month" },
+  { feature: "Ask (Text Solves)", free: "4/day", premium: "300/month" },
+  { feature: "Deep Mode", free: "100/month", premium: "Unlimited" },
+  { feature: "Essay Mode", free: "1/day (limited)", premium: "Unlimited (full)" },
+  { feature: "Follow-Ups", free: "1 per solve", premium: "200/month" },
+  { feature: "Humanize", free: false, premium: "80/month" },
+  { feature: "Quiz Generator", free: "1/day (max 10 Qs)", premium: "899/month (max 20 Qs)" },
+  { feature: "Strict Count Mode", free: false, premium: true },
+  { feature: "Enhanced OCR", free: "Basic", premium: "Premium" },
+  { feature: "Priority Speed", free: false, premium: true },
+  { feature: "Ad-Free Experience", free: true, premium: true },
+  { feature: "Full Quiz Review", free: false, premium: true },
+  { feature: "History", free: "Today only", premium: "Unlimited" },
+  { feature: "Language Control", free: "Unlimited", premium: "Unlimited" },
+];
 
 const PREMIUM_BENEFITS = [
-{ icon: Brain, title: "400 Solves/Month", description: "300 Instant + 100 Deep combined" },
-{ icon: Calculator, title: "Scientific Calculator", description: "Advanced reasoning & logic" },
-{ icon: Target, title: "Premium OCR", description: "Enhanced image recognition" },
-{ icon: Zap, title: "Priority Speed", description: "Skip the queue" },
-{ icon: Shield, title: "Ad-Free", description: "Distraction-free learning" }];
-
-
+  { icon: Brain, title: "400 Solves/Month", description: "300 Instant + 100 Deep combined" },
+  { icon: Calculator, title: "Scientific Calculator", description: "Advanced reasoning & logic" },
+  { icon: Target, title: "Premium OCR", description: "Enhanced image recognition" },
+  { icon: Zap, title: "Priority Speed", description: "Skip the queue" },
+  { icon: Shield, title: "Ad-Free", description: "Distraction-free learning" },
+];
 
 const Premium = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSelectingPlan, setIsSelectingPlan] = useState(false);
+  const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [userIsPremium, setUserIsPremium] = useState(false);
 
-  // Check if user is already premium
   useEffect(() => {
     if (!user) return;
     const checkPremium = async () => {
@@ -108,43 +75,7 @@ const Premium = () => {
     checkPremium();
   }, [user]);
 
-
-  // Lock/unlock scroll based on overlay state
-  useEffect(() => {
-    if (isSelectingPlan) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isSelectingPlan]);
-
-  const handleSelectPlanClick = () => {
-    if (!selectedPlan) {
-      toast.error("Please select a plan first");
-      return;
-    }
-    setIsSelectingPlan(true);
-  };
-
-  const handleCancelOverlay = () => {
-    setIsSelectingPlan(false);
-  };
-
-  const handleCheckout = async () => {
-    // GUARD: Prevent Stripe Checkout from running inside mobile apps
-    if (isMobileApp()) {
-      toast.error("Please complete your purchase on our website");
-      return;
-    }
-
-    if (!selectedPlan) {
-      toast.error("Please select a plan");
-      return;
-    }
-
+  const handlePurchase = async (product: PlayProduct) => {
     if (!user) {
       toast.error("Please sign in to continue");
       navigate("/auth");
@@ -152,30 +83,46 @@ const Premium = () => {
     }
 
     setIsLoading(true);
+    setSelectedProduct(product.productId);
 
     try {
-      const { data, error } = await supabase.functions.invoke("createCheckoutSession", {
-        body: { userId: user.id, plan: selectedPlan }
-      });
-
-      if (error) {
-        console.error("Checkout error:", error);
-        toast.error("Failed to create checkout session. Please try again.");
-        return;
-      }
-
-      if (data?.url) {
-        window.location.href = data.url;
+      const success = await PlayBillingService.purchase(product.productId, product.basePlanId);
+      if (success) {
+        toast.success("Purchase successful! Premium activated.");
+        setUserIsPremium(true);
       } else {
-        toast.error("No checkout URL received. Please try again.");
+        toast.info("Purchase flow not available in web preview. Use the Android app to subscribe.");
       }
     } catch (err) {
-      console.error("Checkout exception:", err);
+      console.error("Purchase error:", err);
       toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
+      setSelectedProduct(null);
     }
   };
+
+  const handleRestorePurchases = async () => {
+    setIsRestoringPurchases(true);
+    try {
+      const restored = await PlayBillingService.restorePurchases();
+      if (restored.length > 0) {
+        toast.success("Purchases restored successfully!");
+        setUserIsPremium(true);
+      } else {
+        toast.info("No previous purchases found.");
+      }
+    } catch (err) {
+      console.error("Restore error:", err);
+      toast.error("Failed to restore purchases.");
+    } finally {
+      setIsRestoringPurchases(false);
+    }
+  };
+
+  // Group products for display
+  const subscriptions = PLAY_PRODUCTS.filter((p) => p.type === "subscription");
+  const oneTime = PLAY_PRODUCTS.filter((p) => p.type === "one_time");
 
   return (
     <div className="min-h-screen bg-background">
@@ -186,13 +133,13 @@ const Premium = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-6">
-            
+            className="space-y-6"
+          >
             {/* Back button */}
             <button
               onClick={() => navigate(-1)}
-              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2">
-              
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2"
+            >
               <ArrowLeft className="w-4 h-4" />
               Back
             </button>
@@ -203,8 +150,8 @@ const Premium = () => {
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", bounce: 0.5 }}
-                className="w-20 h-20 rounded-full bg-gradient-to-br from-primary via-secondary to-primary flex items-center justify-center mx-auto mb-4">
-                
+                className="w-20 h-20 rounded-full bg-gradient-to-br from-primary via-secondary to-primary flex items-center justify-center mx-auto mb-4"
+              >
                 <Crown className="w-10 h-10 text-primary-foreground" />
               </motion.div>
               <h1 className="text-3xl font-heading font-bold mb-2">
@@ -223,115 +170,128 @@ const Premium = () => {
                   <span className="font-semibold text-primary">You're already Premium!</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Cancel your current subscription first before purchasing a new plan.
+                  Manage your subscription in the Google Play Store app.
                 </p>
-                <Button variant="outline" size="sm" onClick={() => navigate("/profile")}>
-                  Manage Subscription
-                </Button>
               </div>
             )}
 
-            {/* Plan Selection */}
+            {/* Subscription Plans */}
             <div className={`space-y-3 ${userIsPremium ? "opacity-50 pointer-events-none" : ""}`}>
               <h2 className="font-semibold text-lg text-center">Choose Your Plan</h2>
               <div className="space-y-3">
-                {PLANS.map((plan) => {
-                  const isSelected = selectedPlan === plan.id;
-
-                  return (
-                    <motion.button
-                      key={plan.id}
-                      onClick={() => setSelectedPlan(plan.id)}
-                      whileTap={{ scale: 0.98 }}
-                      className={`w-full p-4 rounded-2xl border-2 transition-all relative overflow-hidden text-left ${
-                      isSelected ?
-                      "border-primary bg-primary/10 shadow-lg" :
-                      "border-border bg-card hover:border-muted-foreground/50"}`
-                      }>
-                      
-                      {/* Badge */}
-                      {plan.badge &&
-                      <div className={`absolute top-3 right-3 px-2 py-0.5 text-xs font-bold rounded-full ${
-                      plan.id === "yearly" ?
-                      "bg-primary text-primary-foreground" :
-                      "bg-secondary text-secondary-foreground animate-pulse"}`
-                      }>
-                          {plan.badge}
-                        </div>
-                      }
-
-                      <div className="flex items-center gap-3">
-                        {/* Selection indicator */}
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                        isSelected ?
-                        "border-primary bg-primary" :
-                        "border-muted-foreground"}`
-                        }>
-                          {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
-                        </div>
-
-                        <div className="flex-1">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-bold">${plan.price.toFixed(2)}</span>
-                            <span className="text-muted-foreground text-sm">{plan.period}</span>
-                          </div>
-                          <div className="font-medium">{plan.name}</div>
-                          <div className="text-xs text-muted-foreground">{plan.description}</div>
-                          {plan.savings &&
-                          <div className="text-xs text-primary font-medium mt-1">{plan.savings}</div>
-                          }
-                        </div>
+                {subscriptions.map((product) => (
+                  <motion.button
+                    key={product.productId}
+                    onClick={() => handlePurchase(product)}
+                    disabled={isLoading}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full p-4 rounded-2xl border-2 transition-all relative overflow-hidden text-left border-border bg-card hover:border-primary/50"
+                  >
+                    {product.productId === "pro_yearly" && (
+                      <div className="absolute top-3 right-3 px-2 py-0.5 text-xs font-bold rounded-full bg-primary text-primary-foreground">
+                        BEST VALUE
                       </div>
-                    </motion.button>);
-
-                })}
+                    )}
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full border-2 border-muted-foreground flex items-center justify-center flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-2xl font-bold">{product.price}</span>
+                          <span className="text-muted-foreground text-sm">
+                            /{product.basePlanId === "weekly" ? "week" : product.basePlanId === "yearly" ? "year" : "month"}
+                          </span>
+                        </div>
+                        <div className="font-medium">{product.title}</div>
+                      </div>
+                      {isLoading && selectedProduct === product.productId && (
+                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                      )}
+                    </div>
+                  </motion.button>
+                ))}
               </div>
+
+              {/* One-time purchase */}
+              {oneTime.map((product) => (
+                <motion.button
+                  key={product.productId}
+                  onClick={() => handlePurchase(product)}
+                  disabled={isLoading}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full p-4 rounded-2xl border-2 transition-all text-left border-border bg-card hover:border-primary/50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full border-2 border-muted-foreground flex items-center justify-center flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold">{product.price}</span>
+                        <span className="text-muted-foreground text-sm">one-time</span>
+                      </div>
+                      <div className="font-medium">{product.title}</div>
+                      <div className="text-xs text-muted-foreground">24 months of Premium access</div>
+                    </div>
+                    {isLoading && selectedProduct === product.productId && (
+                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                    )}
+                  </div>
+                </motion.button>
+              ))}
+
+              {/* Restore Purchases */}
+              <Button
+                variant="outline"
+                onClick={handleRestorePurchases}
+                disabled={isRestoringPurchases}
+                className="w-full gap-2"
+              >
+                {isRestoringPurchases ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-4 h-4" />
+                )}
+                Restore Purchases
+              </Button>
             </div>
 
-            {/* Gauth-style Comparison Table */}
+            {/* Comparison Table */}
             <div className="space-y-3">
               <h2 className="font-semibold text-lg text-center">Free vs Premium</h2>
               <div className="rounded-xl border border-border overflow-hidden">
-                {/* Header */}
                 <div className="grid grid-cols-3 bg-muted/50 p-3 font-medium text-sm">
                   <div>Feature</div>
                   <div className="text-center">Free</div>
                   <div className="text-center text-primary">Premium</div>
                 </div>
-                
-                {/* Rows */}
-                {COMPARISON.map((item, index) =>
-                <div
-                  key={item.feature}
-                  className={`grid grid-cols-3 p-3 text-sm ${
-                  index % 2 === 0 ? "bg-card" : "bg-muted/20"}`
-                  }>
-                  
+                {COMPARISON.map((item, index) => (
+                  <div
+                    key={item.feature}
+                    className={`grid grid-cols-3 p-3 text-sm ${index % 2 === 0 ? "bg-card" : "bg-muted/20"}`}
+                  >
                     <div className="font-medium">{item.feature}</div>
                     <div className="text-center">
-                      {typeof item.free === "boolean" ?
-                    item.free ?
-                    <Check className="w-4 h-4 text-green-500 mx-auto" /> :
-
-                    <X className="w-4 h-4 mx-auto text-green-500" /> :
-
-
-                    <span className="text-muted-foreground">{item.free}</span>
-                    }
+                      {typeof item.free === "boolean" ? (
+                        item.free ? (
+                          <Check className="w-4 h-4 text-green-500 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 mx-auto text-green-500" />
+                        )
+                      ) : (
+                        <span className="text-muted-foreground">{item.free}</span>
+                      )}
                     </div>
                     <div className="text-center">
-                      {typeof item.premium === "boolean" ?
-                    item.premium ?
-                    <Check className="w-4 h-4 text-green-500 mx-auto" /> :
-
-                    <X className="w-4 h-4 text-muted-foreground mx-auto" /> :
-
-
-                    <span className="text-primary font-medium">{item.premium}</span>
-                    }
+                      {typeof item.premium === "boolean" ? (
+                        item.premium ? (
+                          <Check className="w-4 h-4 text-green-500 mx-auto" />
+                        ) : (
+                          <X className="w-4 h-4 text-muted-foreground mx-auto" />
+                        )
+                      ) : (
+                        <span className="text-primary font-medium">{item.premium}</span>
+                      )}
                     </div>
                   </div>
-                )}
+                ))}
               </div>
             </div>
 
@@ -339,21 +299,21 @@ const Premium = () => {
             <div className="space-y-3">
               <h2 className="font-semibold text-lg">Premium Benefits</h2>
               <div className="grid grid-cols-2 gap-3">
-                {PREMIUM_BENEFITS.map((benefit, index) =>
-                <motion.div
-                  key={benefit.title}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="p-3 bg-card rounded-lg border border-border">
-                  
+                {PREMIUM_BENEFITS.map((benefit, index) => (
+                  <motion.div
+                    key={benefit.title}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="p-3 bg-card rounded-lg border border-border"
+                  >
                     <div className="flex items-center gap-2 mb-1">
                       <benefit.icon className="w-4 h-4 text-primary" />
                       <span className="text-sm font-medium">{benefit.title}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">{benefit.description}</p>
                   </motion.div>
-                )}
+                ))}
               </div>
             </div>
 
@@ -369,100 +329,9 @@ const Premium = () => {
         </div>
       </main>
 
-      {/* Sticky CTA - only visible after selecting a plan */}
-      <AnimatePresence>
-        {selectedPlan && !userIsPremium &&
-        <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="fixed bottom-20 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border">
-          
-            <div className="max-w-lg mx-auto">
-              <Button
-              onClick={handleSelectPlanClick}
-              className="w-full h-14 text-lg font-bold gap-2">
-              
-                <Crown className="w-5 h-5" />
-                Select Plan - ${PLANS.find((p) => p.id === selectedPlan)?.price.toFixed(2)}{PLANS.find((p) => p.id === selectedPlan)?.period}
-              </Button>
-            </div>
-          </motion.div>
-        }
-      </AnimatePresence>
-
-      {/* Confirmation Overlay */}
-      <AnimatePresence>
-        {isSelectingPlan &&
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          
-            <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 space-y-6">
-            
-              {/* Crown Icon */}
-              <div className="flex justify-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary via-secondary to-primary flex items-center justify-center">
-                  <Crown className="w-8 h-8 text-primary-foreground" />
-                </div>
-              </div>
-
-              {/* Plan Summary */}
-              <div className="text-center space-y-2">
-                <h2 className="text-xl font-bold">Confirm Your Plan</h2>
-                <p className="text-muted-foreground">
-                  {PLANS.find((p) => p.id === selectedPlan)?.name} - ${PLANS.find((p) => p.id === selectedPlan)?.price.toFixed(2)}{PLANS.find((p) => p.id === selectedPlan)?.period}
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="space-y-3">
-                <Button
-                onClick={handleCheckout}
-                disabled={isLoading}
-                className="w-full h-12 text-base font-bold gap-2">
-                
-                  {isLoading ?
-                <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Creating checkout...
-                    </> :
-
-                <>
-                      <Crown className="w-5 h-5" />
-                      Continue to Checkout
-                    </>
-                }
-                </Button>
-                <Button
-                variant="outline"
-                onClick={handleCancelOverlay}
-                disabled={isLoading}
-                className="w-full h-12 text-base">
-                
-                  Go Back
-                </Button>
-              </div>
-
-              {/* Cancel anytime message */}
-              <p className="text-xs text-muted-foreground text-center">
-                Cancel anytime. No questions asked.
-              </p>
-            </motion.div>
-          </motion.div>
-        }
-      </AnimatePresence>
-
       <BottomNav />
-    </div>);
-
+    </div>
+  );
 };
 
 export default Premium;

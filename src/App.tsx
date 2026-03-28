@@ -10,7 +10,6 @@ import VerifyEmail from "./pages/VerifyEmail";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
 import Premium from "./pages/Premium";
-import PremiumSuccess from "./pages/PremiumSuccess";
 import PremiumCancel from "./pages/PremiumCancel";
 import SolveDetail from "./pages/SolveDetail";
 import Chat from "./pages/Chat";
@@ -46,7 +45,6 @@ const App = () => (
             <Route path="/history" element={<History />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/premium" element={<Premium />} />
-            <Route path="/premium/success" element={<PremiumSuccess />} />
             <Route path="/premium/cancel" element={<PremiumCancel />} />
             <Route path="/solve/:id" element={<SolveDetail />} />
             <Route path="/chat/:id" element={<Chat />} />
