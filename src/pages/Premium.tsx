@@ -62,7 +62,7 @@ const PLANS: PlanOption[] = [
 
 const COMPARISON: ComparisonItem[] = [
   { feature: "Daily Solves", free: "Unlimited", premium: "Unlimited" },
-  { feature: "Solve Flow", free: "5/day", premium: "16/day" },
+  { feature: "Animated Steps", free: "5/day", premium: "16/day" },
   { feature: "Speech to Text", free: false, premium: "15/day" },
   { feature: "AI Model", free: "Standard", premium: "Advanced" },
   { feature: "Enhanced OCR", free: false, premium: true },
@@ -75,7 +75,7 @@ const COMPARISON: ComparisonItem[] = [
 ];
 
 const PREMIUM_BENEFITS = [
-  { icon: Brain, title: "16 Solve Flows/Day", description: "Interactive solver breakdowns" },
+  { icon: Brain, title: "16 Animated Steps/Day", description: "Detailed step-by-step breakdowns" },
   { icon: Calculator, title: "Premium Calculator", description: "Advanced reasoning & logic" },
   { icon: Target, title: "Enhanced Image Solving", description: "Better OCR accuracy" },
   { icon: Zap, title: "Priority Response", description: "Skip the queue" },

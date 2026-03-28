@@ -35,7 +35,7 @@ const PremiumCancel = () => {
         <div className="bg-card border border-border rounded-lg p-4 text-left space-y-2">
           <p className="text-sm font-medium">Still interested in Premium?</p>
           <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• 16 Solve Flows per day</li>
+            <li>• 16 animated steps per day</li>
             <li>• 25 speech-to-text clips daily</li>
             <li>• Advanced AI models</li>
             <li>• Priority support</li>

@@ -9,8 +9,6 @@ import { ToolsScroller } from "@/components/home/ToolsScroller";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
 import { AnimatedSolutionSteps } from "@/components/solve/AnimatedSolutionSteps";
 import { SolveToggles } from "@/components/solve/SolveToggles";
-import { DeepModeEffectPicker } from "@/components/solve/DeepModeEffectPicker";
-import type { DeepModeEffect } from "@/components/solve/DeepModeReveal";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
@@ -18,12 +16,10 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarTrigger } from "@/components/layout/SidebarTrigger";
 import { ScannerModal } from "@/components/scanner/ScannerModal";
 import { TopSharerPopup } from "@/components/share/TopSharerPopup";
-import { CommunityGoalCard } from "@/components/community/CommunityGoalCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
 import { useSolveUsage } from "@/hooks/useSolveUsage";
-import { useBadges } from "@/hooks/useBadges";
 import { toast } from "sonner";
 interface SolutionData {
   subject: string;
@@ -42,6 +38,27 @@ const Index = () => {
     user
   } = useAuth();
 
+  // Custom community goal prompt from admin settings
+  const [customPrompt, setCustomPrompt] = useState<string | null>(null);
+  const [customPromptEnabled, setCustomPromptEnabled] = useState(false);
+
+  useEffect(() => {
+    const fetchPromptSettings = async () => {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("key, value")
+        .in("key", ["enable_custom_community_goal_prompt", "community_goal_prompt"]);
+
+      if (data) {
+        const enabledRow = data.find((r) => r.key === "enable_custom_community_goal_prompt");
+        const promptRow = data.find((r) => r.key === "community_goal_prompt");
+        const enabled = enabledRow?.value === "true";
+        setCustomPromptEnabled(enabled);
+        setCustomPrompt(enabled && promptRow?.value ? promptRow.value : null);
+      }
+    };
+    fetchPromptSettings();
+  }, []);
   const [searchParams] = useSearchParams();
 
   // Capture referral code from URL and store it
@@ -75,20 +92,10 @@ const Index = () => {
   // Pending image state
   const [pendingImage, setPendingImage] = useState<string | null>(null);
 
-  // Community goal participation
-  const [goalParticipation, setGoalParticipation] = useState<boolean | null>(() => {
-    const saved = localStorage.getItem("community_goal_participation");
-    if (saved === null) return null;
-    return saved === "true";
-  });
-
   // Solve toggles - persist in localStorage
-  const [solveFlow, setSolveFlow] = useState(() => {
-    const saved = localStorage.getItem("toggle_solve_flow");
-    if (saved !== null) return JSON.parse(saved);
-    // Migrate from old key
-    const old = localStorage.getItem("toggle_animated_steps");
-    return old !== null ? JSON.parse(old) : true;
+  const [animatedSteps, setAnimatedSteps] = useState(() => {
+    const saved = localStorage.getItem("toggle_animated_steps");
+    return saved !== null ? JSON.parse(saved) : true;
   });
   const [speechInput, setSpeechInput] = useState(() => {
     const saved = localStorage.getItem("toggle_speech_input");
@@ -102,16 +109,11 @@ const Index = () => {
     const saved = localStorage.getItem("solve_mode");
     return (saved === "deep" ? "deep" : "instant");
   });
-  const [deepEffect, setDeepEffect] = useState<DeepModeEffect>(() => {
-    const saved = localStorage.getItem("deep_mode_effect");
-    return (saved as DeepModeEffect) || "neon";
-  });
-  const [showEffectPicker, setShowEffectPicker] = useState(false);
 
   // Persist toggles
   useEffect(() => {
-    localStorage.setItem("toggle_solve_flow", JSON.stringify(solveFlow));
-  }, [solveFlow]);
+    localStorage.setItem("toggle_animated_steps", JSON.stringify(animatedSteps));
+  }, [animatedSteps]);
   useEffect(() => {
     localStorage.setItem("toggle_speech_input", JSON.stringify(speechInput));
   }, [speechInput]);
@@ -121,21 +123,6 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem("solve_mode", solveMode);
   }, [solveMode]);
-  useEffect(() => {
-    localStorage.setItem("deep_mode_effect", deepEffect);
-  }, [deepEffect]);
-
-  // Show effect picker on first Deep Mode toggle
-  const handleSolveModeChange = (mode: "instant" | "deep") => {
-    setSolveMode(mode);
-    if (mode === "deep") {
-      const hasChosen = localStorage.getItem("deep_effect_chosen");
-      if (!hasChosen) {
-        setShowEffectPicker(true);
-        localStorage.setItem("deep_effect_chosen", "true");
-      }
-    }
-  };
   const isPremium = profile?.is_premium || false;
 
   // Persistent solve usage tracking (backend-backed, not localStorage)
@@ -143,7 +130,6 @@ const Index = () => {
 
   // Speech clips hook
   const speechClips = useSpeechClips(user?.id, isPremium);
-  const { refetch: refetchBadges } = useBadges();
 
   // Fetch profile for authenticated users
   useEffect(() => {
@@ -209,7 +195,7 @@ const Index = () => {
           question: input,
           image: imageData,
           isPremium,
-          animatedSteps: solveFlow,
+          animatedSteps,
           generateGraph: false,
           solveMode: isPremium ? solveMode : "instant",
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web"
@@ -223,7 +209,6 @@ const Index = () => {
         // Single combined insert + profile update (fire in parallel)
         const solveTimeSeconds = (Date.now() - startTime) / 1000;
         const isSpeedSolve = solveTimeSeconds <= 120;
-        const isEarlySolve = new Date().getHours() < 8;
         const insertPromise = supabase.from("solves").insert({
           user_id: user.id,
           subject: data.subject || "other",
@@ -239,10 +224,7 @@ const Index = () => {
           last_solve_date: new Date().toISOString().split('T')[0]
         };
         if (isSpeedSolve) {
-          profileUpdates.speed_solves = ((profile as any)?.speed_solves || 0) + 1;
-        }
-        if (isEarlySolve) {
-          profileUpdates.early_solves = ((profile as any)?.early_solves || 0) + 1;
+          profileUpdates.speed_solves = (profile?.total_solves !== undefined ? (profile as any).speed_solves || 0 : 0) + 1;
         }
         const updatePromise = supabase.from("profiles").update(profileUpdates).eq("user_id", user.id);
         const [solveResult, _profileResult] = await Promise.all([insertPromise, updatePromise]);
@@ -260,10 +242,9 @@ const Index = () => {
             } catch (_) {}
           }
 
-          // Refresh recent solves, profile, and badges in background
+          // Refresh recent solves and profile in background (non-blocking)
           fetchRecentSolves();
           fetchProfile();
-          refetchBadges();
         }
       } else {
         solveId = `guest-${Date.now()}`;
@@ -339,7 +320,7 @@ const Index = () => {
   const handleClearPendingImage = () => {
     setPendingImage(null);
   };
-  const showSolveFlow = solveFlow && solution?.steps && solution.steps.length > 0;
+  const showAnimatedSteps = animatedSteps && solution?.steps && solution.steps.length > 0;
   return <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -354,6 +335,17 @@ const Index = () => {
         }} animate={{
           opacity: 1
         }} className="flex flex-col items-center gap-8 py-8">
+              {/* Custom Community Goal Prompt */}
+              {customPromptEnabled && customPrompt && customPrompt.trim() !== "" && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="w-full max-w-md p-3 rounded-xl bg-primary/10 border border-primary/20 text-center"
+                >
+                  <p className="text-sm text-foreground whitespace-pre-wrap break-words">{customPrompt}</p>
+                </motion.div>
+              )}
+
               {/* Hero text */}
               <div className="text-center space-y-2">
                 <motion.h2 initial={{
@@ -378,9 +370,6 @@ const Index = () => {
                 </motion.p>
               </div>
 
-              {/* Community Goal Card - below hero, above camera */}
-              <CommunityGoalCard onParticipationChange={setGoalParticipation} />
-
               {/* Camera button */}
               <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
 
@@ -402,16 +391,7 @@ const Index = () => {
                 </motion.div>}
 
               {/* Solve Toggles */}
-              <SolveToggles solveFlow={solveFlow} onSolveFlowChange={setSolveFlow} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={handleSolveModeChange} />
-
-              {/* Effect Picker - shown when Deep Mode first toggled or user wants to change */}
-              {showEffectPicker && isPremium && solveMode === "deep" && (
-                <DeepModeEffectPicker
-                  selectedEffect={deepEffect}
-                  onSelect={(fx) => setDeepEffect(fx)}
-                  onClose={() => setShowEffectPicker(false)}
-                />
-              )}
+              <SolveToggles animatedSteps={animatedSteps} onAnimatedStepsChange={setAnimatedSteps} isPremium={isPremium} solvesUsed={solveUsage.solvesUsed} maxSolves={solveUsage.maxSolves} canSolve={solveUsage.canSolve} speechInput={speechInput} onSpeechInputChange={setSpeechInput} speechLanguage={speechLanguage} onSpeechLanguageChange={setSpeechLanguage} isAuthenticated={!!user} solveMode={isPremium ? solveMode : "instant"} onSolveModeChange={setSolveMode} />
 
               {/* Divider */}
               <div className="flex items-center gap-4 w-full max-w-md">
@@ -437,8 +417,8 @@ const Index = () => {
                 ← Solve another
               </button>
 
-              {/* Show Solve Flow if enabled and available */}
-              {showSolveFlow ? <div className="space-y-6">
+              {/* Show animated steps if enabled and available */}
+              {showAnimatedSteps ? <div className="space-y-6">
                   {/* Question card */}
                   <div className="glass-card p-4">
                     <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
@@ -448,9 +428,9 @@ const Index = () => {
                     <p className="text-foreground">{solution.question}</p>
                   </div>
 
-                  {/* Solve Flow */}
+                  {/* Animated steps */}
                   <AnimatedSolutionSteps steps={solution.steps!} maxSteps={solution.maxSteps || 16} isPremium={isPremium} autoPlay={false} autoPlayDelay={3000} fullSolution={solution.answer} />
-                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} isDeepMode={isPremium && solveMode === "deep"} deepModeEffect={deepEffect} />}
+                </div> : <SolutionSteps subject={solution.subject} question={solution.question} solution={solution.answer} questionImage={solution.image} solveId={solution.solveId} isPremium={isPremium} />}
 
               {/* Solve usage banner below solution */}
               {!isPremium}

@@ -89,27 +89,6 @@ export type Database = {
         }
         Relationships: []
       }
-      banned_users: {
-        Row: {
-          banned_at: string
-          created_by: string | null
-          id: string
-          user_id: string
-        }
-        Insert: {
-          banned_at?: string
-          created_by?: string | null
-          id?: string
-          user_id: string
-        }
-        Update: {
-          banned_at?: string
-          created_by?: string | null
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       chat_messages: {
         Row: {
           content: string
@@ -145,82 +124,29 @@ export type Database = {
       community_goal_content: {
         Row: {
           body: string
-          current_count: number
           id: string
           image_url: string | null
-          target_count: number
           title: string
           updated_at: string
           visible: boolean
         }
         Insert: {
           body?: string
-          current_count?: number
           id?: string
           image_url?: string | null
-          target_count?: number
           title?: string
           updated_at?: string
           visible?: boolean
         }
         Update: {
           body?: string
-          current_count?: number
           id?: string
           image_url?: string | null
-          target_count?: number
           title?: string
           updated_at?: string
           visible?: boolean
         }
         Relationships: []
-      }
-      community_goal_submissions: {
-        Row: {
-          admin_note: string | null
-          created_at: string
-          disqualified: boolean
-          downloads_count: number
-          goal_id: string
-          id: string
-          reviewed_at: string | null
-          screenshot_urls: string[]
-          status: string
-          user_id: string
-        }
-        Insert: {
-          admin_note?: string | null
-          created_at?: string
-          disqualified?: boolean
-          downloads_count?: number
-          goal_id: string
-          id?: string
-          reviewed_at?: string | null
-          screenshot_urls?: string[]
-          status?: string
-          user_id: string
-        }
-        Update: {
-          admin_note?: string | null
-          created_at?: string
-          disqualified?: boolean
-          downloads_count?: number
-          goal_id?: string
-          id?: string
-          reviewed_at?: string | null
-          screenshot_urls?: string[]
-          status?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "community_goal_submissions_goal_id_fkey"
-            columns: ["goal_id"]
-            isOneToOne: false
-            referencedRelation: "community_goal_content"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       email_verification_codes: {
         Row: {
@@ -433,9 +359,7 @@ export type Database = {
           created_at: string
           daily_solves_used: number
           display_name: string | null
-          early_solves: number | null
           email_verified: boolean
-          equipped_badge: string | null
           graphs_used_today: number | null
           id: string
           is_premium: boolean
@@ -464,9 +388,7 @@ export type Database = {
           created_at?: string
           daily_solves_used?: number
           display_name?: string | null
-          early_solves?: number | null
           email_verified?: boolean
-          equipped_badge?: string | null
           graphs_used_today?: number | null
           id?: string
           is_premium?: boolean
@@ -495,9 +417,7 @@ export type Database = {
           created_at?: string
           daily_solves_used?: number
           display_name?: string | null
-          early_solves?: number | null
           email_verified?: boolean
-          equipped_badge?: string | null
           graphs_used_today?: number | null
           id?: string
           is_premium?: boolean
@@ -546,39 +466,6 @@ export type Database = {
           referred_user_id?: string
           referrer_id?: string
           status?: string
-        }
-        Relationships: []
-      }
-      security_events: {
-        Row: {
-          created_at: string
-          device_id: string | null
-          event_type: string
-          id: string
-          metadata: Json | null
-          severity: string
-          user_id: string | null
-          user_message: string | null
-        }
-        Insert: {
-          created_at?: string
-          device_id?: string | null
-          event_type: string
-          id?: string
-          metadata?: Json | null
-          severity?: string
-          user_id?: string | null
-          user_message?: string | null
-        }
-        Update: {
-          created_at?: string
-          device_id?: string | null
-          event_type?: string
-          id?: string
-          metadata?: Json | null
-          severity?: string
-          user_id?: string | null
-          user_message?: string | null
         }
         Relationships: []
       }
@@ -765,30 +652,6 @@ export type Database = {
         }
         Relationships: []
       }
-      user_limits: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          expires_at: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          expires_at: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          expires_at?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -873,7 +736,6 @@ export type Database = {
         Returns: boolean
       }
       is_poll_admin: { Args: { _user_id: string }; Returns: boolean }
-      is_user_blocked: { Args: { target_user_id: string }; Returns: Json }
       record_poll_view: {
         Args: {
           device_id_param: string

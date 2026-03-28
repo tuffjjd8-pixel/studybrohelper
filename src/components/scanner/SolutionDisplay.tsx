@@ -3,12 +3,8 @@ import { BookOpen, Lightbulb, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { MathRenderer } from "@/components/solve/MathRenderer";
 import { toast } from "sonner";
-import ReactMarkdown from "react-markdown";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
-import { preprocessMath } from "@/lib/mathPreprocess";
 
 interface SolutionDisplayProps {
   extractedQuestion: string;
@@ -185,17 +181,8 @@ export function SolutionDisplay({
           </Button>
         </div>
         <div className="p-4 bg-card/80 backdrop-blur-sm">
-          <div className="prose prose-invert prose-sm max-w-none math-solution">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
-                strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
-              }}
-            >
-              {preprocessMath(solution)}
-            </ReactMarkdown>
+          <div className="math-solution">
+            <MathRenderer content={solution} />
           </div>
         </div>
       </motion.div>

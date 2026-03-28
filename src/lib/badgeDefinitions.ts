@@ -6,7 +6,7 @@ export interface BadgeDefinition {
   description: string;
   icon: string;
   requirement: number;
-  requirementType: 'total_solves' | 'streak' | 'subject_solves' | 'speed_solves' | 'early_solves';
+  requirementType: 'total_solves' | 'streak' | 'subject_solves' | 'speed_solves';
   isPremiumOnly: boolean;
 }
 
@@ -66,16 +66,6 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
     requirement: 5,
     requirementType: 'speed_solves',
     isPremiumOnly: true,
-  },
-  // Early Bird - free badge
-  {
-    key: 'early_bird',
-    name: 'Early Bird',
-    description: 'Solve a problem before 8 AM',
-    icon: '🌅',
-    requirement: 1,
-    requirementType: 'early_solves',
-    isPremiumOnly: false,
   },
 ];
 

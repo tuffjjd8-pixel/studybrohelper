@@ -1,18 +1,18 @@
-import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle, Crown, AlertCircle, Calculator, RefreshCw, Target } from "lucide-react";
+import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle, Crown, AlertCircle, Calculator, RefreshCw } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -56,12 +56,8 @@ const getTopicFromSubject = (subject: string) => {
   return subject.charAt(0).toUpperCase() + subject.slice(1) || "General";
 };
 
-const ADMIN_EMAIL = "apexwavesstudios@gmail.com";
-
 const Quiz = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const recommendedTopic = (location.state as any)?.recommendedTopic as string | undefined;
   const {
     user,
     loading: authLoading
@@ -75,7 +71,6 @@ const Quiz = () => {
   const [showShimmer, setShowShimmer] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [quizResult, setQuizResult] = useState<QuizQuestion[] | null>(null);
-  const [topicInput, setTopicInput] = useState(recommendedTopic || "");
   const [searchQuery, setSearchQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
@@ -149,23 +144,21 @@ const Quiz = () => {
       setLoading(false);
     }
   };
-  const filteredSolves = solves.filter((solve) => solve.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) || solve.subject.toLowerCase().includes(searchQuery.toLowerCase()));
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const filteredSolves = solves.filter(solve => solve.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) || solve.subject.toLowerCase().includes(searchQuery.toLowerCase()));
   const isPremium = profile?.is_premium === true;
-  const hasUnlimitedQuizzes = isPremium || isAdmin;
   const maxQuestions = isPremium ? PREMIUM_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
   const dailyLimit = isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES;
   const quizzesRemaining = dailyLimit - quizzesUsedToday;
-  const canGenerateQuiz = hasUnlimitedQuizzes || quizzesRemaining > 0;
+  const canGenerateQuiz = quizzesRemaining > 0;
   const usagePercent = quizzesUsedToday / dailyLimit * 100;
   const handleGenerate = async () => {
-    if (!selectedSolve && !topicInput.trim()) {
-      toast.error("Please select a conversation or enter a topic");
+    if (!selectedSolve) {
+      toast.error("Please select a conversation first");
       return;
     }
 
-    // Check daily limit (skip for unlimited users)
-    if (!hasUnlimitedQuizzes && !canGenerateQuiz) {
+    // Check daily limit
+    if (!canGenerateQuiz) {
       toast.error("Daily quiz limit reached. Try again tomorrow or upgrade for more.");
       return;
     }
@@ -196,13 +189,7 @@ const Quiz = () => {
     }, 1500);
     try {
       const validCount = Math.min(Math.max(count, 1), maxQuestions);
-
-      // Build context: use selected conversation if available, otherwise use topic
-      const conversationText = selectedSolve ?
-      `Question: ${selectedSolve.question_text || "Image-based question"}\n\nSolution: ${selectedSolve.solution_markdown}` :
-      `Topic: ${topicInput.trim()}\n\nGenerate quiz questions about this topic.`;
-      const subject = selectedSolve?.subject || topicInput.trim();
-
+      const conversationText = `Question: ${selectedSolve.question_text || "Image-based question"}\n\nSolution: ${selectedSolve.solution_markdown}`;
       const {
         data,
         error
@@ -210,7 +197,7 @@ const Quiz = () => {
         body: {
           conversationText,
           questionCount: validCount,
-          subject,
+          subject: selectedSolve.subject,
           strictCountMode: isPremium ? strictCountMode : false
         }
       });
@@ -273,19 +260,19 @@ const Quiz = () => {
     if (submitted) return; // No changes after submission
     // Disable changes after first selection (one answer per question)
     if (selectedAnswers[questionIndex] !== undefined) return;
-    setSelectedAnswers((prev) => ({
+    setSelectedAnswers(prev => ({
       ...prev,
       [questionIndex]: option
     }));
   };
   const handleNextQuestion = () => {
     if (quizResult && currentQuestion < quizResult.length - 1) {
-      setCurrentQuestion((prev) => prev + 1);
+      setCurrentQuestion(prev => prev + 1);
     }
   };
   const handlePrevQuestion = () => {
     if (currentQuestion > 0) {
-      setCurrentQuestion((prev) => prev - 1);
+      setCurrentQuestion(prev => prev - 1);
     }
   };
   const handleSubmit = () => {
@@ -304,9 +291,9 @@ const Quiz = () => {
 
     // Store real quiz results for the Results page
     const quizScore = calculateScore();
-    const topicMap: Record<string, {total: number;correct: number;}> = {};
+    const topicMap: Record<string, { total: number; correct: number }> = {};
     quizResult.forEach((q, idx) => {
-      const topic = getTopicFromSubject(selectedSolve?.subject || topicInput || "General");
+      const topic = getTopicFromSubject(selectedSolve?.subject || "General");
       if (!topicMap[topic]) topicMap[topic] = { total: 0, correct: 0 };
       topicMap[topic].total++;
       const selectedOption = selectedAnswers[idx];
@@ -319,7 +306,7 @@ const Quiz = () => {
       name,
       total: d.total,
       correct: d.correct,
-      pct: Math.round(d.correct / d.total * 100)
+      pct: Math.round((d.correct / d.total) * 100),
     }));
 
     const weakTopics = topicBreakdown.filter((t) => t.pct < 80).map((t) => t.name);
@@ -328,12 +315,12 @@ const Quiz = () => {
       totalQuestions: quizScore.total,
       correctAnswers: quizScore.correct,
       wrongAnswers: quizScore.total - quizScore.correct,
-      scorePercentage: Math.round(quizScore.correct / quizScore.total * 100),
+      scorePercentage: Math.round((quizScore.correct / quizScore.total) * 100),
       weakTopics,
       topicBreakdown,
-      subject: selectedSolve?.subject || topicInput || "General",
-      quizName: selectedSolve?.question_text || topicInput || selectedSolve?.subject || "Quiz",
-      timestamp: Date.now()
+      subject: selectedSolve?.subject || "General",
+      quizName: selectedSolve?.question_text || selectedSolve?.subject || "Quiz",
+      timestamp: Date.now(),
     };
     localStorage.setItem("last_quiz_result", JSON.stringify(quizResultData));
   };
@@ -371,59 +358,24 @@ const Quiz = () => {
     };
   };
   const allQuestionsAnswered = quizResult ? Object.keys(selectedAnswers).length === quizResult.length : false;
-  const [activeTab, setActiveTab] = useState<"practice" | "results">("practice");
-  const ResultsPage = lazy(() => import("@/pages/Results"));
-
   if (authLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>;
   }
   const score = calculateScore();
-
   return <div className="min-h-screen bg-background">
       <Header streak={0} totalSolves={solves.length} />
 
       <main className="pt-20 pb-24 px-4">
         <div className="max-w-2xl mx-auto">
-          {/* Tab Switcher */}
-          <div className="flex gap-2 mb-6">
-            <button
-            onClick={() => setActiveTab("practice")}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === "practice" ?
-            "bg-primary text-primary-foreground shadow-button" :
-            "bg-card border border-border text-muted-foreground hover:text-foreground"}`
-            }>
-            
-              Practice
-            </button>
-            <button
-            onClick={() => setActiveTab("results")}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === "results" ?
-            "bg-primary text-primary-foreground shadow-button" :
-            "bg-card border border-border text-muted-foreground hover:text-foreground"}`
-            }>
-            
-              <Trophy className="w-4 h-4" />
-              Results
-            </button>
-          </div>
-
-          {activeTab === "results" ?
-        <Suspense fallback={<div className="text-center py-12 text-muted-foreground">Loading results...</div>}>
-              <ResultsPage embedded />
-            </Suspense> :
-
-        <>
           <motion.div initial={{
-            opacity: 0,
-            y: 20
-          }} animate={{
-            opacity: 1,
-            y: 0
-          }} className="mb-8">
+          opacity: 0,
+          y: 20
+        }} animate={{
+          opacity: 1,
+          y: 0
+        }} className="mb-8">
             <h1 className="text-2xl font-heading font-bold mb-2 flex items-center gap-2">
               <AIBrainIcon size="lg" glowIntensity="medium" />
               Quiz Generator
@@ -434,87 +386,49 @@ const Quiz = () => {
           </motion.div>
 
           {/* Usage Counter Card */}
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          
+          <motion.div initial={{
+          opacity: 0,
+          y: 20
+        }} animate={{
+          opacity: 1,
+          y: 0
+        }} transition={{
+          delay: 0.05
+        }} className="bg-card border border-border rounded-xl p-4 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Quizzes Remaining</span>
+              <span className="text-sm text-muted-foreground">
+                {quizzesUsedToday}/{dailyLimit} used today
+              </span>
+            </div>
+            <Progress value={usagePercent} className="h-2 mb-2" />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{quizzesRemaining} remaining</span>
+              <span>Resets at midnight</span>
+            </div>
+            
+            {!canGenerateQuiz && <div className="mt-3 p-3 bg-destructive/10 border border-destructive/30 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-destructive" />
+                <span className="text-sm text-destructive">
+                  Daily limit reached. 
+                  {!isPremium && <Link to="/premium" className="ml-1 underline">Upgrade for more</Link>}
+                </span>
+              </div>}
+          </motion.div>
 
           {/* Configuration Card - Hide when quiz is active */}
           {!quizResult && <motion.div initial={{
-            opacity: 0,
-            y: 20
-          }} animate={{
-            opacity: 1,
-            y: 0
-          }} transition={{
-            delay: 0.1
-          }} className="bg-card border border-border rounded-xl p-6 mb-6">
-              {/* Recommended Topic Banner — Admin only */}
-              {isAdmin && recommendedTopic &&
-            <div className="mb-6 p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center gap-3">
-                  <Target className="w-5 h-5 text-primary shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold">Recommended: {recommendedTopic}</p>
-                    <p className="text-xs text-muted-foreground">Based on your weakest quiz performance</p>
-                  </div>
-                </div>
-            }
-
-              {/* Topic Input — Admin only */}
-              {isAdmin &&
-            <div className="space-y-2 mb-6">
-                <Label htmlFor="topicInput">Topic</Label>
-                <Input
-                id="topicInput"
-                placeholder="Enter a topic (e.g. Fractions, Photosynthesis)..."
-                value={topicInput}
-                onChange={(e) => setTopicInput(e.target.value)}
-                className="bg-background" />
-              
-                <p className="text-xs text-muted-foreground">
-                  Enter a topic directly, or select a conversation below for more targeted questions
-                </p>
-              </div>
-            }
-
+          opacity: 0,
+          y: 20
+        }} animate={{
+          opacity: 1,
+          y: 0
+        }} transition={{
+          delay: 0.1
+        }} className="bg-card border border-border rounded-xl p-6 mb-6">
               {/* Conversation Selector */}
               <div className="space-y-2 mb-6">
-                <Label>Select a conversation <span className="text-muted-foreground">(optional)</span></Label>
+                <Label>Select a conversation</Label>
                 <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between text-left font-normal h-auto min-h-11 py-2">
@@ -540,9 +454,9 @@ const Quiz = () => {
                                   Use Solve Homework for equations and calculations.
                                 </p>
                                 <Button size="sm" variant="outline" className="mt-2 h-7 text-xs" onClick={() => {
-                              setOpen(false);
-                              navigate("/");
-                            }}>
+                            setOpen(false);
+                            navigate("/");
+                          }}>
                                   Go to Solve Homework
                                 </Button>
                               </div>
@@ -552,11 +466,11 @@ const Quiz = () => {
                           {loading ? "Loading..." : "No conversations found."}
                         </CommandEmpty>
                         <CommandGroup>
-                          {filteredSolves.map((solve) => <CommandItem key={solve.id} value={solve.id} onSelect={() => {
-                          setSelectedSolve(solve);
-                          setOpen(false);
-                          setSearchQuery("");
-                        }} className="cursor-pointer">
+                          {filteredSolves.map(solve => <CommandItem key={solve.id} value={solve.id} onSelect={() => {
+                        setSelectedSolve(solve);
+                        setOpen(false);
+                        setSearchQuery("");
+                      }} className="cursor-pointer">
                               <Check className={cn("mr-2 h-4 w-4", selectedSolve?.id === solve.id ? "opacity-100" : "opacity-0")} />
                               <div className="flex-1 min-w-0">
                                 <p className="truncate text-sm">
@@ -579,7 +493,7 @@ const Quiz = () => {
                 <Label htmlFor="questionCount">
                   Number of questions <span className="text-muted-foreground">(1-{maxQuestions})</span>
                 </Label>
-                <Input id="questionCount" type="number" min={1} max={maxQuestions} placeholder="5" value={questionCount} onChange={(e) => handleCountChange(e.target.value)} className="bg-background" />
+                <Input id="questionCount" type="number" min={1} max={maxQuestions} placeholder="5" value={questionCount} onChange={e => handleCountChange(e.target.value)} className="bg-background" />
                 <p className="text-xs text-muted-foreground">
                   Leave empty for default (5 questions)
                   {!isPremium && <span className="block mt-1">
@@ -604,13 +518,13 @@ const Quiz = () => {
                     {isPremium ? strictCountMode ? "Always generate the exact number of questions requested" : "Generate only what the conversation supports" : "Force exact question count (Premium only)"}
                   </p>
                 </div>
-                <Switch id="strict-count" checked={isPremium ? strictCountMode : false} onCheckedChange={(checked) => {
-                if (!isPremium) {
-                  toast.error("Strict Count Mode is a Premium feature");
-                  return;
-                }
-                setStrictCountMode(checked);
-              }} disabled={!isPremium} />
+                <Switch id="strict-count" checked={isPremium ? strictCountMode : false} onCheckedChange={checked => {
+              if (!isPremium) {
+                toast.error("Strict Count Mode is a Premium feature");
+                return;
+              }
+              setStrictCountMode(checked);
+            }} disabled={!isPremium} />
               </div>
 
               {/* Premium Upsell */}
@@ -623,12 +537,12 @@ const Quiz = () => {
 
               {/* Generation Error with Retry */}
               {generationError && !generating && <motion.div initial={{
-              opacity: 0,
-              y: -10
-            }} animate={{
-              opacity: 1,
-              y: 0
-            }} className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
+            opacity: 0,
+            y: -10
+          }} animate={{
+            opacity: 1,
+            y: 0
+          }} className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
@@ -644,7 +558,7 @@ const Quiz = () => {
                 </motion.div>}
 
               {/* Generate Button */}
-              <Button onClick={() => handleGenerate()} disabled={!selectedSolve && !topicInput.trim() || generating || !canGenerateQuiz} className="w-full gap-2" variant="neon" size="lg">
+              <Button onClick={() => handleGenerate()} disabled={!selectedSolve || generating || !canGenerateQuiz} className="w-full gap-2" variant="neon" size="lg">
                 {generating ? <>
                     <Loader2 className="w-5 h-5 animate-spin" />
                     Generating...
@@ -664,12 +578,12 @@ const Quiz = () => {
           {/* Score Card - Show after submission */}
           <AnimatePresence>
             {submitted && quizResult && <motion.div initial={{
-              opacity: 0,
-              scale: 0.9
-            }} animate={{
-              opacity: 1,
-              scale: 1
-            }} className="bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30 rounded-xl p-6 mb-6 text-center">
+            opacity: 0,
+            scale: 0.9
+          }} animate={{
+            opacity: 1,
+            scale: 1
+          }} className="bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30 rounded-xl p-6 mb-6 text-center">
                 <Trophy className="w-12 h-12 text-primary mx-auto mb-3" />
                 <h2 className="text-2xl font-heading font-bold mb-2">
                   {score.correct} out of {score.total} correct!
@@ -701,15 +615,15 @@ const Quiz = () => {
           {/* Interactive Quiz UI */}
           <AnimatePresence mode="wait">
             {quizResult && quizResult.length > 0 && !reviewMode && <motion.div key="quiz-ui" initial={{
-              opacity: 0,
-              y: 20
-            }} animate={{
-              opacity: 1,
-              y: 0
-            }} exit={{
-              opacity: 0,
-              y: -20
-            }} className="space-y-6">
+            opacity: 0,
+            y: 20
+          }} animate={{
+            opacity: 1,
+            y: 0
+          }} exit={{
+            opacity: 0,
+            y: -20
+          }} className="space-y-6">
                 {/* Progress indicator */}
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>Question {currentQuestion + 1} of {quizResult.length}</span>
@@ -722,25 +636,25 @@ const Quiz = () => {
                 {/* Progress bar */}
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <motion.div className="h-full bg-primary" initial={{
-                  width: 0
-                }} animate={{
-                  width: `${(currentQuestion + 1) / quizResult.length * 100}%`
-                }} transition={{
-                  duration: 0.3
-                }} />
+                width: 0
+              }} animate={{
+                width: `${(currentQuestion + 1) / quizResult.length * 100}%`
+              }} transition={{
+                duration: 0.3
+              }} />
                 </div>
 
                 {/* Question Card */}
                 <motion.div key={currentQuestion} initial={{
-                opacity: 0,
-                x: 20
-              }} animate={{
-                opacity: 1,
-                x: 0
-              }} exit={{
-                opacity: 0,
-                x: -20
-              }} className="bg-card border border-border rounded-xl p-6">
+              opacity: 0,
+              x: 20
+            }} animate={{
+              opacity: 1,
+              x: 0
+            }} exit={{
+              opacity: 0,
+              x: -20
+            }} className="bg-card border border-border rounded-xl p-6">
                   <h2 className="text-lg font-medium mb-6">
                     {quizResult[currentQuestion].question}
                   </h2>
@@ -748,33 +662,33 @@ const Quiz = () => {
                   {/* Options */}
                   <div className="space-y-3">
                     {quizResult[currentQuestion].options.map((option, idx) => {
-                    const isSelected = selectedAnswers[currentQuestion] === option;
-                    const hasAnswered = selectedAnswers[currentQuestion] !== undefined;
-                    const isCorrect = isCorrectAnswer(currentQuestion, option);
-                    const userSelectedCorrect = hasAnswered && isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]);
-                    const userSelectedWrong = hasAnswered && !userSelectedCorrect;
-                    return <motion.button key={idx} onClick={() => handleSelectOption(currentQuestion, option)} disabled={hasAnswered || submitted} whileHover={!hasAnswered && !submitted ? {
-                      scale: 1.01
-                    } : {}} whileTap={!hasAnswered && !submitted ? {
-                      scale: 0.99
-                    } : {}} className={cn("w-full text-left p-4 rounded-xl border transition-all touch-manipulation",
-                    // After submission: show correct/incorrect
-                    submitted && isCorrect ? "bg-green-500/10 border-green-500 text-foreground" : submitted && isSelected && !isCorrect ? "bg-destructive/10 border-destructive text-foreground"
-                    // During quiz after selection: show if user was correct/wrong
-                    : isSelected && userSelectedCorrect ? "bg-green-500/10 border-green-500 text-foreground" : isSelected && userSelectedWrong ? "bg-destructive/10 border-destructive text-foreground" : isSelected ? "bg-primary/10 border-primary text-foreground" : hasAnswered ? "bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60" : "bg-card border-border hover:border-primary/50 text-foreground", (hasAnswered || submitted) && "cursor-default")}>
+                  const isSelected = selectedAnswers[currentQuestion] === option;
+                  const hasAnswered = selectedAnswers[currentQuestion] !== undefined;
+                  const isCorrect = isCorrectAnswer(currentQuestion, option);
+                  const userSelectedCorrect = hasAnswered && isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]);
+                  const userSelectedWrong = hasAnswered && !userSelectedCorrect;
+                  return <motion.button key={idx} onClick={() => handleSelectOption(currentQuestion, option)} disabled={hasAnswered || submitted} whileHover={!hasAnswered && !submitted ? {
+                    scale: 1.01
+                  } : {}} whileTap={!hasAnswered && !submitted ? {
+                    scale: 0.99
+                  } : {}} className={cn("w-full text-left p-4 rounded-xl border transition-all touch-manipulation",
+                  // After submission: show correct/incorrect
+                  submitted && isCorrect ? "bg-green-500/10 border-green-500 text-foreground" : submitted && isSelected && !isCorrect ? "bg-destructive/10 border-destructive text-foreground"
+                  // During quiz after selection: show if user was correct/wrong
+                  : isSelected && userSelectedCorrect ? "bg-green-500/10 border-green-500 text-foreground" : isSelected && userSelectedWrong ? "bg-destructive/10 border-destructive text-foreground" : isSelected ? "bg-primary/10 border-primary text-foreground" : hasAnswered ? "bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60" : "bg-card border-border hover:border-primary/50 text-foreground", (hasAnswered || submitted) && "cursor-default")}>
                           <span className="font-medium">{option}</span>
                         </motion.button>;
-                  })}
+                })}
                   </div>
 
                   {/* Feedback after selection - Correct answer */}
                   {selectedAnswers[currentQuestion] && isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]) && !submitted && <motion.div initial={{
-                  opacity: 0,
-                  y: 10
-                }} animate={{
-                  opacity: 1,
-                  y: 0
-                }} className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+                opacity: 0,
+                y: 10
+              }} animate={{
+                opacity: 1,
+                y: 0
+              }} className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
                       <p className="text-sm text-green-400 flex items-start gap-2">
                         <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
                         <span className="font-medium">Correct! {quizResult[currentQuestion].explanation}</span>
@@ -783,12 +697,12 @@ const Quiz = () => {
 
                   {/* Feedback after selection - Wrong answer (no correct answer revealed) */}
                   {selectedAnswers[currentQuestion] && !isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]) && !submitted && <motion.div initial={{
-                  opacity: 0,
-                  y: 10
-                }} animate={{
-                  opacity: 1,
-                  y: 0
-                }} className="mt-4 p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
+                opacity: 0,
+                y: 10
+              }} animate={{
+                opacity: 1,
+                y: 0
+              }} className="mt-4 p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
                       <p className="text-sm text-destructive flex items-start gap-2">
                         <XCircle className="w-5 h-5 mt-0.5 shrink-0" />
                         <span className="font-medium">That's not quite right. Think about the key concepts and try to remember the solution steps.</span>
@@ -816,15 +730,15 @@ const Quiz = () => {
 
             {/* Review Mode - Different views for Free vs Premium */}
             {reviewMode && quizResult && <motion.div key="review-mode" initial={{
-              opacity: 0,
-              y: 20
-            }} animate={{
-              opacity: 1,
-              y: 0
-            }} exit={{
-              opacity: 0,
-              y: -20
-            }} className="space-y-6">
+            opacity: 0,
+            y: 20
+          }} animate={{
+            opacity: 1,
+            y: 0
+          }} exit={{
+            opacity: 0,
+            y: -20
+          }} className="space-y-6">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <h2 className="text-lg font-heading font-bold flex items-center gap-2">
                     <Eye className="w-5 h-5 text-primary" />
@@ -838,12 +752,12 @@ const Quiz = () => {
 
                 {/* Premium Upsell Banner for Free Users */}
                 {!isPremium && <motion.div initial={{
-                opacity: 0,
-                y: -10
-              }} animate={{
-                opacity: 1,
-                y: 0
-              }} className="p-4 bg-primary/10 border border-primary/30 rounded-xl">
+              opacity: 0,
+              y: -10
+            }} animate={{
+              opacity: 1,
+              y: 0
+            }} className="p-4 bg-primary/10 border border-primary/30 rounded-xl">
                     <div className="flex items-center gap-3">
                       <Crown className="w-6 h-6 text-primary shrink-0" />
                       <div className="flex-1 min-w-0">
@@ -861,17 +775,17 @@ const Quiz = () => {
                   </motion.div>}
 
                 {quizResult.map((q, idx) => {
-                const userAnswer = selectedAnswers[idx];
-                const isCorrect = userAnswer && isCorrectAnswer(idx, userAnswer);
-                return <motion.div key={idx} initial={{
-                  opacity: 0,
-                  y: 10
-                }} animate={{
-                  opacity: 1,
-                  y: 0
-                }} transition={{
-                  delay: idx * 0.05
-                }} className="bg-card border border-border rounded-xl p-4 sm:p-6 overflow-hidden">
+              const userAnswer = selectedAnswers[idx];
+              const isCorrect = userAnswer && isCorrectAnswer(idx, userAnswer);
+              return <motion.div key={idx} initial={{
+                opacity: 0,
+                y: 10
+              }} animate={{
+                opacity: 1,
+                y: 0
+              }} transition={{
+                delay: idx * 0.05
+              }} className="bg-card border border-border rounded-xl p-4 sm:p-6 overflow-hidden">
                       {/* Question Header */}
                       <div className="flex items-start gap-3 mb-4">
                         <span className="text-sm font-medium text-muted-foreground shrink-0">
@@ -888,18 +802,18 @@ const Quiz = () => {
                       {/* Options - Different view for Free vs Premium */}
                       <div className="space-y-2 mb-4">
                         {isPremium ?
-                    // Premium: Show all options with correct answer highlighted
-                    q.options.map((option, optIdx) => {
-                      const isCorrectOption = getOptionLetter(option) === q.answer;
-                      const isUserSelection = userAnswer === option;
-                      return <div key={optIdx} className={cn("p-3 rounded-xl border text-sm break-words", isCorrectOption ? "bg-green-500/10 border-green-500/50 text-foreground" : isUserSelection ? "bg-destructive/10 border-destructive/50 text-foreground" : "bg-muted/30 border-border text-muted-foreground")}>
+                  // Premium: Show all options with correct answer highlighted
+                  q.options.map((option, optIdx) => {
+                    const isCorrectOption = getOptionLetter(option) === q.answer;
+                    const isUserSelection = userAnswer === option;
+                    return <div key={optIdx} className={cn("p-3 rounded-xl border text-sm break-words", isCorrectOption ? "bg-green-500/10 border-green-500/50 text-foreground" : isUserSelection ? "bg-destructive/10 border-destructive/50 text-foreground" : "bg-muted/30 border-border text-muted-foreground")}>
                                 <span className="break-words">{option}</span>
                                 {isCorrectOption && <span className="ml-2 text-green-500 text-xs font-medium">✓ Correct</span>}
                                 {isUserSelection && !isCorrectOption && <span className="ml-2 text-destructive text-xs font-medium">Your answer</span>}
                               </div>;
-                    }) :
-                    // Free: Only show user's answer without revealing correct one
-                    <div className="space-y-2">
+                  }) :
+                  // Free: Only show user's answer without revealing correct one
+                  <div className="space-y-2">
                             <div className={cn("p-3 rounded-xl border text-sm", isCorrect ? "bg-green-500/10 border-green-500/50" : "bg-destructive/10 border-destructive/50")}>
                               <span className="text-xs text-muted-foreground block mb-1">Your answer:</span>
                               <span className="break-words">{userAnswer || "Not answered"}</span>
@@ -926,16 +840,16 @@ const Quiz = () => {
                           </span>
                         </div>}
                     </motion.div>;
-              })}
+            })}
 
                 {/* Bottom CTA for Free Users */}
                 {!isPremium && <motion.div initial={{
-                opacity: 0
-              }} animate={{
-                opacity: 1
-              }} transition={{
-                delay: 0.3
-              }} className="text-center py-4">
+              opacity: 0
+            }} animate={{
+              opacity: 1
+            }} transition={{
+              delay: 0.3
+            }} className="text-center py-4">
                     <Link to="/premium">
                       <Button variant="neon" size="lg" className="gap-2">
                         <Crown className="w-5 h-5" />
@@ -948,17 +862,15 @@ const Quiz = () => {
 
           {/* Empty State */}
           {!quizResult && !generating && solves.length === 0 && <motion.div initial={{
-            opacity: 0
-          }} animate={{
-            opacity: 1
-          }} className="text-center py-12">
+          opacity: 0
+        }} animate={{
+          opacity: 1
+        }} className="text-center py-12">
               <div className="text-5xl mb-4">📚</div>
               <p className="text-muted-foreground">
                 No solved problems yet. Solve some homework first!
               </p>
             </motion.div>}
-        </>
-        }
         </div>
       </main>
 

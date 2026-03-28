@@ -23,11 +23,7 @@ import AdminUsage from "./pages/AdminUsage";
 import CommunityGoalReward from "./pages/CommunityGoalReward";
 import ShareLikes from "./pages/ShareLikes";
 import AdminShareLikes from "./pages/AdminShareLikes";
-import AdminCommunityGoal from "./pages/AdminCommunityGoal";
-import CommunityGoalSubmissions from "./pages/CommunityGoalSubmissions";
-import SecurityEventsLog from "./pages/SecurityEventsLog";
 import NotFound from "./pages/NotFound";
-import { GlobalBadgeUnlock } from "./components/badges/GlobalBadgeUnlock";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -36,7 +32,6 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <GlobalBadgeUnlock />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -58,9 +53,6 @@ const App = () => (
             <Route path="/community-reward" element={<CommunityGoalReward />} />
             <Route path="/share-likes" element={<ShareLikes />} />
             <Route path="/admin/share-likes" element={<AdminShareLikes />} />
-            <Route path="/admin/community-goal" element={<AdminCommunityGoal />} />
-            <Route path="/community-goal-submissions" element={<CommunityGoalSubmissions />} />
-            <Route path="/admin/security-events" element={<SecurityEventsLog />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

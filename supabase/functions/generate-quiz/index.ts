@@ -62,14 +62,6 @@ function sanitizeQuizOutput(questions: any[]): any[] {
   }).filter(q => q.question && q.options.length === 4);
 }
 
-// Fix LaTeX backslashes that break JSON parsing
-// \( \) \frac \sqrt \pm \cdot \theta etc. are invalid JSON escapes
-function fixLatexInJSON(raw: string): string {
-  // Replace backslash followed by characters that are NOT valid JSON escapes (n, t, r, ", \\, /, b, f, u)
-  // This turns \( into \\( , \frac into \\frac, etc., making them valid JSON strings
-  return raw.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
-}
-
 // Parse JSON with multiple fallback strategies
 function parseQuizJSON(content: string): any {
   let cleanContent = content.trim();
@@ -89,44 +81,36 @@ function parseQuizJSON(content: string): any {
   try {
     return JSON.parse(cleanContent);
   } catch (e) {
-    console.log("Direct parse failed, trying LaTeX fix...");
+    console.log("Direct parse failed, trying fallbacks...");
   }
 
-  // Strategy 3: Fix LaTeX backslashes then parse
-  const latexFixed = fixLatexInJSON(cleanContent);
-  try {
-    return JSON.parse(latexFixed);
-  } catch (e) {
-    console.log("LaTeX-fixed parse failed, trying pattern extraction...");
-  }
-
-  // Strategy 4: Find JSON object pattern + LaTeX fix
+  // Strategy 3: Find JSON object pattern
   const jsonObjectMatch = cleanContent.match(/\{[\s\S]*\}/);
   if (jsonObjectMatch) {
     try {
-      return JSON.parse(fixLatexInJSON(jsonObjectMatch[0]));
+      return JSON.parse(jsonObjectMatch[0]);
     } catch (e) {
       console.log("Object pattern parse failed");
     }
   }
 
-  // Strategy 5: Find JSON array pattern + LaTeX fix
+  // Strategy 4: Find JSON array pattern
   const jsonArrayMatch = cleanContent.match(/\[[\s\S]*\]/);
   if (jsonArrayMatch) {
     try {
-      const arr = JSON.parse(fixLatexInJSON(jsonArrayMatch[0]));
+      const arr = JSON.parse(jsonArrayMatch[0]);
       return { questions: arr };
     } catch (e) {
       console.log("Array pattern parse failed");
     }
   }
 
-  // Strategy 6: Fix common JSON issues
-  let fixedContent = latexFixed
-    .replace(/,\s*}/g, '}')
-    .replace(/,\s*\]/g, ']')
-    .replace(/'/g, '"')
-    .replace(/(\w+):/g, '"$1":');
+  // Strategy 5: Fix common JSON issues
+  let fixedContent = cleanContent
+    .replace(/,\s*}/g, '}')  // Remove trailing commas in objects
+    .replace(/,\s*\]/g, ']') // Remove trailing commas in arrays
+    .replace(/'/g, '"')       // Replace single quotes with double
+    .replace(/(\w+):/g, '"$1":'); // Add quotes to unquoted keys
   
   try {
     return JSON.parse(fixedContent);
@@ -284,37 +268,27 @@ serve(async (req) => {
     // Import key rotation
     const { callGroqWithRotation } = await import("../_shared/groq-key-manager.ts");
 
-    const systemPrompt = `You are the Quiz Generator for StudyBro. Your ONLY job is to ALWAYS generate a valid quiz. Never refuse, never apologize, never output broken LaTeX.
+    const systemPrompt = `You are a quiz generator. Your ONLY job is to produce clean, valid JSON quizzes.
 
-OUTPUT RULES:
-- Output ONLY valid JSON. No markdown fences. No explanations outside the JSON.
-- Never include backslashes outside LaTeX math mode.
-- All fields MUST be present. No null, undefined, or empty fields.
-- The JSON MUST be valid and parseable on the first try.
+STRICT RULES:
+1. Generate EXACTLY ${validCount} multiple-choice questions based on the provided content.
+2. Questions may include math symbols (λ, Δx, hf, etc.) ONLY if they render cleanly. If a symbol cannot be rendered correctly, replace it with word form (lambda, delta x, h f). NEVER output broken LaTeX or half-rendered math.
+3. Difficulty context: ${subject || "general"}
+4. Include ONLY short explanations (1-2 sentences max). NO step-by-step solutions.
+5. Return ONLY the JSON object. NO extra text before or after.
+6. NO markdown formatting.
+7. NO LaTeX formatting ($, \\, ^, _, {}).
+8. All fields MUST be present. No missing keys. No null values.
+9. The JSON MUST be valid and parseable on the first try.
+10. Each question MUST have EXACTLY 4 options labeled A), B), C), D).
+11. correctOptionIndex MUST be 0, 1, 2, or 3 (corresponding to A, B, C, D).
+${effectiveStrictMode ? `12. STRICT COUNT MODE: You MUST generate exactly ${validCount} questions. If the content is limited, expand using well-known, factual information related to the topic. Do NOT invent fake facts.` : `12. ADAPTIVE MODE: Target ${validCount} questions, but generate FEWER if content is too limited. Do NOT hallucinate.`}
 
-QUIZ FORMAT:
-Generate EXACTLY ${validCount} questions. Difficulty context: ${subject || "general"}.
-${effectiveStrictMode ? `STRICT COUNT MODE: You MUST generate exactly ${validCount} questions. If content is limited, expand using well-known factual information related to the topic.` : `ADAPTIVE MODE: Target ${validCount} questions, but generate FEWER if content is too limited. Do NOT hallucinate.`}
-
-REQUIRED JSON STRUCTURE:
+REQUIRED JSON STRUCTURE (return EXACTLY this format):
 {"questions":[{"question":"string","options":["A) option","B) option","C) option","D) option"],"correctOptionIndex":0,"explanation":"short explanation"}]}
 
-- correctOptionIndex MUST be 0, 1, 2, or 3 (A, B, C, D).
-- Each question MUST have EXACTLY 4 options with A), B), C), D) prefixes.
-
-LATEX RULES (KaTeX-SAFE):
-- Use LaTeX ONLY inside inline math delimiters: \\( ... \\)
-- Use KaTeX-safe syntax only: \\frac, \\sqrt, ^, _, parentheses.
-- Do NOT use \\begin{align}, \\begin{cases}, \\text{}, or any environments.
-- For vectors, matrices, or unsupported symbols, use words instead.
-- If a symbol is risky, replace it with a word (e.g., "theta" instead of \\theta).
-- Never generate multi-line LaTeX.
-
-CONTENT RULES:
-- Questions must be clear, grade-appropriate, and solvable.
-- Explanations must be short (1-2 sentences), student-friendly, LaTeX only when needed.
-- If the user input is unclear, generate a normal math quiz anyway.
-- If the topic is missing, choose a reasonable math topic.
+- correctOptionIndex is 0 for A, 1 for B, 2 for C, 3 for D
+- options must have exactly 4 items with A), B), C), D) prefixes
 - Return ONLY the JSON object, nothing else.`;
 
     // Use fallback-enabled call
