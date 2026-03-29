@@ -8,7 +8,6 @@ import { ChevronRight, ChevronLeft, Play, Pause, SkipForward, CheckCircle2, Part
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ConfettiCelebration } from "@/components/layout/ConfettiCelebration";
-import { preprocessMath } from "@/lib/mathPreprocess";
 
 interface Step {
   title: string;
@@ -39,76 +38,28 @@ export function AnimatedSolutionSteps({
   const [displayedContent, setDisplayedContent] = useState("");
   const [isFinished, setIsFinished] = useState(false);
   const [showFinishConfetti, setShowFinishConfetti] = useState(false);
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   const totalSteps = Math.min(steps.length, maxSteps);
   const progress = ((currentStep + 1) / totalSteps) * 100;
   const isLastStep = currentStep === totalSteps - 1;
 
-  // Typewriter effect for current step — LaTeX-aware chunking
+  // Typewriter effect for current step
   useEffect(() => {
     if (!steps[currentStep]) return;
     
     const content = steps[currentStep].content;
-
-    // If this step was already fully animated, show instantly
-    if (completedSteps.has(currentStep)) {
-      setDisplayedContent(content);
-      setIsTypewriting(false);
-      return;
-    }
-
     setDisplayedContent("");
     setIsTypewriting(true);
 
-    // Pre-compute safe slice points: never break inside $$...$$ or \(...\)
-    const safePoints: number[] = [0];
-    let i = 0;
-    while (i < content.length) {
-      // Skip over $$...$$ blocks
-      if (content[i] === '$' && content[i + 1] === '$') {
-        const end = content.indexOf('$$', i + 2);
-        i = end !== -1 ? end + 2 : content.length;
-        safePoints.push(i);
-        continue;
-      }
-      // Skip over \[...\] display math blocks
-      if (content[i] === '\\' && content[i + 1] === '[') {
-        const end = content.indexOf('\\]', i + 2);
-        i = end !== -1 ? end + 2 : content.length;
-        safePoints.push(i);
-        continue;
-      }
-      // Skip over \(...\) inline math blocks
-      if (content[i] === '\\' && content[i + 1] === '(') {
-        const end = content.indexOf('\\)', i + 2);
-        i = end !== -1 ? end + 2 : content.length;
-        safePoints.push(i);
-        continue;
-      }
-      // Skip over $...$ inline blocks
-      if (content[i] === '$' && i > 0 && content[i - 1] !== '\\') {
-        const end = content.indexOf('$', i + 1);
-        if (end !== -1) {
-          i = end + 1;
-          safePoints.push(i);
-          continue;
-        }
-      }
-      i++;
-      safePoints.push(i);
-    }
-
-    let pointIndex = 0;
-    const speed = isPremium ? 6 : 10;
-    const charsPerTick = isPremium ? 3 : 2;
+    let index = 0;
+    const speed = isPremium ? 15 : 25;
 
     const timer = setInterval(() => {
-      pointIndex = Math.min(pointIndex + charsPerTick, safePoints.length - 1);
-      setDisplayedContent(content.slice(0, safePoints[pointIndex]));
-      if (pointIndex >= safePoints.length - 1) {
+      if (index < content.length) {
+        setDisplayedContent(content.slice(0, index + 1));
+        index++;
+      } else {
         setIsTypewriting(false);
-        setCompletedSteps(prev => new Set(prev).add(currentStep));
         clearInterval(timer);
       }
     }, speed);
@@ -286,19 +237,11 @@ export function AnimatedSolutionSteps({
                 <span className="text-sm font-bold text-primary">{currentStep + 1}</span>
               )}
             </div>
-            <h3 className="text-lg font-semibold text-foreground flex-1">
-              <ReactMarkdown
-                remarkPlugins={[remarkMath]}
-                rehypePlugins={[rehypeKatex]}
-                components={{
-                  p: ({ children }) => <span>{children}</span>,
-                }}
-              >
-                {isLastStep && isFinished 
-                  ? "Final Answer" 
-                  : steps[currentStep]?.title || getStepLabel(currentStep)
-                }
-              </ReactMarkdown>
+            <h3 className="text-lg font-semibold text-foreground">
+              {isLastStep && isFinished 
+                ? "Final Answer" 
+                : steps[currentStep]?.title || getStepLabel(currentStep)
+              }
             </h3>
             {isTypewriting && (
               <motion.span
@@ -330,7 +273,7 @@ export function AnimatedSolutionSteps({
                 ),
               }}
             >
-              {preprocessMath(displayedContent)}
+              {displayedContent}
             </ReactMarkdown>
           </div>
         </motion.div>
@@ -413,7 +356,7 @@ export function AnimatedSolutionSteps({
                 ),
               }}
             >
-              {preprocessMath(fullSolution)}
+              {fullSolution}
             </ReactMarkdown>
           </div>
         </motion.div>

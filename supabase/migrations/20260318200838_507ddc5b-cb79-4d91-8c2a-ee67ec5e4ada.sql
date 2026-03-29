@@ -1,2 +1,0 @@
-ALTER TABLE public.solve_usage ADD COLUMN IF NOT EXISTS image_solves_used integer NOT NULL DEFAULT 0;
-ALTER TABLE public.solve_usage ADD COLUMN IF NOT EXISTS text_solves_used integer NOT NULL DEFAULT 0;

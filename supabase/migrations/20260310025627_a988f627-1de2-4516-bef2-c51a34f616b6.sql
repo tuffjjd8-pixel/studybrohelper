@@ -1,1 +1,0 @@
-UPDATE profiles SET quizzes_used_today = 0;

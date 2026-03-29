@@ -1,1 +1,0 @@
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS answer_language text NOT NULL DEFAULT 'en';

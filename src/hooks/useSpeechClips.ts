@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const FREE_SPEECH_CLIPS = 3;
-const SPEECH_RESET_HOURS = 24;
+const PREMIUM_SPEECH_CLIPS = 15; // Premium daily limit
+const SPEECH_RESET_HOURS = 24; // Daily reset for better UX
 
 interface SpeechClipStatus {
   clipsRemaining: number;
@@ -13,42 +14,21 @@ interface SpeechClipStatus {
 }
 
 export function useSpeechClips(userId: string | undefined, isPremium: boolean) {
-  const [status, setStatus] = useState<SpeechClipStatus>(() => {
-    if (isPremium) {
-      return {
-        clipsRemaining: -1,
-        maxClips: -1,
-        hoursUntilReset: 0,
-        canUseClip: true,
-        isLoading: false,
-      };
-    }
-    return {
-      clipsRemaining: FREE_SPEECH_CLIPS,
-      maxClips: FREE_SPEECH_CLIPS,
-      hoursUntilReset: 0,
-      canUseClip: true,
-      isLoading: true,
-    };
+  const [status, setStatus] = useState<SpeechClipStatus>({
+    clipsRemaining: isPremium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS,
+    maxClips: isPremium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS,
+    hoursUntilReset: 0,
+    canUseClip: true,
+    isLoading: true,
   });
 
-  const fetchStatus = useCallback(async () => {
-    // Premium users: unlimited, no need to check
-    if (isPremium) {
-      setStatus({
-        clipsRemaining: -1,
-        maxClips: -1,
-        hoursUntilReset: 0,
-        canUseClip: true,
-        isLoading: false,
-      });
-      return;
-    }
+  const maxClips = isPremium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS;
 
+  const fetchStatus = useCallback(async () => {
     if (!userId) {
       setStatus({
-        clipsRemaining: FREE_SPEECH_CLIPS,
-        maxClips: FREE_SPEECH_CLIPS,
+        clipsRemaining: maxClips,
+        maxClips,
         hoursUntilReset: 0,
         canUseClip: true,
         isLoading: false,
@@ -59,7 +39,7 @@ export function useSpeechClips(userId: string | undefined, isPremium: boolean) {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("speech_clips_used, last_speech_reset")
+        .select("speech_clips_used, last_speech_reset, is_premium")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -67,8 +47,8 @@ export function useSpeechClips(userId: string | undefined, isPremium: boolean) {
 
       if (!data) {
         setStatus({
-          clipsRemaining: FREE_SPEECH_CLIPS,
-          maxClips: FREE_SPEECH_CLIPS,
+          clipsRemaining: maxClips,
+          maxClips,
           hoursUntilReset: 0,
           canUseClip: true,
           isLoading: false,
@@ -76,6 +56,7 @@ export function useSpeechClips(userId: string | undefined, isPremium: boolean) {
         return;
       }
 
+      const userMaxClips = data.is_premium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS;
       const lastReset = data.last_speech_reset ? new Date(data.last_speech_reset) : null;
       const now = Date.now();
       
@@ -86,6 +67,7 @@ export function useSpeechClips(userId: string | undefined, isPremium: boolean) {
         const hoursSinceReset = (now - lastReset.getTime()) / (1000 * 60 * 60);
         
         if (hoursSinceReset >= SPEECH_RESET_HOURS) {
+          // Reset the counter
           clipsUsed = 0;
           await supabase
             .from("profiles")
@@ -100,11 +82,11 @@ export function useSpeechClips(userId: string | undefined, isPremium: boolean) {
         }
       }
 
-      const clipsRemaining = Math.max(0, FREE_SPEECH_CLIPS - clipsUsed);
+      const clipsRemaining = Math.max(0, userMaxClips - clipsUsed);
       
       setStatus({
         clipsRemaining,
-        maxClips: FREE_SPEECH_CLIPS,
+        maxClips: userMaxClips,
         hoursUntilReset,
         canUseClip: clipsRemaining > 0,
         isLoading: false,
@@ -113,24 +95,23 @@ export function useSpeechClips(userId: string | undefined, isPremium: boolean) {
       console.error("Error fetching speech clip status:", error);
       setStatus(prev => ({ ...prev, isLoading: false }));
     }
-  }, [userId, isPremium]);
+  }, [userId, maxClips]);
 
   const useClip = useCallback(async (): Promise<boolean> => {
-    // Premium users: always allowed, no tracking
-    if (isPremium) return true;
-
     if (!userId || !status.canUseClip) return false;
 
     try {
+      // Fetch current state
       const { data, error } = await supabase
         .from("profiles")
-        .select("speech_clips_used, last_speech_reset")
+        .select("speech_clips_used, last_speech_reset, is_premium")
         .eq("user_id", userId)
         .maybeSingle();
 
       if (error) throw error;
       if (!data) return false;
 
+      const userMaxClips = data.is_premium ? PREMIUM_SPEECH_CLIPS : FREE_SPEECH_CLIPS;
       const lastReset = data.last_speech_reset ? new Date(data.last_speech_reset) : null;
       const now = Date.now();
       
@@ -147,10 +128,12 @@ export function useSpeechClips(userId: string | undefined, isPremium: boolean) {
         needsReset = true;
       }
 
-      if (clipsUsed >= FREE_SPEECH_CLIPS) {
+      // Check if we can use a clip
+      if (clipsUsed >= userMaxClips) {
         return false;
       }
 
+      // Increment usage
       const newClipsUsed = clipsUsed + 1;
       const updateData: { speech_clips_used: number; last_speech_reset?: string } = {
         speech_clips_used: newClipsUsed,
@@ -167,10 +150,11 @@ export function useSpeechClips(userId: string | undefined, isPremium: boolean) {
 
       if (updateError) throw updateError;
 
+      // Update local state
       setStatus(prev => ({
         ...prev,
-        clipsRemaining: Math.max(0, FREE_SPEECH_CLIPS - newClipsUsed),
-        canUseClip: newClipsUsed < FREE_SPEECH_CLIPS,
+        clipsRemaining: Math.max(0, userMaxClips - newClipsUsed),
+        canUseClip: newClipsUsed < userMaxClips,
       }));
 
       return true;
@@ -178,7 +162,7 @@ export function useSpeechClips(userId: string | undefined, isPremium: boolean) {
       console.error("Error using speech clip:", error);
       return false;
     }
-  }, [userId, isPremium, status.canUseClip]);
+  }, [userId, status.canUseClip]);
 
   useEffect(() => {
     fetchStatus();

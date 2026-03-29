@@ -4,7 +4,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { SolutionSteps } from "@/components/solve/SolutionSteps";
-import type { DeepModeTextColor } from "@/components/solve/DeepModeReveal";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -113,11 +112,6 @@ const SolveDetail = () => {
 
   const handleFollowUp = async (question: string) => {
     if (!solve || !question.trim()) return;
-    // Auth guard: require sign-in for AI features
-    if (!user) {
-      toast.error("Please sign in to use AI features.");
-      return;
-    }
 
     setIsAsking(true);
     const userMessage: Message = {
@@ -128,8 +122,6 @@ const SolveDetail = () => {
     setMessages((prev) => [...prev, userMessage]);
 
     try {
-      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
-      const answerLanguage = await getAnswerLanguage(user?.id);
       const { data, error } = await supabase.functions.invoke("follow-up-chat", {
         body: {
           solveId: solve.id,
@@ -140,7 +132,6 @@ const SolveDetail = () => {
             solution: solve.solution_markdown,
           },
           history: messages.map((m) => ({ role: m.role, content: m.content })),
-          answerLanguage,
         },
       });
 
@@ -223,9 +214,6 @@ const SolveDetail = () => {
               solveId={solve.id}
               isPremium={isPremium}
               isHistory={true}
-              isDeepMode={isPremium}
-              deepTextColor={(localStorage.getItem("deep_text_color") as DeepModeTextColor) || "gold"}
-              isAuthenticated={!!user}
             />
 
           </motion.div>

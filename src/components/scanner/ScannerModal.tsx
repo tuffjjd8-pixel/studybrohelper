@@ -1,15 +1,13 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/components/scanner/CustomCamera";
+import { CustomCamera } from "@/components/scanner/CustomCamera";
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
-import { Button } from "@/components/ui/button";
-import { RotateCcw, Crop } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type ScannerState = "idle" | "camera" | "previewing" | "cropping" | "scanning";
+type ScannerState = "idle" | "camera" | "cropping" | "processing" | "scanning";
 type LoadingStage = "extracting" | "classifying" | "solving";
 
 interface ScannerModalProps {
@@ -18,7 +16,6 @@ interface ScannerModalProps {
   onSolved: (question: string, solution: string, subject: string, image?: string) => void;
   userId?: string;
   isPremium?: boolean;
-  solveMode?: "instant" | "deep" | "essay";
 }
 
 export function ScannerModal({
@@ -27,52 +24,36 @@ export function ScannerModal({
   onSolved,
   userId,
   isPremium = false,
-  solveMode = "instant",
 }: ScannerModalProps) {
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
+  const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
 
+  // Open camera immediately when modal opens
   const cameraActive = isOpen && (state === "idle" || state === "camera");
 
-  // Auto-solve after capture: brief preview then solve
-  const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
-    setCapturedImage(result.images[0]);
-    setSelectedMode(result.mode);
-    setState("previewing");
-  }, []);
-
-  // Auto-transition from preview → scanning after 400ms
-  useEffect(() => {
-    if (state !== "previewing" || !capturedImage) return;
-    const timer = setTimeout(() => {
-      setState("scanning");
-      setLoadingStage("classifying");
-      solveProblem(capturedImage);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [state, capturedImage]);
-
-  const handleCropRequest = useCallback(() => {
+  const handleCameraCapture = useCallback((imageData: string) => {
+    setCapturedImage(imageData);
     setState("cropping");
   }, []);
 
   const handleCropComplete = useCallback((croppedImage: string) => {
-    if (capturedImage?.startsWith("blob:")) URL.revokeObjectURL(capturedImage);
-    setCapturedImage(croppedImage);
+    // Clean up original capture
+    if (capturedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(capturedImage);
+    }
+    setCapturedImage(null);
+    setProcessedImage(croppedImage);
     setState("scanning");
     setLoadingStage("classifying");
     solveProblem(croppedImage);
   }, [capturedImage]);
 
   const handleCropCancel = useCallback(() => {
-    // Return to scanning state
-    setState("scanning");
-  }, []);
-
-  const handleRetake = useCallback(() => {
-    if (capturedImage?.startsWith("blob:")) URL.revokeObjectURL(capturedImage);
+    if (capturedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(capturedImage);
+    }
     setCapturedImage(null);
     setState("idle");
   }, [capturedImage]);
@@ -83,35 +64,27 @@ export function ScannerModal({
   }, [onClose]);
 
   const solveProblem = async (imageData: string) => {
-    if (!userId) {
-      toast.error("Please sign in to use AI features.");
-      return;
-    }
     try {
       setLoadingStage("classifying");
       await new Promise((r) => setTimeout(r, 200));
       setLoadingStage("solving");
 
-      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
-      const answerLanguage = await getAnswerLanguage(userId);
-
-      const body: Record<string, unknown> = {
-        question: "",
-        image: imageData,
-        isPremium,
-        animatedSteps: false,
-        solveMode: isPremium ? selectedMode : "instant",
-        generateGraph: false,
-        deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-        answerLanguage,
-      };
-
-      const { data, error } = await supabase.functions.invoke("solve-homework", { body });
+      const { data, error } = await supabase.functions.invoke("solve-homework", {
+        body: {
+          question: "",
+          image: imageData,
+          isPremium,
+          animatedSteps: false,
+          generateGraph: false,
+          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+        },
+      });
 
       if (error) throw error;
 
       const extractedQuestion = data.question || data.extractedText || "Image-based question";
 
+      // Save to database if logged in
       if (userId) {
         await supabase.from("solves").insert({
           user_id: userId,
@@ -134,20 +107,20 @@ export function ScannerModal({
 
   const handleReset = useCallback(() => {
     setState("idle");
+    setProcessedImage(null);
     setCapturedImage(null);
   }, []);
 
   return (
     <>
-      {/* Full-screen native camera */}
+      {/* Full-screen native camera — opens immediately */}
       <CustomCamera
         isOpen={cameraActive}
         onCapture={handleCameraCapture}
         onClose={handleCameraClose}
-        isPremium={isPremium}
       />
 
-      {/* Optional crop screen */}
+      {/* Manual crop screen */}
       {state === "cropping" && capturedImage && (
         <ImageCropper
           imageSrc={capturedImage}
@@ -156,27 +129,8 @@ export function ScannerModal({
         />
       )}
 
-      {/* Preview flash */}
-      {state === "previewing" && capturedImage && (
-        <Dialog open onOpenChange={() => {}}>
-          <DialogContent className="max-w-lg w-[95vw] p-0 bg-background border-border">
-            <div className="flex items-center justify-center p-6">
-              <img
-                src={capturedImage}
-                alt="Preview"
-                className="max-h-48 rounded-xl object-contain border border-primary/30"
-                style={{ boxShadow: "0 0 30px hsl(var(--primary) / 0.2)" }}
-              />
-            </div>
-            <p className="text-center text-sm text-muted-foreground pb-4 animate-pulse">
-              Solving...
-            </p>
-          </DialogContent>
-        </Dialog>
-      )}
-
       {/* Processing / scanning dialog */}
-      {state === "scanning" && (
+      {(state === "processing" || state === "scanning") && (
         <Dialog open onOpenChange={() => {}}>
           <DialogContent className="max-w-lg w-[95vw] max-h-[90vh] overflow-y-auto p-0 bg-background border-border">
             <div className="flex items-center justify-between p-4 border-b border-border">
@@ -191,38 +145,11 @@ export function ScannerModal({
                   exit={{ opacity: 0 }}
                 >
                   <ScannerLoadingState
-                    image={capturedImage || undefined}
+                    image={processedImage || undefined}
                     stage={loadingStage}
                   />
                 </motion.div>
               </AnimatePresence>
-
-              {/* Optional retake/crop bar */}
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="flex justify-center gap-3 pt-3"
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRetake}
-                  className="gap-1.5 text-xs rounded-full"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  Retake
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCropRequest}
-                  className="gap-1.5 text-xs rounded-full"
-                >
-                  <Crop className="w-3.5 h-3.5" />
-                  Crop / Edit
-                </Button>
-              </motion.div>
             </div>
           </DialogContent>
         </Dialog>
