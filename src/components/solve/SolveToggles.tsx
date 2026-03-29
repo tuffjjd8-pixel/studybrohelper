@@ -15,11 +15,11 @@ import {
 import { WHISPER_LANGUAGES, getLanguageDisplayName } from "@/lib/whisperLanguages";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-export type SolveMode = "instant" | "deep";
+export type SolveMode = "instant" | "deep" | "essay";
 
 interface SolveTogglesProps {
-  animatedSteps: boolean;
-  onAnimatedStepsChange: (value: boolean) => void;
+  solveFlow: boolean;
+  onSolveFlowChange: (value: boolean) => void;
   isPremium: boolean;
   solvesUsed: number;
   maxSolves: number;
@@ -34,8 +34,8 @@ interface SolveTogglesProps {
 }
 
 export function SolveToggles({
-  animatedSteps,
-  onAnimatedStepsChange,
+  solveFlow,
+  onSolveFlowChange,
   isPremium,
   solvesUsed,
   maxSolves,
@@ -89,7 +89,7 @@ export function SolveToggles({
               </Label>
               <p className="text-xs text-muted-foreground">
                 {isPremium ? (
-                  solveMode === "deep" ? "Answer + short explanation" : "Final answer only"
+                 solveMode === "deep" ? "Answer + explanation" : "Final answer only"
                 ) : (
                   <span className="flex items-center gap-1">
                     Final answer only
@@ -112,7 +112,7 @@ export function SolveToggles({
           />
         </div>
 
-        {/* Animated Steps Toggle */}
+        {/* Solve Flow Toggle */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${canSolve ? "bg-primary/10" : "bg-muted"}`}>
@@ -120,16 +120,16 @@ export function SolveToggles({
             </div>
             <div>
               <Label 
-                htmlFor="animated-steps" 
+                htmlFor="solve-flow" 
                 className={`text-sm font-medium cursor-pointer ${!canSolve && !isPremium && "text-muted-foreground"}`}
               >
-                Animated Steps
+                Solve Flow
               </Label>
               <p className="text-xs text-muted-foreground">
                 {isPremium ? (
-                  <span>Detailed step-by-step (unlimited)</span>
+                  <span>Interactive solver (unlimited)</span>
                 ) : canSolve ? (
-                  <span>Simplified steps • {solvesUsed}/{maxSolves} solves used</span>
+                  <span>Basic solver • {solvesUsed}/{maxSolves} solves used</span>
                 ) : (
                   <span className="flex items-center gap-1 text-orange-400">
                     <Clock className="w-3 h-3" />
@@ -140,81 +140,21 @@ export function SolveToggles({
             </div>
           </div>
           <Switch
-            id="animated-steps"
-            checked={animatedSteps}
-            onCheckedChange={onAnimatedStepsChange}
+            id="solve-flow"
+            checked={solveFlow}
+            onCheckedChange={onSolveFlowChange}
           />
         </div>
 
-        {/* Free user upsell banner for animated steps */}
-        {!isPremium && animatedSteps && canSolve && (
+        {/* Free user upsell banner for Solve Flow */}
+        {!isPremium && solveFlow && canSolve && (
           <div className="text-xs text-muted-foreground bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
             <Crown className="w-3 h-3 inline mr-1 text-primary" />
-            Upgrade to Pro for detailed animated steps with full explanations.
+            Upgrade to Pro for detailed Solve Flow with full explanations.
           </div>
         )}
 
-        {/* Speech Input Toggle - Premium Only AND Authenticated Only */}
-        {canShowPremiumFeatures && onSpeechInputChange && (
-          <>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${speechInput ? "bg-primary/10" : "bg-muted"}`}>
-                  <Mic className={`w-4 h-4 ${speechInput ? "text-primary" : "text-muted-foreground"}`} />
-                </div>
-                <div>
-                  <Label 
-                    htmlFor="speech-input" 
-                    className="text-sm font-medium cursor-pointer"
-                  >
-                    Speech to Text
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Voice transcription (15/day)
-                  </p>
-                </div>
-              </div>
-              <Switch
-                id="speech-input"
-                checked={speechInput}
-                onCheckedChange={onSpeechInputChange}
-              />
-            </div>
-
-            {/* Language Dropdown - Only visible when Speech Input is ON */}
-            {speechInput && onSpeechLanguageChange && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="pl-11"
-              >
-                <Label className="text-xs text-muted-foreground mb-1.5 block">
-                  Speech Language
-                </Label>
-                <Select value={speechLanguage} onValueChange={onSpeechLanguageChange}>
-                  <SelectTrigger className="w-full h-9 text-sm">
-                    <SelectValue>
-                      {getLanguageDisplayName(speechLanguage)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <ScrollArea className="h-[300px]">
-                      {WHISPER_LANGUAGES.map((lang) => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          {lang.nativeName ? `${lang.name} (${lang.nativeName})` : lang.name}
-                        </SelectItem>
-                      ))}
-                    </ScrollArea>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1.5">
-                  Used for "Transcribe in My Language" mode
-                </p>
-              </motion.div>
-            )}
-          </>
-        )}
+        {/* Speech Input Toggle - Hidden */}
 
         {/* Usage Progress Bar - only for free users */}
         {!isPremium && (
@@ -230,7 +170,7 @@ export function SolveToggles({
         {!isPremium && !canSolve && (
           <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
             You've used all {maxSolves} solves for today. 
-            Upgrade to Pro for unlimited solves with detailed animated steps.
+            Upgrade to Pro for unlimited solves with Solve Flow.
           </div>
         )}
 
@@ -239,7 +179,7 @@ export function SolveToggles({
           <div className="pt-2 border-t border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <Crown className="w-3 h-3 inline mr-1" />
-              Upgrade to Pro for unlimited solves + detailed steps + speech to text
+              Upgrade to Pro for unlimited solves + Solve Flow
             </p>
           </div>
         )}

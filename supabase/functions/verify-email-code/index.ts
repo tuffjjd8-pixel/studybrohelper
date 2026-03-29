@@ -12,14 +12,37 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Verify caller identity from JWT
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: callerUser }, error: userError } = await userClient.auth.getUser();
+    if (userError || !callerUser) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const verifiedUserId = callerUser.id;
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { userId, code } = await req.json();
+    const { code } = await req.json();
 
-    if (!userId || !code) {
+    if (!code) {
       return new Response(
-        JSON.stringify({ error: "Missing userId or code" }),
+        JSON.stringify({ error: "Missing code" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -36,7 +59,7 @@ Deno.serve(async (req) => {
     const { data: verificationCode, error: fetchError } = await supabase
       .from("email_verification_codes")
       .select("*")
-      .eq("user_id", userId)
+      .eq("user_id", verifiedUserId)
       .eq("code", code)
       .eq("used", false)
       .order("created_at", { ascending: false })
@@ -87,7 +110,7 @@ Deno.serve(async (req) => {
     const { error: updateProfileError } = await supabase
       .from("profiles")
       .update({ email_verified: true })
-      .eq("user_id", userId);
+      .eq("user_id", verifiedUserId);
 
     if (updateProfileError) {
       console.error("Error updating profile:", updateProfileError);
@@ -97,7 +120,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Email verified successfully for user ${userId}`);
+    console.log(`Email verified successfully for user ${verifiedUserId}`);
 
     return new Response(
       JSON.stringify({ success: true, message: "Email verified successfully" }),

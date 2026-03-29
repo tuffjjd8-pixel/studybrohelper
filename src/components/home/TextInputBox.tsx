@@ -8,7 +8,11 @@ import { fileToOptimizedDataUrl } from "@/lib/image";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// UI-level modes (what buttons trigger)
 export type TranscriptionMode = "transcribe" | "translate";
+
+// Backend-level modes (what we send to the edge function)
+type BackendSTTMode = "transcribe" | "translate_to_english" | "auto_detect" | "transcribe_to_selected_language";
 
 interface TextInputBoxProps {
   onSubmit: (text: string) => void;
@@ -104,7 +108,7 @@ export function TextInputBox({
       toast.error("Speech to Text is a Premium feature.");
       return;
     }
-    if (!canUseSpeechClip) {
+    if (!isPremium && !canUseSpeechClip) {
       toast.error(`You've used all your speech clips. Resets in ${hoursUntilReset}h.`);
       return;
     }
@@ -163,18 +167,33 @@ export function TextInputBox({
       reader.readAsDataURL(audioBlob);
       const base64Audio = await base64Promise;
 
-      // Prepare request body
-      const body: { audio: string; language?: string; mode: TranscriptionMode } = {
-        audio: base64Audio,
-        mode,
-      };
+      // Resolve UI mode → backend mode
+      let backendMode: BackendSTTMode;
+      let language: string | undefined;
 
-      // Only pass language if not auto-detect and in transcribe mode
-      if (speechLanguage !== "auto" && mode === "transcribe") {
-        body.language = speechLanguage;
+      if (mode === "translate") {
+        // "Translate to English" button
+        backendMode = "translate_to_english";
+        // language stays undefined (auto-detect source)
+      } else if (speechLanguage === "auto") {
+        // "Transcribe" with auto-detect selected
+        backendMode = "auto_detect";
+        // language stays undefined
+      } else {
+        // "Transcribe" with a specific language selected
+        backendMode = "transcribe_to_selected_language";
+        language = speechLanguage;
       }
 
-      console.log(`Transcribing with mode: ${mode}, language: ${speechLanguage}`);
+      const body: { audio: string; language?: string; mode: BackendSTTMode } = {
+        audio: base64Audio,
+        mode: backendMode,
+      };
+      if (language) {
+        body.language = language;
+      }
+
+      console.log(`[STT] UI mode: ${mode}, backend mode: ${backendMode}, language: ${language ?? 'auto-detect'}`);
 
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
         body
@@ -217,7 +236,7 @@ export function TextInputBox({
       toast.error("Speech to Text is a Premium feature.");
       return;
     }
-    if (!canUseSpeechClip) {
+    if (!isPremium && !canUseSpeechClip) {
       toast.error(`You've used all your speech clips. Resets in ${hoursUntilReset}h.`);
       return;
     }
@@ -249,15 +268,25 @@ export function TextInputBox({
       reader.readAsDataURL(file);
       const base64Audio = await base64Promise;
 
-      // Prepare request body
-      const body: { audio: string; language?: string; mode: TranscriptionMode } = {
-        audio: base64Audio,
-        mode,
-      };
+      // Resolve UI mode → backend mode (same logic as live recording)
+      let backendMode: BackendSTTMode;
+      let language: string | undefined;
 
-      // Only pass language if not auto-detect and in transcribe mode
-      if (speechLanguage !== "auto" && mode === "transcribe") {
-        body.language = speechLanguage;
+      if (mode === "translate") {
+        backendMode = "translate_to_english";
+      } else if (speechLanguage === "auto") {
+        backendMode = "auto_detect";
+      } else {
+        backendMode = "transcribe_to_selected_language";
+        language = speechLanguage;
+      }
+
+      const body: { audio: string; language?: string; mode: BackendSTTMode } = {
+        audio: base64Audio,
+        mode: backendMode,
+      };
+      if (language) {
+        body.language = language;
       }
 
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
@@ -284,8 +313,8 @@ export function TextInputBox({
   };
 
   const canSubmit = text.trim() || hasPendingImage;
-  // CRITICAL: Never show speech buttons to unsigned users
-  const showSpeechButtons = isAuthenticated && speechInputEnabled && isPremium;
+  // STT UI hidden
+  const showSpeechButtons = false;
 
   return (
     <motion.div
@@ -298,15 +327,17 @@ export function TextInputBox({
         {/* Speech mode buttons - above textarea when enabled */}
         {showSpeechButtons && (
           <div className="space-y-2 mb-3">
-            {/* Clips remaining indicator */}
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
-                Speech Clips: {speechClipsRemaining}/{maxSpeechClips}
-              </span>
-              {!canUseSpeechClip && (
-                <span className="text-orange-500">Resets in {hoursUntilReset}h</span>
-              )}
-            </div>
+            {/* Clips remaining indicator - only for free users */}
+            {!isPremium && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  Speech Clips: {speechClipsRemaining}/{maxSpeechClips}
+                </span>
+                {!canUseSpeechClip && (
+                  <span className="text-orange-500">Resets in {hoursUntilReset}h</span>
+                )}
+              </div>
+            )}
             
             <div className="flex items-center gap-2 flex-wrap">
               {/* Transcribe in my language */}
@@ -315,7 +346,7 @@ export function TextInputBox({
                 variant={isRecording && currentMode === "transcribe" ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleVoiceClick("transcribe")}
-                disabled={isTranscribing || (isRecording && currentMode !== "transcribe") || !canUseSpeechClip}
+                disabled={isTranscribing || (isRecording && currentMode !== "transcribe") || (!isPremium && !canUseSpeechClip)}
                 className="flex items-center gap-2"
               >
                 {isRecording && currentMode === "transcribe" ? (
@@ -342,7 +373,7 @@ export function TextInputBox({
                 variant={isRecording && currentMode === "translate" ? "secondary" : "outline"}
                 size="sm"
                 onClick={() => handleVoiceClick("translate")}
-                disabled={isTranscribing || (isRecording && currentMode !== "translate") || !canUseSpeechClip}
+                disabled={isTranscribing || (isRecording && currentMode !== "translate") || (!isPremium && !canUseSpeechClip)}
                 className="flex items-center gap-2"
               >
                 {isRecording && currentMode === "translate" ? (
@@ -376,7 +407,7 @@ export function TextInputBox({
                 variant="ghost"
                 size="sm"
                 onClick={() => audioFileInputRef.current?.click()}
-                disabled={isTranscribing || isRecording || !canUseSpeechClip}
+                disabled={isTranscribing || isRecording || (!isPremium && !canUseSpeechClip)}
                 className="flex items-center gap-2"
                 title="Upload audio file"
               >

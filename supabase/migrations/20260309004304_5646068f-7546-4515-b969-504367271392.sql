@@ -1,0 +1,1 @@
+ALTER TABLE public.community_goal_submissions ADD COLUMN IF NOT EXISTS message text DEFAULT '';
