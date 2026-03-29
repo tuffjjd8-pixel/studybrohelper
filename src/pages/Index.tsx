@@ -16,8 +16,6 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ScannerModal } from "@/components/scanner/ScannerModal";
 import { TopSharerPopup } from "@/components/share/TopSharerPopup";
 import { CommunityGoalCard } from "@/components/community/CommunityGoalCard";
-import { ScarcityMessage } from "@/components/solve/ScarcityMessage";
-import { SoftUpgradeBanner } from "@/components/solve/SoftUpgradeBanner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
@@ -475,14 +473,11 @@ const Index = () => {
                 hoursUntilReset={speechClips.hoursUntilReset}
               />
 
-              {/* Soft upgrade banner */}
-              <SoftUpgradeBanner isPremium={isPremium} isAuthenticated={!!user} />
-
               {/* Recent solves */}
               <RecentSolves solves={recentSolves} />
             </motion.div>
           ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-8 space-y-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-8">
               {/* Solve Another chip */}
               <div className="flex justify-center mb-5 mt-1">
                 <button
@@ -507,14 +502,6 @@ const Index = () => {
                 isPremium={isPremium}
                 isDeepMode={false}
                 deepTextColor="gold"
-                isAuthenticated={!!user}
-              />
-
-              {/* Inline scarcity message under result */}
-              <ScarcityMessage
-                solvesRemaining={solveUsage.solvesRemaining}
-                maxSolves={solveUsage.maxSolves}
-                isPremium={isPremium}
                 isAuthenticated={!!user}
               />
             </motion.div>
