@@ -31,66 +31,58 @@ export function ScannerModal({
 }: ScannerModalProps) {
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
-  const [capturedFile, setCapturedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
 
   const cameraActive = isOpen && (state === "idle" || state === "camera");
 
   // Auto-solve after capture: brief preview then solve
   const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
-    setCapturedFile(result.file);
-    setPreviewUrl(result.previewUrl);
+    setCapturedImage(result.images[0]);
     setSelectedMode(result.mode);
     setState("previewing");
   }, []);
 
   // Auto-transition from preview → scanning after 400ms
   useEffect(() => {
-    if (state !== "previewing" || !capturedFile) return;
+    if (state !== "previewing" || !capturedImage) return;
     const timer = setTimeout(() => {
       setState("scanning");
       setLoadingStage("classifying");
-      solveProblem(capturedFile);
+      solveProblem(capturedImage);
     }, 400);
     return () => clearTimeout(timer);
-  }, [state, capturedFile]);
+  }, [state, capturedImage]);
 
   const handleCropRequest = useCallback(() => {
     setState("cropping");
   }, []);
 
   const handleCropComplete = useCallback((croppedImage: string) => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    fetch(croppedImage)
-      .then(r => r.blob())
-      .then(blob => {
-        const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
-        setCapturedFile(file);
-        setPreviewUrl(croppedImage);
-        setState("scanning");
-        setLoadingStage("classifying");
-        solveProblem(file);
-      });
-  }, [previewUrl]);
+    if (capturedImage?.startsWith("blob:")) URL.revokeObjectURL(capturedImage);
+    setCapturedImage(croppedImage);
+    setState("scanning");
+    setLoadingStage("classifying");
+    solveProblem(croppedImage);
+  }, [capturedImage]);
 
   const handleCropCancel = useCallback(() => {
+    // Return to scanning state
     setState("scanning");
   }, []);
 
   const handleRetake = useCallback(() => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setCapturedFile(null);
-    setPreviewUrl(null);
+    if (capturedImage?.startsWith("blob:")) URL.revokeObjectURL(capturedImage);
+    setCapturedImage(null);
     setState("idle");
-  }, [previewUrl]);
+  }, [capturedImage]);
 
   const handleCameraClose = useCallback(() => {
     handleReset();
     onClose();
   }, [onClose]);
 
-  const solveProblem = async (file: File) => {
+  const solveProblem = async (imageData: string) => {
     if (!userId) {
       toast.error("Please sign in to use AI features.");
       return;
@@ -100,36 +92,37 @@ export function ScannerModal({
       await new Promise((r) => setTimeout(r, 200));
       setLoadingStage("solving");
 
-      const mode = isPremium ? "solve_pro" : "solve_free";
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(userId);
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("mode", mode);
+      const body: Record<string, unknown> = {
+        question: "",
+        image: imageData,
+        isPremium,
+        animatedSteps: false,
+        solveMode: isPremium ? selectedMode : "instant",
+        generateGraph: false,
+        deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+        answerLanguage,
+      };
 
-      const response = await fetch("http://46.224.199.130:8000/ocr", {
-        method: "POST",
-        body: formData,
-      });
+      const { data, error } = await supabase.functions.invoke("solve-homework", { body });
 
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
+      if (error) throw error;
 
-      const data = await response.json();
-
-      const extractedQuestion = data.extracted_text || "Image-based question";
+      const extractedQuestion = data.question || data.extractedText || "Image-based question";
 
       if (userId) {
         await supabase.from("solves").insert({
           user_id: userId,
-          subject: "general",
+          subject: data.subject || "general",
           question_text: extractedQuestion,
-          question_image_url: file.name,
+          question_image_url: imageData.substring(0, 500),
           solution_markdown: data.solution,
         });
       }
 
-      onSolved(extractedQuestion, data.solution, "general", previewUrl || undefined);
+      onSolved(extractedQuestion, data.solution, data.subject || "general", imageData);
       handleReset();
       onClose();
     } catch (error) {
@@ -141,10 +134,8 @@ export function ScannerModal({
 
   const handleReset = useCallback(() => {
     setState("idle");
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setCapturedFile(null);
-    setPreviewUrl(null);
-  }, [previewUrl]);
+    setCapturedImage(null);
+  }, []);
 
   return (
     <>
@@ -157,21 +148,21 @@ export function ScannerModal({
       />
 
       {/* Optional crop screen */}
-      {state === "cropping" && previewUrl && (
+      {state === "cropping" && capturedImage && (
         <ImageCropper
-          imageSrc={previewUrl}
+          imageSrc={capturedImage}
           onCropComplete={handleCropComplete}
           onCancel={handleCropCancel}
         />
       )}
 
       {/* Preview flash */}
-      {state === "previewing" && previewUrl && (
+      {state === "previewing" && capturedImage && (
         <Dialog open onOpenChange={() => {}}>
           <DialogContent className="max-w-lg w-[95vw] p-0 bg-background border-border">
             <div className="flex items-center justify-center p-6">
               <img
-                src={previewUrl}
+                src={capturedImage}
                 alt="Preview"
                 className="max-h-48 rounded-xl object-contain border border-primary/30"
                 style={{ boxShadow: "0 0 30px hsl(var(--primary) / 0.2)" }}
@@ -200,7 +191,7 @@ export function ScannerModal({
                   exit={{ opacity: 0 }}
                 >
                   <ScannerLoadingState
-                    image={previewUrl || undefined}
+                    image={capturedImage || undefined}
                     stage={loadingStage}
                   />
                 </motion.div>

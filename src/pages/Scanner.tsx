@@ -11,13 +11,10 @@ import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/
 import { ImageCropper } from "@/components/scanner/ImageCropper";
 import { SolutionDisplay } from "@/components/scanner/SolutionDisplay";
 import { ScannerLoadingState } from "@/components/scanner/ScannerLoadingState";
-import { ScarcityMessage } from "@/components/solve/ScarcityMessage";
-import { SoftUpgradeBanner } from "@/components/solve/SoftUpgradeBanner";
 import { Button } from "@/components/ui/button";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useSolveUsage } from "@/hooks/useSolveUsage";
 import { toast } from "sonner";
 
 type ScannerState = "idle" | "camera" | "previewing" | "scanning" | "cropping" | "solved";
@@ -33,12 +30,10 @@ interface SolutionData {
 const Scanner = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const solveUsage = useSolveUsage(user?.id, false);
   
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
-  const [capturedFile, setCapturedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
@@ -51,30 +46,29 @@ const Scanner = () => {
 
   // After capture: brief preview then auto-solve
   const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
-    setCapturedFile(result.file);
-    setPreviewUrl(result.previewUrl);
+    const img = result.images[0];
+    setCapturedImage(img);
     setSelectedMode(result.mode);
     setState("previewing");
   }, []);
 
   // Auto-transition from preview → scanning after 400ms
   useEffect(() => {
-    if (state !== "previewing" || !capturedFile) return;
+    if (state !== "previewing" || !capturedImage) return;
     const timer = setTimeout(() => {
       setState("scanning");
-      solveProblem(capturedFile);
+      solveProblem(capturedImage);
     }, 400);
     return () => clearTimeout(timer);
-  }, [state, capturedFile]);
+  }, [state, capturedImage]);
 
   const handleCameraClose = useCallback(() => {
     setState("idle");
   }, []);
 
   // Gallery/drop-zone: also auto-solve immediately
-  const handleImageSelect = useCallback((file: File) => {
-    setCapturedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
+  const handleImageSelect = useCallback((imageData: string) => {
+    setCapturedImage(imageData);
     setState("previewing");
   }, []);
 
@@ -84,20 +78,17 @@ const Scanner = () => {
   }, []);
 
   const handleCropComplete = useCallback((croppedData: string) => {
-    // Convert cropped data URL back to File
-    fetch(croppedData)
-      .then(r => r.blob())
-      .then(blob => {
-        const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
-        setCapturedFile(file);
-        setPreviewUrl(croppedData);
-        setState("scanning");
-        solveProblem(file);
-      });
-  }, [previewUrl]);
+    // Clean up old blob
+    if (capturedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(capturedImage);
+    }
+    setCapturedImage(croppedData);
+    setState("scanning");
+    solveProblem(croppedData);
+  }, [capturedImage]);
 
   const handleCropCancel = useCallback(() => {
+    // Go back to scanning/solved state depending on where we were
     if (solution) {
       setState("solved");
     } else {
@@ -107,15 +98,16 @@ const Scanner = () => {
 
   // Retake: go back to camera
   const handleRetake = useCallback(() => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setCapturedFile(null);
-    setPreviewUrl(null);
+    if (capturedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(capturedImage);
+    }
+    setCapturedImage(null);
     setSolution(null);
     setShowFollowUp(false);
     setState("camera");
-  }, [previewUrl]);
+  }, [capturedImage]);
 
-  const solveProblem = async (file: File) => {
+  const solveProblem = async (imageData: string) => {
     if (!user) {
       toast.error("Please sign in to use AI features.");
       return;
@@ -126,40 +118,39 @@ const Scanner = () => {
       setLoadingStage("classifying");
       await new Promise((r) => setTimeout(r, 200));
       setLoadingStage("solving");
-
-      const isPro = solveUsage.isPremium;
-      const mode = isPro ? "solve_pro" : "solve_free";
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("mode", mode);
-
-      const response = await fetch("http://46.224.199.130:8000/ocr", {
-        method: "POST",
-        body: formData,
+      
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(user?.id);
+      const { data, error } = await supabase.functions.invoke("solve-homework", {
+        body: { 
+          question: "", 
+          image: imageData,
+          isPremium: false,
+          animatedSteps: false,
+          solveMode: selectedMode,
+          generateGraph: false,
+          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+          answerLanguage,
+        },
       });
 
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
+      if (error) throw error;
 
-      const data = await response.json();
-
-      const extractedQuestion = data.extracted_text || "Image-based question";
+      const extractedQuestion = data.question || data.extractedText || "Image-based question";
 
       setSolution({
-        subject: "general",
+        subject: data.subject || "general",
         question: extractedQuestion,
         solution: data.solution,
-        image: previewUrl || undefined,
+        image: imageData,
       });
 
       if (user) {
         await supabase.from("solves").insert({
           user_id: user.id,
-          subject: "general",
+          subject: data.subject || "general",
           question_text: extractedQuestion,
-          question_image_url: file.name,
+          question_image_url: imageData.substring(0, 500),
           solution_markdown: data.solution,
         });
       }
@@ -170,19 +161,20 @@ const Scanner = () => {
       console.error("Scan error:", error);
       toast.error("Failed to scan homework. Please try again.");
       setState("idle");
-      setCapturedFile(null);
+      setCapturedImage(null);
     }
   };
 
   const handleReset = useCallback(() => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (capturedImage?.startsWith("blob:")) {
+      URL.revokeObjectURL(capturedImage);
+    }
     setState("idle");
-    setCapturedFile(null);
-    setPreviewUrl(null);
+    setCapturedImage(null);
     setSolution(null);
     setShowFollowUp(false);
     setFollowUpText("");
-  }, [previewUrl]);
+  }, [capturedImage]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,9 +188,9 @@ const Scanner = () => {
       />
 
       {/* Optional crop UI */}
-      {state === "cropping" && previewUrl && (
+      {state === "cropping" && capturedImage && (
         <ImageCropper
-          imageSrc={previewUrl}
+          imageSrc={capturedImage}
           onCropComplete={handleCropComplete}
           onCancel={handleCropCancel}
         />
@@ -294,7 +286,7 @@ const Scanner = () => {
             )}
 
             {/* Brief preview flash before auto-solve */}
-            {state === "previewing" && previewUrl && (
+            {state === "previewing" && capturedImage && (
               <motion.div
                 key="previewing"
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -307,7 +299,7 @@ const Scanner = () => {
                   style={{ boxShadow: "0 0 40px hsl(var(--primary) / 0.3)" }}
                 >
                   <img
-                    src={previewUrl}
+                    src={capturedImage}
                     alt="Captured"
                     className="max-h-64 object-contain"
                   />
@@ -326,7 +318,7 @@ const Scanner = () => {
                 className="space-y-4"
               >
                 <ScannerLoadingState 
-                  image={previewUrl || undefined}
+                  image={capturedImage || undefined}
                   stage={loadingStage}
                 />
 
@@ -484,14 +476,6 @@ const Scanner = () => {
                     Humanize
                   </Button>
                 </motion.div>
-
-                {/* Scarcity message */}
-                <ScarcityMessage
-                  solvesRemaining={solveUsage.solvesRemaining}
-                  maxSolves={solveUsage.maxSolves}
-                  isPremium={solveUsage.isPremium}
-                  isAuthenticated={!!user}
-                />
 
                 {/* Reset link */}
                 <div className="flex justify-center pt-2">

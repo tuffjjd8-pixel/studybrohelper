@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Crown, ArrowLeft, Loader2, Star, Sparkles } from "lucide-react";
-
+import { isMobileApp } from "@/lib/mobileDetection";
 
 type CommunityPlan = "monthly" | "lifetime";
 
@@ -71,6 +71,11 @@ const CommunityGoalReward = () => {
       return;
     }
 
+    if (isMobileApp()) {
+      toast.error("Please complete your purchase on our website");
+      return;
+    }
+
     if (!user) {
       toast.error("Please sign in to continue");
       navigate("/auth");
@@ -81,9 +86,21 @@ const CommunityGoalReward = () => {
     setIsLoading(true);
 
     try {
-      // Redirect to external premium page (Play Billing handled natively)
-      window.open("https://www.studybro.trade/premium", "_blank");
-      toast.success("Redirecting to premium page...");
+      const { data, error } = await supabase.functions.invoke("createCheckoutSession", {
+        body: { userId: user.id, plan: plan === "monthly" ? "weekend" : "two_year" }
+      });
+
+      if (error) {
+        console.error("Checkout error:", error);
+        toast.error("Failed to create checkout session. Please try again.");
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error("No checkout URL received. Please try again.");
+      }
     } catch (err) {
       console.error("Checkout exception:", err);
       toast.error("Something went wrong. Please try again.");
