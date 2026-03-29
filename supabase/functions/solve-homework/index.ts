@@ -1039,18 +1039,8 @@ serve(async (req) => {
 
     console.log("Solution generated, subject:", subject, "model:", modelUsed!, "ocr:", ocrEngineUsed, "device:", deviceType, "steps:", responseData.steps ? (responseData.steps as Array<unknown>).length : 0, "hasGraph:", !!responseData.graph);
 
-    // Log usage (fire-and-forget)
-    const authHeader = req.headers.get("Authorization");
-    let logUserId: string | null = null;
-    if (authHeader) {
-      try {
-        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
-        const { data: { user: u } } = await sb.auth.getUser();
-        logUserId = u?.id || null;
-      } catch (_) {}
-    }
-    logUsage("solve", 0.0012, logUserId);
+    // Log usage (fire-and-forget) — reuse already-extracted userId to avoid duplicate auth call
+    logUsage("solve", 0.0012, requestUserId);
 
     return new Response(
       JSON.stringify(responseData),
