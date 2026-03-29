@@ -120,9 +120,10 @@ const Premium = () => {
     }
   };
 
-  // Group products for display
-  const subscriptions = PLAY_PRODUCTS.filter((p) => p.type === "subscription");
-  const oneTime = PLAY_PRODUCTS.filter((p) => p.type === "one_time");
+  // Group products for display — exclude community monthly and 2-year (those live on CommunityGoalReward page)
+  const excludedIds = ["pro_community_monthly", "pro_2year"];
+  const subscriptions = PLAY_PRODUCTS.filter((p) => p.type === "subscription" && !excludedIds.includes(p.productId));
+  const oneTime = PLAY_PRODUCTS.filter((p) => p.type === "one_time" && !excludedIds.includes(p.productId));
 
   return (
     <div className="min-h-screen bg-background">
