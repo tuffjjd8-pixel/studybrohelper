@@ -431,7 +431,7 @@ const Profile = () => {
               </Button>
             </motion.div>
 
-            {/* Community Reward Button — only visible when goal is reached */}
+            {/* Community Reward Button — visible when goal is active */}
             {goalReached && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
