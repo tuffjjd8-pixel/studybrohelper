@@ -1,19 +1,20 @@
-// StudyBro brand colors
+// StudyBro brand colors — neon green dominant
 export const COLORS = {
   bg: "#0a0a0a",
-  bgCard: "#141414",
-  green: "#a3e635",
-  greenDark: "#65a30d",
-  greenAccent: "#22c55e",
+  bgCard: "#111111",
+  green: "#00FF88",
+  greenDark: "#00cc6a",
+  greenGlow: "rgba(0,255,136,0.15)",
+  greenGlowStrong: "rgba(0,255,136,0.35)",
   gold: "#facc15",
-  goldDark: "#d97706",
   white: "#ffffff",
   gray: "#a1a1aa",
   grayDark: "#3f3f46",
-  border: "#27272a",
+  border: "#1e1e1e",
+  red: "#ef4444",
 };
 
 export const FONT = {
-  heading: "sans-serif",
-  body: "sans-serif",
+  heading: "Space Grotesk, sans-serif",
+  body: "Inter, sans-serif",
 };
