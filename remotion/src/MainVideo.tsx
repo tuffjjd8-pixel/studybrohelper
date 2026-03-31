@@ -76,7 +76,7 @@ export const MainVideo: React.FC = () => {
       />
 
       {/* Scene 7: End card — brain logo + CTA */}
-      <TransitionSeries.Sequence durationInFrames={240}>
+      <TransitionSeries.Sequence durationInFrames={337}>
         <Scene7EndCard />
       </TransitionSeries.Sequence>
     </TransitionSeries>
