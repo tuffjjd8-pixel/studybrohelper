@@ -1,0 +1,1 @@
+UPDATE profiles SET is_premium = true, premium_until = now() + interval '10 years' WHERE user_id = 'c4ecb6c1-7093-421f-ae91-26bf1da43685';
