@@ -75,38 +75,34 @@ const CommunityGoalReward = () => {
       return;
     }
 
-    if (isMobileApp()) {
-      toast.error("Please complete your purchase on our website");
-      return;
-    }
-
     if (!user) {
       toast.error("Please sign in to continue");
       navigate("/auth");
       return;
     }
 
+    if (!isMobileApp()) {
+      toast.info("Redeem this reward in the Android app.");
+      return;
+    }
+
+    // On Android, launch Google Play Billing
     setSelectedPlan(plan);
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("createCheckoutSession", {
-        body: { userId: user.id, plan: plan === "monthly" ? "weekend" : "lifetime" },
-      });
+      const productId = plan === "monthly" ? "pro_community_monthly" : "pro_2year";
+      const basePlanId = plan === "monthly" ? "monthly" : undefined;
+      const success = await PlayBillingService.purchase(productId, basePlanId);
 
-      if (error) {
-        console.error("Checkout error:", error);
-        toast.error("Failed to create checkout session. Please try again.");
-        return;
-      }
-
-      if (data?.url) {
-        window.location.href = data.url;
+      if (success) {
+        toast.success("Purchase successful! 🎉");
+        navigate("/profile");
       } else {
-        toast.error("No checkout URL received. Please try again.");
+        toast.error("Purchase was not completed.");
       }
     } catch (err) {
-      console.error("Checkout exception:", err);
+      console.error("Play Billing error:", err);
       toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
