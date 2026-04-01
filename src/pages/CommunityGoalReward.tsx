@@ -7,35 +7,20 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Crown, ArrowLeft, Loader2, Star, Sparkles, CheckCircle2 } from "lucide-react";
+import { Crown, ArrowLeft, Loader2, Star, Sparkles } from "lucide-react";
 import { isMobileApp } from "@/lib/mobileDetection";
 
 type CommunityPlan = "monthly" | "lifetime";
-
-interface GoalData {
-  visible: boolean;
-  current_count: number;
-  target_count: number;
-  title: string;
-  body: string;
-}
 
 const CommunityGoalReward = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<CommunityPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [goal, setGoal] = useState<GoalData | null>(null);
-  const [goalLoaded, setGoalLoaded] = useState(false);
+  const [goalVisible, setGoalVisible] = useState<boolean | null>(null);
   const [rewardClaimingEnabled, setRewardClaimingEnabled] = useState(true);
   const [enableRewardScreen, setEnableRewardScreen] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
-
-  const goalReached = goal ? goal.current_count >= goal.target_count : false;
-  const progressPercent = goal && goal.target_count > 0
-    ? Math.min(100, Math.round((goal.current_count / goal.target_count) * 100))
-    : 0;
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -53,14 +38,13 @@ const CommunityGoalReward = () => {
       }
     };
 
-    const fetchGoal = async () => {
+    const checkGoalVisible = async () => {
       const { data } = await supabase
         .from("community_goal_content")
-        .select("visible, current_count, target_count, title, body")
+        .select("visible, current_count, target_count")
         .limit(1)
         .maybeSingle();
-      setGoal(data ?? null);
-      setGoalLoaded(true);
+      setGoalVisible(data ? data.visible : false);
     };
 
     const checkPremium = async () => {
@@ -74,16 +58,16 @@ const CommunityGoalReward = () => {
     };
 
     fetchSettings();
-    fetchGoal();
+    checkGoalVisible();
     checkPremium();
   }, [user]);
 
   useEffect(() => {
-    if (goalLoaded && (!goal?.visible || !enableRewardScreen)) {
+    if (goalVisible === false || enableRewardScreen === false) {
       toast.error("Community reward is not available right now");
       navigate("/");
     }
-  }, [goalLoaded, goal, enableRewardScreen, navigate]);
+  }, [goalVisible, enableRewardScreen, navigate]);
 
   const handleCheckout = async (plan: CommunityPlan) => {
     if (!rewardClaimingEnabled) {
@@ -130,7 +114,7 @@ const CommunityGoalReward = () => {
     }
   };
 
-  if (!goalLoaded) {
+  if (goalVisible === null) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -151,7 +135,7 @@ const CommunityGoalReward = () => {
           >
             {/* Back button */}
             <button
-              onClick={() => navigate("/profile")}
+              onClick={() => navigate(-1)}
               className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -159,7 +143,7 @@ const CommunityGoalReward = () => {
             </button>
 
             {/* Premium banner */}
-            {isPremium && goal?.visible && (
+            {isPremium && goalVisible && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -185,41 +169,18 @@ const CommunityGoalReward = () => {
                 Community Goal <span className="text-gradient">Reward</span>
               </h1>
               <p className="text-muted-foreground">
-                {goal?.body || "Thanks for helping us reach the milestone!"}
+                Thanks for helping us reach the milestone!
               </p>
             </div>
-
-            {/* Progress Bar */}
-            {goal && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Progress</span>
-                  <span className="font-medium">
-                    {goal.current_count} / {goal.target_count}
-                  </span>
-                </div>
-                <Progress value={progressPercent} className="h-3" />
-                {goalReached ? (
-                  <div className="flex items-center gap-2 text-sm text-primary font-medium">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Goal reached! Claim your reward below.
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    {100 - progressPercent}% remaining to unlock the reward
-                  </p>
-                )}
-              </div>
-            )}
 
             {/* Plan Cards */}
             <div className="space-y-4">
               {/* Monthly Plan */}
               <motion.button
                 onClick={() => handleCheckout("monthly")}
-                disabled={isLoading || !rewardClaimingEnabled || !goalReached}
+                disabled={isLoading || !rewardClaimingEnabled}
                 whileTap={{ scale: 0.98 }}
-                className="w-full p-5 rounded-2xl border-2 border-border bg-card hover:border-primary/50 transition-all text-left relative overflow-hidden disabled:opacity-50"
+                className="w-full p-5 rounded-2xl border-2 border-border bg-card hover:border-primary/50 transition-all text-left relative overflow-hidden"
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -243,10 +204,11 @@ const CommunityGoalReward = () => {
               {/* Lifetime Plan */}
               <motion.button
                 onClick={() => handleCheckout("lifetime")}
-                disabled={isLoading || !rewardClaimingEnabled || !goalReached}
+                disabled={isLoading || !rewardClaimingEnabled}
                 whileTap={{ scale: 0.98 }}
-                className="w-full p-5 rounded-2xl border-2 border-yellow-500/60 bg-gradient-to-br from-card via-card to-yellow-500/5 hover:border-yellow-400 transition-all text-left relative overflow-hidden shadow-[0_0_20px_rgba(251,191,36,0.1)] disabled:opacity-50"
+                className="w-full p-5 rounded-2xl border-2 border-yellow-500/60 bg-gradient-to-br from-card via-card to-yellow-500/5 hover:border-yellow-400 transition-all text-left relative overflow-hidden shadow-[0_0_20px_rgba(251,191,36,0.1)]"
               >
+                {/* Best Value Badge */}
                 <div className="absolute top-3 right-3 px-2 py-0.5 text-xs font-bold rounded-full bg-gradient-to-r from-yellow-500 to-amber-400 text-black flex items-center gap-1">
                   <Sparkles className="w-3 h-3" />
                   BEST VALUE
@@ -272,18 +234,13 @@ const CommunityGoalReward = () => {
               </motion.button>
             </div>
 
-            {!goalReached && (
-              <p className="text-xs text-muted-foreground text-center">
-                The claim buttons will unlock once the community goal is reached.
-              </p>
-            )}
-
-            {!rewardClaimingEnabled && goalReached && (
+            {!rewardClaimingEnabled && (
               <p className="text-xs text-orange-500 text-center">
                 ⚠️ Reward claiming is currently disabled by admin
               </p>
             )}
 
+            {/* Cancel anytime */}
             <p className="text-xs text-muted-foreground text-center">
               Cancel the monthly plan anytime. No questions asked.
             </p>
