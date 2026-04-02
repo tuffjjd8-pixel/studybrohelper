@@ -32,6 +32,7 @@ export function ScannerModal({
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const capturedFileRef = useRef<File | null>(null);
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
 
   const cameraActive = isOpen && (state === "idle" || state === "camera");
@@ -39,6 +40,7 @@ export function ScannerModal({
   // Auto-solve after capture: brief preview then solve
   const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
     setCapturedImage(result.images[0]);
+    capturedFileRef.current = result.file;
     setSelectedMode(result.mode);
     setState("previewing");
   }, []);
