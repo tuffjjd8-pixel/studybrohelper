@@ -34,6 +34,7 @@ const Scanner = () => {
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const capturedFileRef = useRef<File | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
@@ -48,6 +49,7 @@ const Scanner = () => {
   const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
     const img = result.images[0];
     setCapturedImage(img);
+    capturedFileRef.current = result.file;
     setSelectedMode(result.mode);
     setState("previewing");
   }, []);
