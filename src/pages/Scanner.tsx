@@ -16,6 +16,7 @@ import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { toCleanBase64 } from "@/lib/imageBase64";
 
 type ScannerState = "idle" | "camera" | "previewing" | "scanning" | "cropping" | "solved";
 type LoadingStage = "extracting" | "classifying" | "solving";
@@ -118,19 +119,27 @@ const Scanner = () => {
       setLoadingStage("classifying");
       await new Promise((r) => setTimeout(r, 200));
       setLoadingStage("solving");
+
+      // Convert blob URL or data URL to clean base64
+      const base64Image = await toCleanBase64(imageData);
       
       const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
       const answerLanguage = await getAnswerLanguage(user?.id);
       const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: { 
           question: "", 
-          image: imageData,
+          image: base64Image,
           isPremium: false,
           animatedSteps: false,
           solveMode: selectedMode,
           generateGraph: false,
           deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
           answerLanguage,
+          // Additional fields for backend compatibility
+          mode: selectedMode.toLowerCase(),
+          ocr: "groq",
+          language: answerLanguage || "en",
+          multi: false,
         },
       });
 

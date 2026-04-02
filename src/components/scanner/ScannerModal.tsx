@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { RotateCcw, Crop } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { toCleanBase64 } from "@/lib/imageBase64";
 
 type ScannerState = "idle" | "camera" | "previewing" | "cropping" | "scanning";
 type LoadingStage = "extracting" | "classifying" | "solving";
@@ -92,18 +93,26 @@ export function ScannerModal({
       await new Promise((r) => setTimeout(r, 200));
       setLoadingStage("solving");
 
+      // Convert blob URL or data URL to clean base64
+      const base64Image = await toCleanBase64(imageData);
+
       const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
       const answerLanguage = await getAnswerLanguage(userId);
 
-      const body: Record<string, unknown> = {
+      const body = {
         question: "",
-        image: imageData,
+        image: base64Image,
         isPremium,
         animatedSteps: false,
         solveMode: isPremium ? selectedMode : "instant",
         generateGraph: false,
         deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
         answerLanguage,
+        // Additional fields for backend compatibility
+        mode: (isPremium ? selectedMode : "instant").toLowerCase(),
+        ocr: "groq",
+        language: answerLanguage || "en",
+        multi: false,
       };
 
       const { data, error } = await supabase.functions.invoke("solve-homework", { body });
