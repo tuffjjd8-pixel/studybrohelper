@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/components/scanner/CustomCamera";
@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { RotateCcw, Crop } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { toCleanBase64 } from "@/lib/imageBase64";
 
 type ScannerState = "idle" | "camera" | "previewing" | "cropping" | "scanning";
 type LoadingStage = "extracting" | "classifying" | "solving";
