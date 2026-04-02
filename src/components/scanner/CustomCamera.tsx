@@ -174,14 +174,15 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error("Blob creation failed"))),
-          "image/webp",
+          "image/jpeg",
           0.92
         );
       });
 
+      const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
       const objectUrl = URL.createObjectURL(blob);
 
-      finishCapture(objectUrl);
+      finishCapture(objectUrl, file);
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
