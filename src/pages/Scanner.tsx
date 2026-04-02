@@ -114,6 +114,12 @@ const Scanner = () => {
       toast.error("Please sign in to use AI features.");
       return;
     }
+    const file = capturedFileRef.current;
+    if (!file) {
+      toast.error("No image captured. Please try again.");
+      setState("idle");
+      return;
+    }
     try {
       setLoadingStage("extracting");
       await new Promise((r) => setTimeout(r, 300));
@@ -121,37 +127,32 @@ const Scanner = () => {
       await new Promise((r) => setTimeout(r, 200));
       setLoadingStage("solving");
 
-      // Convert blob URL or data URL to clean base64
-      const base64Image = await toCleanBase64(imageData);
-      
-      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
-      const answerLanguage = await getAnswerLanguage(user?.id);
-      const { data, error } = await supabase.functions.invoke("solve-homework", {
-        body: { 
-          question: "", 
-          image: base64Image,
-          isPremium: false,
-          animatedSteps: false,
-          solveMode: selectedMode,
-          generateGraph: false,
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-          answerLanguage,
-          // Additional fields for backend compatibility
-          mode: selectedMode.toLowerCase(),
-          ocr: "groq",
-          language: answerLanguage || "en",
-          multi: false,
-        },
+      // Determine mode string for backend
+      const mode = selectedMode === "deep" ? "solve_pro" : "solve_free";
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("mode", mode);
+
+      const response = await fetch("http://46.224.199.130:8000/ocr", {
+        method: "POST",
+        body: formData,
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("OCR error:", response.status, errText);
+        throw new Error("Solve failed");
+      }
 
-      const extractedQuestion = data.question || data.extractedText || "Image-based question";
+      const data = await response.json();
+      const extractedQuestion = data.extracted_text || data.question || "Image-based question";
+      const solutionText = data.solution || data.result || "";
 
       setSolution({
         subject: data.subject || "general",
         question: extractedQuestion,
-        solution: data.solution,
+        solution: solutionText,
         image: imageData,
       });
 
@@ -161,7 +162,7 @@ const Scanner = () => {
           subject: data.subject || "general",
           question_text: extractedQuestion,
           question_image_url: imageData.substring(0, 500),
-          solution_markdown: data.solution,
+          solution_markdown: solutionText,
         });
       }
 
