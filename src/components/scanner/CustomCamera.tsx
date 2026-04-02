@@ -146,10 +146,9 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     }
   }, [torchEnabled, torchSupported]);
 
-  const finishCapture = useCallback((imageOrImages: string | string[]) => {
-    const images = Array.isArray(imageOrImages) ? imageOrImages : [imageOrImages];
+  const finishCapture = useCallback((previewUrl: string, file: File) => {
     stopStream(false);
-    onCapture({ images, mode: cameraMode });
+    onCapture({ images: [previewUrl], file, mode: cameraMode });
   }, [stopStream, onCapture, cameraMode]);
 
   const capturePhoto = useCallback(async () => {
