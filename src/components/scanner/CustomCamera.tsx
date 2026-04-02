@@ -10,6 +10,7 @@ export type CameraSolveMode = "instant" | "deep";
 
 export interface CameraCaptureResult {
   images: string[];
+  file: File;
   mode: CameraSolveMode;
 }
 
