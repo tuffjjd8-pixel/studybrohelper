@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Sparkles, Camera, MessageCircle, Crop, RotateCcw, Wand2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -16,7 +16,6 @@ import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { toCleanBase64 } from "@/lib/imageBase64";
 
 type ScannerState = "idle" | "camera" | "previewing" | "scanning" | "cropping" | "solved";
 type LoadingStage = "extracting" | "classifying" | "solving";
