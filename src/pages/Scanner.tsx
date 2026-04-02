@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Sparkles, Camera, MessageCircle, Crop, RotateCcw, Wand2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -34,7 +34,6 @@ const Scanner = () => {
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const capturedFileRef = useRef<File | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
@@ -49,7 +48,6 @@ const Scanner = () => {
   const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
     const img = result.images[0];
     setCapturedImage(img);
-    capturedFileRef.current = result.file;
     setSelectedMode(result.mode);
     setState("previewing");
   }, []);
@@ -114,45 +112,36 @@ const Scanner = () => {
       toast.error("Please sign in to use AI features.");
       return;
     }
-    const file = capturedFileRef.current;
-    if (!file) {
-      toast.error("No image captured. Please try again.");
-      setState("idle");
-      return;
-    }
     try {
       setLoadingStage("extracting");
       await new Promise((r) => setTimeout(r, 300));
       setLoadingStage("classifying");
       await new Promise((r) => setTimeout(r, 200));
       setLoadingStage("solving");
-
-      // Determine mode string for backend
-      const mode = selectedMode === "deep" ? "solve_pro" : "solve_free";
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("mode", mode);
-
-      const response = await fetch("http://46.224.199.130:8000/ocr", {
-        method: "POST",
-        body: formData,
+      
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(user?.id);
+      const { data, error } = await supabase.functions.invoke("solve-homework", {
+        body: { 
+          question: "", 
+          image: imageData,
+          isPremium: false,
+          animatedSteps: false,
+          solveMode: selectedMode,
+          generateGraph: false,
+          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+          answerLanguage,
+        },
       });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("OCR error:", response.status, errText);
-        throw new Error("Solve failed");
-      }
+      if (error) throw error;
 
-      const data = await response.json();
-      const extractedQuestion = data.extracted_text || data.question || "Image-based question";
-      const solutionText = data.solution || data.result || "";
+      const extractedQuestion = data.question || data.extractedText || "Image-based question";
 
       setSolution({
         subject: data.subject || "general",
         question: extractedQuestion,
-        solution: solutionText,
+        solution: data.solution,
         image: imageData,
       });
 
@@ -162,7 +151,7 @@ const Scanner = () => {
           subject: data.subject || "general",
           question_text: extractedQuestion,
           question_image_url: imageData.substring(0, 500),
-          solution_markdown: solutionText,
+          solution_markdown: data.solution,
         });
       }
 

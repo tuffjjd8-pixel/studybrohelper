@@ -10,7 +10,6 @@ export type CameraSolveMode = "instant" | "deep";
 
 export interface CameraCaptureResult {
   images: string[];
-  file: File;
   mode: CameraSolveMode;
 }
 
@@ -146,9 +145,10 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     }
   }, [torchEnabled, torchSupported]);
 
-  const finishCapture = useCallback((previewUrl: string, file: File) => {
+  const finishCapture = useCallback((imageOrImages: string | string[]) => {
+    const images = Array.isArray(imageOrImages) ? imageOrImages : [imageOrImages];
     stopStream(false);
-    onCapture({ images: [previewUrl], file, mode: cameraMode });
+    onCapture({ images, mode: cameraMode });
   }, [stopStream, onCapture, cameraMode]);
 
   const capturePhoto = useCallback(async () => {
@@ -174,15 +174,14 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error("Blob creation failed"))),
-          "image/jpeg",
+          "image/webp",
           0.92
         );
       });
 
-      const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
       const objectUrl = URL.createObjectURL(blob);
 
-      finishCapture(objectUrl, file);
+      finishCapture(objectUrl);
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
@@ -192,16 +191,29 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   }, [stopStream, finishCapture, cameraMode]);
 
   const handleGalleryPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawFile = e.target.files?.[0];
-    if (!rawFile) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
     try {
-      // Create a preview URL for display
-      const previewUrl = URL.createObjectURL(rawFile);
-      // Pass the original file directly — the backend wants a real File
-      const file = new File([rawFile], rawFile.name || "gallery.jpg", { type: rawFile.type || "image/jpeg" });
-      finishCapture(previewUrl, file);
+      const optimized = await fileToOptimizedDataUrl(file, {
+        maxDimension: 2048,
+        quality: 0.92,
+        mimeType: "image/jpeg",
+      });
+
+      finishCapture(optimized);
     } catch (err) {
       console.error("Gallery error:", err);
+      try {
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        finishCapture(dataUrl);
+      } catch {
+        console.error("Gallery fallback also failed");
+      }
     }
     if (e.target) e.target.value = "";
   }, [finishCapture]);

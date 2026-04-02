@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/components/scanner/CustomCamera";
@@ -32,7 +32,6 @@ export function ScannerModal({
   const [state, setState] = useState<ScannerState>("idle");
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const capturedFileRef = useRef<File | null>(null);
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
 
   const cameraActive = isOpen && (state === "idle" || state === "camera");
@@ -40,7 +39,6 @@ export function ScannerModal({
   // Auto-solve after capture: brief preview then solve
   const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
     setCapturedImage(result.images[0]);
-    capturedFileRef.current = result.file;
     setSelectedMode(result.mode);
     setState("previewing");
   }, []);
@@ -89,38 +87,30 @@ export function ScannerModal({
       toast.error("Please sign in to use AI features.");
       return;
     }
-    const file = capturedFileRef.current;
-    if (!file) {
-      toast.error("No image captured. Please try again.");
-      handleReset();
-      return;
-    }
     try {
       setLoadingStage("classifying");
       await new Promise((r) => setTimeout(r, 200));
       setLoadingStage("solving");
 
-      // Determine mode string for backend
-      const mode = (isPremium && selectedMode === "deep") ? "solve_pro" : "solve_free";
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(userId);
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("mode", mode);
+      const body: Record<string, unknown> = {
+        question: "",
+        image: imageData,
+        isPremium,
+        animatedSteps: false,
+        solveMode: isPremium ? selectedMode : "instant",
+        generateGraph: false,
+        deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+        answerLanguage,
+      };
 
-      const response = await fetch("http://46.224.199.130:8000/ocr", {
-        method: "POST",
-        body: formData,
-      });
+      const { data, error } = await supabase.functions.invoke("solve-homework", { body });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("OCR error:", response.status, errText);
-        throw new Error("Solve failed");
-      }
+      if (error) throw error;
 
-      const data = await response.json();
-      const extractedQuestion = data.extracted_text || data.question || "Image-based question";
-      const solutionText = data.solution || data.result || "";
+      const extractedQuestion = data.question || data.extractedText || "Image-based question";
 
       if (userId) {
         await supabase.from("solves").insert({
@@ -128,11 +118,11 @@ export function ScannerModal({
           subject: data.subject || "general",
           question_text: extractedQuestion,
           question_image_url: imageData.substring(0, 500),
-          solution_markdown: solutionText,
+          solution_markdown: data.solution,
         });
       }
 
-      onSolved(extractedQuestion, solutionText, data.subject || "general", imageData);
+      onSolved(extractedQuestion, data.solution, data.subject || "general", imageData);
       handleReset();
       onClose();
     } catch (error) {
