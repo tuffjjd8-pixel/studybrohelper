@@ -193,29 +193,23 @@ const Index = () => {
     }
 
     try {
-      const answerLanguage = await getAnswerLanguage(user?.id);
       const imagesArray = imageData
         ? (Array.isArray(imageData) ? imageData : [imageData])
         : [];
 
-      // Home only sends instant or essay mode; Instant/Deep handled in camera
+      const { solveWithText, solveWithImage, getOcrMode } = await import("@/lib/solveService");
       const effectiveMode = solveMode === "essay" ? "essay" : "instant";
+      const ocrMode = getOcrMode(effectiveMode, isPremium);
 
-      const { data, error } = await supabase.functions.invoke("solve-homework", {
-        body: {
-          question: input,
-          ...(imagesArray.length === 1 ? { image: imagesArray[0] } : {}),
-          ...(imagesArray.length > 1 ? { images: imagesArray } : {}),
-          isPremium,
-          animatedSteps: false,
-          generateGraph: false,
-          solveMode: effectiveMode,
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-          answerLanguage,
-          ...(solveMode === "essay" ? { essaySettings } : {}),
-        },
-      });
-      if (error) throw error;
+      let data: { extracted_text: string; solution: string };
+
+      if (imagesArray.length > 0) {
+        // Image-based solve: send the first image
+        data = await solveWithImage(imagesArray[0], ocrMode);
+      } else {
+        // Text-based solve
+        data = await solveWithText(input, ocrMode);
+      }
 
       let solveId: string | undefined;
 

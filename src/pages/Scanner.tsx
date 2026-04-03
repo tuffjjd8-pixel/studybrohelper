@@ -118,40 +118,28 @@ const Scanner = () => {
       setLoadingStage("classifying");
       await new Promise((r) => setTimeout(r, 200));
       setLoadingStage("solving");
-      
-      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
-      const answerLanguage = await getAnswerLanguage(user?.id);
-      const { data, error } = await supabase.functions.invoke("solve-homework", {
-        body: { 
-          question: "", 
-          image: imageData,
-          isPremium: false,
-          animatedSteps: false,
-          solveMode: selectedMode,
-          generateGraph: false,
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-          answerLanguage,
-        },
-      });
 
-      if (error) throw error;
+      const { solveWithImage, getOcrMode } = await import("@/lib/solveService");
+      const isPremium = false; // Scanner page doesn't track premium; default free
+      const mode = getOcrMode(selectedMode, isPremium);
+      const result = await solveWithImage(imageData, mode);
 
-      const extractedQuestion = data.question || data.extractedText || "Image-based question";
+      const extractedQuestion = result.extracted_text || "Image-based question";
 
       setSolution({
-        subject: data.subject || "general",
+        subject: "general",
         question: extractedQuestion,
-        solution: data.solution,
+        solution: result.solution,
         image: imageData,
       });
 
       if (user) {
         await supabase.from("solves").insert({
           user_id: user.id,
-          subject: data.subject || "general",
+          subject: "general",
           question_text: extractedQuestion,
           question_image_url: imageData.substring(0, 500),
-          solution_markdown: data.solution,
+          solution_markdown: result.solution,
         });
       }
 
