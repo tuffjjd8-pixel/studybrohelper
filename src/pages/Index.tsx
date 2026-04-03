@@ -219,7 +219,7 @@ const Index = () => {
         const isEarlySolve = new Date().getHours() < 8;
         const insertPromise = supabase.from("solves").insert({
           user_id: user.id,
-          subject: data.subject || "other",
+          subject: "general",
           question_text: input || null,
           question_image_url: imagesArray.length > 0 ? imagesArray[0] : null,
           solution_markdown: data.solution,
