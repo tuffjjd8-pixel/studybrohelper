@@ -329,7 +329,7 @@ async function callGroqText(
         { role: "user", content: question }
       ],
       temperature: isPremium ? 0.5 : 0.7,
-      max_tokens: isPremium ? 8192 : 4096,
+      max_tokens: isPremium ? 4096 : 2048,
     }
   );
 
