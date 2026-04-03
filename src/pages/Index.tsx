@@ -278,7 +278,7 @@ const Index = () => {
       }
 
       setSolution({
-        subject: data.subject || "other",
+        subject: "general",
         question: input || "Image question",
         answer: data.solution,
         image: imagesArray.length > 0 ? imagesArray[0] : undefined,
