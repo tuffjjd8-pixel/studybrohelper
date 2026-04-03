@@ -271,16 +271,16 @@ export async function callGroqWithRotation(
         return response;
       }
       
-      if (response.status === 429) {
-        console.log(`[GroqKeyManager] Rate limit hit on ${keyName}, rotating to next key...`);
+      if (response.status === 429 || response.status === 413) {
+        console.log(`[GroqKeyManager] Rate/size limit hit on ${keyName} (${response.status}), rotating to next key...`);
         markKeyRateLimited(apiKey);
-        continue; // Try next key
+        continue;
       }
       
       if (response.status === 401 || response.status === 403) {
         console.log(`[GroqKeyManager] Auth error on ${keyName}: ${response.status}, rotating...`);
         markKeyFailed(apiKey, `Auth error ${response.status}`);
-        continue; // Try next key for auth errors too
+        continue;
       }
       
       // Other error - mark as failed and try next key
