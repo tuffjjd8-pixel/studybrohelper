@@ -30,136 +30,33 @@ const PREMIUM_GRAPHS_PER_DAY = 15;
 
 // No greeting — answers are delivered instantly without preamble
 
-// Shared formatting rules used by both tiers
+// Shared formatting rules — condensed to reduce token count
 const SHARED_FORMATTING_RULES = `
-## PLAIN TEXT OUTPUT (MANDATORY):
-- Output plain text ONLY. No HTML tags (no <p>, <div>, <span>, <br>, <strong>, <em>, etc.).
-- No inline styles, no background colors, no rich-text formatting.
-- No markdown formatting except headers (**bold**) and inline math delimiters.
-- Never wrap text in code blocks or backticks (except for actual code questions).
-- Never include hidden characters or zero-width spaces.
-- Your output must paste cleanly into Google Docs, Canvas, Notes with ZERO styling artifacts.
+## OUTPUT FORMAT:
+- Plain text only. No HTML tags, no inline styles, no rich-text.
+- No markdown except headers (**bold**) and math delimiters.
+- Never wrap text in code blocks (except for actual code questions).
 
 ## Subject Detection:
-- First, identify what subject the question is about
-- Respond using the appropriate format and conventions for that subject
-- Do NOT assume every question is math-related
+- Identify the subject first. Use appropriate format/conventions for that subject.
 
-## Core Formatting Rules:
-- For math problems, use LaTeX notation: \\(...\\) for inline, \\[...\\] for display
-- For science, include formulas in LaTeX where applicable
-- For coding questions, use markdown code blocks with syntax highlighting
-- For essays/writing, structure with clear paragraphs and thesis
-- For history, include key dates, context, and significance
-- For right angles in geometry, use the proper symbol ∟ or ⊾ instead of the letter "C"
+## LaTeX Rules (STRICT):
+- Display math: \\[...\\] ONLY. NEVER $$...$$.
+- Inline math: \\(...\\) ONLY. NEVER $...$.
+- NEVER use bare brackets/parentheses as math delimiters.
+- Use \\left( and \\right), NEVER \\left\\( or \\right\\).
+- Never put LaTeX inside code blocks.
+- All \\left must match \\right. All { and } must balance.
+- For right angles: use ∟ or ⊾, not "C".
 
-## STRICT LaTeX Output Rules (ZERO EXCEPTIONS):
-- All display math MUST use \\[ ... \\] ONLY.
-- All inline math MUST use \\( ... \\) ONLY.
-- NEVER use $$ ... $$ for display math.
-- NEVER use $ ... $ for inline math.
-- NEVER use bare brackets [ ... ] or bare parentheses ( ... ) as math delimiters.
-- NEVER escape parentheses in LaTeX grouping. Use \\left( and \\right), NEVER \\left\\( or \\right\\).
-- NEVER break a LaTeX block across lines.
-- NEVER put LaTeX inside backticks or code blocks.
-- NEVER use MathJax-only syntax (no \\begin{equation}, no \\tag{}, etc.).
-- NEVER output HTML entities inside LaTeX.
-- NEVER output partial, malformed, or incomplete LaTeX.
-- NEVER invent new LaTeX syntax.
-- NEVER mix plain text symbols inside LaTeX blocks.
-- Display equations: \\[<equation>\\]
-- Multi-line display: \\[\\n<equations>\\n\\]
-- Inline symbols: \\(<symbol>\\)
+## Allowed LaTeX: \\frac, x^{n}, x_{n}, \\alpha, \\mathbf{v}, \\int, \\lim, \\sqrt, \\boxed, \\begin{bmatrix}...\\end{bmatrix}
 
-## Allowed LaTeX Structures:
-- Fractions: \\frac{a}{b}
-- Exponents: x^{n}
-- Subscripts: x_{n}
-- Greek letters: \\alpha, \\beta, \\psi, \\hbar, etc.
-- Vectors: \\mathbf{v}
-- Derivatives: \\frac{d}{dx} or \\frac{\\partial}{\\partial x}
-- Integrals: \\int ... dx
-- Limits: \\lim_{x \\to a}
-- Matrices: \\begin{bmatrix} ... \\end{bmatrix}
-- Square roots: \\sqrt{x}
-- Boxed answers: \\boxed{answer}
-
-## Self-Check (MANDATORY before responding):
-1. Are all inline math expressions wrapped in \\( ... \\)?
-2. Are all display equations wrapped in \\[ ... \\]?
-3. Did you avoid $$ ... $$ completely?
-4. Did you avoid \\left\\( and \\right\\)? (Use \\left( and \\right) only.)
-5. Are all { and } balanced?
-6. Are all \\left matched with \\right?
-7. Did you avoid putting LaTeX inside code blocks or backticks?
-8. Did you avoid MathJax-only environments (equation, align, etc.)?
-9. Does every LaTeX block look complete and renderable as-is?
-- If you find ANY issue, FIX IT before sending the answer.
-
-## LaTeX Examples (for math/science):
-- Fractions: \\(\\frac{3}{4}\\), \\(\\frac{x + 1}{x - 2}\\)
-- Exponents: \\(x^2\\), \\(2^3 = 8\\)
-- Square roots: \\(\\sqrt{25} = 5\\), \\(\\sqrt{x + 1}\\)
-- Multiplication: \\(x \\cdot 2x\\), \\(2 \\times 3 = 6\\)
-- Not equal: \\(x \\neq -1\\)
-- Display equations: \\[x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\\]
-
-## CRITICAL: Fraction Conversion Rule (Math)
-- When subtracting fractions from whole numbers, ALWAYS convert the whole number to a fraction first
-- Example: \\(10 - \\frac{1}{2}\\) → First write \\(10 = \\frac{20}{2}\\), then \\(\\frac{20}{2} - \\frac{1}{2} = \\frac{19}{2}\\)
-
-## Pattern-Based Equations (Non-Standard Arithmetic)
-For equations like "a + b = result" where the result is NOT standard addition:
-- Find a SINGLE simple pattern that fits ALL given examples and explain it in 1-3 short sentences
-
-## SYMBOLIC REASONING ENGINE RULES:
-
-### Global:
-1. Never guess. If a step is uncertain, state the uncertainty and stop.
-2. Never invent formulas, identities, or shortcuts. Only use standard, widely accepted mathematics.
-3. Never simplify unless the simplification is mathematically valid AND symbolically exact.
-4. Never drop parentheses, change signs, or alter the structure of an expression.
-5. When rewriting an expression, rewrite it EXACTLY. No approximations unless explicitly requested.
-
-### Symbol Handling:
-6. Treat every symbol literally. Do not reinterpret, rename, or assume missing context.
-7. When copying an equation from the user, reproduce it EXACTLY before manipulating it.
-8. When applying an identity (Gamma, Beta, trig, log, etc.):
-   - State the identity explicitly.
-   - Verify domain conditions.
-   - Apply it step-by-step with no skipped algebra.
-
-### Limits & Asymptotics:
-9. Always check boundedness, oscillation, monotonicity, and sign before evaluating a limit.
-10. If numerator → constant and denominator → ∞, the limit is 0. Never contradict this.
-11. For oscillatory functions (sin, cos), never assume monotonic growth.
-12. Justify limit methods: Squeeze theorem, dominant term comparison, L'Hôpital (only when valid), or known asymptotics.
-
-### Differential Equations & Modeling:
-13. Distinguish clearly between time-varying functions, constants, and parameters.
-14. Never treat a time-dependent quantity as constant unless explicitly stated.
-15. Always restate the DE and initial conditions before solving.
-
-### Numerical Methods:
-16. If an equation cannot be solved analytically, state that it requires numerical methods and describe the method (Newton–Raphson, bisection, etc.).
-
-### Verification:
-17. After every major derivation, perform a sanity check: units consistent, signs correct, result does not violate constraints.
-18. If something seems physically impossible (negative population, infinite oscillation, etc.), state it.
-19. All final answers must follow from the work shown — no skipping.
-
-### MATH SAFETY — NUMBER INTEGRITY:
-20. You MUST restate all numbers from the problem exactly before using them.
-21. You MUST NEVER change, split, merge, or reinterpret numbers.
-22. You MUST NEVER invent digits or modify values.
-23. You MUST compute using the exact numbers given.
-24. You MUST show the multiplication step explicitly.
-25. You MUST verify the multiplication before giving the final answer.
-26. If the numbers appear ambiguous, treat them as whole integers exactly as written.
-27. If the problem gives "1818", treat it as ONE number: 1818. Never as "18 and 18", "18×18", or "18 18".
-28. If the problem gives "1010", treat it as ONE number: 1010. Never as "10 and 10".
-29. If the problem gives "1919", treat it as ONE number: 1919. Never as "19 and 19".
-30. Never skip steps. Never output a final answer without verifying it.`;
+## Math Safety:
+- Restate all numbers exactly before using them.
+- NEVER change, split, or reinterpret numbers (1818 = 1818, not 18×18).
+- Show multiplication steps explicitly. Verify before answering.
+- Convert whole numbers to fractions before subtracting fractions.
+- Never guess. Never invent formulas. Never skip steps.`;
 
 // Injection protection rules shared by all prompts
 const INJECTION_PROTECTION = `
