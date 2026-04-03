@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { getAnswerLanguage } from "@/hooks/useAnswerLanguage";
 import { detectSpamOutput, SPAM_WARNING_MESSAGE } from "@/lib/spamDetection";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
@@ -193,29 +192,23 @@ const Index = () => {
     }
 
     try {
-      const answerLanguage = await getAnswerLanguage(user?.id);
       const imagesArray = imageData
         ? (Array.isArray(imageData) ? imageData : [imageData])
         : [];
 
-      // Home only sends instant or essay mode; Instant/Deep handled in camera
+      const { solveWithText, solveWithImage, getOcrMode } = await import("@/lib/solveService");
       const effectiveMode = solveMode === "essay" ? "essay" : "instant";
+      const ocrMode = getOcrMode(effectiveMode, isPremium);
 
-      const { data, error } = await supabase.functions.invoke("solve-homework", {
-        body: {
-          question: input,
-          ...(imagesArray.length === 1 ? { image: imagesArray[0] } : {}),
-          ...(imagesArray.length > 1 ? { images: imagesArray } : {}),
-          isPremium,
-          animatedSteps: false,
-          generateGraph: false,
-          solveMode: effectiveMode,
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-          answerLanguage,
-          ...(solveMode === "essay" ? { essaySettings } : {}),
-        },
-      });
-      if (error) throw error;
+      let data: { extracted_text: string; solution: string };
+
+      if (imagesArray.length > 0) {
+        // Image-based solve: send the first image
+        data = await solveWithImage(imagesArray[0], ocrMode);
+      } else {
+        // Text-based solve
+        data = await solveWithText(input, ocrMode);
+      }
 
       let solveId: string | undefined;
 
@@ -225,7 +218,7 @@ const Index = () => {
         const isEarlySolve = new Date().getHours() < 8;
         const insertPromise = supabase.from("solves").insert({
           user_id: user.id,
-          subject: data.subject || "other",
+          subject: "general",
           question_text: input || null,
           question_image_url: imagesArray.length > 0 ? imagesArray[0] : null,
           solution_markdown: data.solution,
@@ -261,7 +254,7 @@ const Index = () => {
         solveId = `guest-${Date.now()}`;
         const guestSolve = {
           id: solveId,
-          subject: data.subject || "other",
+          subject: "general",
           question_text: input || null,
           question_image_url: imageData || null,
           solution_markdown: data.solution,
@@ -284,7 +277,7 @@ const Index = () => {
       }
 
       setSolution({
-        subject: data.subject || "other",
+        subject: "general",
         question: input || "Image question",
         answer: data.solution,
         image: imagesArray.length > 0 ? imagesArray[0] : undefined,
