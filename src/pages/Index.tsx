@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { getAnswerLanguage } from "@/hooks/useAnswerLanguage";
 import { detectSpamOutput, SPAM_WARNING_MESSAGE } from "@/lib/spamDetection";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
