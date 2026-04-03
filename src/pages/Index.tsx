@@ -255,7 +255,7 @@ const Index = () => {
         solveId = `guest-${Date.now()}`;
         const guestSolve = {
           id: solveId,
-          subject: data.subject || "other",
+          subject: "general",
           question_text: input || null,
           question_image_url: imageData || null,
           solution_markdown: data.solution,
