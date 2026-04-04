@@ -607,12 +607,14 @@ serve(async (req) => {
         global: { headers: { Authorization: authHeader } },
       });
 
-      const token = authHeader.replace("Bearer ", "");
-      const { data: claimsData, error: claimsError } =
-        await supabase.auth.getClaims(token);
+      const { data: userData, error: userError } = await supabase.auth.getUser();
 
-      if (!claimsError && claimsData?.claims) {
-        userId = claimsData.claims.sub as string;
+      if (!userError && userData?.user) {
+        userId = userData.user.id;
+
+        // Check admin status
+        const { isAdmin } = await import("../_shared/pro-limits.ts");
+        const adminStatus = await isAdmin(userId);
 
         const { data: profile } = await supabase
           .from("profiles")
@@ -621,7 +623,7 @@ serve(async (req) => {
           .single();
 
         if (profile) {
-          isPremium = profile.is_premium === true;
+          isPremium = profile.is_premium === true || adminStatus;
 
           const lastReset = profile.last_quiz_reset
             ? new Date(profile.last_quiz_reset)
