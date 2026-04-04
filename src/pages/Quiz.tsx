@@ -313,9 +313,11 @@ const Quiz = () => {
       const cleanSubject = sanitizeTopic(rawSubject);
       
       // Build context: use selected conversation if available, otherwise use topic
-      const conversationText = selectedSolve ?
-      `Question: ${selectedSolve.question_text || "Image-based question"}\n\nSolution: ${selectedSolve.solution_markdown}` :
-      `Topic: ${cleanSubject}\n\nGenerate quiz questions about this topic.`;
+      // When a solve is selected, pass the full solution as study material
+      // so the LLM generates questions FROM the content, not from general knowledge
+      const conversationText = selectedSolve
+        ? `STUDY MATERIAL (generate ALL quiz questions strictly from this content):\n\nOriginal Question: ${selectedSolve.question_text || "Image-based question"}\n\nFull Solution:\n${selectedSolve.solution_markdown}`
+        : `Topic: ${cleanSubject}\n\nGenerate quiz questions about this topic.`;
 
       // Try generation, with one auto-retry using broader topic on failure
       let lastErr: Error | null = null;
