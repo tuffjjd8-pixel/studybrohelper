@@ -404,13 +404,9 @@ async function callLovableAI(
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  // Lovable AI gateway endpoint
-  const url = `${supabaseUrl}/functions/v1/ai-proxy`;
-
   console.log(`Attempting Lovable AI fallback with model: ${model}`);
 
-  const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -607,49 +603,55 @@ serve(async (req) => {
 
     // Check user authentication and premium status
     if (authHeader?.startsWith("Bearer ")) {
-      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
+      try {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
 
-      const token = authHeader.replace("Bearer ", "");
-      const { data: claimsData, error: claimsError } =
-        await supabase.auth.getClaims(token);
+        const { data: userData, error: userError } = await supabase.auth.getUser();
 
-      if (!claimsError && claimsData?.claims) {
-        userId = claimsData.claims.sub as string;
+        if (!userError && userData?.user) {
+          userId = userData.user.id;
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("is_premium, quizzes_used_today, last_quiz_reset")
-          .eq("user_id", userId)
-          .single();
+          // Check admin status
+          const { isAdmin } = await import("../_shared/pro-limits.ts");
+          const adminStatus = await isAdmin(userId);
 
-        if (profile) {
-          isPremium = profile.is_premium === true;
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("is_premium, quizzes_used_today, last_quiz_reset")
+            .eq("user_id", userId)
+            .single();
 
-          const lastReset = profile.last_quiz_reset
-            ? new Date(profile.last_quiz_reset)
-            : null;
-          const now = new Date();
-          const today = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate()
-          );
+          if (profile) {
+            isPremium = profile.is_premium === true || adminStatus;
 
-          if (!lastReset || lastReset < today) {
-            await supabase
-              .from("profiles")
-              .update({
-                quizzes_used_today: 0,
-                last_quiz_reset: now.toISOString(),
-              })
-              .eq("user_id", userId);
-            quizzesUsedToday = 0;
-          } else {
-            quizzesUsedToday = profile.quizzes_used_today || 0;
+            const lastReset = profile.last_quiz_reset
+              ? new Date(profile.last_quiz_reset)
+              : null;
+            const now = new Date();
+            const today = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate()
+            );
+
+            if (!lastReset || lastReset < today) {
+              await supabase
+                .from("profiles")
+                .update({
+                  quizzes_used_today: 0,
+                  last_quiz_reset: now.toISOString(),
+                })
+                .eq("user_id", userId);
+              quizzesUsedToday = 0;
+            } else {
+              quizzesUsedToday = profile.quizzes_used_today || 0;
+            }
           }
         }
+      } catch (authErr) {
+        console.warn("Auth check failed, continuing as unauthenticated:", authErr);
       }
     }
 
@@ -846,11 +848,13 @@ ${quizLangBlock}`;
     const { logUsage } = await import("../_shared/usage-logger.ts");
     logUsage("quiz", 0.00034, userId);
 
+    const effectiveDailyLimit = isPremium ? PREMIUM_MONTHLY_QUIZZES : FREE_DAILY_QUIZZES;
+
     return new Response(
       JSON.stringify({
         quiz,
         quizzesUsed: quizzesUsedToday + 1,
-        dailyLimit,
+        dailyLimit: effectiveDailyLimit,
         isPremium,
         model: usedModel,
       }),
