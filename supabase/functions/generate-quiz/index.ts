@@ -844,11 +844,13 @@ ${quizLangBlock}`;
     const { logUsage } = await import("../_shared/usage-logger.ts");
     logUsage("quiz", 0.00034, userId);
 
+    const effectiveDailyLimit = isPremium ? PREMIUM_MONTHLY_QUIZZES : FREE_DAILY_QUIZZES;
+
     return new Response(
       JSON.stringify({
         quiz,
         quizzesUsed: quizzesUsedToday + 1,
-        dailyLimit,
+        dailyLimit: effectiveDailyLimit,
         isPremium,
         model: usedModel,
       }),
