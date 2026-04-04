@@ -404,13 +404,9 @@ async function callLovableAI(
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  // Lovable AI gateway endpoint
-  const url = `${supabaseUrl}/functions/v1/ai-proxy`;
-
   console.log(`Attempting Lovable AI fallback with model: ${model}`);
 
-  const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
