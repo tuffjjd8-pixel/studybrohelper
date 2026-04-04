@@ -603,51 +603,55 @@ serve(async (req) => {
 
     // Check user authentication and premium status
     if (authHeader?.startsWith("Bearer ")) {
-      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
+      try {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
 
-      const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: userData, error: userError } = await supabase.auth.getUser();
 
-      if (!userError && userData?.user) {
-        userId = userData.user.id;
+        if (!userError && userData?.user) {
+          userId = userData.user.id;
 
-        // Check admin status
-        const { isAdmin } = await import("../_shared/pro-limits.ts");
-        const adminStatus = await isAdmin(userId);
+          // Check admin status
+          const { isAdmin } = await import("../_shared/pro-limits.ts");
+          const adminStatus = await isAdmin(userId);
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("is_premium, quizzes_used_today, last_quiz_reset")
-          .eq("user_id", userId)
-          .single();
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("is_premium, quizzes_used_today, last_quiz_reset")
+            .eq("user_id", userId)
+            .single();
 
-        if (profile) {
-          isPremium = profile.is_premium === true || adminStatus;
+          if (profile) {
+            isPremium = profile.is_premium === true || adminStatus;
 
-          const lastReset = profile.last_quiz_reset
-            ? new Date(profile.last_quiz_reset)
-            : null;
-          const now = new Date();
-          const today = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate()
-          );
+            const lastReset = profile.last_quiz_reset
+              ? new Date(profile.last_quiz_reset)
+              : null;
+            const now = new Date();
+            const today = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate()
+            );
 
-          if (!lastReset || lastReset < today) {
-            await supabase
-              .from("profiles")
-              .update({
-                quizzes_used_today: 0,
-                last_quiz_reset: now.toISOString(),
-              })
-              .eq("user_id", userId);
-            quizzesUsedToday = 0;
-          } else {
-            quizzesUsedToday = profile.quizzes_used_today || 0;
+            if (!lastReset || lastReset < today) {
+              await supabase
+                .from("profiles")
+                .update({
+                  quizzes_used_today: 0,
+                  last_quiz_reset: now.toISOString(),
+                })
+                .eq("user_id", userId);
+              quizzesUsedToday = 0;
+            } else {
+              quizzesUsedToday = profile.quizzes_used_today || 0;
+            }
           }
         }
+      } catch (authErr) {
+        console.warn("Auth check failed, continuing as unauthenticated:", authErr);
       }
     }
 
