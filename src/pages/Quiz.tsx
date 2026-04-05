@@ -1086,7 +1086,7 @@ const Quiz = () => {
 
                 {/* Answered count */}
                 {!submitted && <p className="text-center text-sm text-muted-foreground">
-                    {Object.keys(selectedAnswers).length} of {quizResult.length} questions answered
+                    {quizResult.filter((_, i) => isQuestionComplete(i)).length} of {quizResult.length} questions completed
                   </p>}
               </motion.div>}
 
