@@ -549,8 +549,9 @@ const Quiz = () => {
     };
     let correct = 0;
     quizResult.forEach((q, idx) => {
+      // Only count as correct if user answered correctly (not via reveal)
       const selectedOption = selectedAnswers[idx];
-      if (selectedOption && isCorrectAnswer(idx, selectedOption)) {
+      if (selectedOption && isCorrectAnswer(idx, selectedOption) && !revealed[idx]) {
         correct++;
       }
     });
