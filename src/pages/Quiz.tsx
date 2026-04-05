@@ -528,6 +528,10 @@ const Quiz = () => {
     setCurrentQuestion(0);
     setSubmitted(false);
     setReviewMode(false);
+    setWrongAttempts({});
+    setShowHint({});
+    setRevealed({});
+    setHintUsed({});
   };
   const handleCountChange = (value: string) => {
     const num = parseInt(value);
