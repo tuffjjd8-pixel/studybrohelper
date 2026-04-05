@@ -30,6 +30,7 @@ interface QuizQuestion {
   question: string;
   options: string[];
   answer: string;
+  hint: string;
   explanation: string;
 }
 interface Profile {
@@ -188,6 +189,11 @@ const Quiz = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
+  // Hint system state
+  const [wrongAttempts, setWrongAttempts] = useState<Record<number, number>>({});
+  const [showHint, setShowHint] = useState<Record<number, boolean>>({});
+  const [revealed, setRevealed] = useState<Record<number, boolean>>({});
+  const [hintUsed, setHintUsed] = useState<Record<number, boolean>>({});
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizzesUsedToday, setQuizzesUsedToday] = useState(0);
   const shimmerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -410,13 +416,46 @@ const Quiz = () => {
     return selectedLetter === correctLetter;
   };
   const handleSelectOption = (questionIndex: number, option: string) => {
-    if (submitted) return; // No changes after submission
-    // Disable changes after first selection (one answer per question)
-    if (selectedAnswers[questionIndex] !== undefined) return;
+    if (submitted) return;
+    // If already answered correctly or revealed, no more changes
+    if (revealed[questionIndex]) return;
+    if (selectedAnswers[questionIndex] !== undefined && isCorrectAnswer(questionIndex, selectedAnswers[questionIndex])) return;
+
     setSelectedAnswers((prev) => ({
       ...prev,
       [questionIndex]: option
     }));
+
+    // Check if wrong
+    if (!isCorrectAnswer(questionIndex, option)) {
+      const attempts = (wrongAttempts[questionIndex] || 0) + 1;
+      setWrongAttempts((prev) => ({ ...prev, [questionIndex]: attempts }));
+      setShowHint((prev) => ({ ...prev, [questionIndex]: true }));
+      setHintUsed((prev) => ({ ...prev, [questionIndex]: true }));
+    }
+  };
+
+  const handleRetry = (questionIndex: number) => {
+    // Clear current selection so user can pick again
+    setSelectedAnswers((prev) => {
+      const next = { ...prev };
+      delete next[questionIndex];
+      return next;
+    });
+  };
+
+  const handleReveal = (questionIndex: number) => {
+    setRevealed((prev) => ({ ...prev, [questionIndex]: true }));
+    // Set the correct answer as selected so it counts
+    if (quizResult) {
+      const correctLetter = quizResult[questionIndex].answer;
+      const correctOption = quizResult[questionIndex].options.find(
+        (opt) => getOptionLetter(opt) === correctLetter
+      );
+      if (correctOption) {
+        setSelectedAnswers((prev) => ({ ...prev, [questionIndex]: correctOption }));
+      }
+    }
   };
   const handleNextQuestion = () => {
     if (quizResult && currentQuestion < quizResult.length - 1) {
@@ -452,7 +491,7 @@ const Quiz = () => {
       if (!topicMap[topic]) topicMap[topic] = { total: 0, correct: 0 };
       topicMap[topic].total++;
       const selectedOption = selectedAnswers[idx];
-      if (selectedOption && isCorrectAnswer(idx, selectedOption)) {
+      if (selectedOption && isCorrectAnswer(idx, selectedOption) && !revealed[idx]) {
         topicMap[topic].correct++;
       }
     });
@@ -489,6 +528,10 @@ const Quiz = () => {
     setCurrentQuestion(0);
     setSubmitted(false);
     setReviewMode(false);
+    setWrongAttempts({});
+    setShowHint({});
+    setRevealed({});
+    setHintUsed({});
   };
   const handleCountChange = (value: string) => {
     const num = parseInt(value);
@@ -506,8 +549,9 @@ const Quiz = () => {
     };
     let correct = 0;
     quizResult.forEach((q, idx) => {
+      // Only count as correct if user answered correctly (not via reveal)
       const selectedOption = selectedAnswers[idx];
-      if (selectedOption && isCorrectAnswer(idx, selectedOption)) {
+      if (selectedOption && isCorrectAnswer(idx, selectedOption) && !revealed[idx]) {
         correct++;
       }
     });
@@ -516,7 +560,13 @@ const Quiz = () => {
       total: quizResult.length
     };
   };
-  const allQuestionsAnswered = quizResult ? Object.keys(selectedAnswers).length === quizResult.length : false;
+  // A question is "complete" if user answered correctly OR revealed the answer
+  const isQuestionComplete = (idx: number): boolean => {
+    if (revealed[idx]) return true;
+    const sel = selectedAnswers[idx];
+    return sel !== undefined && isCorrectAnswer(idx, sel);
+  };
+  const allQuestionsAnswered = quizResult ? quizResult.every((_, idx) => isQuestionComplete(idx)) : false;
   const [activeTab, setActiveTab] = useState<"practice" | "results">("practice");
   const ResultsPage = lazy(() => import("@/pages/Results"));
 
@@ -872,53 +922,155 @@ const Quiz = () => {
 
                   {/* Options */}
                   <div className="space-y-3">
-                    {quizResult[currentQuestion].options.map((option, idx) => {
-                    const isSelected = selectedAnswers[currentQuestion] === option;
-                    const hasAnswered = selectedAnswers[currentQuestion] !== undefined;
-                    const isCorrect = isCorrectAnswer(currentQuestion, option);
-                    const userSelectedCorrect = hasAnswered && isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]);
-                    const userSelectedWrong = hasAnswered && !userSelectedCorrect;
-                    return <motion.button key={idx} onClick={() => handleSelectOption(currentQuestion, option)} disabled={hasAnswered || submitted} whileHover={!hasAnswered && !submitted ? {
-                      scale: 1.01
-                    } : {}} whileTap={!hasAnswered && !submitted ? {
-                      scale: 0.99
-                    } : {}} className={cn("w-full text-left p-4 rounded-xl border transition-all touch-manipulation",
-                    // After submission: show correct/incorrect
-                    submitted && isCorrect ? "bg-green-500/10 border-green-500 text-foreground" : submitted && isSelected && !isCorrect ? "bg-destructive/10 border-destructive text-foreground"
-                    // During quiz after selection: show if user was correct/wrong
-                    : isSelected && userSelectedCorrect ? "bg-green-500/10 border-green-500 text-foreground" : isSelected && userSelectedWrong ? "bg-destructive/10 border-destructive text-foreground" : isSelected ? "bg-primary/10 border-primary text-foreground" : hasAnswered ? "bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60" : "bg-card border-border hover:border-primary/50 text-foreground", (hasAnswered || submitted) && "cursor-default")}>
-                          <span className="font-medium"><MathText>{option}</MathText></span>
-                        </motion.button>;
-                  })}
+                    {(() => {
+                      const qi = currentQuestion;
+                      const hasSelected = selectedAnswers[qi] !== undefined;
+                      const isAnsweredCorrectly = hasSelected && isCorrectAnswer(qi, selectedAnswers[qi]);
+                      const isAnsweredWrong = hasSelected && !isAnsweredCorrectly;
+                      const isRevealed = revealed[qi] === true;
+                      const questionComplete = isAnsweredCorrectly || isRevealed;
+
+                      return (
+                        <>
+                          {quizResult[qi].options.map((option, idx) => {
+                            const isSelected = selectedAnswers[qi] === option;
+                            const isCorrectOpt = isCorrectAnswer(qi, option);
+                            const disabled = questionComplete || submitted || (isAnsweredWrong && !isRevealed);
+
+                            return (
+                              <motion.button
+                                key={idx}
+                                onClick={() => handleSelectOption(qi, option)}
+                                disabled={disabled}
+                                whileHover={!disabled ? { scale: 1.01 } : {}}
+                                whileTap={!disabled ? { scale: 0.99 } : {}}
+                                className={cn(
+                                  "w-full text-left p-4 rounded-xl border transition-all touch-manipulation",
+                                  // Revealed: highlight correct answer green
+                                  isRevealed && isCorrectOpt
+                                    ? "bg-green-500/10 border-green-500 text-foreground"
+                                    : isRevealed && isSelected && !isCorrectOpt
+                                    ? "bg-destructive/10 border-destructive text-foreground"
+                                    // Submitted state
+                                    : submitted && isCorrectOpt
+                                    ? "bg-green-500/10 border-green-500 text-foreground"
+                                    : submitted && isSelected && !isCorrectOpt
+                                    ? "bg-destructive/10 border-destructive text-foreground"
+                                    // Correct answer selected
+                                    : isSelected && isAnsweredCorrectly
+                                    ? "bg-green-500/10 border-green-500 text-foreground"
+                                    // Wrong answer selected (show red on selected)
+                                    : isSelected && isAnsweredWrong
+                                    ? "bg-destructive/10 border-destructive text-foreground"
+                                    // Disabled options during wrong state
+                                    : disabled
+                                    ? "bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60"
+                                    // Default
+                                    : "bg-card border-border hover:border-primary/50 text-foreground",
+                                  disabled && "cursor-default"
+                                )}
+                              >
+                                <span className="font-medium"><MathText>{option}</MathText></span>
+                              </motion.button>
+                            );
+                          })}
+
+                          {/* ✅ Correct answer feedback */}
+                          {isAnsweredCorrectly && !isRevealed && !submitted && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl"
+                            >
+                              <p className="text-sm flex items-start gap-2" style={{ color: "hsl(var(--primary))" }}>
+                                <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
+                                <span className="font-medium">
+                                  Correct! {!hintUsed[qi] ? "+10 XP" : "+8 XP (hint used)"}
+                                </span>
+                              </p>
+                            </motion.div>
+                          )}
+
+                          {/* ❌ Wrong answer → show hint + retry/reveal */}
+                          {isAnsweredWrong && !isRevealed && !submitted && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-4 space-y-3"
+                            >
+                              <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
+                                <p className="text-sm text-destructive flex items-start gap-2">
+                                  <XCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                                  <span className="font-medium">❌ Not quite right</span>
+                                </p>
+                              </div>
+
+                              {/* Hint */}
+                              {showHint[qi] && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 5 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="p-4 bg-accent/30 border border-accent/50 rounded-xl"
+                                >
+                                  <p className="text-sm flex items-start gap-2">
+                                    <span className="text-lg shrink-0">💡</span>
+                                    <span className="text-muted-foreground">
+                                      <MathText>{quizResult[qi].hint}</MathText>
+                                    </span>
+                                  </p>
+                                </motion.div>
+                              )}
+
+                              {/* Action buttons */}
+                              <div className="flex gap-3">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 gap-2"
+                                  onClick={() => handleRetry(qi)}
+                                >
+                                  <RotateCcw className="w-4 h-4" />
+                                  Try Again
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="flex-1 gap-2 text-muted-foreground"
+                                  onClick={() => handleReveal(qi)}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  Reveal Answer
+                                </Button>
+                              </div>
+                            </motion.div>
+                          )}
+
+                          {/* 🔓 Revealed answer + explanation */}
+                          {isRevealed && !submitted && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-4 space-y-3"
+                            >
+                              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+                                <p className="text-sm flex items-start gap-2" style={{ color: "hsl(var(--primary))" }}>
+                                  <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
+                                  <span className="font-medium">
+                                    ✅ Correct Answer: {quizResult[qi].answer}
+                                  </span>
+                                </p>
+                              </div>
+                              <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                                <p className="text-sm text-muted-foreground">
+                                  <MathText>{quizResult[qi].explanation}</MathText>
+                                </p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
-
-                  {/* Feedback after selection - Correct answer */}
-                  {selectedAnswers[currentQuestion] && isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]) && !submitted && <motion.div initial={{
-                  opacity: 0,
-                  y: 10
-                }} animate={{
-                  opacity: 1,
-                  y: 0
-                }} className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
-                      <p className="text-sm text-green-400 flex items-start gap-2">
-                        <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
-                        <span className="font-medium">Correct! <MathText>{quizResult[currentQuestion].explanation}</MathText></span>
-                      </p>
-                    </motion.div>}
-
-                  {/* Feedback after selection - Wrong answer (no correct answer revealed) */}
-                  {selectedAnswers[currentQuestion] && !isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]) && !submitted && <motion.div initial={{
-                  opacity: 0,
-                  y: 10
-                }} animate={{
-                  opacity: 1,
-                  y: 0
-                }} className="mt-4 p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
-                      <p className="text-sm text-destructive flex items-start gap-2">
-                        <XCircle className="w-5 h-5 mt-0.5 shrink-0" />
-                        <span className="font-medium">That's not quite right. Think about the key concepts and try to remember the solution steps.</span>
-                      </p>
-                    </motion.div>}
                 </motion.div>
 
                 {/* Navigation */}
@@ -927,7 +1079,7 @@ const Quiz = () => {
                     Previous
                   </Button>
                   {currentQuestion === quizResult.length - 1 ? <Button onClick={handleSubmit} disabled={submitted} className="flex-1" variant="neon">
-                      {submitted ? "Submitted ✓" : allQuestionsAnswered ? "Submit" : `Submit (${Object.keys(selectedAnswers).length}/${quizResult.length})`}
+                      {submitted ? "Submitted ✓" : allQuestionsAnswered ? "Submit" : `Submit (${quizResult.filter((_, i) => isQuestionComplete(i)).length}/${quizResult.length})`}
                     </Button> : <Button onClick={handleNextQuestion} className="flex-1">
                       Next
                     </Button>}
@@ -935,7 +1087,7 @@ const Quiz = () => {
 
                 {/* Answered count */}
                 {!submitted && <p className="text-center text-sm text-muted-foreground">
-                    {Object.keys(selectedAnswers).length} of {quizResult.length} questions answered
+                    {quizResult.filter((_, i) => isQuestionComplete(i)).length} of {quizResult.length} questions completed
                   </p>}
               </motion.div>}
 
