@@ -189,6 +189,11 @@ const Quiz = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
+  // Hint system state
+  const [wrongAttempts, setWrongAttempts] = useState<Record<number, number>>({});
+  const [showHint, setShowHint] = useState<Record<number, boolean>>({});
+  const [revealed, setRevealed] = useState<Record<number, boolean>>({});
+  const [hintUsed, setHintUsed] = useState<Record<number, boolean>>({});
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizzesUsedToday, setQuizzesUsedToday] = useState(0);
   const shimmerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
