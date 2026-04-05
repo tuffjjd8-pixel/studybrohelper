@@ -921,53 +921,155 @@ const Quiz = () => {
 
                   {/* Options */}
                   <div className="space-y-3">
-                    {quizResult[currentQuestion].options.map((option, idx) => {
-                    const isSelected = selectedAnswers[currentQuestion] === option;
-                    const hasAnswered = selectedAnswers[currentQuestion] !== undefined;
-                    const isCorrect = isCorrectAnswer(currentQuestion, option);
-                    const userSelectedCorrect = hasAnswered && isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]);
-                    const userSelectedWrong = hasAnswered && !userSelectedCorrect;
-                    return <motion.button key={idx} onClick={() => handleSelectOption(currentQuestion, option)} disabled={hasAnswered || submitted} whileHover={!hasAnswered && !submitted ? {
-                      scale: 1.01
-                    } : {}} whileTap={!hasAnswered && !submitted ? {
-                      scale: 0.99
-                    } : {}} className={cn("w-full text-left p-4 rounded-xl border transition-all touch-manipulation",
-                    // After submission: show correct/incorrect
-                    submitted && isCorrect ? "bg-green-500/10 border-green-500 text-foreground" : submitted && isSelected && !isCorrect ? "bg-destructive/10 border-destructive text-foreground"
-                    // During quiz after selection: show if user was correct/wrong
-                    : isSelected && userSelectedCorrect ? "bg-green-500/10 border-green-500 text-foreground" : isSelected && userSelectedWrong ? "bg-destructive/10 border-destructive text-foreground" : isSelected ? "bg-primary/10 border-primary text-foreground" : hasAnswered ? "bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60" : "bg-card border-border hover:border-primary/50 text-foreground", (hasAnswered || submitted) && "cursor-default")}>
-                          <span className="font-medium"><MathText>{option}</MathText></span>
-                        </motion.button>;
-                  })}
+                    {(() => {
+                      const qi = currentQuestion;
+                      const hasSelected = selectedAnswers[qi] !== undefined;
+                      const isAnsweredCorrectly = hasSelected && isCorrectAnswer(qi, selectedAnswers[qi]);
+                      const isAnsweredWrong = hasSelected && !isAnsweredCorrectly;
+                      const isRevealed = revealed[qi] === true;
+                      const questionComplete = isAnsweredCorrectly || isRevealed;
+
+                      return (
+                        <>
+                          {quizResult[qi].options.map((option, idx) => {
+                            const isSelected = selectedAnswers[qi] === option;
+                            const isCorrectOpt = isCorrectAnswer(qi, option);
+                            const disabled = questionComplete || submitted || (isAnsweredWrong && !isRevealed);
+
+                            return (
+                              <motion.button
+                                key={idx}
+                                onClick={() => handleSelectOption(qi, option)}
+                                disabled={disabled}
+                                whileHover={!disabled ? { scale: 1.01 } : {}}
+                                whileTap={!disabled ? { scale: 0.99 } : {}}
+                                className={cn(
+                                  "w-full text-left p-4 rounded-xl border transition-all touch-manipulation",
+                                  // Revealed: highlight correct answer green
+                                  isRevealed && isCorrectOpt
+                                    ? "bg-green-500/10 border-green-500 text-foreground"
+                                    : isRevealed && isSelected && !isCorrectOpt
+                                    ? "bg-destructive/10 border-destructive text-foreground"
+                                    // Submitted state
+                                    : submitted && isCorrectOpt
+                                    ? "bg-green-500/10 border-green-500 text-foreground"
+                                    : submitted && isSelected && !isCorrectOpt
+                                    ? "bg-destructive/10 border-destructive text-foreground"
+                                    // Correct answer selected
+                                    : isSelected && isAnsweredCorrectly
+                                    ? "bg-green-500/10 border-green-500 text-foreground"
+                                    // Wrong answer selected (show red on selected)
+                                    : isSelected && isAnsweredWrong
+                                    ? "bg-destructive/10 border-destructive text-foreground"
+                                    // Disabled options during wrong state
+                                    : disabled
+                                    ? "bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60"
+                                    // Default
+                                    : "bg-card border-border hover:border-primary/50 text-foreground",
+                                  disabled && "cursor-default"
+                                )}
+                              >
+                                <span className="font-medium"><MathText>{option}</MathText></span>
+                              </motion.button>
+                            );
+                          })}
+
+                          {/* ✅ Correct answer feedback */}
+                          {isAnsweredCorrectly && !isRevealed && !submitted && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl"
+                            >
+                              <p className="text-sm flex items-start gap-2" style={{ color: "hsl(var(--primary))" }}>
+                                <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
+                                <span className="font-medium">
+                                  Correct! {!hintUsed[qi] ? "+10 XP" : "+8 XP (hint used)"}
+                                </span>
+                              </p>
+                            </motion.div>
+                          )}
+
+                          {/* ❌ Wrong answer → show hint + retry/reveal */}
+                          {isAnsweredWrong && !isRevealed && !submitted && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-4 space-y-3"
+                            >
+                              <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
+                                <p className="text-sm text-destructive flex items-start gap-2">
+                                  <XCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                                  <span className="font-medium">❌ Not quite right</span>
+                                </p>
+                              </div>
+
+                              {/* Hint */}
+                              {showHint[qi] && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 5 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="p-4 bg-accent/30 border border-accent/50 rounded-xl"
+                                >
+                                  <p className="text-sm flex items-start gap-2">
+                                    <span className="text-lg shrink-0">💡</span>
+                                    <span className="text-muted-foreground">
+                                      <MathText>{quizResult[qi].hint}</MathText>
+                                    </span>
+                                  </p>
+                                </motion.div>
+                              )}
+
+                              {/* Action buttons */}
+                              <div className="flex gap-3">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 gap-2"
+                                  onClick={() => handleRetry(qi)}
+                                >
+                                  <RotateCcw className="w-4 h-4" />
+                                  Try Again
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="flex-1 gap-2 text-muted-foreground"
+                                  onClick={() => handleReveal(qi)}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  Reveal Answer
+                                </Button>
+                              </div>
+                            </motion.div>
+                          )}
+
+                          {/* 🔓 Revealed answer + explanation */}
+                          {isRevealed && !submitted && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-4 space-y-3"
+                            >
+                              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+                                <p className="text-sm flex items-start gap-2" style={{ color: "hsl(var(--primary))" }}>
+                                  <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
+                                  <span className="font-medium">
+                                    ✅ Correct Answer: {quizResult[qi].answer}
+                                  </span>
+                                </p>
+                              </div>
+                              <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                                <p className="text-sm text-muted-foreground">
+                                  <MathText>{quizResult[qi].explanation}</MathText>
+                                </p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
-
-                  {/* Feedback after selection - Correct answer */}
-                  {selectedAnswers[currentQuestion] && isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]) && !submitted && <motion.div initial={{
-                  opacity: 0,
-                  y: 10
-                }} animate={{
-                  opacity: 1,
-                  y: 0
-                }} className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
-                      <p className="text-sm text-green-400 flex items-start gap-2">
-                        <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
-                        <span className="font-medium">Correct! <MathText>{quizResult[currentQuestion].explanation}</MathText></span>
-                      </p>
-                    </motion.div>}
-
-                  {/* Feedback after selection - Wrong answer (no correct answer revealed) */}
-                  {selectedAnswers[currentQuestion] && !isCorrectAnswer(currentQuestion, selectedAnswers[currentQuestion]) && !submitted && <motion.div initial={{
-                  opacity: 0,
-                  y: 10
-                }} animate={{
-                  opacity: 1,
-                  y: 0
-                }} className="mt-4 p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
-                      <p className="text-sm text-destructive flex items-start gap-2">
-                        <XCircle className="w-5 h-5 mt-0.5 shrink-0" />
-                        <span className="font-medium">That's not quite right. Think about the key concepts and try to remember the solution steps.</span>
-                      </p>
-                    </motion.div>}
                 </motion.div>
 
                 {/* Navigation */}
