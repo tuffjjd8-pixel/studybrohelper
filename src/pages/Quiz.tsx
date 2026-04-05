@@ -1078,7 +1078,7 @@ const Quiz = () => {
                     Previous
                   </Button>
                   {currentQuestion === quizResult.length - 1 ? <Button onClick={handleSubmit} disabled={submitted} className="flex-1" variant="neon">
-                      {submitted ? "Submitted ✓" : allQuestionsAnswered ? "Submit" : `Submit (${Object.keys(selectedAnswers).length}/${quizResult.length})`}
+                      {submitted ? "Submitted ✓" : allQuestionsAnswered ? "Submit" : `Submit (${quizResult.filter((_, i) => isQuestionComplete(i)).length}/${quizResult.length})`}
                     </Button> : <Button onClick={handleNextQuestion} className="flex-1">
                       Next
                     </Button>}
