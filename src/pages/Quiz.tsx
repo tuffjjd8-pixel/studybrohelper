@@ -30,6 +30,7 @@ interface QuizQuestion {
   question: string;
   options: string[];
   answer: string;
+  hint: string;
   explanation: string;
 }
 interface Profile {
