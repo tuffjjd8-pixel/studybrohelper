@@ -559,7 +559,13 @@ const Quiz = () => {
       total: quizResult.length
     };
   };
-  const allQuestionsAnswered = quizResult ? Object.keys(selectedAnswers).length === quizResult.length : false;
+  // A question is "complete" if user answered correctly OR revealed the answer
+  const isQuestionComplete = (idx: number): boolean => {
+    if (revealed[idx]) return true;
+    const sel = selectedAnswers[idx];
+    return sel !== undefined && isCorrectAnswer(idx, sel);
+  };
+  const allQuestionsAnswered = quizResult ? quizResult.every((_, idx) => isQuestionComplete(idx)) : false;
   const [activeTab, setActiveTab] = useState<"practice" | "results">("practice");
   const ResultsPage = lazy(() => import("@/pages/Results"));
 
