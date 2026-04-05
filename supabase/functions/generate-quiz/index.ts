@@ -255,10 +255,16 @@ function sanitizeQuizOutput(questions: any[]): any[] {
           ? fixCommonLatexErrors(fixLatexDelimiters(preClean(q.explanation.trim())))
           : "This is the correct answer based on the material.";
 
+      const safeHint =
+        typeof q.hint === "string" && q.hint.trim()
+          ? fixCommonLatexErrors(fixLatexDelimiters(preClean(q.hint.trim())))
+          : "Review the key concepts related to this question.";
+
       return {
         question: safeQuestion,
         options: safeOptions,
         answer,
+        hint: safeHint,
         explanation: safeExplanation,
       };
     })
