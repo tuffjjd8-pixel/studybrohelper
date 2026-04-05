@@ -749,7 +749,13 @@ ${
 }
 
 REQUIRED JSON STRUCTURE:
-{"questions":[{"question":"string","options":["A) option","B) option","C) option","D) option"],"correctOptionIndex":0,"explanation":"string"}]}
+{"questions":[{"question":"string","options":["A) option","B) option","C) option","D) option"],"correctOptionIndex":0,"hint":"string","explanation":"string"}]}
+
+HINT RULES:
+- Each question MUST include a "hint" field — a SHORT (1-2 sentence) clue that guides thinking WITHOUT revealing the answer.
+- The hint should point to the key concept, formula, or reasoning step needed.
+- BAD hint: "The answer is 42" or "It's option B"
+- GOOD hint: "Think about conservation of energy in this scenario" or "Consider what happens when you factor the denominator"
 
 - correctOptionIndex MUST be 0, 1, 2, or 3 (A, B, C, D).
 - Each question MUST have EXACTLY 4 options with A), B), C), D) prefixes.
