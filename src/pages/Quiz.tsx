@@ -491,7 +491,7 @@ const Quiz = () => {
       if (!topicMap[topic]) topicMap[topic] = { total: 0, correct: 0 };
       topicMap[topic].total++;
       const selectedOption = selectedAnswers[idx];
-      if (selectedOption && isCorrectAnswer(idx, selectedOption)) {
+      if (selectedOption && isCorrectAnswer(idx, selectedOption) && !revealed[idx]) {
         topicMap[topic].correct++;
       }
     });
