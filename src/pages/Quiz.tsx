@@ -416,13 +416,46 @@ const Quiz = () => {
     return selectedLetter === correctLetter;
   };
   const handleSelectOption = (questionIndex: number, option: string) => {
-    if (submitted) return; // No changes after submission
-    // Disable changes after first selection (one answer per question)
-    if (selectedAnswers[questionIndex] !== undefined) return;
+    if (submitted) return;
+    // If already answered correctly or revealed, no more changes
+    if (revealed[questionIndex]) return;
+    if (selectedAnswers[questionIndex] !== undefined && isCorrectAnswer(questionIndex, selectedAnswers[questionIndex])) return;
+
     setSelectedAnswers((prev) => ({
       ...prev,
       [questionIndex]: option
     }));
+
+    // Check if wrong
+    if (!isCorrectAnswer(questionIndex, option)) {
+      const attempts = (wrongAttempts[questionIndex] || 0) + 1;
+      setWrongAttempts((prev) => ({ ...prev, [questionIndex]: attempts }));
+      setShowHint((prev) => ({ ...prev, [questionIndex]: true }));
+      setHintUsed((prev) => ({ ...prev, [questionIndex]: true }));
+    }
+  };
+
+  const handleRetry = (questionIndex: number) => {
+    // Clear current selection so user can pick again
+    setSelectedAnswers((prev) => {
+      const next = { ...prev };
+      delete next[questionIndex];
+      return next;
+    });
+  };
+
+  const handleReveal = (questionIndex: number) => {
+    setRevealed((prev) => ({ ...prev, [questionIndex]: true }));
+    // Set the correct answer as selected so it counts
+    if (quizResult) {
+      const correctLetter = quizResult[questionIndex].answer;
+      const correctOption = quizResult[questionIndex].options.find(
+        (opt) => getOptionLetter(opt) === correctLetter
+      );
+      if (correctOption) {
+        setSelectedAnswers((prev) => ({ ...prev, [questionIndex]: correctOption }));
+      }
+    }
   };
   const handleNextQuestion = () => {
     if (quizResult && currentQuestion < quizResult.length - 1) {
