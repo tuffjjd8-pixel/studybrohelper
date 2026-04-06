@@ -3,14 +3,14 @@ export type ImageOptimizeOptions = {
   maxDimension?: number;
   /** 0..1 */
   quality?: number;
-  /** Prefer webp, fall back to jpeg if unsupported */
-  mimeType?: "image/webp" | "image/jpeg";
+  /** Output mime type – always JPEG for maximum compatibility */
+  mimeType?: "image/jpeg" | "image/webp";
 };
 
 const DEFAULTS: Required<ImageOptimizeOptions> = {
-  maxDimension: 1280,
-  quality: 0.8,
-  mimeType: "image/webp",
+  maxDimension: 2000,
+  quality: 0.9,
+  mimeType: "image/jpeg",
 };
 
 function clamp(n: number, min: number, max: number) {
