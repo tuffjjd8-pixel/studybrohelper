@@ -390,6 +390,35 @@ function parseQuizJSON(content: string): any {
     console.log("Fixed content parse failed:", e instanceof Error ? e.message : String(e));
   }
 
+  // Strategy 6: Truncation recovery — if JSON was cut off mid-response,
+  // try to close the array/object and salvage partial questions
+  try {
+    let truncated = latexFixed;
+    // Remove any trailing incomplete object (after last complete })
+    const lastCompleteObj = truncated.lastIndexOf("},");
+    const lastCompleteObjEnd = truncated.lastIndexOf("}]");
+    const cutPoint = Math.max(lastCompleteObj, lastCompleteObjEnd);
+    if (cutPoint > 0) {
+      if (lastCompleteObjEnd > lastCompleteObj) {
+        truncated = truncated.substring(0, lastCompleteObjEnd + 2);
+      } else {
+        truncated = truncated.substring(0, lastCompleteObj + 1) + "]";
+      }
+      // Ensure it's wrapped in an object if needed
+      if (!truncated.trimStart().startsWith("{")) {
+        truncated = `{"questions":${truncated}}`;
+      } else if (!truncated.includes("]}")) {
+        truncated = truncated + "]}";
+      }
+      console.log("Attempting truncation recovery...");
+      const recovered = JSON.parse(truncated);
+      console.log("Truncation recovery succeeded");
+      return recovered;
+    }
+  } catch (e) {
+    console.log("Truncation recovery failed:", e instanceof Error ? e.message : String(e));
+  }
+
   throw new Error("Unable to parse quiz JSON after all strategies");
 }
 
