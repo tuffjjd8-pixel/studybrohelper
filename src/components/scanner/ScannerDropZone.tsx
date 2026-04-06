@@ -14,16 +14,20 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
   const [isDragging, setIsDragging] = useState(false);
 
   const processFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith("image/")) return;
+    if (!file.type.startsWith("image/") && !/\.(heic|heif)$/i.test(file.name)) return;
     try {
       const optimized = await fileToOptimizedDataUrl(file, {
-        maxDimension: 2048,
-        quality: 0.92,
-        mimeType: "image/webp",
+        maxDimension: 2000,
+        quality: 0.9,
+        mimeType: "image/jpeg",
       });
       onImageSelect(optimized);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Image processing error:", error);
+      const msg = error?.message === "HEIC_UNSUPPORTED"
+        ? "This image format isn't supported. Try taking a screenshot instead."
+        : "Failed to process image. Try taking a screenshot instead.";
+      import("sonner").then(({ toast }) => toast.error(msg));
     }
   }, [onImageSelect]);
 
