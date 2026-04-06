@@ -195,8 +195,8 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     if (!file) return;
     try {
       const optimized = await fileToOptimizedDataUrl(file, {
-        maxDimension: 2048,
-        quality: 0.92,
+        maxDimension: 2000,
+        quality: 0.9,
         mimeType: "image/jpeg",
       });
 
