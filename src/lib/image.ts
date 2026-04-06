@@ -107,20 +107,28 @@ function applyExifOrientation(
 }
 
 async function fileToImageBitmapSafe(file: File): Promise<ImageBitmap | HTMLImageElement | null> {
-  // Try createImageBitmap first (fast, handles EXIF in modern browsers)
+  // Try createImageBitmap first (fast, handles EXIF & HEIC in modern browsers)
   if (typeof createImageBitmap === "function") {
     try {
-      return await createImageBitmap(file);
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
     } catch {
       // Fall through to HTMLImageElement path
     }
   }
-  // Fallback for older iOS Safari and other browsers
+  // Fallback for older iOS Safari, HEIC on some browsers, etc.
   try {
     return await loadImageElement(file);
   } catch {
     return null;
   }
+}
+
+/** Check if a file is HEIC/HEIF based on type or extension */
+function isHeicFile(file: File): boolean {
+  const type = file.type.toLowerCase();
+  if (type.includes("heic") || type.includes("heif")) return true;
+  const ext = file.name?.toLowerCase().split(".").pop() ?? "";
+  return ext === "heic" || ext === "heif";
 }
 
 export async function fileToOptimizedDataUrl(
