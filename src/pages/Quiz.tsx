@@ -975,56 +975,105 @@ const Quiz = () => {
                             );
                           })}
 
-                          {/* ✅ Correct answer feedback */}
+                          {/* ✅ Correct answer — premium "Nailed it" state */}
                           {isAnsweredCorrectly && !isRevealed && !submitted && (
                             <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl"
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                              className="mt-4 p-5 rounded-2xl border border-primary/40 relative overflow-hidden"
+                              style={{
+                                background: "linear-gradient(135deg, hsl(var(--primary) / 0.12) 0%, hsl(var(--primary) / 0.04) 100%)",
+                                boxShadow: "0 0 30px hsl(var(--primary) / 0.15), inset 0 1px 0 hsl(var(--primary) / 0.1)"
+                              }}
                             >
-                              <p className="text-sm flex items-start gap-2" style={{ color: "hsl(var(--primary))" }}>
-                                <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span className="font-medium">
-                                  Correct! {!hintUsed[qi] ? "+10 XP" : "+8 XP (hint used)"}
-                                </span>
+                              <div className="flex items-center gap-3">
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ type: "spring", stiffness: 400, damping: 12, delay: 0.1 }}
+                                >
+                                  <CheckCircle2 className="w-7 h-7 text-primary shrink-0" />
+                                </motion.div>
+                                <div className="flex-1">
+                                  <p className="font-heading font-bold text-foreground">✅ Nailed it</p>
+                                  <p className="text-sm text-muted-foreground mt-0.5">
+                                    {quizResult[qi].options.find(opt => getOptionLetter(opt) === quizResult[qi].answer)
+                                      ? <MathText>{quizResult[qi].options.find(opt => getOptionLetter(opt) === quizResult[qi].answer)!}</MathText>
+                                      : quizResult[qi].answer
+                                    }
+                                  </p>
+                                </div>
+                                <motion.span
+                                  initial={{ opacity: 0, x: 10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: 0.3 }}
+                                  className="text-sm font-bold text-primary whitespace-nowrap"
+                                >
+                                  {!hintUsed[qi] ? "+10 XP" : "+8 XP"}
+                                </motion.span>
+                              </div>
+                              {hintUsed[qi] && (
+                                <p className="text-xs text-muted-foreground mt-2 ml-10">hint used</p>
+                              )}
+                              {/* Progress count */}
+                              <p className="text-xs text-muted-foreground mt-3 ml-10">
+                                {quizResult.filter((_, i) => isQuestionComplete(i)).length}/{quizResult.length} completed
                               </p>
                             </motion.div>
                           )}
 
-                          {/* ❌ Wrong answer → show hint + retry/reveal */}
+                          {/* ❌ Wrong answer — "Close — but not quite" */}
                           {isAnsweredWrong && !isRevealed && !submitted && (
                             <motion.div
-                              initial={{ opacity: 0, y: 10 }}
+                              initial={{ opacity: 0, y: 8 }}
                               animate={{ opacity: 1, y: 0 }}
                               className="mt-4 space-y-3"
                             >
-                              <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
-                                <p className="text-sm text-destructive flex items-start gap-2">
-                                  <XCircle className="w-5 h-5 mt-0.5 shrink-0" />
-                                  <span className="font-medium">❌ Not quite right</span>
+                              {/* Wrong answer card */}
+                              <div
+                                className="p-4 rounded-2xl border border-destructive/20"
+                                style={{
+                                  background: "hsl(0 72% 51% / 0.06)",
+                                  boxShadow: "0 0 20px hsl(0 72% 51% / 0.05)"
+                                }}
+                              >
+                                <p className="text-sm font-heading font-semibold text-destructive flex items-center gap-2">
+                                  <XCircle className="w-5 h-5 shrink-0" />
+                                  Close — but not quite
                                 </p>
                               </div>
 
-                              {/* Hint */}
+                              {/* Hint — teal/blue accent */}
                               {showHint[qi] && (
                                 <motion.div
-                                  initial={{ opacity: 0, y: 5 }}
+                                  initial={{ opacity: 0, y: 4 }}
                                   animate={{ opacity: 1, y: 0 }}
-                                  className="p-4 bg-accent/30 border border-accent/50 rounded-xl"
+                                  transition={{ delay: 0.15 }}
+                                  className="p-4 rounded-2xl border"
+                                  style={{
+                                    background: "hsl(187 100% 42% / 0.06)",
+                                    borderColor: "hsl(187 100% 42% / 0.2)"
+                                  }}
                                 >
-                                  <p className="text-sm flex items-start gap-2">
-                                    <span className="text-lg shrink-0">💡</span>
-                                    <span className="text-muted-foreground">
+                                  <p className="text-sm flex items-start gap-2.5">
+                                    <span className="text-base shrink-0 mt-0.5">💡</span>
+                                    <span style={{ color: "hsl(187 80% 65%)" }}>
                                       <MathText>{quizResult[qi].hint}</MathText>
                                     </span>
                                   </p>
                                 </motion.div>
                               )}
 
+                              {/* Encouragement */}
+                              <p className="text-xs text-muted-foreground text-center">
+                                You've got this — try once more.
+                              </p>
+
                               {/* Action buttons */}
                               <div className="flex gap-3">
                                 <Button
-                                  variant="outline"
+                                  variant="neonGreen"
                                   size="sm"
                                   className="flex-1 gap-2"
                                   onClick={() => handleRetry(qi)}
@@ -1048,20 +1097,30 @@ const Quiz = () => {
                           {/* 🔓 Revealed answer + explanation */}
                           {isRevealed && !submitted && (
                             <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
+                              initial={{ opacity: 0, scale: 0.97 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ type: "spring", stiffness: 300, damping: 22 }}
                               className="mt-4 space-y-3"
                             >
-                              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
-                                <p className="text-sm flex items-start gap-2" style={{ color: "hsl(var(--primary))" }}>
-                                  <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
-                                  <span className="font-medium">
-                                    ✅ Correct Answer: {quizResult[qi].answer}
-                                  </span>
+                              {/* Correct answer card */}
+                              <div
+                                className="p-5 rounded-2xl border border-primary/30 relative overflow-hidden"
+                                style={{
+                                  background: "linear-gradient(135deg, hsl(var(--primary) / 0.1) 0%, hsl(var(--primary) / 0.03) 100%)",
+                                  boxShadow: "0 0 25px hsl(var(--primary) / 0.12)"
+                                }}
+                              >
+                                <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Correct Answer</p>
+                                <p className="font-heading font-bold text-foreground">
+                                  <MathText>
+                                    {quizResult[qi].options.find(opt => getOptionLetter(opt) === quizResult[qi].answer) || quizResult[qi].answer}
+                                  </MathText>
                                 </p>
                               </div>
-                              <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
-                                <p className="text-sm text-muted-foreground">
+                              {/* Explanation card */}
+                              <div className="p-4 rounded-2xl bg-card border border-primary/15">
+                                <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Why this is correct</p>
+                                <p className="text-sm text-muted-foreground leading-relaxed">
                                   <MathText>{quizResult[qi].explanation}</MathText>
                                 </p>
                               </div>
