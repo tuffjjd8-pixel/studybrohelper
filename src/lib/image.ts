@@ -3,14 +3,14 @@ export type ImageOptimizeOptions = {
   maxDimension?: number;
   /** 0..1 */
   quality?: number;
-  /** Prefer webp, fall back to jpeg if unsupported */
-  mimeType?: "image/webp" | "image/jpeg";
+  /** Output mime type – always JPEG for maximum compatibility */
+  mimeType?: "image/jpeg" | "image/webp";
 };
 
 const DEFAULTS: Required<ImageOptimizeOptions> = {
-  maxDimension: 1280,
-  quality: 0.8,
-  mimeType: "image/webp",
+  maxDimension: 2000,
+  quality: 0.9,
+  mimeType: "image/jpeg",
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -107,15 +107,15 @@ function applyExifOrientation(
 }
 
 async function fileToImageBitmapSafe(file: File): Promise<ImageBitmap | HTMLImageElement | null> {
-  // Try createImageBitmap first (fast, handles EXIF in modern browsers)
+  // Try createImageBitmap first (fast, handles EXIF & HEIC in modern browsers)
   if (typeof createImageBitmap === "function") {
     try {
-      return await createImageBitmap(file);
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
     } catch {
       // Fall through to HTMLImageElement path
     }
   }
-  // Fallback for older iOS Safari and other browsers
+  // Fallback for older iOS Safari, HEIC on some browsers, etc.
   try {
     return await loadImageElement(file);
   } catch {
@@ -123,18 +123,32 @@ async function fileToImageBitmapSafe(file: File): Promise<ImageBitmap | HTMLImag
   }
 }
 
+/** Check if a file is HEIC/HEIF based on type or extension */
+function isHeicFile(file: File): boolean {
+  const type = file.type.toLowerCase();
+  if (type.includes("heic") || type.includes("heif")) return true;
+  const ext = file.name?.toLowerCase().split(".").pop() ?? "";
+  return ext === "heic" || ext === "heif";
+}
+
+/**
+ * Universal image normalization pipeline.
+ * Always produces a correctly-oriented JPEG (or requested format) data URL.
+ * Handles HEIC/HEIF, EXIF rotation, large dimensions, and format conversion.
+ */
 export async function fileToOptimizedDataUrl(
   file: File,
   options?: ImageOptimizeOptions
 ): Promise<string> {
   const { maxDimension, quality, mimeType } = { ...DEFAULTS, ...options };
 
-  // Always process through canvas to normalize EXIF orientation.
-  // createImageBitmap handles EXIF automatically in modern browsers,
-  // but the HTMLImageElement fallback and small-file bypass do not.
-
   const bitmap = await fileToImageBitmapSafe(file);
   if (!bitmap) {
+    // If we can't decode, throw so callers can show a user-friendly error
+    if (isHeicFile(file)) {
+      throw new Error("HEIC_UNSUPPORTED");
+    }
+    // Last resort: return raw (may not display, but won't crash)
     return await blobToDataUrl(file);
   }
 
@@ -142,13 +156,18 @@ export async function fileToOptimizedDataUrl(
   const h = bitmap.height;
 
   // Check EXIF orientation for HTMLImageElement fallback
+  // createImageBitmap with imageOrientation:"from-image" handles it automatically
   let orientation = 1;
   const isBitmapAutoRotated = bitmap instanceof ImageBitmap;
-  if (!isBitmapAutoRotated && file.type === "image/jpeg") {
-    try {
-      const buf = await file.arrayBuffer();
-      orientation = readExifOrientation(buf);
-    } catch { /* ignore */ }
+  if (!isBitmapAutoRotated) {
+    // Read EXIF from JPEG files
+    const type = file.type.toLowerCase();
+    if (type === "image/jpeg" || type === "image/jpg") {
+      try {
+        const buf = await file.arrayBuffer();
+        orientation = readExifOrientation(buf);
+      } catch { /* ignore */ }
+    }
   }
 
   const scale = Math.min(1, maxDimension / Math.max(w, h));
@@ -165,11 +184,9 @@ export async function fileToOptimizedDataUrl(
   }
 
   if (!isBitmapAutoRotated && orientation > 1) {
-    // Apply EXIF rotation
     const [cw, ch] = applyExifOrientation(ctx, orientation, targetW, targetH);
     canvas.width = cw;
     canvas.height = ch;
-    // Re-apply transform after setting canvas size (it resets)
     applyExifOrientation(ctx, orientation, targetW, targetH);
   } else {
     canvas.width = targetW;
@@ -183,7 +200,7 @@ export async function fileToOptimizedDataUrl(
 
   const q = clamp(quality, 0.4, 0.95);
 
-  // Some browsers may not support webp encode; try requested mime first, then jpeg.
+  // Always try JPEG first for maximum compatibility, then requested mime
   const blob =
     (await new Promise<Blob | null>((resolve) =>
       canvas.toBlob((b) => resolve(b), mimeType, q)

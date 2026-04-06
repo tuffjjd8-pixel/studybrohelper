@@ -87,9 +87,9 @@ export function TextInputBox({
         const file = item.getAsFile();
         if (file && onImagePaste) {
           const optimized = await fileToOptimizedDataUrl(file, {
-            maxDimension: 1280,
-            quality: 0.8,
-            mimeType: "image/webp",
+            maxDimension: 2000,
+            quality: 0.9,
+            mimeType: "image/jpeg",
           });
           onImagePaste(optimized);
         }
