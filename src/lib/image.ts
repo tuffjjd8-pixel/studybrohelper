@@ -215,3 +215,55 @@ export async function fileToOptimizedDataUrl(
 
   return await blobToDataUrl(blob);
 }
+
+/**
+ * Universal image normalization entry point.
+ * Accepts File, Blob, data-URL string, or blob-URL string.
+ * Always returns a correctly-oriented JPEG base64 data URL.
+ */
+export async function normalizeImageInput(
+  input: File | Blob | string,
+  options?: ImageOptimizeOptions
+): Promise<string> {
+  const opts: ImageOptimizeOptions = {
+    maxDimension: 2000,
+    quality: 0.9,
+    mimeType: "image/jpeg",
+    ...options,
+  };
+
+  // 1. Already a valid JPEG data URL → pass through (already normalized)
+  if (typeof input === "string" && input.startsWith("data:image/jpeg;base64,")) {
+    return input;
+  }
+
+  // 2. String input (blob: URL or other data URL) → fetch to Blob first
+  if (typeof input === "string") {
+    try {
+      const res = await fetch(input);
+      const blob = await res.blob();
+      // Revoke blob URLs after fetching
+      if (input.startsWith("blob:")) {
+        try { URL.revokeObjectURL(input); } catch {}
+      }
+      const file = new File([blob], "image-input.jpg", {
+        type: blob.type || "image/jpeg",
+      });
+      return await fileToOptimizedDataUrl(file, opts);
+    } catch (err) {
+      console.error("[normalizeImageInput] Failed to fetch string input:", err);
+      throw new Error("IMAGE_DECODE_FAILED");
+    }
+  }
+
+  // 3. Blob (not File) → wrap as File
+  if (!(input instanceof File)) {
+    const file = new File([input], "blob-input.jpg", {
+      type: input.type || "image/jpeg",
+    });
+    return await fileToOptimizedDataUrl(file, opts);
+  }
+
+  // 4. File → direct
+  return await fileToOptimizedDataUrl(input, opts);
+}
