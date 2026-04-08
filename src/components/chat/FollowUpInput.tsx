@@ -4,7 +4,7 @@ import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
-import { fileToOptimizedDataUrl } from "@/lib/image";
+import { normalizeImageInput } from "@/lib/image";
 
 interface FollowUpInputProps {
   onSubmit: (text: string) => void;
