@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen } from "lucide-react";
-import { fileToOptimizedDataUrl } from "@/lib/image";
+import { normalizeImageInput } from "@/lib/image";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -47,8 +47,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     return saved === "true";
   });
 
-
-
   useEffect(() => {
     localStorage.setItem("camera_solve_mode", cameraMode);
   }, [cameraMode]);
@@ -56,8 +54,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   useEffect(() => {
     sessionStorage.setItem("keep_camera_mode", keepMode ? "true" : "false");
   }, [keepMode]);
-
-
 
   const stopStream = useCallback((releaseCache = false) => {
     if (videoRef.current) {
@@ -147,6 +143,17 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
 
   const finishCapture = useCallback((imageOrImages: string | string[]) => {
     const images = Array.isArray(imageOrImages) ? imageOrImages : [imageOrImages];
+
+    // Defensive: verify every image is a valid base64 JPEG data URL
+    for (const img of images) {
+      if (!img.startsWith("data:image/")) {
+        console.error("[Camera] finishCapture received non-data-URL image, rejecting");
+        toast.error("We couldn't read this photo. Try again or use a screenshot.");
+        return;
+      }
+    }
+
+    console.log(`[Camera] finishCapture: ${images.length} image(s), length=${images[0]?.length}, type=camera`);
     stopStream(false);
     onCapture({ images, mode: cameraMode });
   }, [stopStream, onCapture, cameraMode]);
@@ -160,7 +167,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
       const canvas = canvasRef.current;
 
       if (video.videoWidth === 0 || video.videoHeight === 0) {
-        throw new Error("Video not ready");
+        throw new Error("Video not ready — dimensions are 0");
       }
 
       canvas.width = video.videoWidth;
@@ -171,6 +178,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
 
       ctx.drawImage(video, 0, 0);
 
+      // Always use JPEG for iOS compatibility
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error("Blob creation failed"))),
@@ -179,9 +187,8 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
         );
       });
 
-      // Wrap blob as File and run through the same normalization pipeline as gallery images
-      const file = new File([blob], "camera-capture.jpg", { type: "image/jpeg" });
-      const optimized = await fileToOptimizedDataUrl(file, {
+      // Run through the universal normalization pipeline (same as gallery)
+      const optimized = await normalizeImageInput(blob, {
         maxDimension: 2000,
         quality: 0.9,
         mimeType: "image/jpeg",
@@ -190,7 +197,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
       finishCapture(optimized);
     } catch (err) {
       console.error("Capture error:", err);
-      setError("Failed to capture photo. Please try again.");
+      toast.error("We couldn't read this photo. Try again or use a screenshot.");
     } finally {
       isCapturingRef.current = false;
     }
@@ -200,26 +207,15 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const optimized = await fileToOptimizedDataUrl(file, {
+      const optimized = await normalizeImageInput(file, {
         maxDimension: 2000,
         quality: 0.9,
         mimeType: "image/jpeg",
       });
-
       finishCapture(optimized);
     } catch (err) {
       console.error("Gallery error:", err);
-      try {
-        const reader = new FileReader();
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        finishCapture(dataUrl);
-      } catch {
-        console.error("Gallery fallback also failed");
-      }
+      toast.error("We couldn't read this photo. Try taking a screenshot instead.");
     }
     if (e.target) e.target.value = "";
   }, [finishCapture]);
@@ -314,7 +310,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
               </button>
             )}
           </div>
-
 
           {/* Controls area above bottom */}
           <div className="absolute bottom-36 left-0 right-0 px-5 z-20 space-y-3">

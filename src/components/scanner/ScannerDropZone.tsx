@@ -1,7 +1,8 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Upload } from "lucide-react";
 import { motion } from "framer-motion";
-import { fileToOptimizedDataUrl } from "@/lib/image";
+import { normalizeImageInput } from "@/lib/image";
+import { toast } from "sonner";
 
 interface ScannerDropZoneProps {
   onImageSelect: (imageData: string) => void;
@@ -16,39 +17,21 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
   const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/") && !/\.(heic|heif)$/i.test(file.name)) return;
     try {
-      const optimized = await fileToOptimizedDataUrl(file, {
-        maxDimension: 2000,
-        quality: 0.9,
-        mimeType: "image/jpeg",
-      });
+      const optimized = await normalizeImageInput(file);
+      console.log(`[DropZone] Processed gallery file: length=${optimized.length}, type=gallery`);
       onImageSelect(optimized);
     } catch (error: any) {
       console.error("Image processing error:", error);
       const msg = error?.message === "HEIC_UNSUPPORTED"
         ? "This image format isn't supported. Try taking a screenshot instead."
-        : "Failed to process image. Try taking a screenshot instead.";
-      import("sonner").then(({ toast }) => toast.error(msg));
+        : "We couldn't read this photo. Try taking a screenshot instead.";
+      toast.error(msg);
     }
   }, [onImageSelect]);
-
-  // Process blob URL (from camera)
-  const processBlobUrl = useCallback(async (blobUrl: string) => {
-    try {
-      const response = await fetch(blobUrl);
-      const blob = await response.blob();
-      const file = new File([blob], "camera-capture.webp", { type: blob.type });
-      await processFile(file);
-      // Clean up blob URL
-      URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error("Blob processing error:", error);
-    }
-  }, [processFile]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processFile(file);
-    // Reset input
     if (e.target) e.target.value = "";
   };
 
@@ -82,22 +65,12 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
     }
   }, [processFile]);
 
-  // Paste event listener
   useEffect(() => {
     document.addEventListener("paste", handlePaste);
     return () => document.removeEventListener("paste", handlePaste);
   }, [handlePaste]);
 
-  // Expose processBlobUrl for camera captures
-  useEffect(() => {
-    (window as unknown as { processCameraCapture?: (url: string) => void }).processCameraCapture = processBlobUrl;
-    return () => {
-      delete (window as unknown as { processCameraCapture?: (url: string) => void }).processCameraCapture;
-    };
-  }, [processBlobUrl]);
-
   const handleZoneClick = () => {
-    // On mobile, try camera first, fallback to file picker
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (isMobile) {
       onOpenCamera();
@@ -112,7 +85,6 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
       animate={{ opacity: 1, y: 0 }}
       className="w-full max-w-md mx-auto"
     >
-      {/* Hidden file input - NO capture attribute for Cricket device compatibility */}
       <input
         ref={fileInputRef}
         type="file"
@@ -121,7 +93,6 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
         className="hidden"
       />
 
-      {/* Drop zone card with neon glow */}
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -142,7 +113,6 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
             : "0 0 30px hsl(var(--primary) / 0.15), inset 0 0 10px hsl(var(--primary) / 0.05)",
         }}
       >
-        {/* Neon corner highlights */}
         <div className="absolute top-3 left-3 w-8 h-8 border-l-3 border-t-3 border-primary rounded-tl-xl" 
           style={{ borderWidth: "3px" }} />
         <div className="absolute top-3 right-3 w-8 h-8 border-r-3 border-t-3 border-primary rounded-tr-xl"
@@ -152,7 +122,6 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
         <div className="absolute bottom-3 right-3 w-8 h-8 border-r-3 border-b-3 border-primary rounded-br-xl"
           style={{ borderWidth: "3px" }} />
 
-        {/* Upload icon with animation */}
         <motion.div
           animate={{ 
             scale: isDragging ? 1.15 : 1,
@@ -167,7 +136,6 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
           <Upload className="w-10 h-10 text-primary" />
         </motion.div>
 
-        {/* Instructions */}
         <div className="text-center space-y-2">
           <p className="font-heading font-semibold text-lg text-foreground">
             Drop homework image here
@@ -177,7 +145,6 @@ export function ScannerDropZone({ onImageSelect, onOpenCamera, isLoading }: Scan
           </p>
         </div>
 
-        {/* Gallery button for mobile */}
         <button
           onClick={(e) => {
             e.stopPropagation();

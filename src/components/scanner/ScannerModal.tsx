@@ -40,20 +40,19 @@ export function ScannerModal({
   const handleCameraCapture = useCallback(async (result: CameraCaptureResult) => {
     let imageData = result.images[0];
     
-    // Convert blob URLs to data URLs so they can be sent to the solver
-    if (imageData.startsWith("blob:")) {
+    // Safety net: if somehow we still get a non-data-URL, normalize it
+    if (!imageData.startsWith("data:image/")) {
       try {
-        const response = await fetch(imageData);
-        const blob = await response.blob();
-        const file = new File([blob], "capture.jpg", { type: blob.type || "image/jpeg" });
-        const { fileToOptimizedDataUrl } = await import("@/lib/image");
-        imageData = await fileToOptimizedDataUrl(file, { maxDimension: 2000, quality: 0.9, mimeType: "image/jpeg" });
-        URL.revokeObjectURL(result.images[0]);
+        const { normalizeImageInput } = await import("@/lib/image");
+        imageData = await normalizeImageInput(imageData);
       } catch (err) {
-        console.error("Failed to convert blob URL:", err);
+        console.error("Failed to normalize camera capture:", err);
+        toast.error("We couldn't read this photo. Try again or use a screenshot.");
+        return;
       }
     }
     
+    console.log(`[ScannerModal] Camera capture: length=${imageData.length}`);
     setCapturedImage(imageData);
     setSelectedMode(result.mode);
     setState("previewing");

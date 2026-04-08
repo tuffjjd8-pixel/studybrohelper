@@ -4,7 +4,7 @@ import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
-import { fileToOptimizedDataUrl } from "@/lib/image";
+import { normalizeImageInput } from "@/lib/image";
 
 interface FollowUpInputProps {
   onSubmit: (text: string) => void;
@@ -43,12 +43,13 @@ export function FollowUpInput({
         e.preventDefault();
         const file = item.getAsFile();
         if (file && onImagePaste) {
-          const optimized = await fileToOptimizedDataUrl(file, {
-            maxDimension: 2000,
-            quality: 0.9,
-            mimeType: "image/jpeg",
-          });
-          onImagePaste(optimized);
+          try {
+            const optimized = await normalizeImageInput(file);
+            onImagePaste(optimized);
+          } catch (err) {
+            console.error("Paste image error:", err);
+            import("sonner").then(({ toast }) => toast.error("We couldn't read this image."));
+          }
         }
         return;
       }
