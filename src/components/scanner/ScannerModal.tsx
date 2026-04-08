@@ -37,8 +37,24 @@ export function ScannerModal({
   const cameraActive = isOpen && (state === "idle" || state === "camera");
 
   // Auto-solve after capture: brief preview then solve
-  const handleCameraCapture = useCallback((result: CameraCaptureResult) => {
-    setCapturedImage(result.images[0]);
+  const handleCameraCapture = useCallback(async (result: CameraCaptureResult) => {
+    let imageData = result.images[0];
+    
+    // Convert blob URLs to data URLs so they can be sent to the solver
+    if (imageData.startsWith("blob:")) {
+      try {
+        const response = await fetch(imageData);
+        const blob = await response.blob();
+        const file = new File([blob], "capture.jpg", { type: blob.type || "image/jpeg" });
+        const { fileToOptimizedDataUrl } = await import("@/lib/image");
+        imageData = await fileToOptimizedDataUrl(file, { maxDimension: 2000, quality: 0.9, mimeType: "image/jpeg" });
+        URL.revokeObjectURL(result.images[0]);
+      } catch (err) {
+        console.error("Failed to convert blob URL:", err);
+      }
+    }
+    
+    setCapturedImage(imageData);
     setSelectedMode(result.mode);
     setState("previewing");
   }, []);

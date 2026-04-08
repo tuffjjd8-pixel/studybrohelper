@@ -171,17 +171,24 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
 
       ctx.drawImage(video, 0, 0);
 
+      // Use JPEG — WebP unsupported on older iOS Safari
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error("Blob creation failed"))),
-          "image/webp",
+          "image/jpeg",
           0.92
         );
       });
 
-      const objectUrl = URL.createObjectURL(blob);
+      // Convert to data URL immediately so downstream consumers get usable data
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Failed to read capture"));
+        reader.readAsDataURL(blob);
+      });
 
-      finishCapture(objectUrl);
+      finishCapture(dataUrl);
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
