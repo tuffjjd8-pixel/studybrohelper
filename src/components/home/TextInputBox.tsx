@@ -86,12 +86,14 @@ export function TextInputBox({
         e.preventDefault();
         const file = item.getAsFile();
         if (file && onImagePaste) {
-          const optimized = await fileToOptimizedDataUrl(file, {
-            maxDimension: 2000,
-            quality: 0.9,
-            mimeType: "image/jpeg",
-          });
-          onImagePaste(optimized);
+          try {
+            const optimized = await normalizeImageInput(file);
+            console.log(`[TextInput] Paste image: length=${optimized.length}, type=paste`);
+            onImagePaste(optimized);
+          } catch (err) {
+            console.error("Paste image error:", err);
+            import("sonner").then(({ toast }) => toast.error("We couldn't read this image. Try a screenshot instead."));
+          }
         }
         return;
       }
