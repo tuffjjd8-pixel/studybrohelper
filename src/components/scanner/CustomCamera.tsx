@@ -171,7 +171,6 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
 
       ctx.drawImage(video, 0, 0);
 
-      // Use JPEG — WebP unsupported on older iOS Safari
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error("Blob creation failed"))),
@@ -180,22 +179,22 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
         );
       });
 
-      // Convert to data URL immediately so downstream consumers get usable data
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error("Failed to read capture"));
-        reader.readAsDataURL(blob);
+      // Wrap blob as File and run through the same normalization pipeline as gallery images
+      const file = new File([blob], "camera-capture.jpg", { type: "image/jpeg" });
+      const optimized = await fileToOptimizedDataUrl(file, {
+        maxDimension: 2000,
+        quality: 0.9,
+        mimeType: "image/jpeg",
       });
 
-      finishCapture(dataUrl);
+      finishCapture(optimized);
     } catch (err) {
       console.error("Capture error:", err);
       setError("Failed to capture photo. Please try again.");
     } finally {
       isCapturingRef.current = false;
     }
-  }, [stopStream, finishCapture, cameraMode]);
+  }, [finishCapture]);
 
   const handleGalleryPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
