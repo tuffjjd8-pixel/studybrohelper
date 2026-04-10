@@ -15,6 +15,7 @@ import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solv
 import { useNavigate } from "react-router-dom";
 import { DeepModeReveal, type DeepModeTextColor } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
+import { FinalAnswerHighlight } from "@/components/solve/FinalAnswerHighlight";
 
 interface SolutionStepsProps {
   subject: string;
@@ -173,6 +174,9 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         {subjectIcons[subject] || subjectIcons.other}
         <span className="font-medium capitalize text-sm">{subject}</span>
       </div>
+
+      {/* Final Answer highlight */}
+      <FinalAnswerHighlight solution={solution} />
 
       {/* Question */}
       <div className="glass-card p-4">

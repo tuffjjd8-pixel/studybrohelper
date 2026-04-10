@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
 import { useSolveUsage } from "@/hooks/useSolveUsage";
 import { useBadges } from "@/hooks/useBadges";
+import { DailyMissions } from "@/components/home/DailyMissions";
 import { toast } from "sonner";
 
 interface SolutionData {
@@ -256,6 +257,13 @@ const Index = () => {
           fetchRecentSolves();
           fetchProfile();
           refetchBadges();
+          // Track daily mission progress
+          try {
+            const todayKey = new Date().toISOString().split("T")[0];
+            const missionData = JSON.parse(localStorage.getItem(`daily_missions_${todayKey}`) || '{"solves":0}');
+            missionData.solves = (missionData.solves || 0) + 1;
+            localStorage.setItem(`daily_missions_${todayKey}`, JSON.stringify(missionData));
+          } catch (_) {}
         }
       } else {
         solveId = `guest-${Date.now()}`;
@@ -383,11 +391,14 @@ const Index = () => {
                 </motion.p>
               </div>
 
-              {/* Community Goal Card */}
-              <CommunityGoalCard onParticipationChange={setGoalParticipation} />
-
-              {/* Camera button */}
+              {/* Camera button — dominant action, no friction above it */}
               <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
+
+              {/* Daily missions */}
+              <DailyMissions totalSolves={profile?.total_solves || 0} streak={profile?.streak_count || 0} />
+
+              {/* Community Goal Card — below main action */}
+              <CommunityGoalCard onParticipationChange={setGoalParticipation} />
 
               {/* Pending image previews */}
               {pendingImages.length > 0 && (
