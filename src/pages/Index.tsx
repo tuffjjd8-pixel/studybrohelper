@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSpeechClips } from "@/hooks/useSpeechClips";
 import { useSolveUsage } from "@/hooks/useSolveUsage";
 import { useBadges } from "@/hooks/useBadges";
+import { DailyMissions } from "@/components/home/DailyMissions";
 import { toast } from "sonner";
 
 interface SolutionData {
