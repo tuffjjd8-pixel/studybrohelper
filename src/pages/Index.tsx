@@ -257,6 +257,13 @@ const Index = () => {
           fetchRecentSolves();
           fetchProfile();
           refetchBadges();
+          // Track daily mission progress
+          try {
+            const todayKey = new Date().toISOString().split("T")[0];
+            const missionData = JSON.parse(localStorage.getItem(`daily_missions_${todayKey}`) || '{"solves":0}');
+            missionData.solves = (missionData.solves || 0) + 1;
+            localStorage.setItem(`daily_missions_${todayKey}`, JSON.stringify(missionData));
+          } catch (_) {}
         }
       } else {
         solveId = `guest-${Date.now()}`;
