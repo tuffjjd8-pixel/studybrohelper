@@ -60,15 +60,16 @@ export function ShareCardModal({ open, onClose, captureRef, deepLink }: ShareCar
       const srcW = canvas.width;
       const srcH = canvas.height;
 
-      // 9:16 canvas with comfortable padding
-      const PAD_X = 60;
-      const PAD_Y = 48;
-      const FOOTER_H = 80;
+      // 9:16 target but allow tighter fit for short content
+      const PAD_X = 48;
+      const PAD_Y = 40;
+      const FOOTER_H = 72;
       const targetW = srcW + PAD_X * 2;
       const targetRatio = 16 / 9;
       const minH = Math.round(targetW * targetRatio);
       const contentH = srcH + PAD_Y * 2 + FOOTER_H;
-      const targetH = Math.max(contentH, minH);
+      // Use content height if it fills at least 60% of 9:16, otherwise use 9:16
+      const targetH = contentH >= minH * 0.6 ? Math.max(contentH, minH) : Math.max(contentH, Math.round(targetW * 1.2));
 
       const final = document.createElement("canvas");
       final.width = targetW;
