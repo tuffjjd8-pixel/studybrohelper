@@ -3,7 +3,8 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
-import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send, Sparkles, Crown, Lock } from "lucide-react";
+import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send, Sparkles, Crown, Lock, Image } from "lucide-react";
+import { ShareCardModal } from "@/components/share/ShareCardModal";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,6 +60,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const [humanizeStrength, setHumanizeStrength] = useState<HumanizeStrength>("auto");
   const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
   const [humanizeUsed, setHumanizeUsed] = useState(false);
+  const [showShareCard, setShowShareCard] = useState(false);
   const navigate = useNavigate();
 
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
@@ -177,6 +179,31 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
       {/* Final Answer highlight */}
       <FinalAnswerHighlight solution={solution} />
+
+      {/* Share CTA */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="flex items-center gap-3"
+      >
+        <Button
+          onClick={() => setShowShareCard(true)}
+          className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+          size="lg"
+        >
+          <Image className="w-4 h-4" />
+          Share Result
+        </Button>
+        <span className="text-xs text-muted-foreground">Show this to a friend ✨</span>
+      </motion.div>
+
+      {/* Share card modal */}
+      <ShareCardModal
+        open={showShareCard}
+        onClose={() => setShowShareCard(false)}
+        data={{ question, solution, subject }}
+      />
 
       {/* Question */}
       <div className="glass-card p-4">
