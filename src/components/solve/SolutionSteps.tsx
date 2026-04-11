@@ -60,6 +60,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const [humanizeStrength, setHumanizeStrength] = useState<HumanizeStrength>("auto");
   const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
   const [humanizeUsed, setHumanizeUsed] = useState(false);
+  const [showShareCard, setShowShareCard] = useState(false);
   const navigate = useNavigate();
 
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
