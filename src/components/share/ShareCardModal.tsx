@@ -23,10 +23,8 @@ export function ShareCardModal({ open, onClose, captureRef }: ShareCardModalProp
     setSaved(false);
 
     try {
-      // Apply share mode
       captureRef.current.setAttribute("data-share-mode", "true");
-      // Small delay for styles to apply
-      await new Promise(r => setTimeout(r, 80));
+      await new Promise(r => setTimeout(r, 100));
 
       const canvas = await html2canvas(captureRef.current, {
         backgroundColor: "#0B0B0B",
@@ -34,73 +32,86 @@ export function ShareCardModal({ open, onClose, captureRef }: ShareCardModalProp
         useCORS: true,
         logging: false,
         removeContainer: true,
-        // Add padding via canvas manipulation
       });
 
       captureRef.current.removeAttribute("data-share-mode");
 
-      // Create padded 9:16 canvas
-      const PAD = 80;
       const srcW = canvas.width;
       const srcH = canvas.height;
-      const targetW = srcW + PAD * 2;
+
+      // 9:16 target with comfortable padding
+      const PAD_X = 60;
+      const PAD_Y = 48;
+      const FOOTER_H = 80;
+      const targetW = srcW + PAD_X * 2;
       const targetRatio = 16 / 9;
       const minH = Math.round(targetW * targetRatio);
-      const targetH = Math.max(srcH + PAD * 2 + 120, minH); // +120 for footer
+      const contentH = srcH + PAD_Y * 2 + FOOTER_H;
+      const targetH = Math.max(contentH, minH);
 
       const final = document.createElement("canvas");
       final.width = targetW;
       final.height = targetH;
       const ctx = final.getContext("2d")!;
 
-      // Background
+      // Deep black background
       ctx.fillStyle = "#0B0B0B";
       ctx.fillRect(0, 0, targetW, targetH);
 
-      // Subtle glow
-      const glow = ctx.createRadialGradient(targetW - 100, 200, 0, targetW - 100, 200, 500);
-      glow.addColorStop(0, "rgba(0, 255, 136, 0.03)");
+      // Very subtle corner glow (matches primary neon green)
+      const glow = ctx.createRadialGradient(targetW * 0.85, targetH * 0.1, 0, targetW * 0.85, targetH * 0.1, targetW * 0.5);
+      glow.addColorStop(0, "rgba(180, 255, 50, 0.015)");
       glow.addColorStop(1, "transparent");
       ctx.fillStyle = glow;
       ctx.fillRect(0, 0, targetW, targetH);
 
-      // Draw captured content centered
-      const drawY = PAD;
-      ctx.drawImage(canvas, PAD, drawY);
+      // Center content vertically (minus footer)
+      const availableH = targetH - FOOTER_H;
+      const drawY = Math.max(PAD_Y, Math.round((availableH - srcH) / 2));
+
+      // Subtle shadow behind content
+      ctx.shadowColor = "rgba(0,0,0,0.4)";
+      ctx.shadowBlur = 30;
+      ctx.shadowOffsetY = 8;
+      ctx.drawImage(canvas, PAD_X, drawY);
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
 
       // Footer branding
-      const footerY = targetH - 60;
+      const footerY = targetH - 36;
       const FONT = "'Space Grotesk', system-ui, sans-serif";
 
-      // Divider
-      ctx.strokeStyle = "rgba(255,255,255,0.05)";
+      // Divider line
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(PAD, footerY - 20);
-      ctx.lineTo(targetW - PAD, footerY - 20);
+      ctx.moveTo(PAD_X, footerY - 24);
+      ctx.lineTo(targetW - PAD_X, footerY - 24);
       ctx.stroke();
 
-      // Green dot
+      // Green dot - using exact primary neon green
       ctx.beginPath();
-      ctx.arc(PAD + 7, footerY + 4, 7, 0, Math.PI * 2);
-      ctx.fillStyle = "#00FF88";
+      ctx.arc(PAD_X + 6, footerY, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "hsl(82, 100%, 67%)";
       ctx.fill();
 
-      // Brand
-      ctx.font = `700 24px ${FONT}`;
-      ctx.fillStyle = "rgba(240,240,240,0.6)";
-      ctx.fillText("StudyBro", PAD + 24, footerY + 12);
+      // Brand name
+      ctx.font = `600 20px ${FONT}`;
+      ctx.fillStyle = "rgba(240,240,240,0.5)";
+      ctx.fillText("StudyBro", PAD_X + 20, footerY + 6);
 
-      ctx.font = `400 18px ${FONT}`;
-      ctx.fillStyle = "rgba(240,240,240,0.25)";
-      ctx.fillText("AI Homework Solver", PAD + 148, footerY + 12);
+      // Tagline
+      ctx.font = `400 14px ${FONT}`;
+      ctx.fillStyle = "rgba(240,240,240,0.2)";
+      ctx.fillText("AI Homework Solver", PAD_X + 120, footerY + 6);
 
-      // URL
-      ctx.font = `400 16px ${FONT}`;
-      ctx.fillStyle = "rgba(0, 255, 136, 0.25)";
+      // URL right-aligned
+      ctx.font = `400 13px ${FONT}`;
+      ctx.fillStyle = "hsla(82, 100%, 67%, 0.3)";
       const urlText = "studybrohelper.lovable.app";
       const urlW = ctx.measureText(urlText).width;
-      ctx.fillText(urlText, targetW - PAD - urlW, footerY + 12);
+      ctx.fillText(urlText, targetW - PAD_X - urlW, footerY + 6);
 
       final.toBlob((b) => {
         if (!b) { toast.error("Failed to generate image"); return; }
