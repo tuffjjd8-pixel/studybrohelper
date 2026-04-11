@@ -359,3 +359,16 @@
 .deep-text-orange .katex {
   color: inherit;
 }
+
+/* Share mode: clean up UI for screenshot capture */
+.share-capture-area[data-share-mode="true"] {
+  background: hsl(var(--background));
+  padding: 24px;
+  border-radius: 16px;
+}
+
+.share-capture-area[data-share-mode="true"] button,
+.share-capture-area[data-share-mode="true"] .humanize-section,
+.share-capture-area[data-share-mode="true"] [data-hide-share] {
+  display: none !important;
+}
