@@ -274,25 +274,33 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                       Humanized ✨
                     </span>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleHumanize}
-                      disabled={isHumanizing}
-                      className="gap-2"
-                      data-hide-share
-                    >
-                      {isHumanizing ? (
-                        <AIBrainIcon size="sm" animate glowIntensity="strong" />
-                      ) : (
-                        <Sparkles className="w-4 h-4" />
-                      )}
-                      {isHumanizing ? "Humanizing..." : !isPremium ? (
-                        <span className="flex items-center gap-1">
-                          Humanize <Crown className="w-3 h-3 text-amber-400" />
-                        </span>
-                      ) : "Humanize"}
-                    </Button>
+                    <>
+                      {/* Real button - hidden in share mode */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleHumanize}
+                        disabled={isHumanizing}
+                        className="gap-2"
+                        data-hide-share
+                      >
+                        {isHumanizing ? (
+                          <AIBrainIcon size="sm" animate glowIntensity="strong" />
+                        ) : (
+                          <Sparkles className="w-4 h-4" />
+                        )}
+                        {isHumanizing ? "Humanizing..." : !isPremium ? (
+                          <span className="flex items-center gap-1">
+                            Humanize <Crown className="w-3 h-3 text-amber-400" />
+                          </span>
+                        ) : "Humanize"}
+                      </Button>
+                      {/* Share-mode-only label */}
+                      <span className="share-humanize-label inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
+                        <Sparkles className="w-3 h-3" />
+                        Humanize available
+                      </span>
+                    </>
                   )}
                 </div>
                 {!isHumanized && !humanizeUsed && (
