@@ -350,6 +350,31 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           </div>
         ) : null}
       </motion.div>
+      </div>{/* end share-capture-area */}
+
+      {/* Share CTA */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="flex items-center gap-3"
+      >
+        <Button
+          onClick={() => setShowShareCard(true)}
+          className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+          size="lg"
+        >
+          <Image className="w-4 h-4" />
+          Share Result
+        </Button>
+        <span className="text-xs text-muted-foreground">Show this to a friend ✨</span>
+      </motion.div>
+
+      <ShareCardModal
+        open={showShareCard}
+        onClose={() => setShowShareCard(false)}
+        captureRef={solutionCaptureRef}
+      />
 
       {/* Follow-up response */}
       {followUpResponse && (
