@@ -8,7 +8,7 @@ import { ShareCardModal } from "@/components/share/ShareCardModal";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
@@ -61,6 +61,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
   const [humanizeUsed, setHumanizeUsed] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
+  const solutionCaptureRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
@@ -177,58 +178,33 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         <span className="font-medium capitalize text-sm">{subject}</span>
       </div>
 
-      {/* Final Answer highlight */}
-      <FinalAnswerHighlight solution={solution} />
+      {/* Capturable area for share screenshot */}
+      <div ref={solutionCaptureRef} className="space-y-4 share-capture-area">
+        {/* Final Answer highlight */}
+        <FinalAnswerHighlight solution={solution} />
 
-      {/* Share CTA */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="flex items-center gap-3"
-      >
-        <Button
-          onClick={() => setShowShareCard(true)}
-          className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
-          size="lg"
+        {/* Question */}
+        <div className="glass-card p-4">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            Question
+          </h3>
+          {questionImage && (
+            <img 
+              src={questionImage} 
+              alt="Question" 
+              className="max-h-48 rounded-lg mb-3 object-contain"
+            />
+          )}
+          <p className="text-foreground">{question}</p>
+        </div>
+
+        {/* Solution */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.15 }}
+          className="glass-card p-6 neon-border"
         >
-          <Image className="w-4 h-4" />
-          Share Result
-        </Button>
-        <span className="text-xs text-muted-foreground">Show this to a friend ✨</span>
-      </motion.div>
-
-      {/* Share card modal */}
-      <ShareCardModal
-        open={showShareCard}
-        onClose={() => setShowShareCard(false)}
-        question={question}
-        solution={solution}
-        subject={subject}
-      />
-
-      {/* Question */}
-      <div className="glass-card p-4">
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-          Question
-        </h3>
-        {questionImage && (
-          <img 
-            src={questionImage} 
-            alt="Question" 
-            className="max-h-48 rounded-lg mb-3 object-contain"
-          />
-        )}
-        <p className="text-foreground">{question}</p>
-      </div>
-
-      {/* Solution */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.15 }}
-        className="glass-card p-6 neon-border"
-      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xs font-medium text-primary uppercase tracking-wider">
             Solution
