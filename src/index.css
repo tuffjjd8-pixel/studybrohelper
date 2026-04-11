@@ -365,6 +365,9 @@
   background: hsl(var(--background));
   padding: 20px;
   border-radius: 16px;
+  overflow: visible !important;
+  max-height: none !important;
+  height: auto !important;
 }
 
 /* Hide interactive buttons but keep humanize status badge and follow-up placeholder */
@@ -378,4 +381,10 @@
 }
 .share-capture-area[data-share-mode="true"] .share-followup-placeholder {
   display: block;
+}
+
+/* Ensure all children are fully visible during capture */
+.share-capture-area[data-share-mode="true"] * {
+  overflow: visible !important;
+  max-height: none !important;
 }

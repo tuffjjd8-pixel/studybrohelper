@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, Share2, Check, Loader2 } from "lucide-react";
+import { X, Download, Share2, Check, Loader2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
@@ -9,13 +9,15 @@ interface ShareCardModalProps {
   open: boolean;
   onClose: () => void;
   captureRef: React.RefObject<HTMLDivElement>;
+  deepLink?: string;
 }
 
-export function ShareCardModal({ open, onClose, captureRef }: ShareCardModalProps) {
+export function ShareCardModal({ open, onClose, captureRef, deepLink }: ShareCardModalProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const didCapture = useRef(false);
 
   const capture = useCallback(async () => {
     if (!captureRef.current) return;
@@ -23,23 +25,42 @@ export function ShareCardModal({ open, onClose, captureRef }: ShareCardModalProp
     setSaved(false);
 
     try {
-      captureRef.current.setAttribute("data-share-mode", "true");
-      await new Promise(r => setTimeout(r, 100));
+      const el = captureRef.current;
 
-      const canvas = await html2canvas(captureRef.current, {
+      // Apply share mode
+      el.setAttribute("data-share-mode", "true");
+
+      // Remove overflow clipping temporarily
+      const origOverflow = el.style.overflow;
+      const origMaxHeight = el.style.maxHeight;
+      el.style.overflow = "visible";
+      el.style.maxHeight = "none";
+
+      // Wait for render
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 150))));
+
+      const canvas = await html2canvas(el, {
         backgroundColor: "#0B0B0B",
         scale: 2,
         useCORS: true,
         logging: false,
         removeContainer: true,
+        // Use full scroll dimensions
+        width: el.scrollWidth,
+        height: el.scrollHeight,
+        windowWidth: el.scrollWidth,
+        windowHeight: el.scrollHeight,
       });
 
-      captureRef.current.removeAttribute("data-share-mode");
+      // Restore
+      el.removeAttribute("data-share-mode");
+      el.style.overflow = origOverflow;
+      el.style.maxHeight = origMaxHeight;
 
       const srcW = canvas.width;
       const srcH = canvas.height;
 
-      // 9:16 target with comfortable padding
+      // 9:16 canvas with comfortable padding
       const PAD_X = 60;
       const PAD_Y = 48;
       const FOOTER_H = 80;
@@ -58,7 +79,7 @@ export function ShareCardModal({ open, onClose, captureRef }: ShareCardModalProp
       ctx.fillStyle = "#0B0B0B";
       ctx.fillRect(0, 0, targetW, targetH);
 
-      // Very subtle corner glow (matches primary neon green)
+      // Subtle corner glow
       const glow = ctx.createRadialGradient(targetW * 0.85, targetH * 0.1, 0, targetW * 0.85, targetH * 0.1, targetW * 0.5);
       glow.addColorStop(0, "rgba(180, 255, 50, 0.015)");
       glow.addColorStop(1, "transparent");
@@ -69,7 +90,7 @@ export function ShareCardModal({ open, onClose, captureRef }: ShareCardModalProp
       const availableH = targetH - FOOTER_H;
       const drawY = Math.max(PAD_Y, Math.round((availableH - srcH) / 2));
 
-      // Subtle shadow behind content
+      // Shadow behind content
       ctx.shadowColor = "rgba(0,0,0,0.4)";
       ctx.shadowBlur = 30;
       ctx.shadowOffsetY = 8;
@@ -82,7 +103,7 @@ export function ShareCardModal({ open, onClose, captureRef }: ShareCardModalProp
       const footerY = targetH - 36;
       const FONT = "'Space Grotesk', system-ui, sans-serif";
 
-      // Divider line
+      // Divider
       ctx.strokeStyle = "rgba(255,255,255,0.06)";
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -90,7 +111,7 @@ export function ShareCardModal({ open, onClose, captureRef }: ShareCardModalProp
       ctx.lineTo(targetW - PAD_X, footerY - 24);
       ctx.stroke();
 
-      // Green dot - using exact primary neon green
+      // Green dot — exact primary neon green
       ctx.beginPath();
       ctx.arc(PAD_X + 6, footerY, 5, 0, Math.PI * 2);
       ctx.fillStyle = "hsl(82, 100%, 67%)";
@@ -130,34 +151,37 @@ export function ShareCardModal({ open, onClose, captureRef }: ShareCardModalProp
   }, [captureRef]);
 
   // Trigger capture when modal opens
-  const handleOpen = useCallback(() => {
-    if (open && !imageUrl && !loading) {
-      capture();
+  useEffect(() => {
+    if (open && !didCapture.current) {
+      didCapture.current = true;
+      setTimeout(() => capture(), 50);
     }
-  }, [open, imageUrl, loading, capture]);
-
-  // Use a ref to track if we already captured for this open
-  const didCapture = useRef(false);
-  if (open && !didCapture.current) {
-    didCapture.current = true;
-    // Defer to next tick so DOM is ready
-    setTimeout(() => capture(), 50);
-  }
-  if (!open && didCapture.current) {
-    didCapture.current = false;
-  }
+    if (!open) {
+      didCapture.current = false;
+    }
+  }, [open, capture]);
 
   const handleShare = useCallback(async () => {
     if (!blob) return;
     const file = new File([blob], "studybro-solution.png", { type: "image/png" });
+
+    const shareData: ShareData = {
+      title: "Solved by StudyBro",
+      text: deepLink ? `Check this out! ${deepLink}` : "Check this out!",
+    };
+
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ title: "Solved by StudyBro", text: "Check this out!", files: [file] }); } catch {}
+      try {
+        await navigator.share({ ...shareData, files: [file] });
+      } catch {}
     } else if (navigator.share) {
-      try { await navigator.share({ title: "Solved by StudyBro", text: "Check this out! studybrohelper.lovable.app" }); } catch {}
+      try {
+        await navigator.share(shareData);
+      } catch {}
     } else {
       handleSave();
     }
-  }, [blob]);
+  }, [blob, deepLink]);
 
   const handleSave = useCallback(() => {
     if (!blob) return;
@@ -171,6 +195,12 @@ export function ShareCardModal({ open, onClose, captureRef }: ShareCardModalProp
     toast.success("Image saved!");
     setTimeout(() => setSaved(false), 2000);
   }, [blob]);
+
+  const handleCopyLink = useCallback(async () => {
+    const link = deepLink || "https://studybrohelper.lovable.app";
+    await navigator.clipboard.writeText(link);
+    toast.success("Link copied!");
+  }, [deepLink]);
 
   const handleClose = useCallback(() => {
     if (imageUrl) URL.revokeObjectURL(imageUrl);
@@ -235,13 +265,11 @@ export function ShareCardModal({ open, onClose, captureRef }: ShareCardModalProp
 
             {!loading && imageUrl && (
               <button
-                onClick={async () => {
-                  await navigator.clipboard.writeText("https://studybrohelper.lovable.app");
-                  toast.success("Link copied!");
-                }}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={handleCopyLink}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                Copy app link
+                <Link2 className="w-3 h-3" />
+                Copy solve link
               </button>
             )}
           </motion.div>

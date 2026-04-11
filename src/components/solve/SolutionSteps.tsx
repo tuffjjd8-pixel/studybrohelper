@@ -67,6 +67,11 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
   const showFollowUp = !isHistory;
 
+  // Build deep link for this solve
+  const solveDeepLink = solveId
+    ? `${window.location.origin}/solve/${solveId}`
+    : window.location.origin;
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(solution);
     setCopied(true);
@@ -91,7 +96,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
   const handleFollowUpSubmit = async () => {
     if (!followUpText.trim() || isAsking) return;
-    // Auth guard: require sign-in for AI features
     if (!solveId) {
       toast.error("Please sign in to use AI features.");
       return;
@@ -109,14 +113,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         body: {
           solveId,
           message: followUpText.trim(),
-          context: {
-            subject,
-            question,
-            solution,
-          },
-          history: followUpResponse ? [
-            { role: "assistant", content: followUpResponse }
-          ] : [],
+          context: { subject, question, solution },
+          history: followUpResponse ? [{ role: "assistant", content: followUpResponse }] : [],
           answerLanguage,
         },
       });
@@ -178,7 +176,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         <span className="font-medium capitalize text-sm">{subject}</span>
       </div>
 
-      {/* Capturable area for share screenshot */}
+      {/* ===== CAPTURE AREA — everything the share screenshot includes ===== */}
       <div ref={solutionCaptureRef} className="space-y-4 share-capture-area">
         {/* Final Answer highlight */}
         <FinalAnswerHighlight solution={solution} />
@@ -189,11 +187,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             Question
           </h3>
           {questionImage && (
-            <img 
-              src={questionImage} 
-              alt="Question" 
-              className="max-h-48 rounded-lg mb-3 object-contain"
-            />
+            <img src={questionImage} alt="Question" className="max-h-48 rounded-lg mb-3 object-contain" />
           )}
           <p className="text-foreground">{question}</p>
         </div>
@@ -205,190 +199,158 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           transition={{ duration: 0.15 }}
           className="glass-card p-6 neon-border"
         >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xs font-medium text-primary uppercase tracking-wider">
-            Solution
-          </h3>
-          <div className="flex items-center gap-2" data-hide-share>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCopy}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleShare}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Share2 className="w-4 h-4" />
-            </Button>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-medium text-primary uppercase tracking-wider">Solution</h3>
+            <div className="flex items-center gap-2" data-hide-share>
+              <Button variant="ghost" size="sm" onClick={handleCopy} className="text-muted-foreground hover:text-foreground">
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleShare} className="text-muted-foreground hover:text-foreground">
+                <Share2 className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-        </div>
-      {isDeepMode ? (
-          <div className={`deep-text-${deepTextColor}`}>
-            {isHistory ? (
-              <div className="prose prose-invert prose-sm max-w-none math-solution">
-                <ReactMarkdown
-                  remarkPlugins={[remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                  components={{
-                    h1: ({ children }) => <h1 className="text-xl font-bold mb-3 inherit-color">{children}</h1>,
-                    h2: ({ children }) => <h2 className="text-lg font-semibold mb-2 mt-4 inherit-color">{children}</h2>,
-                    h3: ({ children }) => <h3 className="text-base font-medium mb-2 mt-3 inherit-color">{children}</h3>,
-                    p: ({ children }) => <p className="mb-3 leading-relaxed inherit-color">{children}</p>,
-                    strong: ({ children }) => <strong className="font-bold inherit-color">{children}</strong>,
-                    em: ({ children }) => <em className="italic inherit-color">{children}</em>,
-                    code: ({ children }) => <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono inherit-color">{children}</code>,
-                  }}
-                >
-                  {preprocessMath(displayedSolution)}
-                </ReactMarkdown>
-              </div>
-            ) : (
-              <DeepModeReveal
-                content={displayedSolution}
-                textColor={deepTextColor}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="prose prose-invert prose-sm max-w-none math-solution">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                h1: ({ children }) => <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>,
-                h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>,
-                h3: ({ children }) => <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>,
-                p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
-                ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-foreground/90">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-foreground/90">{children}</ol>,
-                li: ({ children }) => <li className="text-foreground/90">{children}</li>,
-                strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
-                em: ({ children }) => <em className="text-secondary italic">{children}</em>,
-                code: ({ children }) => (
-                  <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">
-                    {children}
-                  </code>
-                ),
-                pre: ({ children }) => (
-                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-3">
-                    {children}
-                  </pre>
-                ),
-                table: ({ children }) => (
-                  <div className="overflow-x-auto my-4">
-                    <table className="min-w-full border border-border rounded-lg">
-                      {children}
-                    </table>
+
+          {isDeepMode ? (
+            <div className={`deep-text-${deepTextColor}`}>
+              {isHistory ? (
+                <div className="prose prose-invert prose-sm max-w-none math-solution">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                    components={{
+                      h1: ({ children }) => <h1 className="text-xl font-bold mb-3 inherit-color">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-lg font-semibold mb-2 mt-4 inherit-color">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-base font-medium mb-2 mt-3 inherit-color">{children}</h3>,
+                      p: ({ children }) => <p className="mb-3 leading-relaxed inherit-color">{children}</p>,
+                      strong: ({ children }) => <strong className="font-bold inherit-color">{children}</strong>,
+                      em: ({ children }) => <em className="italic inherit-color">{children}</em>,
+                      code: ({ children }) => <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono inherit-color">{children}</code>,
+                    }}
+                  >
+                    {preprocessMath(displayedSolution)}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <DeepModeReveal content={displayedSolution} textColor={deepTextColor} />
+              )}
+            </div>
+          ) : (
+            <div className="prose prose-invert prose-sm max-w-none math-solution">
+              <ReactMarkdown
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+                components={{
+                  h1: ({ children }) => <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>,
+                  h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>,
+                  h3: ({ children }) => <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>,
+                  p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
+                  ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-foreground/90">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-foreground/90">{children}</ol>,
+                  li: ({ children }) => <li className="text-foreground/90">{children}</li>,
+                  strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
+                  em: ({ children }) => <em className="text-secondary italic">{children}</em>,
+                  code: ({ children }) => <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">{children}</code>,
+                  pre: ({ children }) => <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-3">{children}</pre>,
+                  table: ({ children }) => <div className="overflow-x-auto my-4"><table className="min-w-full border border-border rounded-lg">{children}</table></div>,
+                  thead: ({ children }) => <thead className="bg-primary/10">{children}</thead>,
+                  th: ({ children }) => <th className="px-4 py-2 text-left font-semibold text-foreground border-b border-border">{children}</th>,
+                  td: ({ children }) => <td className="px-4 py-2 text-foreground/90 border-b border-border/50">{children}</td>,
+                }}
+              >
+                {preprocessMath(displayedSolution)}
+              </ReactMarkdown>
+            </div>
+          )}
+
+          {/* Humanize section — fully inside capture area */}
+          {!isHistory || isPremium ? (
+            <div className="mt-4 pt-4 border-t border-border/50 space-y-3 humanize-section">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3">
+                  {isHumanized || humanizeUsed ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary bg-secondary/10 px-3 py-1.5 rounded-full">
+                      <Sparkles className="w-3 h-3" />
+                      Humanized ✨
+                    </span>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleHumanize}
+                      disabled={isHumanizing}
+                      className="gap-2"
+                      data-hide-share
+                    >
+                      {isHumanizing ? (
+                        <AIBrainIcon size="sm" animate glowIntensity="strong" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                      {isHumanizing ? "Humanizing..." : !isPremium ? (
+                        <span className="flex items-center gap-1">
+                          Humanize <Crown className="w-3 h-3 text-amber-400" />
+                        </span>
+                      ) : "Humanize"}
+                    </Button>
+                  )}
+                </div>
+                {!isHumanized && !humanizeUsed && (
+                  <div data-hide-share>
+                    <HumanizeStrengthSlider
+                      value={humanizeStrength}
+                      onChange={setHumanizeStrength}
+                      isPremium={isPremium}
+                      onUpgradeClick={() => navigate("/premium")}
+                    />
                   </div>
-                ),
-                thead: ({ children }) => (
-                  <thead className="bg-primary/10">{children}</thead>
-                ),
-                th: ({ children }) => (
-                  <th className="px-4 py-2 text-left font-semibold text-foreground border-b border-border">
-                    {children}
-                  </th>
-                ),
-                td: ({ children }) => (
-                  <td className="px-4 py-2 text-foreground/90 border-b border-border/50">
-                    {children}
-                  </td>
-                ),
-              }}
-            >
-              {preprocessMath(displayedSolution)}
-            </ReactMarkdown>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </motion.div>
+
+        {/* Follow-up response — inside capture area */}
+        {followUpResponse && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-6 border-l-4 border-l-secondary"
+          >
+            <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-4">
+              Follow-up Answer
+            </h3>
+            <div className="prose prose-invert prose-sm max-w-none">
+              <ReactMarkdown
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+                components={{
+                  p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
+                  strong: ({ children }) => <strong className="font-bold text-secondary">{children}</strong>,
+                }}
+              >
+                {preprocessMath(followUpResponse)}
+              </ReactMarkdown>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Follow-up placeholder — only shown in share mode via CSS */}
+        {showFollowUp && (
+          <div className="share-followup-placeholder">
+            <div className="glass-card p-4">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                Ask a follow-up question
+              </h3>
+              <div className="h-10 rounded-lg bg-muted/30 border border-border/30" />
+            </div>
           </div>
         )}
 
-        {/* Humanize section - visible in share */}
-        {!isHistory || isPremium ? (
-          <div className="mt-4 pt-4 border-t border-border/50 space-y-3 humanize-section">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
-                {isHumanized || humanizeUsed ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary bg-secondary/10 px-3 py-1.5 rounded-full">
-                    <Sparkles className="w-3 h-3" />
-                    Humanized ✨
-                  </span>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleHumanize}
-                    disabled={isHumanizing}
-                    className="gap-2"
-                    data-hide-share
-                  >
-                    {isHumanizing ? (
-                      <AIBrainIcon size="sm" animate glowIntensity="strong" />
-                    ) : (
-                      <Sparkles className="w-4 h-4" />
-                    )}
-                    {isHumanizing ? "Humanizing..." : !isPremium ? (
-                      <span className="flex items-center gap-1">
-                        Humanize <Crown className="w-3 h-3 text-amber-400" />
-                      </span>
-                    ) : "Humanize"}
-                  </Button>
-                )}
-              </div>
-              {!isHumanized && !humanizeUsed && (
-                <div data-hide-share>
-                  <HumanizeStrengthSlider
-                    value={humanizeStrength}
-                    onChange={setHumanizeStrength}
-                    isPremium={isPremium}
-                    onUpgradeClick={() => navigate("/premium")}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        ) : null}
-      </motion.div>
-
-      {/* Follow-up response inside capture area */}
-      {followUpResponse && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6 border-l-4 border-l-secondary"
-        >
-          <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-4">
-            Follow-up Answer
-          </h3>
-          <div className="prose prose-invert prose-sm max-w-none">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
-                strong: ({ children }) => <strong className="font-bold text-secondary">{children}</strong>,
-              }}
-            >
-              {preprocessMath(followUpResponse)}
-            </ReactMarkdown>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Follow-up input inside capture area */}
-      {showFollowUp && (
-        <div className="glass-card p-4 share-followup-placeholder">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            Ask a follow-up question
-          </h3>
-          <div className="h-10 rounded-lg bg-muted/30 border border-border/30" />
-        </div>
-      )}
-      </div>{/* end share-capture-area */}
+        {/* Bottom padding for capture */}
+        <div className="h-2" />
+      </div>
+      {/* ===== END CAPTURE AREA ===== */}
 
       {/* Share CTA */}
       <motion.div
@@ -412,9 +374,10 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         open={showShareCard}
         onClose={() => setShowShareCard(false)}
         captureRef={solutionCaptureRef}
+        deepLink={solveDeepLink}
       />
 
-      {/* Inline follow-up input (real, interactive) */}
+      {/* Inline follow-up input (real, interactive — outside capture area) */}
       {showFollowUp && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -479,8 +442,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           )}
         </motion.div>
       )}
-
-
     </motion.div>
   );
 }
