@@ -383,6 +383,14 @@
   display: block;
 }
 
+/* Show humanize label only in share mode */
+.share-humanize-label {
+  display: none;
+}
+.share-capture-area[data-share-mode="true"] .share-humanize-label {
+  display: inline-flex;
+}
+
 /* Ensure all children are fully visible during capture */
 .share-capture-area[data-share-mode="true"] * {
   overflow: visible !important;
