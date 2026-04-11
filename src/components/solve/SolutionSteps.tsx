@@ -202,7 +202,9 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       <ShareCardModal
         open={showShareCard}
         onClose={() => setShowShareCard(false)}
-        data={{ question, solution, subject }}
+        question={question}
+        solution={solution}
+        subject={subject}
       />
 
       {/* Question */}

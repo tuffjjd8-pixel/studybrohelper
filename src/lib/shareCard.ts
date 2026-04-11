@@ -1,24 +1,72 @@
 /**
- * Generates a branded share card image on a canvas.
- * Returns a data URL (PNG) ready for sharing/saving.
+ * Generates a premium branded share card image on a canvas.
+ * Returns a PNG Blob ready for sharing/saving.
  */
 
-const CARD_WIDTH = 1080;
-const CARD_HEIGHT = 1350;
-const PADDING = 60;
-const NEON_GREEN = "#39FF14";
-const NEON_GREEN_DIM = "rgba(57, 255, 20, 0.15)";
-const BG_COLOR = "#0a0a0f";
-const BG_CARD = "#141420";
-const TEXT_WHITE = "#f2f2f2";
-const TEXT_MUTED = "#8a8a9a";
+const CARD_W = 1080;
+const CARD_H = 1920; // 9:16 ratio — fits stories/reels
+const PAD = 72;
+const CONTENT_W = CARD_W - PAD * 2;
 
-function truncate(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen - 1).trim() + "…";
+const GREEN = "#00FF88";
+const GREEN_DIM = "rgba(0, 255, 136, 0.12)";
+const GREEN_GLOW = "rgba(0, 255, 136, 0.06)";
+const BG = "#0B0B0B";
+const WHITE = "#F0F0F0";
+const MUTED = "#555566";
+const DIVIDER = "rgba(255,255,255,0.05)";
+
+// ─── Helpers ───────────────────────────────────────────
+
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 1).trim() + "…";
 }
 
-function extractFinalAnswer(solution: string): string | null {
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number, maxLines = 99): string[] {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    const test = cur ? `${cur} ${w}` : w;
+    if (ctx.measureText(test).width > maxW && cur) {
+      lines.push(cur);
+      if (lines.length >= maxLines) { lines[lines.length - 1] += "…"; return lines; }
+      cur = w;
+    } else {
+      cur = test;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawDivider(ctx: CanvasRenderingContext2D, y: number) {
+  ctx.strokeStyle = DIVIDER;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD, y);
+  ctx.lineTo(CARD_W - PAD, y);
+  ctx.stroke();
+}
+
+// ─── Content extraction ────────────────────────────────
+
+export function extractFinalAnswer(solution: string): string | null {
   const patterns = [
     /(?:final\s*answer|the\s*answer\s*is)[:\s]*\*{0,2}(.+?)(?:\*{0,2})(?:\n|$)/i,
     /\\boxed\{(.+?)\}/,
@@ -37,58 +85,25 @@ function extractFinalAnswer(solution: string): string | null {
 }
 
 function extractKeySteps(solution: string, max = 3): string[] {
-  // Try to find numbered steps or bullet points
   const lines = solution.split("\n").filter(l => l.trim().length > 0);
   const stepLines = lines.filter(l => /^(\d+[\.\):]|\*|-|•|Step\s*\d)/i.test(l.trim()));
-  
-  const steps = (stepLines.length >= 2 ? stepLines : lines.filter(l => l.trim().length > 20))
+  const source = stepLines.length >= 2 ? stepLines : lines.filter(l => l.trim().length > 15);
+  return source
     .slice(0, max)
-    .map(s => s.trim()
-      .replace(/^\d+[\.\):]\s*/, "")
-      .replace(/^\*+\s*/, "")
-      .replace(/^-\s*/, "")
-      .replace(/^•\s*/, "")
-      .replace(/^Step\s*\d+[:\s]*/i, "")
-      .replace(/\*{1,2}/g, "")
-      .trim()
-    );
-
-  return steps.map(s => truncate(s, 80));
+    .map(s =>
+      s.trim()
+        .replace(/^\d+[\.\):]\s*/, "")
+        .replace(/^\*+\s*/, "")
+        .replace(/^[-•]\s*/, "")
+        .replace(/^Step\s*\d+[:\s]*/i, "")
+        .replace(/\*{1,2}/g, "")
+        .trim()
+    )
+    .filter(Boolean)
+    .map(s => truncate(s, 70));
 }
 
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    const test = current ? `${current} ${word}` : word;
-    if (ctx.measureText(test).width > maxWidth && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = test;
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
-}
-
-function drawRoundedRect(
-  ctx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number, r: number
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
+// ─── Main renderer ─────────────────────────────────────
 
 export interface ShareCardData {
   question: string;
@@ -98,165 +113,143 @@ export interface ShareCardData {
 
 export async function generateShareCard(data: ShareCardData): Promise<Blob> {
   const { question, solution, subject } = data;
-  const finalAnswer = extractFinalAnswer(solution) || "See solution below";
+  const finalAnswer = extractFinalAnswer(solution) || "See full solution";
   const steps = extractKeySteps(solution);
+  const FONT = "'Space Grotesk', system-ui, -apple-system, sans-serif";
 
   const canvas = document.createElement("canvas");
-  canvas.width = CARD_WIDTH;
-  canvas.height = CARD_HEIGHT;
+  canvas.width = CARD_W;
+  canvas.height = CARD_H;
   const ctx = canvas.getContext("2d")!;
 
-  // Background
-  ctx.fillStyle = BG_COLOR;
-  ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+  // ── Background ──
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
 
-  // Subtle glow circle in upper-right
-  const gradient = ctx.createRadialGradient(CARD_WIDTH - 200, 150, 0, CARD_WIDTH - 200, 150, 400);
-  gradient.addColorStop(0, "rgba(57, 255, 20, 0.08)");
-  gradient.addColorStop(1, "rgba(57, 255, 20, 0)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+  // Very subtle top-right glow
+  const glow = ctx.createRadialGradient(CARD_W - 100, 200, 0, CARD_W - 100, 200, 500);
+  glow.addColorStop(0, "rgba(0, 255, 136, 0.04)");
+  glow.addColorStop(1, "transparent");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
 
-  let y = PADDING;
+  let y = PAD + 20;
 
-  // Subject pill
-  ctx.font = "bold 24px 'Space Grotesk', system-ui, sans-serif";
-  const subjectText = subject.charAt(0).toUpperCase() + subject.slice(1);
-  const pillW = ctx.measureText(subjectText).width + 40;
-  drawRoundedRect(ctx, PADDING, y, pillW, 44, 22);
-  ctx.fillStyle = NEON_GREEN_DIM;
+  // ── Subject pill ──
+  ctx.font = `500 22px ${FONT}`;
+  const subjectLabel = subject.charAt(0).toUpperCase() + subject.slice(1);
+  const pillTextW = ctx.measureText(subjectLabel).width;
+  const pillW = pillTextW + 36;
+  roundRect(ctx, PAD, y, pillW, 38, 19);
+  ctx.fillStyle = GREEN_DIM;
   ctx.fill();
-  ctx.strokeStyle = "rgba(57, 255, 20, 0.3)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.fillStyle = NEON_GREEN;
-  ctx.fillText(subjectText, PADDING + 20, y + 30);
-  y += 70;
+  ctx.fillStyle = GREEN;
+  ctx.font = `600 20px ${FONT}`;
+  ctx.fillText(subjectLabel, PAD + 18, y + 26);
+  y += 80;
 
-  // "FINAL ANSWER" label
-  ctx.font = "600 20px 'Space Grotesk', system-ui, sans-serif";
-  ctx.fillStyle = NEON_GREEN;
-  ctx.fillText("✦  FINAL ANSWER", PADDING, y + 20);
-  y += 40;
+  // ── Final Answer label ──
+  ctx.font = `500 18px ${FONT}`;
+  ctx.fillStyle = MUTED;
+  ctx.letterSpacing = "3px";
+  ctx.fillText("FINAL ANSWER", PAD, y);
+  y += 36;
 
-  // Final answer box
-  const answerBoxX = PADDING;
-  const answerBoxW = CARD_WIDTH - PADDING * 2;
-  ctx.font = "bold 42px 'Space Grotesk', system-ui, sans-serif";
-  const answerLines = wrapText(ctx, truncate(finalAnswer, 120), answerBoxW - 48);
-  const answerBoxH = Math.max(100, answerLines.length * 52 + 40);
-
-  // Glow behind answer box
-  ctx.shadowColor = NEON_GREEN;
-  ctx.shadowBlur = 30;
-  drawRoundedRect(ctx, answerBoxX, y, answerBoxW, answerBoxH, 20);
-  ctx.fillStyle = "rgba(57, 255, 20, 0.06)";
-  ctx.fill();
-  ctx.strokeStyle = "rgba(57, 255, 20, 0.4)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  ctx.fillStyle = NEON_GREEN;
+  // ── Final Answer ──
+  ctx.font = `700 48px ${FONT}`;
+  ctx.fillStyle = GREEN;
+  const answerLines = wrapText(ctx, truncate(finalAnswer, 100), CONTENT_W, 3);
   answerLines.forEach((line, i) => {
-    ctx.fillText(line, answerBoxX + 24, y + 48 + i * 52);
+    ctx.fillText(line, PAD, y + i * 62);
   });
-  y += answerBoxH + 40;
+  y += answerLines.length * 62 + 16;
 
-  // Divider
-  ctx.strokeStyle = "rgba(255,255,255,0.06)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(PADDING, y);
-  ctx.lineTo(CARD_WIDTH - PADDING, y);
-  ctx.stroke();
-  y += 30;
+  // Thin green accent line under answer
+  ctx.fillStyle = GREEN;
+  roundRect(ctx, PAD, y, 60, 3, 1.5);
+  ctx.fill();
+  y += 50;
 
-  // Problem section
-  ctx.font = "600 20px 'Space Grotesk', system-ui, sans-serif";
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.fillText("PROBLEM", PADDING, y + 18);
+  // ── Divider ──
+  drawDivider(ctx, y);
   y += 40;
 
-  ctx.font = "400 28px 'Space Grotesk', system-ui, sans-serif";
-  ctx.fillStyle = TEXT_WHITE;
-  const questionLines = wrapText(ctx, truncate(question, 200), CARD_WIDTH - PADDING * 2);
-  questionLines.forEach((line, i) => {
-    ctx.fillText(line, PADDING, y + i * 38);
+  // ── Problem ──
+  ctx.font = `500 18px ${FONT}`;
+  ctx.fillStyle = MUTED;
+  ctx.fillText("PROBLEM", PAD, y);
+  y += 36;
+
+  ctx.font = `400 30px ${FONT}`;
+  ctx.fillStyle = WHITE;
+  const qLines = wrapText(ctx, truncate(question, 180), CONTENT_W, 4);
+  qLines.forEach((line, i) => {
+    ctx.fillText(line, PAD, y + i * 42);
   });
-  y += questionLines.length * 38 + 30;
+  y += qLines.length * 42 + 40;
 
-  // Steps section
+  // ── Divider ──
+  drawDivider(ctx, y);
+  y += 40;
+
+  // ── Key Steps ──
   if (steps.length > 0) {
-    ctx.strokeStyle = "rgba(255,255,255,0.06)";
-    ctx.beginPath();
-    ctx.moveTo(PADDING, y);
-    ctx.lineTo(CARD_WIDTH - PADDING, y);
-    ctx.stroke();
-    y += 30;
-
-    ctx.font = "600 20px 'Space Grotesk', system-ui, sans-serif";
-    ctx.fillStyle = TEXT_MUTED;
-    ctx.fillText("KEY STEPS", PADDING, y + 18);
-    y += 45;
+    ctx.font = `500 18px ${FONT}`;
+    ctx.fillStyle = MUTED;
+    ctx.fillText("KEY STEPS", PAD, y);
+    y += 44;
 
     steps.forEach((step, i) => {
-      // Step number circle
-      const circleX = PADDING + 16;
-      const circleY = y + 2;
-      ctx.beginPath();
-      ctx.arc(circleX, circleY, 16, 0, Math.PI * 2);
-      ctx.fillStyle = NEON_GREEN_DIM;
-      ctx.fill();
-      ctx.font = "bold 18px 'Space Grotesk', system-ui, sans-serif";
-      ctx.fillStyle = NEON_GREEN;
-      ctx.fillText(String(i + 1), circleX - 5, circleY + 6);
+      // Step number
+      const numX = PAD;
+      ctx.font = `700 22px ${FONT}`;
+      ctx.fillStyle = GREEN;
+      ctx.fillText(`${i + 1}`, numX, y + 4);
 
       // Step text
-      ctx.font = "400 24px 'Space Grotesk', system-ui, sans-serif";
-      ctx.fillStyle = TEXT_WHITE;
-      const stepLines = wrapText(ctx, step, CARD_WIDTH - PADDING * 2 - 50);
-      stepLines.forEach((line, j) => {
-        ctx.fillText(line, PADDING + 44, y + 8 + j * 32);
+      const textX = PAD + 32;
+      ctx.font = `400 26px ${FONT}`;
+      ctx.fillStyle = "rgba(240,240,240,0.85)";
+      const sLines = wrapText(ctx, step, CONTENT_W - 32, 2);
+      sLines.forEach((line, j) => {
+        ctx.fillText(line, textX, y + 4 + j * 36);
       });
-      y += Math.max(40, stepLines.length * 32 + 16);
+      y += Math.max(44, sLines.length * 36 + 20);
     });
   }
 
-  // Footer branding — push to bottom
-  const footerY = CARD_HEIGHT - 60;
+  // ── Footer — always at bottom ──
+  const footerY = CARD_H - PAD - 10;
 
-  // Subtle divider
-  ctx.strokeStyle = "rgba(255,255,255,0.04)";
-  ctx.beginPath();
-  ctx.moveTo(PADDING, footerY - 20);
-  ctx.lineTo(CARD_WIDTH - PADDING, footerY - 20);
-  ctx.stroke();
+  // Thin divider
+  drawDivider(ctx, footerY - 30);
 
-  // Logo dot
+  // Green dot
   ctx.beginPath();
-  ctx.arc(PADDING + 8, footerY + 6, 8, 0, Math.PI * 2);
-  ctx.fillStyle = NEON_GREEN;
+  ctx.arc(PAD + 7, footerY + 4, 7, 0, Math.PI * 2);
+  ctx.fillStyle = GREEN;
   ctx.fill();
 
-  ctx.font = "700 26px 'Space Grotesk', system-ui, sans-serif";
-  ctx.fillStyle = TEXT_WHITE;
-  ctx.fillText("StudyBro", PADDING + 26, footerY + 14);
+  // Brand name
+  ctx.font = `700 24px ${FONT}`;
+  ctx.fillStyle = "rgba(240,240,240,0.6)";
+  ctx.fillText("StudyBro", PAD + 24, footerY + 12);
 
-  ctx.font = "400 20px 'Space Grotesk', system-ui, sans-serif";
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.fillText("AI Homework Solver", PADDING + 160, footerY + 14);
+  // Tagline
+  ctx.font = `400 18px ${FONT}`;
+  ctx.fillStyle = "rgba(240,240,240,0.25)";
+  ctx.fillText("AI Homework Solver", PAD + 148, footerY + 12);
 
-  // Watermark URL on far right
-  ctx.font = "400 18px 'Space Grotesk', system-ui, sans-serif";
-  ctx.fillStyle = "rgba(57, 255, 20, 0.4)";
+  // URL right-aligned
+  ctx.font = `400 16px ${FONT}`;
+  ctx.fillStyle = "rgba(0, 255, 136, 0.25)";
   const urlText = "studybrohelper.lovable.app";
   const urlW = ctx.measureText(urlText).width;
-  ctx.fillText(urlText, CARD_WIDTH - PADDING - urlW, footerY + 14);
+  ctx.fillText(urlText, CARD_W - PAD - urlW, footerY + 12);
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
-      (blob) => blob ? resolve(blob) : reject(new Error("Canvas toBlob failed")),
+      (blob) => (blob ? resolve(blob) : reject(new Error("Canvas toBlob failed"))),
       "image/png",
       1.0
     );

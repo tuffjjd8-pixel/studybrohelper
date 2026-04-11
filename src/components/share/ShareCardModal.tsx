@@ -1,38 +1,45 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Download, Share2, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { generateShareCard, type ShareCardData } from "@/lib/shareCard";
+import { generateShareCard } from "@/lib/shareCard";
 import { toast } from "sonner";
 
 interface ShareCardModalProps {
   open: boolean;
   onClose: () => void;
-  data: ShareCardData;
+  question: string;
+  solution: string;
+  subject: string;
 }
 
-export function ShareCardModal({ open, onClose, data }: ShareCardModalProps) {
+export function ShareCardModal({ open, onClose, question, solution, subject }: ShareCardModalProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const prevKeyRef = useRef("");
+
+  // Stable data key to avoid re-renders on same data
+  const dataKey = `${question}|${solution}|${subject}`;
 
   useEffect(() => {
-    if (!open) {
-      setImageUrl(null);
-      setBlob(null);
-      setSaved(false);
-      return;
-    }
+    if (!open) return;
+    if (dataKey === prevKeyRef.current && imageUrl) return; // already generated for this data
 
+    prevKeyRef.current = dataKey;
     let cancelled = false;
     setLoading(true);
+    setSaved(false);
 
-    generateShareCard(data)
+    generateShareCard({ question, solution, subject })
       .then((b) => {
         if (cancelled) return;
         setBlob(b);
-        setImageUrl(URL.createObjectURL(b));
+        setImageUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return URL.createObjectURL(b);
+        });
       })
       .catch(() => {
         if (!cancelled) toast.error("Failed to generate share card");
@@ -41,47 +48,34 @@ export function ShareCardModal({ open, onClose, data }: ShareCardModalProps) {
         if (!cancelled) setLoading(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [open, data]);
+    return () => { cancelled = true; };
+  }, [open, dataKey]);
 
-  // Cleanup object URL
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
     };
   }, [imageUrl]);
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     if (!blob) return;
     const file = new File([blob], "studybro-solution.png", { type: "image/png" });
 
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       try {
-        await navigator.share({
-          title: "Solved by StudyBro",
-          text: "Check out this solution!",
-          files: [file],
-        });
-      } catch {
-        // user cancelled
-      }
+        await navigator.share({ title: "Solved by StudyBro", text: "Check this out!", files: [file] });
+      } catch { /* cancelled */ }
     } else if (navigator.share) {
       try {
-        await navigator.share({
-          title: "Solved by StudyBro",
-          text: "Check out this solution! studybrohelper.lovable.app",
-        });
-      } catch {
-        // user cancelled
-      }
+        await navigator.share({ title: "Solved by StudyBro", text: "Check this out! studybrohelper.lovable.app" });
+      } catch { /* cancelled */ }
     } else {
       handleSave();
     }
-  };
+  }, [blob]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -92,95 +86,90 @@ export function ShareCardModal({ open, onClose, data }: ShareCardModalProps) {
     setSaved(true);
     toast.success("Image saved!");
     setTimeout(() => setSaved(false), 2000);
-  };
+  }, [blob]);
 
-  const handleCopyLink = async () => {
-    const url = "https://studybrohelper.lovable.app";
-    await navigator.clipboard.writeText(url);
+  const handleCopyLink = useCallback(async () => {
+    await navigator.clipboard.writeText("https://studybrohelper.lovable.app");
     toast.success("Link copied!");
-  };
-
-  if (!open) return null;
+  }, []);
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-        onClick={onClose}
-      >
+      {open && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="relative w-full max-w-md flex flex-col items-center gap-4"
-          onClick={(e) => e.stopPropagation()}
+          key="share-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4"
+          onClick={onClose}
         >
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute -top-2 -right-2 z-10 p-2 rounded-full bg-muted hover:bg-muted/80 text-foreground transition-colors"
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.92 }}
+            transition={{ type: "spring", damping: 28, stiffness: 320 }}
+            className="relative w-full max-w-sm flex flex-col items-center gap-5"
+            onClick={(e) => e.stopPropagation()}
           >
-            <X className="w-5 h-5" />
-          </button>
-
-          {/* Card preview */}
-          <div className="w-full rounded-2xl overflow-hidden border border-border/50 shadow-2xl">
-            {loading ? (
-              <div className="aspect-[4/5] bg-card flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            ) : imageUrl ? (
-              <img
-                src={imageUrl}
-                alt="Share card"
-                className="w-full"
-                draggable={false}
-              />
-            ) : null}
-          </div>
-
-          {/* Action buttons */}
-          {!loading && imageUrl && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="flex gap-3 w-full"
-            >
-              <Button
-                onClick={handleShare}
-                className="flex-1 gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
-                size="lg"
-              >
-                <Share2 className="w-4 h-4" />
-                Share
-              </Button>
-              <Button
-                onClick={handleSave}
-                variant="outline"
-                size="lg"
-                className="flex-1 gap-2"
-              >
-                {saved ? <Check className="w-4 h-4" /> : <Download className="w-4 h-4" />}
-                {saved ? "Saved" : "Save"}
-              </Button>
-            </motion.div>
-          )}
-
-          {!loading && imageUrl && (
+            {/* Close */}
             <button
-              onClick={handleCopyLink}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
+              onClick={onClose}
+              className="absolute -top-3 -right-3 z-10 p-2 rounded-full bg-card border border-border/50 text-foreground hover:bg-muted transition-colors"
             >
-              Copy app link
+              <X className="w-4 h-4" />
             </button>
-          )}
+
+            {/* Card preview */}
+            <div className="w-full rounded-xl overflow-hidden border border-border/30 shadow-[0_8px_40px_rgba(0,0,0,0.6)]">
+              {loading ? (
+                <div className="aspect-[9/16] bg-[#0B0B0B] flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : imageUrl ? (
+                <img src={imageUrl} alt="Share card preview" className="w-full" draggable={false} />
+              ) : null}
+            </div>
+
+            {/* Actions */}
+            {!loading && imageUrl && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="flex gap-3 w-full"
+              >
+                <Button
+                  onClick={handleShare}
+                  className="flex-1 gap-2 font-semibold"
+                  size="lg"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Share
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  variant="outline"
+                  size="lg"
+                  className="flex-1 gap-2"
+                >
+                  {saved ? <Check className="w-4 h-4" /> : <Download className="w-4 h-4" />}
+                  {saved ? "Saved" : "Save"}
+                </Button>
+              </motion.div>
+            )}
+
+            {!loading && imageUrl && (
+              <button
+                onClick={handleCopyLink}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Copy app link
+              </button>
+            )}
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
     </AnimatePresence>
   );
 }
