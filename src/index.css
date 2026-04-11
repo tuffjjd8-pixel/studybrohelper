@@ -363,12 +363,19 @@
 /* Share mode: clean up UI for screenshot capture */
 .share-capture-area[data-share-mode="true"] {
   background: hsl(var(--background));
-  padding: 24px;
+  padding: 20px;
   border-radius: 16px;
 }
 
-.share-capture-area[data-share-mode="true"] button,
-.share-capture-area[data-share-mode="true"] .humanize-section,
+/* Hide interactive buttons but keep humanize status badge and follow-up placeholder */
 .share-capture-area[data-share-mode="true"] [data-hide-share] {
   display: none !important;
+}
+
+/* Show the follow-up placeholder only in share mode */
+.share-followup-placeholder {
+  display: none;
+}
+.share-capture-area[data-share-mode="true"] .share-followup-placeholder {
+  display: block;
 }

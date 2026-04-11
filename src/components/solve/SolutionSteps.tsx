@@ -209,7 +209,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           <h3 className="text-xs font-medium text-primary uppercase tracking-wider">
             Solution
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" data-hide-share>
             <Button
               variant="ghost"
               size="sm"
@@ -307,9 +307,9 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           </div>
         )}
 
-        {/* Humanize section */}
+        {/* Humanize section - visible in share */}
         {!isHistory || isPremium ? (
-          <div className="mt-4 pt-4 border-t border-border/50 space-y-3" data-hide-share>
+          <div className="mt-4 pt-4 border-t border-border/50 space-y-3 humanize-section">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
                 {isHumanized || humanizeUsed ? (
@@ -324,6 +324,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                     onClick={handleHumanize}
                     disabled={isHumanizing}
                     className="gap-2"
+                    data-hide-share
                   >
                     {isHumanizing ? (
                       <AIBrainIcon size="sm" animate glowIntensity="strong" />
@@ -339,17 +340,54 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                 )}
               </div>
               {!isHumanized && !humanizeUsed && (
-                <HumanizeStrengthSlider
-                  value={humanizeStrength}
-                  onChange={setHumanizeStrength}
-                  isPremium={isPremium}
-                  onUpgradeClick={() => navigate("/premium")}
-                />
+                <div data-hide-share>
+                  <HumanizeStrengthSlider
+                    value={humanizeStrength}
+                    onChange={setHumanizeStrength}
+                    isPremium={isPremium}
+                    onUpgradeClick={() => navigate("/premium")}
+                  />
+                </div>
               )}
             </div>
           </div>
         ) : null}
       </motion.div>
+
+      {/* Follow-up response inside capture area */}
+      {followUpResponse && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-6 border-l-4 border-l-secondary"
+        >
+          <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-4">
+            Follow-up Answer
+          </h3>
+          <div className="prose prose-invert prose-sm max-w-none">
+            <ReactMarkdown
+              remarkPlugins={[remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              components={{
+                p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
+                strong: ({ children }) => <strong className="font-bold text-secondary">{children}</strong>,
+              }}
+            >
+              {preprocessMath(followUpResponse)}
+            </ReactMarkdown>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Follow-up input inside capture area */}
+      {showFollowUp && (
+        <div className="glass-card p-4 share-followup-placeholder">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            Ask a follow-up question
+          </h3>
+          <div className="h-10 rounded-lg bg-muted/30 border border-border/30" />
+        </div>
+      )}
       </div>{/* end share-capture-area */}
 
       {/* Share CTA */}
@@ -376,32 +414,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         captureRef={solutionCaptureRef}
       />
 
-      {/* Follow-up response */}
-      {followUpResponse && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6 border-l-4 border-l-secondary"
-        >
-          <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-4">
-            Follow-up Answer
-          </h3>
-          <div className="prose prose-invert prose-sm max-w-none">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
-                strong: ({ children }) => <strong className="font-bold text-secondary">{children}</strong>,
-              }}
-            >
-              {preprocessMath(followUpResponse)}
-            </ReactMarkdown>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Inline follow-up input */}
+      {/* Inline follow-up input (real, interactive) */}
       {showFollowUp && (
         <motion.div
           initial={{ opacity: 0 }}
