@@ -65,7 +65,17 @@ const Premium = () => {
   const [totalXP, setTotalXP] = useState(0);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      // Guest XP from localStorage
+      try {
+        const raw = localStorage.getItem("guest_usage");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setTotalXP((parsed.totalSolves || 0) * 10);
+        }
+      } catch {}
+      return;
+    }
     const checkPremium = async () => {
       const { data } = await supabase
         .from("profiles")
@@ -76,16 +86,6 @@ const Premium = () => {
       if (data?.total_solves) setTotalXP(data.total_solves * 10);
     };
     checkPremium();
-    // Also load guest XP from localStorage
-    if (!user) {
-      try {
-        const raw = localStorage.getItem("guest_usage");
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          setTotalXP((parsed.totalSolves || 0) * 10);
-        }
-      } catch {}
-    }
   }, [user]);
 
   const handlePurchase = async (product: PlayProduct) => {
