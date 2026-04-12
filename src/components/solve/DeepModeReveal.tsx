@@ -6,11 +6,8 @@ import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
 import { preprocessMath } from "@/lib/mathPreprocess";
 
-export type DeepModeTextColor = "default" | "gold" | "sky" | "purple" | "rose" | "orange";
-
 interface DeepModeRevealProps {
   content: string;
-  textColor?: DeepModeTextColor;
   onComplete?: () => void;
 }
 
@@ -45,7 +42,7 @@ function computeSafePoints(content: string): number[] {
   return points;
 }
 
-export function DeepModeReveal({ content, textColor = "gold", onComplete }: DeepModeRevealProps) {
+export function DeepModeReveal({ content, onComplete }: DeepModeRevealProps) {
   const [displayedContent, setDisplayedContent] = useState("");
   const [isComplete, setIsComplete] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -88,12 +85,9 @@ export function DeepModeReveal({ content, textColor = "gold", onComplete }: Deep
     onComplete?.();
   }, [content, onComplete]);
 
-  const colorClass = `deep-text-${textColor}`;
-
   return (
     <div
       ref={containerRef}
-      className={colorClass}
       onClick={!isComplete ? handleSkip : undefined}
       style={{ cursor: isComplete ? "default" : "pointer" }}
     >
@@ -103,25 +97,25 @@ export function DeepModeReveal({ content, textColor = "gold", onComplete }: Deep
           rehypePlugins={[rehypeKatex]}
           components={{
             h1: ({ children }) => (
-              <h1 className="text-xl font-bold mb-3 inherit-color">{children}</h1>
+              <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>
             ),
             h2: ({ children }) => (
-              <h2 className="text-lg font-semibold mb-2 mt-4 inherit-color">{children}</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>
             ),
             h3: ({ children }) => (
-              <h3 className="text-base font-medium mb-2 mt-3 inherit-color">{children}</h3>
+              <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>
             ),
             p: ({ children }) => (
-              <p className="mb-3 leading-relaxed inherit-color">{children}</p>
+              <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>
             ),
             strong: ({ children }) => (
-              <strong className="font-bold inherit-color">{children}</strong>
+              <strong className="font-bold text-primary">{children}</strong>
             ),
             em: ({ children }) => (
-              <em className="italic inherit-color">{children}</em>
+              <em className="text-secondary italic">{children}</em>
             ),
             code: ({ children }) => (
-              <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono inherit-color">
+              <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-sm font-mono">
                 {children}
               </code>
             ),

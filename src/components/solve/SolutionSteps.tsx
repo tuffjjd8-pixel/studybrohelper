@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
 import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solve/HumanizeStrengthSlider";
 import { useNavigate } from "react-router-dom";
-import { DeepModeReveal, type DeepModeTextColor } from "@/components/solve/DeepModeReveal";
+import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
 import { FinalAnswerHighlight } from "@/components/solve/FinalAnswerHighlight";
 
@@ -30,7 +30,6 @@ interface SolutionStepsProps {
   followUpCount?: number;
   maxFollowUps?: number;
   isDeepMode?: boolean;
-  deepTextColor?: DeepModeTextColor;
   isAuthenticated?: boolean;
 }
 
@@ -50,7 +49,7 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, deepTextColor = "gold", isAuthenticated = false }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, isAuthenticated = false }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -211,30 +210,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </div>
           </div>
 
-          {isDeepMode ? (
-            <div className={`deep-text-${deepTextColor}`}>
-              {isHistory ? (
-                <div className="prose prose-invert prose-sm max-w-none math-solution">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
-                    components={{
-                      h1: ({ children }) => <h1 className="text-xl font-bold mb-3 inherit-color">{children}</h1>,
-                      h2: ({ children }) => <h2 className="text-lg font-semibold mb-2 mt-4 inherit-color">{children}</h2>,
-                      h3: ({ children }) => <h3 className="text-base font-medium mb-2 mt-3 inherit-color">{children}</h3>,
-                      p: ({ children }) => <p className="mb-3 leading-relaxed inherit-color">{children}</p>,
-                      strong: ({ children }) => <strong className="font-bold inherit-color">{children}</strong>,
-                      em: ({ children }) => <em className="italic inherit-color">{children}</em>,
-                      code: ({ children }) => <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono inherit-color">{children}</code>,
-                    }}
-                  >
-                    {preprocessMath(displayedSolution)}
-                  </ReactMarkdown>
-                </div>
-              ) : (
-                <DeepModeReveal content={displayedSolution} textColor={deepTextColor} />
-              )}
-            </div>
+          {isDeepMode && !isHistory ? (
+            <DeepModeReveal content={displayedSolution} />
           ) : (
             <div className="prose prose-invert prose-sm max-w-none math-solution">
               <ReactMarkdown

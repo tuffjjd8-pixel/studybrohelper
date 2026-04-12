@@ -512,7 +512,6 @@ const Index = () => {
                 solveId={solution.solveId}
                 isPremium={isPremium}
                 isDeepMode={false}
-                deepTextColor="gold"
                 isAuthenticated={!!user}
               />
             </motion.div>
