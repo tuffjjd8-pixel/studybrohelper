@@ -62,6 +62,7 @@ const Premium = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [userIsPremium, setUserIsPremium] = useState(false);
+  const [totalXP, setTotalXP] = useState(0);
 
   useEffect(() => {
     if (!user) return;
