@@ -22,6 +22,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { PLAY_PRODUCTS, PlayBillingService, type PlayProduct } from "@/lib/playBilling";
+import { XpYearlyTiers } from "@/components/premium/XpYearlyTiers";
 
 interface ComparisonItem {
   feature: string;
@@ -61,16 +62,28 @@ const Premium = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [userIsPremium, setUserIsPremium] = useState(false);
+  const [totalXP, setTotalXP] = useState(0);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      // Guest XP from localStorage
+      try {
+        const raw = localStorage.getItem("guest_usage");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setTotalXP((parsed.totalSolves || 0) * 10);
+        }
+      } catch {}
+      return;
+    }
     const checkPremium = async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("is_premium")
+        .select("is_premium, total_solves")
         .eq("user_id", user.id)
         .single();
       if (data?.is_premium) setUserIsPremium(true);
+      if (data?.total_solves) setTotalXP(data.total_solves * 10);
     };
     checkPremium();
   }, [user]);
@@ -252,6 +265,19 @@ const Premium = () => {
                 Restore Purchases
               </Button>
             </div>
+
+            {/* XP Yearly Discount Tiers */}
+            {!userIsPremium && (
+              <XpYearlyTiers
+                totalXP={totalXP}
+                onSelectTier={(tier) => {
+                  const yearlyProduct = PLAY_PRODUCTS.find(p => p.productId === "pro_yearly");
+                  if (yearlyProduct) {
+                    handlePurchase({ ...yearlyProduct, price: tier.price });
+                  }
+                }}
+              />
+            )}
 
             {/* Comparison Table */}
             <div className="space-y-3">
