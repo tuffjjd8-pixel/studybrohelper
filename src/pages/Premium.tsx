@@ -69,12 +69,23 @@ const Premium = () => {
     const checkPremium = async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("is_premium")
+        .select("is_premium, total_solves")
         .eq("user_id", user.id)
         .single();
       if (data?.is_premium) setUserIsPremium(true);
+      if (data?.total_solves) setTotalXP(data.total_solves * 10);
     };
     checkPremium();
+    // Also load guest XP from localStorage
+    if (!user) {
+      try {
+        const raw = localStorage.getItem("guest_usage");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setTotalXP((parsed.totalSolves || 0) * 10);
+        }
+      } catch {}
+    }
   }, [user]);
 
   const handlePurchase = async (product: PlayProduct) => {
