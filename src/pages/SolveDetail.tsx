@@ -38,12 +38,8 @@ const SolveDetail = () => {
   const [isPremium, setIsPremium] = useState(false);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (user && id) {
-        fetchSolve();
-      } else if (!user && id) {
-        loadGuestSolve();
-      }
+    if (!authLoading && id) {
+      fetchSolve();
     }
   }, [user, authLoading, id]);
 
