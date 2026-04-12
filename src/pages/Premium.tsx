@@ -281,6 +281,7 @@ const Premium = () => {
 
             {/* Comparison Table */}
             <div className="space-y-3">
+              <h2 className="font-semibold text-lg text-center">Free vs Premium</h2>
               <div className="rounded-xl border border-border overflow-hidden">
                 <div className="grid grid-cols-3 bg-muted/50 p-3 font-medium text-sm">
                   <div>Feature</div>
