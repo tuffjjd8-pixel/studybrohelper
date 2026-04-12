@@ -25,7 +25,7 @@ const TIERS: XpTier[] = [
     requiredXP: 5000,
     price: "$44.99",
     label: "Power User",
-    motivationText: "You're close — keep solving ⚡",
+    motivationText: "You're close — keep going",
     icon: <Trophy className="w-4 h-4" />,
   },
   {
@@ -33,7 +33,7 @@ const TIERS: XpTier[] = [
     requiredXP: 15000,
     price: "$39.99",
     label: "Elite Scholar",
-    motivationText: "Elite reward — only for top users 🧠",
+    motivationText: "Elite reward — top users only 🧠",
     icon: <Brain className="w-4 h-4" />,
   },
 ];
@@ -89,9 +89,9 @@ export function XpYearlyTiers({ totalXP, onSelectTier, disabled }: XpYearlyTiers
                 className={`
                   w-full p-4 rounded-2xl border-2 text-left transition-all relative overflow-hidden
                   ${isHighest
-                    ? "border-primary bg-primary/5 shadow-[0_0_20px_hsl(var(--primary)/0.15)]"
+                    ? "border-primary bg-primary/5 shadow-[0_0_24px_hsl(var(--primary)/0.25)]"
                     : isUnlocked
-                      ? "border-primary/30 bg-primary/5"
+                      ? "border-primary/20 bg-primary/[0.03] shadow-[0_0_10px_hsl(var(--primary)/0.06)]"
                       : "border-border bg-card/50"
                   }
                   ${!isUnlocked ? "opacity-60" : ""}
