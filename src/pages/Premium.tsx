@@ -64,6 +64,16 @@ const Premium = () => {
   const [userIsPremium, setUserIsPremium] = useState(false);
   const [totalXP, setTotalXP] = useState(0);
 
+  // DEV PREVIEW: force XP tiers visible for testing
+  const [devPreview, setDevPreview] = useState(false);
+  const [devXP, setDevXP] = useState(0);
+  const DEV_XP_PRESETS = [
+    { label: "0 XP", value: 0 },
+    { label: "Tier 1 (1k)", value: 1000 },
+    { label: "Tier 2 (5k)", value: 5000 },
+    { label: "Tier 3 (15k)", value: 15000 },
+  ];
+
   useEffect(() => {
     if (!user) {
       // Guest XP from localStorage
