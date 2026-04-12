@@ -22,6 +22,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { PLAY_PRODUCTS, PlayBillingService, type PlayProduct } from "@/lib/playBilling";
+import { XpYearlyTiers } from "@/components/premium/XpYearlyTiers";
 
 interface ComparisonItem {
   feature: string;
