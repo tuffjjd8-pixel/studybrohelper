@@ -38,12 +38,8 @@ const SolveDetail = () => {
   const [isPremium, setIsPremium] = useState(false);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (user && id) {
-        fetchSolve();
-      } else if (!user && id) {
-        loadGuestSolve();
-      }
+    if (!authLoading && id) {
+      fetchSolve();
     }
   }, [user, authLoading, id]);
 
@@ -78,30 +74,39 @@ const SolveDetail = () => {
 
   const fetchSolve = async () => {
     try {
-      const [solveRes, messagesRes, profileRes] = await Promise.all([
-        supabase.from("solves").select("*").eq("id", id).maybeSingle(),
-        supabase
-          .from("chat_messages")
-          .select("*")
-          .eq("solve_id", id)
-          .order("created_at", { ascending: true }),
-        supabase.from("profiles").select("is_premium").eq("user_id", user!.id).single(),
-      ]);
+      // Fetch solve publicly (RLS allows is_public=true for anyone)
+      const solveRes = await supabase.from("solves").select("*").eq("id", id).maybeSingle();
 
       if (solveRes.error) throw solveRes.error;
       if (!solveRes.data) {
+        // Fallback: check guest localStorage
+        try {
+          const guestSolves = localStorage.getItem("guest_solves");
+          if (guestSolves) {
+            const found = JSON.parse(guestSolves).find((s: Solve) => s.id === id);
+            if (found) { setSolve(found); setLoading(false); return; }
+          }
+        } catch {}
         toast.error("Solve not found");
         navigate("/history");
         return;
       }
       setSolve(solveRes.data);
-      setIsPremium(profileRes.data?.is_premium ?? false);
-      setMessages(
-        (messagesRes.data || []).map((m) => ({
-          ...m,
-          role: m.role as "user" | "assistant",
-        }))
-      );
+
+      // Load chat messages and premium status only if authenticated
+      if (user) {
+        const [messagesRes, profileRes] = await Promise.all([
+          supabase.from("chat_messages").select("*").eq("solve_id", id).order("created_at", { ascending: true }),
+          supabase.from("profiles").select("is_premium").eq("user_id", user.id).single(),
+        ]);
+        setIsPremium(profileRes.data?.is_premium ?? false);
+        setMessages(
+          (messagesRes.data || []).map((m) => ({
+            ...m,
+            role: m.role as "user" | "assistant",
+          }))
+        );
+      }
     } catch (error) {
       console.error("Error fetching solve:", error);
       toast.error("Failed to load solve");
