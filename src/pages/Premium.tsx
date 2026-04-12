@@ -266,9 +266,21 @@ const Premium = () => {
               </Button>
             </div>
 
+            {/* XP Yearly Discount Tiers */}
+            {!userIsPremium && (
+              <XpYearlyTiers
+                totalXP={totalXP}
+                onSelectTier={(tier) => {
+                  const yearlyProduct = PLAY_PRODUCTS.find(p => p.productId === "pro_yearly");
+                  if (yearlyProduct) {
+                    handlePurchase({ ...yearlyProduct, price: tier.price });
+                  }
+                }}
+              />
+            )}
+
             {/* Comparison Table */}
             <div className="space-y-3">
-              <h2 className="font-semibold text-lg text-center">Free vs Premium</h2>
               <div className="rounded-xl border border-border overflow-hidden">
                 <div className="grid grid-cols-3 bg-muted/50 p-3 font-medium text-sm">
                   <div>Feature</div>
