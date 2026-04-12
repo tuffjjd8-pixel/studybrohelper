@@ -64,6 +64,16 @@ const Premium = () => {
   const [userIsPremium, setUserIsPremium] = useState(false);
   const [totalXP, setTotalXP] = useState(0);
 
+  // DEV PREVIEW: force XP tiers visible for testing
+  const [devPreview, setDevPreview] = useState(false);
+  const [devXP, setDevXP] = useState(0);
+  const DEV_XP_PRESETS = [
+    { label: "0 XP", value: 0 },
+    { label: "Tier 1 (1k)", value: 1000 },
+    { label: "Tier 2 (5k)", value: 5000 },
+    { label: "Tier 3 (15k)", value: 15000 },
+  ];
+
   useEffect(() => {
     if (!user) {
       // Guest XP from localStorage
@@ -267,16 +277,52 @@ const Premium = () => {
             </div>
 
             {/* XP Yearly Discount Tiers */}
-            {!userIsPremium && (
+            {(!userIsPremium || devPreview) && (
               <XpYearlyTiers
-                totalXP={totalXP}
+                totalXP={devPreview ? devXP : totalXP}
                 onSelectTier={(tier) => {
+                  if (devPreview) {
+                    toast.info(`Preview: would purchase yearly at ${tier.price}`);
+                    return;
+                  }
                   const yearlyProduct = PLAY_PRODUCTS.find(p => p.productId === "pro_yearly");
                   if (yearlyProduct) {
                     handlePurchase({ ...yearlyProduct, price: tier.price });
                   }
                 }}
               />
+            )}
+
+            {/* DEV PREVIEW TOGGLE — remove before production */}
+            {import.meta.env.DEV && (
+              <div className="p-3 rounded-xl border border-dashed border-destructive/40 bg-destructive/5 space-y-2">
+                <label className="flex items-center gap-2 text-xs font-medium text-destructive">
+                  <input
+                    type="checkbox"
+                    checked={devPreview}
+                    onChange={(e) => setDevPreview(e.target.checked)}
+                    className="rounded"
+                  />
+                  🛠 DEV: Preview XP Tiers
+                </label>
+                {devPreview && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {DEV_XP_PRESETS.map((p) => (
+                      <button
+                        key={p.value}
+                        onClick={() => setDevXP(p.value)}
+                        className={`px-2 py-1 text-[11px] rounded-md border transition-all ${
+                          devXP === p.value
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card border-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Comparison Table */}
