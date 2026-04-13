@@ -229,6 +229,21 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </div>
           </div>
 
+          {/* Final answer surfaced at top */}
+          {finalAnswer && (
+            <div
+              className="mb-4 rounded-xl px-5 py-4 border border-primary/30"
+              style={{
+                background: 'linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--primary) / 0.03))',
+                boxShadow: '0 0 24px hsl(var(--primary) / 0.12)',
+              }}
+            >
+              <p className="text-lg md:text-xl font-bold text-primary leading-relaxed">
+                {finalAnswer}
+              </p>
+            </div>
+          )}
+
           {isDeepMode && !isHistory ? (
             <DeepModeReveal content={displayedSolution} />
           ) : (
