@@ -400,7 +400,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                         onClick={handleHumanize}
                         disabled={isHumanizing}
                         className="gap-2"
-                        data-hide-share
                       >
                         {isHumanizing ? (
                           <AIBrainIcon size="sm" animate glowIntensity="strong" />
@@ -413,11 +412,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                           </span>
                         ) : "Humanize"}
                       </Button>
-                      {/* Share-mode-only label */}
-                      <span className="share-humanize-label inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
-                        <Sparkles className="w-3 h-3" />
-                        Humanize available
-                      </span>
                     </>
                   )}
                 </div>
