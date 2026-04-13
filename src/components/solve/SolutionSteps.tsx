@@ -200,11 +200,30 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           text: shareText,
           url: solveDeepLink,
         });
-      } catch {
-        // User cancelled
+        return;
+      } catch (err: any) {
+        // If user cancelled, do nothing
+        if (err?.name === 'AbortError') return;
+        // Otherwise fall through to clipboard
       }
-    } else {
+    }
+    
+    // Fallback: copy link to clipboard
+    try {
       await navigator.clipboard.writeText(solveDeepLink);
+      setLinkCopied(true);
+      toast.success("Link copied!");
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // Final fallback: use execCommand
+      const textarea = document.createElement("textarea");
+      textarea.value = solveDeepLink;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
       setLinkCopied(true);
       toast.success("Link copied!");
       setTimeout(() => setLinkCopied(false), 2000);
