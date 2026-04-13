@@ -281,7 +281,7 @@
 /* KaTeX Math Styling */
 .math-solution .katex {
   font-size: 1.1em;
-  color: hsl(var(--foreground));
+  color: hsl(var(--foreground) / 0.85);
 }
 
 .math-solution .katex-display {

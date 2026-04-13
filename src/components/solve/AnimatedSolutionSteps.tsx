@@ -315,7 +315,7 @@ export function AnimatedSolutionSteps({
               rehypePlugins={[rehypeKatex]}
               components={{
                 p: ({ children }) => (
-                  <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>
+                  <p className="text-foreground/80 mb-3 leading-relaxed">{children}</p>
                 ),
                 strong: ({ children }) => (
                   <strong className="font-bold text-primary">{children}</strong>
@@ -398,7 +398,7 @@ export function AnimatedSolutionSteps({
               rehypePlugins={[rehypeKatex]}
               components={{
                 p: ({ children }) => (
-                  <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>
+                  <p className="text-foreground/80 mb-3 leading-relaxed">{children}</p>
                 ),
                 strong: ({ children }) => (
                   <strong className="font-bold text-primary">{children}</strong>

@@ -106,7 +106,7 @@ export function DeepModeReveal({ content, onComplete }: DeepModeRevealProps) {
               <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>
             ),
             p: ({ children }) => (
-              <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>
+              <p className="text-foreground/80 mb-3 leading-relaxed">{children}</p>
             ),
             strong: ({ children }) => (
               <strong className="font-bold text-primary">{children}</strong>
