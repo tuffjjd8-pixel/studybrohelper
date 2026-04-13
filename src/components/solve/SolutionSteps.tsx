@@ -7,7 +7,7 @@ import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send,
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useRef, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
