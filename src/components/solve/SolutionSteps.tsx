@@ -461,19 +461,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </div>
           </motion.div>
         )}
-
-        {/* Follow-up placeholder — only shown in share mode via CSS */}
-        {showFollowUp && (
-          <div className="share-followup-placeholder">
-            <div className="glass-card p-4">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                Ask a follow-up question
-              </h3>
-              <div className="h-10 rounded-lg bg-muted/30 border border-border/30" />
-            </div>
-          </div>
-        )}
-
       </div>
 
       {/* Share CTA — link-only */}
