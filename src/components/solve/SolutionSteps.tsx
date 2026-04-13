@@ -491,8 +491,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       <ShareCardModal
         open={showShareCard}
         onClose={() => setShowShareCard(false)}
-        captureRef={solutionCaptureRef}
         deepLink={solveDeepLink}
+        previewData={{ question, solution: displayedSolution, subject }}
       />
 
       {/* Inline follow-up input (real, interactive — outside capture area) */}
