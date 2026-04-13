@@ -223,7 +223,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                   h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>,
                   p: ({ children }) => <p className="text-[1.05rem] leading-relaxed text-foreground mb-3">{children}</p>,
                   h3: ({ children }) => <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>,
-                  p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
                   ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-foreground/90">{children}</ul>,
                   ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-foreground/90">{children}</ol>,
                   li: ({ children }) => <li className="text-foreground/90">{children}</li>,
