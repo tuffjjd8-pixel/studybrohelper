@@ -293,8 +293,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         <span className="font-medium capitalize text-sm">{subject}</span>
       </div>
 
-      {/* ===== CAPTURE AREA — everything the share screenshot includes ===== */}
-      <div ref={solutionCaptureRef} className="space-y-4 share-capture-area">
+      <div className="space-y-4">
 
         {/* Question */}
         <div className="glass-card p-4">
