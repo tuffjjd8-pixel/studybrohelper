@@ -167,7 +167,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
   const [humanizeUsed, setHumanizeUsed] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
-  const solutionCaptureRef = useRef<HTMLDivElement>(null);
+  const solutionCaptureRef = useRef<HTMLDivElement>(null); // kept for capture area styling
   const navigate = useNavigate();
 
   const finalAnswer = useMemo(() => extractFinalAnswer(displayedSolution), [displayedSolution]);
@@ -491,8 +491,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       <ShareCardModal
         open={showShareCard}
         onClose={() => setShowShareCard(false)}
-        captureRef={solutionCaptureRef}
         deepLink={solveDeepLink}
+        previewData={{ question, solution: displayedSolution, subject }}
       />
 
       {/* Inline follow-up input (real, interactive — outside capture area) */}
