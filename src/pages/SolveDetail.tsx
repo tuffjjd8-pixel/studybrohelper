@@ -230,6 +230,29 @@ const SolveDetail = () => {
               isDeepMode={false}
               isAuthenticated={!!user}
             />
+            {/* Soft CTA for non-authenticated viewers */}
+            {!user && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="mt-8 text-center"
+              >
+                <div className="glass-card p-6 inline-flex flex-col items-center gap-3 max-w-md mx-auto">
+                  <p className="text-sm text-muted-foreground">
+                    Want to solve your own homework instantly?
+                  </p>
+                  <Button
+                    onClick={() => navigate("/")}
+                    className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+                    size="lg"
+                  >
+                    <Bot className="w-4 h-4" />
+                    Try StudyBro Free →
+                  </Button>
+                </div>
+              </motion.div>
+            )}
 
           </motion.div>
         </div>

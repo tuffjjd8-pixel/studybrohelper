@@ -3,12 +3,11 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
-import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send, Sparkles, Crown, Lock, Image } from "lucide-react";
-import { ShareCardModal } from "@/components/share/ShareCardModal";
+import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send, Sparkles, Crown, Lock } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useRef, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
@@ -166,8 +165,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const [humanizeStrength, setHumanizeStrength] = useState<HumanizeStrength>("auto");
   const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
   const [humanizeUsed, setHumanizeUsed] = useState(false);
-  const [showShareCard, setShowShareCard] = useState(false);
-  const solutionCaptureRef = useRef<HTMLDivElement>(null); // kept for capture area styling
+  const [linkCopied, setLinkCopied] = useState(false);
   const navigate = useNavigate();
 
   const finalAnswer = useMemo(() => extractFinalAnswer(displayedSolution), [displayedSolution]);
@@ -187,17 +185,29 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   };
 
   const handleShare = async () => {
+    // Build a short share message with final answer if available
+    const plainAnswer = finalAnswer
+      ? finalAnswer.replace(/\$\$/g, '').replace(/\\\[|\\\]/g, '').trim()
+      : null;
+    const shareText = plainAnswer
+      ? `Just solved this instantly with StudyBro 👀\n\n${plainAnswer}\n\nTry it:\n${solveDeepLink}`
+      : `Just solved this instantly with StudyBro 👀\n\nTry it:\n${solveDeepLink}`;
+
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Solved by StudyBro AI",
-          text: `${question}\n\n${solution}`,
+          title: "Solved by StudyBro",
+          text: shareText,
+          url: solveDeepLink,
         });
-      } catch (err) {
-        // User cancelled share
+      } catch {
+        // User cancelled
       }
     } else {
-      handleCopy();
+      await navigator.clipboard.writeText(solveDeepLink);
+      setLinkCopied(true);
+      toast.success("Link copied!");
+      setTimeout(() => setLinkCopied(false), 2000);
     }
   };
 
@@ -283,8 +293,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         <span className="font-medium capitalize text-sm">{subject}</span>
       </div>
 
-      {/* ===== CAPTURE AREA — everything the share screenshot includes ===== */}
-      <div ref={solutionCaptureRef} className="space-y-4 share-capture-area">
+      <div className="space-y-4">
 
         {/* Question */}
         <div className="glass-card p-4">
@@ -309,7 +318,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           <div className="relative">
           <div className="flex items-center justify-end mb-2">
             <div className="hidden"><span>​</span></div>
-            <div className="flex items-center gap-2" data-hide-share>
+            <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={handleCopy} className="text-muted-foreground hover:text-foreground">
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               </Button>
@@ -391,7 +400,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                         onClick={handleHumanize}
                         disabled={isHumanizing}
                         className="gap-2"
-                        data-hide-share
                       >
                         {isHumanizing ? (
                           <AIBrainIcon size="sm" animate glowIntensity="strong" />
@@ -404,16 +412,11 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                           </span>
                         ) : "Humanize"}
                       </Button>
-                      {/* Share-mode-only label */}
-                      <span className="share-humanize-label inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
-                        <Sparkles className="w-3 h-3" />
-                        Humanize available
-                      </span>
                     </>
                   )}
                 </div>
                 {!isHumanized && !humanizeUsed && (
-                  <div data-hide-share>
+                  <div>
                     <HumanizeStrengthSlider
                       value={humanizeStrength}
                       onChange={setHumanizeStrength}
@@ -452,25 +455,9 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </div>
           </motion.div>
         )}
-
-        {/* Follow-up placeholder — only shown in share mode via CSS */}
-        {showFollowUp && (
-          <div className="share-followup-placeholder">
-            <div className="glass-card p-4">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                Ask a follow-up question
-              </h3>
-              <div className="h-10 rounded-lg bg-muted/30 border border-border/30" />
-            </div>
-          </div>
-        )}
-
-        {/* Bottom padding for capture */}
-        <div className="h-2" />
       </div>
-      {/* ===== END CAPTURE AREA ===== */}
 
-      {/* Share CTA */}
+      {/* Share CTA — link-only */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -478,22 +465,15 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
         className="flex items-center gap-3"
       >
         <Button
-          onClick={() => setShowShareCard(true)}
+          onClick={handleShare}
           className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
           size="lg"
         >
-          <Image className="w-4 h-4" />
-          Share Result
+          <Share2 className="w-4 h-4" />
+          {linkCopied ? "Copied!" : "Share Result"}
         </Button>
         <span className="text-xs text-muted-foreground">Show this to a friend ✨</span>
       </motion.div>
-
-      <ShareCardModal
-        open={showShareCard}
-        onClose={() => setShowShareCard(false)}
-        deepLink={solveDeepLink}
-        previewData={{ question, solution: displayedSolution, subject }}
-      />
 
       {/* Inline follow-up input (real, interactive — outside capture area) */}
       {showFollowUp && (
