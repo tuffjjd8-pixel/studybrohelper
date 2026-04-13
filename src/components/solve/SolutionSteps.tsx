@@ -318,7 +318,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           <div className="relative">
           <div className="flex items-center justify-end mb-2">
             <div className="hidden"><span>​</span></div>
-            <div className="flex items-center gap-2" data-hide-share>
+            <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={handleCopy} className="text-muted-foreground hover:text-foreground">
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               </Button>
@@ -416,7 +416,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                   )}
                 </div>
                 {!isHumanized && !humanizeUsed && (
-                  <div data-hide-share>
+                  <div>
                     <HumanizeStrengthSlider
                       value={humanizeStrength}
                       onChange={setHumanizeStrength}
