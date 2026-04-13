@@ -197,7 +197,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           className="glass-card p-6 neon-border"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-medium text-primary uppercase tracking-wider">​</h3>
+            <h3 className="text-xs font-medium text-primary uppercase tracking-wider">Solution</h3>
             <div className="flex items-center gap-2" data-hide-share>
               <Button variant="ghost" size="sm" onClick={handleCopy} className="text-muted-foreground hover:text-foreground">
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
