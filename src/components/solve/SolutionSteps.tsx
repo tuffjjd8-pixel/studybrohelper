@@ -194,10 +194,13 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.15 }}
-          className="glass-card p-6 neon-border"
+          className="glass-card pt-3 pb-6 px-6 neon-border relative overflow-hidden"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-medium text-primary uppercase tracking-wider">​</h3>
+          {/* Subtle inner glow behind answer */}
+          <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at top center, hsl(var(--primary) / 0.06) 0%, transparent 60%)' }} />
+          <div className="relative">
+          <div className="flex items-center justify-end mb-2">
+            <div className="hidden"><span>​</span></div>
             <div className="flex items-center gap-2" data-hide-share>
               <Button variant="ghost" size="sm" onClick={handleCopy} className="text-muted-foreground hover:text-foreground">
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -211,15 +214,15 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           {isDeepMode && !isHistory ? (
             <DeepModeReveal content={displayedSolution} />
           ) : (
-            <div className="prose prose-invert prose-sm max-w-none math-solution">
+            <div className="prose prose-invert prose-base max-w-none math-solution">
               <ReactMarkdown
                 remarkPlugins={[remarkMath]}
                 rehypePlugins={[rehypeKatex]}
                 components={{
                   h1: ({ children }) => <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>,
                   h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>,
+                  p: ({ children }) => <p className="text-[1.05rem] leading-relaxed text-foreground mb-3">{children}</p>,
                   h3: ({ children }) => <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>,
-                  p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
                   ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-foreground/90">{children}</ul>,
                   ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-foreground/90">{children}</ol>,
                   li: ({ children }) => <li className="text-foreground/90">{children}</li>,
@@ -291,6 +294,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
               </div>
             </div>
           ) : null}
+          </div>
         </motion.div>
 
         {/* Follow-up response — inside capture area */}
