@@ -17,21 +17,111 @@ import { useNavigate } from "react-router-dom";
 import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
 
+/**
+ * Count occurrences of a character in a string.
+ */
+function countChar(s: string, ch: string): number {
+  let c = 0;
+  for (let i = 0; i < s.length; i++) if (s[i] === ch) c++;
+  return c;
+}
+
+/**
+ * Check if braces are balanced in a string.
+ */
+function bracesBalanced(s: string): boolean {
+  let depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '{') depth++;
+    else if (s[i] === '}') depth--;
+    if (depth < 0) return false;
+  }
+  return depth === 0;
+}
+
+/**
+ * Validate that a LaTeX string is complete (balanced braces, no dangling delimiters).
+ */
+function isValidLatex(s: string): boolean {
+  if (!bracesBalanced(s)) return false;
+  // Check for unclosed \left without \right
+  const lefts = (s.match(/\\left/g) || []).length;
+  const rights = (s.match(/\\right/g) || []).length;
+  if (lefts !== rights) return false;
+  return true;
+}
+
+/**
+ * Extract a complete, valid final answer from the solution text.
+ * LaTeX-aware: prefers boxed answers, then final display-math blocks,
+ * then text patterns. Returns null if no valid answer can be extracted.
+ */
 function extractFinalAnswer(solution: string): string | null {
-  const patterns = [
-    /(?:final\s*answer|the\s*answer\s*is)[:\s]*\*{0,2}(.+?)(?:\*{0,2})(?:\n|$)/i,
-    /\\boxed\{(.+?)\}/,
-    /\*\*Answer:\*\*\s*(.+?)(?:\n|$)/i,
-    /(?:therefore|thus|hence|so)[,:]?\s*(?:the\s*(?:answer|result|solution)\s*is\s*)?(.+?)(?:\.|$)/im,
-    /=\s*\*{0,2}(.+?)\*{0,2}\s*$/m,
-  ];
-  for (const pattern of patterns) {
-    const match = solution.match(pattern);
-    if (match?.[1]) {
-      const answer = match[1].trim().replace(/\*{1,2}/g, "").replace(/\\$/, "").trim();
-      if (answer.length > 0 && answer.length < 200) return answer;
+  // 1. Prefer \boxed{...} — extract with brace matching
+  const boxedIdx = solution.lastIndexOf('\\boxed{');
+  if (boxedIdx !== -1) {
+    let depth = 0;
+    let start = boxedIdx + 7; // after \boxed{
+    for (let i = start; i < solution.length; i++) {
+      if (solution[i] === '{') depth++;
+      else if (solution[i] === '}') {
+        if (depth === 0) {
+          const inner = solution.slice(start, i).trim();
+          if (inner.length > 0 && inner.length < 500 && isValidLatex(inner)) {
+            return `$$${inner}$$`;
+          }
+          break;
+        }
+        depth--;
+      }
     }
   }
+
+  // 2. Find the last display-math block near the end (last 40% of text)
+  const searchStart = Math.floor(solution.length * 0.6);
+  const tail = solution.slice(searchStart);
+  
+  // Match \[ ... \] blocks
+  const displayBlocks = [...tail.matchAll(/\\\[([\s\S]*?)\\\]/g)];
+  // Match $$ ... $$ blocks
+  const dollarBlocks = [...tail.matchAll(/\$\$([\s\S]*?)\$\$/g)];
+  
+  const allBlocks = [
+    ...displayBlocks.map(m => ({ content: m[1].trim(), full: m[0] })),
+    ...dollarBlocks.map(m => ({ content: m[1].trim(), full: m[0] })),
+  ];
+  
+  // Take the last valid block
+  for (let i = allBlocks.length - 1; i >= 0; i--) {
+    const block = allBlocks[i];
+    if (block.content.length > 0 && block.content.length < 500 && isValidLatex(block.content)) {
+      return `$$${block.content}$$`;
+    }
+  }
+
+  // 3. Plain-text patterns (non-math answers)
+  const textPatterns = [
+    /(?:final\s*answer|the\s*answer\s*is)[:\s]*\*{0,2}([^$\\*\n]+?)(?:\*{0,2})(?:\n|$)/i,
+    /\*\*Answer:\*\*\s*([^$\\*\n]+?)(?:\n|$)/i,
+  ];
+  for (const pattern of textPatterns) {
+    const match = solution.match(pattern);
+    if (match?.[1]) {
+      const answer = match[1].trim().replace(/\*{1,2}/g, "").trim();
+      // Only use if it looks like a clean plain-text answer (no broken LaTeX)
+      if (answer.length > 0 && answer.length < 200 && !answer.includes('\\') && bracesBalanced(answer)) {
+        return answer;
+      }
+    }
+  }
+
+  // 4. Simple numeric/short result at end: "= 42" or "= 100"
+  const simpleResult = solution.match(/=\s*([0-9][0-9,.\s]*)\s*$/m);
+  if (simpleResult?.[1]) {
+    const val = simpleResult[1].trim();
+    if (val.length > 0 && val.length < 50) return val;
+  }
+
   return null;
 }
 
@@ -238,9 +328,17 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                 boxShadow: '0 0 24px hsl(var(--primary) / 0.12)',
               }}
             >
-              <p className="text-lg md:text-xl font-bold text-primary leading-relaxed">
-                {finalAnswer}
-              </p>
+              <div className="text-lg md:text-xl font-bold text-primary leading-relaxed [&_.katex-display]:mb-0 [&_.katex-display]:mt-0">
+                <ReactMarkdown
+                  remarkPlugins={[remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    p: ({ children }) => <span className="block">{children}</span>,
+                  }}
+                >
+                  {preprocessMath(finalAnswer)}
+                </ReactMarkdown>
+              </div>
             </div>
           )}
 
