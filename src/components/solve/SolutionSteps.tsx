@@ -8,7 +8,7 @@ import { ShareCardModal } from "@/components/share/ShareCardModal";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
@@ -16,6 +16,24 @@ import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solv
 import { useNavigate } from "react-router-dom";
 import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
+
+function extractFinalAnswer(solution: string): string | null {
+  const patterns = [
+    /(?:final\s*answer|the\s*answer\s*is)[:\s]*\*{0,2}(.+?)(?:\*{0,2})(?:\n|$)/i,
+    /\\boxed\{(.+?)\}/,
+    /\*\*Answer:\*\*\s*(.+?)(?:\n|$)/i,
+    /(?:therefore|thus|hence|so)[,:]?\s*(?:the\s*(?:answer|result|solution)\s*is\s*)?(.+?)(?:\.|$)/im,
+    /=\s*\*{0,2}(.+?)\*{0,2}\s*$/m,
+  ];
+  for (const pattern of patterns) {
+    const match = solution.match(pattern);
+    if (match?.[1]) {
+      const answer = match[1].trim().replace(/\*{1,2}/g, "").replace(/\\$/, "").trim();
+      if (answer.length > 0 && answer.length < 200) return answer;
+    }
+  }
+  return null;
+}
 
 
 interface SolutionStepsProps {
