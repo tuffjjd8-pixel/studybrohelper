@@ -25,10 +25,6 @@ export function FinalAnswerHighlight({ solution }: FinalAnswerHighlightProps) {
         boxShadow: "0 0 30px hsl(var(--primary) / 0.15)",
       }}
     >
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b" style={{ borderColor: "hsl(var(--primary) / 0.2)" }}>
-        <Sparkles className="w-4 h-4 text-primary" />
-        <span className="text-sm font-bold text-primary uppercase tracking-wider">Final Answer</span>
-      </div>
       <div className="px-4 py-4">
         <p className="text-lg md:text-xl font-bold text-primary leading-relaxed">
           {finalAnswer}
