@@ -328,9 +328,17 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                 boxShadow: '0 0 24px hsl(var(--primary) / 0.12)',
               }}
             >
-              <p className="text-lg md:text-xl font-bold text-primary leading-relaxed">
-                {finalAnswer}
-              </p>
+              <div className="text-lg md:text-xl font-bold text-primary leading-relaxed [&_.katex-display]:mb-0 [&_.katex-display]:mt-0">
+                <ReactMarkdown
+                  remarkPlugins={[remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    p: ({ children }) => <span className="block">{children}</span>,
+                  }}
+                >
+                  {preprocessMath(finalAnswer)}
+                </ReactMarkdown>
+              </div>
             </div>
           )}
 
