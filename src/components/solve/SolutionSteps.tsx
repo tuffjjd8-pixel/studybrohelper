@@ -214,13 +214,14 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           {isDeepMode && !isHistory ? (
             <DeepModeReveal content={displayedSolution} />
           ) : (
-            <div className="prose prose-invert prose-sm max-w-none math-solution">
+            <div className="prose prose-invert prose-base max-w-none math-solution">
               <ReactMarkdown
                 remarkPlugins={[remarkMath]}
                 rehypePlugins={[rehypeKatex]}
                 components={{
                   h1: ({ children }) => <h1 className="text-xl font-bold text-foreground mb-3">{children}</h1>,
                   h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mb-2 mt-4">{children}</h2>,
+                  p: ({ children }) => <p className="text-[1.05rem] leading-relaxed text-foreground mb-3">{children}</p>,
                   h3: ({ children }) => <h3 className="text-base font-medium text-foreground mb-2 mt-3">{children}</h3>,
                   p: ({ children }) => <p className="text-foreground/90 mb-3 leading-relaxed">{children}</p>,
                   ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-foreground/90">{children}</ul>,
