@@ -294,6 +294,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
               </div>
             </div>
           ) : null}
+          </div>
         </motion.div>
 
         {/* Follow-up response — inside capture area */}
