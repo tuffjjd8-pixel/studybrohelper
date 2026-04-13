@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, BookOpen, Share2, Bot } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import { getPublicSolveUrl } from "@/lib/publicAppUrl";
 
 interface Solve {
   id: string;
@@ -177,17 +178,30 @@ const SolveDetail = () => {
   };
 
   const handleShare = async () => {
-    if (solve) {
+    if (!solve) return;
+
+    const publicSolveUrl = getPublicSolveUrl(solve.id);
+
+    try {
+      await navigator.share({
+        title: "StudyBro AI Solution",
+        text: `Check out this ${solve.subject} solution from StudyBro AI!`,
+        url: publicSolveUrl,
+      });
+    } catch {
       try {
-        await navigator.share({
-          title: "StudyBro AI Solution",
-          text: `Check out this ${solve.subject} solution from StudyBro AI!`,
-          url: window.location.href,
-        });
+        await navigator.clipboard.writeText(publicSolveUrl);
       } catch {
-        navigator.clipboard.writeText(window.location.href);
-        toast.success("Link copied!");
+        const textarea = document.createElement("textarea");
+        textarea.value = publicSolveUrl;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
       }
+      toast.success("Link copied!");
     }
   };
 

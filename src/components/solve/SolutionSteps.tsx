@@ -15,6 +15,7 @@ import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solv
 import { useNavigate } from "react-router-dom";
 import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
+import { getPublicSolveUrl } from "@/lib/publicAppUrl";
 
 /**
  * Count occurrences of a character in a string.
@@ -172,10 +173,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
   const showFollowUp = !isHistory;
 
-  // Build deep link for this solve
-  const solveDeepLink = solveId
-    ? `${window.location.origin}/solve/${solveId}`
-    : window.location.origin;
+  // Always use the public production URL for shared solves
+  const solveDeepLink = getPublicSolveUrl(solveId);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(solution);
