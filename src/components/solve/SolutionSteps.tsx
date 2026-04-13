@@ -16,7 +16,7 @@ import { HumanizeStrengthSlider, type HumanizeStrength } from "@/components/solv
 import { useNavigate } from "react-router-dom";
 import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
-import { FinalAnswerHighlight } from "@/components/solve/FinalAnswerHighlight";
+
 
 interface SolutionStepsProps {
   subject: string;
