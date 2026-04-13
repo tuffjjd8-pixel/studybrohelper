@@ -194,10 +194,13 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.15 }}
-          className="glass-card p-6 neon-border"
+          className="glass-card pt-3 pb-6 px-6 neon-border relative overflow-hidden"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-medium text-primary uppercase tracking-wider">​</h3>
+          {/* Subtle inner glow behind answer */}
+          <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at top center, hsl(var(--primary) / 0.06) 0%, transparent 60%)' }} />
+          <div className="relative">
+          <div className="flex items-center justify-end mb-2">
+            <div className="hidden"><span>​</span></div>
             <div className="flex items-center gap-2" data-hide-share>
               <Button variant="ghost" size="sm" onClick={handleCopy} className="text-muted-foreground hover:text-foreground">
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
