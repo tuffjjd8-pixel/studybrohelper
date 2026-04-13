@@ -177,8 +177,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
 
       {/* ===== CAPTURE AREA — everything the share screenshot includes ===== */}
       <div ref={solutionCaptureRef} className="space-y-4 share-capture-area">
-        {/* Final Answer highlight */}
-        <FinalAnswerHighlight solution={solution} />
 
         {/* Question */}
         <div className="glass-card p-4">
