@@ -8,7 +8,7 @@ import { ShareCardModal } from "@/components/share/ShareCardModal";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHumanize } from "@/hooks/useHumanize";
@@ -17,6 +17,23 @@ import { useNavigate } from "react-router-dom";
 import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
 
+function extractFinalAnswer(solution: string): string | null {
+  const patterns = [
+    /(?:final\s*answer|the\s*answer\s*is)[:\s]*\*{0,2}(.+?)(?:\*{0,2})(?:\n|$)/i,
+    /\\boxed\{(.+?)\}/,
+    /\*\*Answer:\*\*\s*(.+?)(?:\n|$)/i,
+    /(?:therefore|thus|hence|so)[,:]?\s*(?:the\s*(?:answer|result|solution)\s*is\s*)?(.+?)(?:\.|$)/im,
+    /=\s*\*{0,2}(.+?)\*{0,2}\s*$/m,
+  ];
+  for (const pattern of patterns) {
+    const match = solution.match(pattern);
+    if (match?.[1]) {
+      const answer = match[1].trim().replace(/\*{1,2}/g, "").replace(/\\$/, "").trim();
+      if (answer.length > 0 && answer.length < 200) return answer;
+    }
+  }
+  return null;
+}
 
 interface SolutionStepsProps {
   subject: string;
@@ -63,6 +80,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const solutionCaptureRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
+  const finalAnswer = useMemo(() => extractFinalAnswer(displayedSolution), [displayedSolution]);
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
   const showFollowUp = !isHistory;
 
@@ -210,6 +228,21 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
               </Button>
             </div>
           </div>
+
+          {/* Final answer surfaced at top */}
+          {finalAnswer && (
+            <div
+              className="mb-4 rounded-xl px-5 py-4 border border-primary/30"
+              style={{
+                background: 'linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--primary) / 0.03))',
+                boxShadow: '0 0 24px hsl(var(--primary) / 0.12)',
+              }}
+            >
+              <p className="text-lg md:text-xl font-bold text-primary leading-relaxed">
+                {finalAnswer}
+              </p>
+            </div>
+          )}
 
           {isDeepMode && !isHistory ? (
             <DeepModeReveal content={displayedSolution} />
