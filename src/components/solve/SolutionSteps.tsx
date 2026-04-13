@@ -81,7 +81,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const solutionCaptureRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
+  const finalAnswer = useMemo(() => extractFinalAnswer(displayedSolution), [displayedSolution]);
   const showFollowUp = !isHistory;
 
   // Build deep link for this solve
