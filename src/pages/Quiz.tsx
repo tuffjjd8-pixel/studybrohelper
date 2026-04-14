@@ -249,7 +249,7 @@ const Quiz = () => {
       const {
         data,
         error
-      } = await supabase.from("solves").select("*").order("created_at", {
+      } = await supabase.from("solves").select("*").eq("user_id", user!.id).order("created_at", {
         ascending: false
       });
       if (error) throw error;
