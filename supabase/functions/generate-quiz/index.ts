@@ -529,60 +529,13 @@ async function callWithFallback(
 }
 
 // ============================================================
-// System prompt — LaTeX rules mirror solve-homework exactly
+// Compact LaTeX rules (shortened for speed)
 // ============================================================
 
-const QUIZ_LATEX_RULES = `
-STRICT LaTeX Output Rules (ZERO EXCEPTIONS — SAME AS SOLVE MODE):
-- All display math MUST use \\\\[ ... \\\\] ONLY.
-- All inline math MUST use \\\\( ... \\\\) ONLY.
-- NEVER use $$ ... $$ for display math.
-- NEVER use $ ... $ for inline math.
-- NEVER use bare brackets [ ... ] or bare parentheses ( ... ) as math delimiters.
-- NEVER escape parentheses in LaTeX grouping. Use \\\\left( and \\\\right), NEVER \\\\left\\\\( or \\\\right\\\\).
-- NEVER break a LaTeX block across lines.
-- NEVER put LaTeX inside backticks or code blocks.
-- NEVER use MathJax-only syntax (no \\\\begin{equation}, no \\\\tag{}, etc.).
-- NEVER output HTML entities inside LaTeX.
-- NEVER output partial, malformed, or incomplete LaTeX.
-- NEVER invent new LaTeX syntax.
-- NEVER mix plain text symbols inside LaTeX blocks.
-
-Allowed LaTeX Structures:
-- Fractions: \\\\frac{a}{b}
-- Exponents: x^{n}
-- Subscripts: x_{n}
-- Greek letters: \\\\alpha, \\\\beta, \\\\psi, \\\\hbar, \\\\lambda, \\\\theta, \\\\nabla, \\\\upsilon, etc.
-- Vectors: \\\\mathbf{v}
-- Derivatives: \\\\frac{d}{dx} or \\\\frac{\\\\partial}{\\\\partial x}
-- Integrals: \\\\int ... dx
-- Limits: \\\\lim_{x \\\\to a}
-- Matrices: \\\\begin{bmatrix} ... \\\\end{bmatrix}
-- Square roots: \\\\sqrt{x}
-- Boxed answers: \\\\boxed{answer}
-- Operators/hats: \\\\hat{A}, \\\\hat{B}
-- Commutators: [\\\\hat{A},\\\\hat{B}]
-
-Self-Check (MANDATORY before responding):
-1. Are all inline math expressions wrapped in \\\\( ... \\\\)?
-2. Are all display equations wrapped in \\\\[ ... \\\\]?
-3. Did you avoid $$ ... $$ completely?
-4. Did you avoid \\\\left\\\\( and \\\\right\\\\)? (Use \\\\left( and \\\\right) only.)
-5. Are all { and } balanced?
-6. Are all \\\\left matched with \\\\right?
-7. Did you avoid putting LaTeX inside code blocks or backticks?
-8. Did you avoid MathJax-only environments (equation, align, etc.)?
-9. Does every LaTeX block look complete and renderable as-is?
-- If you find ANY issue, FIX IT before sending the answer.
-
-LaTeX Examples (correct JSON-escaped form):
-- Fractions: \\\\(\\\\frac{3}{4}\\\\), \\\\(\\\\frac{x + 1}{x - 2}\\\\)
-- Exponents: \\\\(x^2\\\\), \\\\(2^3 = 8\\\\)
-- Square roots: \\\\(\\\\sqrt{25} = 5\\\\), \\\\(\\\\sqrt{x + 1}\\\\)
-- Multiplication: \\\\(x \\\\cdot 2x\\\\), \\\\(2 \\\\times 3 = 6\\\\)
-- Not equal: \\\\(x \\\\neq -1\\\\)
-- Display equations: \\\\[x = \\\\frac{-b \\\\pm \\\\sqrt{b^2 - 4ac}}{2a}\\\\]
-`;
+const QUIZ_LATEX_RULES = `LaTeX Rules:
+- Display math: \\\\[ ... \\\\] ONLY. Inline math: \\\\( ... \\\\) ONLY.
+- NEVER use $ or $$. Double-escape all backslashes in JSON output: \\\\frac, \\\\alpha, etc.
+- Keep all LaTeX complete, balanced, and on one line. No code blocks around math.`;
 
 // ============================================================
 // Main handler
