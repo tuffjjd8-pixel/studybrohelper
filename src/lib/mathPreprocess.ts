@@ -54,6 +54,7 @@ export function preprocessMath(content: string): string {
     ["\\t\\times", "\\times"],
     ["\\t\\tan", "\\tan"],
     ["\\t\\tau", "\\tau"],
+    ["\\t\\text", "\\text"],
     ["\\r\\right", "\\right"],
     ["\\r\\rho", "\\rho"],
     ["\\r\\rangle", "\\rangle"],
@@ -61,9 +62,12 @@ export function preprocessMath(content: string): string {
     ["\\b\\bar", "\\bar"],
     ["\\b\\binom", "\\binom"],
     ["\\b\\boxed", "\\boxed"],
+    ["\\b\\braket", "\\braket"],
+    ["\\b\\bra", "\\bra"],
     ["\\n\\nabla", "\\nabla"],
     ["\\n\\nu", "\\nu"],
     ["\\n\\neq", "\\neq"],
+    ["\\n\\newcommand", "\\newcommand"],
   ];
   for (const [from, to] of doubles) {
     while (result.includes(from)) {

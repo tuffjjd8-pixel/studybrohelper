@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import katex from "katex";
 import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
 import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send, Sparkles, Crown, Lock } from "lucide-react";
@@ -48,6 +49,12 @@ function isValidLatex(s: string): boolean {
   const lefts = (s.match(/\\left/g) || []).length;
   const rights = (s.match(/\\right/g) || []).length;
   if (lefts !== rights) return false;
+  // Try rendering with KaTeX to catch any parse errors
+  try {
+    katex.renderToString(s, { throwOnError: true, displayMode: true });
+  } catch {
+    return false;
+  }
   return true;
 }
 
@@ -57,6 +64,10 @@ function isValidLatex(s: string): boolean {
  * then text patterns. Returns null if no valid answer can be extracted.
  */
 function extractFinalAnswer(solution: string): string | null {
+  // Skip multi-part questions — they don't have a single final answer
+  const partIndicators = (solution.match(/^\s*(?:\d+\.|#{1,3}\s*(?:Part|Question|Problem)\s*\d)/gm) || []).length;
+  if (partIndicators >= 2) return null;
+
   // 1. Prefer \boxed{...} — extract with brace matching
   const boxedIdx = solution.lastIndexOf('\\boxed{');
   if (boxedIdx !== -1) {
