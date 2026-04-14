@@ -49,6 +49,12 @@ function isValidLatex(s: string): boolean {
   const lefts = (s.match(/\\left/g) || []).length;
   const rights = (s.match(/\\right/g) || []).length;
   if (lefts !== rights) return false;
+  // Try rendering with KaTeX to catch any parse errors
+  try {
+    katex.renderToString(s, { throwOnError: true, displayMode: true });
+  } catch {
+    return false;
+  }
   return true;
 }
 
