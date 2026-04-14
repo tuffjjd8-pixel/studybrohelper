@@ -106,18 +106,19 @@ const History = () => {
       }
       return;
     }
+    const previousSolves = [...solves];
+    setSolves(prev => prev.filter(s => s.id !== id));
+    if (selectedSolve?.id === id) {
+      setSelectedSolve(null);
+    }
     try {
-      const {
-        error
-      } = await supabase.from("solves").delete().eq("id", id);
+      const { error } = await supabase.from("solves").delete().eq("id", id);
       if (error) throw error;
-      setSolves(solves.filter(s => s.id !== id));
       toast.success("Problem deleted");
-      if (selectedSolve?.id === id) {
-        setSelectedSolve(null);
-      }
     } catch (error) {
+      console.error("Delete failed:", error);
       toast.error("Failed to delete");
+      setSolves(previousSolves);
     }
   };
   const isSolveAccessible = (solve: Solve): boolean => {
