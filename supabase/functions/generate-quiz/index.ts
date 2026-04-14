@@ -12,7 +12,7 @@ const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 1;
 const PREMIUM_MONTHLY_QUIZZES = 899;
 
-// Always use GPT-OSS-120B for quizzes (20B cannot reliably generate math symbols)
+// Primary: fast Lovable AI model; Groq as fallback only
 const GROQ_MODELS = [
   "openai/gpt-oss-120b",
 ];
