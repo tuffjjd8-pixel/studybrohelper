@@ -423,23 +423,24 @@ function parseQuizJSON(content: string): any {
 }
 
 // ============================================================
-// Groq API call with model fallback + Lovable AI fallback
+// AI call: Lovable AI first (fast), Groq fallback
 // ============================================================
 
 const LOVABLE_AI_MODELS = [
-  "google/gemini-2.5-flash",
+  "google/gemini-3-flash-preview",
   "google/gemini-2.5-flash-lite",
 ];
 
 async function callLovableAI(
   prompt: string,
   systemPrompt: string,
-  model: string
+  model: string,
+  maxTokens: number
 ): Promise<{ data: string; model: string }> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
-  console.log(`Attempting Lovable AI fallback with model: ${model}`);
+  console.log(`Lovable AI attempt: ${model}`);
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -454,7 +455,7 @@ async function callLovableAI(
         { role: "user", content: prompt },
       ],
       temperature: 0.3,
-      max_tokens: 8000,
+      max_tokens: maxTokens,
     }),
   });
 
@@ -469,20 +470,28 @@ async function callLovableAI(
   return { data: content, model: `lovable/${model}` };
 }
 
-async function callGroqWithFallback(
+async function callWithFallback(
   prompt: string,
   systemPrompt: string,
-  keyManager: any
+  keyManager: any,
+  maxTokens: number
 ): Promise<{ data: any; model: string }> {
   let lastError: Error | null = null;
-  let groqAttempts = 0;
 
-  // Try each Groq model — this gives us 2 attempts before Lovable AI
+  // Try Lovable AI FIRST (faster models)
+  for (const model of LOVABLE_AI_MODELS) {
+    try {
+      return await callLovableAI(prompt, systemPrompt, model, maxTokens);
+    } catch (error) {
+      console.error(`Lovable AI ${model} failed:`, error);
+      lastError = error as Error;
+    }
+  }
+
+  // Groq fallback
   for (const model of GROQ_MODELS) {
     try {
-      groqAttempts++;
-      console.log(`Groq attempt ${groqAttempts}/${GROQ_MODELS.length} with model: ${model}`);
-
+      console.log(`Groq fallback: ${model}`);
       const response = await keyManager.callGroqWithRotation(
         "https://api.groq.com/openai/v1/chat/completions",
         {
@@ -492,7 +501,7 @@ async function callGroqWithFallback(
             { role: "user", content: prompt },
           ],
           temperature: 0.3,
-          max_tokens: 8000,
+          max_tokens: maxTokens,
         }
       );
 
@@ -505,38 +514,18 @@ async function callGroqWithFallback(
 
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content;
-
-      if (!content) {
-        lastError = new Error(`Groq ${model} returned no content`);
+      if (!content || (!content.includes("{") && !content.includes("["))) {
+        lastError = new Error(`Groq ${model} returned invalid content`);
         continue;
       }
-
-      // Quick JSON validity check — if it doesn't even contain { or [, skip to next model
-      if (!content.includes("{") && !content.includes("[")) {
-        console.warn(`Groq ${model} returned non-JSON content, trying next model`);
-        lastError = new Error(`Groq ${model} returned non-JSON`);
-        continue;
-      }
-
       return { data: content, model };
     } catch (error) {
-      console.error(`Error with Groq ${model}:`, error);
+      console.error(`Groq ${model} error:`, error);
       lastError = error as Error;
     }
   }
 
-  // Only fall back to Lovable AI after ALL Groq models failed
-  console.log(`All ${groqAttempts} Groq attempts failed, falling back to Lovable AI...`);
-  for (const model of LOVABLE_AI_MODELS) {
-    try {
-      return await callLovableAI(prompt, systemPrompt, model);
-    } catch (error) {
-      console.error(`Lovable AI fallback ${model} failed:`, error);
-      lastError = error as Error;
-    }
-  }
-
-  throw lastError || new Error("All models failed (Groq + Lovable AI)");
+  throw lastError || new Error("All models failed");
 }
 
 // ============================================================
