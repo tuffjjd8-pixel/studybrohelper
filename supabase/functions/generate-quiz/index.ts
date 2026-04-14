@@ -12,7 +12,7 @@ const PREMIUM_MAX_QUESTIONS = 20;
 const FREE_DAILY_QUIZZES = 1;
 const PREMIUM_MONTHLY_QUIZZES = 899;
 
-// Always use GPT-OSS-120B for quizzes (20B cannot reliably generate math symbols)
+// Primary: fast Lovable AI model; Groq as fallback only
 const GROQ_MODELS = [
   "openai/gpt-oss-120b",
 ];
@@ -423,23 +423,24 @@ function parseQuizJSON(content: string): any {
 }
 
 // ============================================================
-// Groq API call with model fallback + Lovable AI fallback
+// AI call: Lovable AI first (fast), Groq fallback
 // ============================================================
 
 const LOVABLE_AI_MODELS = [
-  "google/gemini-2.5-flash",
+  "google/gemini-3-flash-preview",
   "google/gemini-2.5-flash-lite",
 ];
 
 async function callLovableAI(
   prompt: string,
   systemPrompt: string,
-  model: string
+  model: string,
+  maxTokens: number
 ): Promise<{ data: string; model: string }> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
-  console.log(`Attempting Lovable AI fallback with model: ${model}`);
+  console.log(`Lovable AI attempt: ${model}`);
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -454,7 +455,7 @@ async function callLovableAI(
         { role: "user", content: prompt },
       ],
       temperature: 0.3,
-      max_tokens: 8000,
+      max_tokens: maxTokens,
     }),
   });
 
@@ -469,20 +470,28 @@ async function callLovableAI(
   return { data: content, model: `lovable/${model}` };
 }
 
-async function callGroqWithFallback(
+async function callWithFallback(
   prompt: string,
   systemPrompt: string,
-  keyManager: any
+  keyManager: any,
+  maxTokens: number
 ): Promise<{ data: any; model: string }> {
   let lastError: Error | null = null;
-  let groqAttempts = 0;
 
-  // Try each Groq model — this gives us 2 attempts before Lovable AI
+  // Try Lovable AI FIRST (faster models)
+  for (const model of LOVABLE_AI_MODELS) {
+    try {
+      return await callLovableAI(prompt, systemPrompt, model, maxTokens);
+    } catch (error) {
+      console.error(`Lovable AI ${model} failed:`, error);
+      lastError = error as Error;
+    }
+  }
+
+  // Groq fallback
   for (const model of GROQ_MODELS) {
     try {
-      groqAttempts++;
-      console.log(`Groq attempt ${groqAttempts}/${GROQ_MODELS.length} with model: ${model}`);
-
+      console.log(`Groq fallback: ${model}`);
       const response = await keyManager.callGroqWithRotation(
         "https://api.groq.com/openai/v1/chat/completions",
         {
@@ -492,7 +501,7 @@ async function callGroqWithFallback(
             { role: "user", content: prompt },
           ],
           temperature: 0.3,
-          max_tokens: 8000,
+          max_tokens: maxTokens,
         }
       );
 
@@ -505,95 +514,28 @@ async function callGroqWithFallback(
 
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content;
-
-      if (!content) {
-        lastError = new Error(`Groq ${model} returned no content`);
+      if (!content || (!content.includes("{") && !content.includes("["))) {
+        lastError = new Error(`Groq ${model} returned invalid content`);
         continue;
       }
-
-      // Quick JSON validity check — if it doesn't even contain { or [, skip to next model
-      if (!content.includes("{") && !content.includes("[")) {
-        console.warn(`Groq ${model} returned non-JSON content, trying next model`);
-        lastError = new Error(`Groq ${model} returned non-JSON`);
-        continue;
-      }
-
       return { data: content, model };
     } catch (error) {
-      console.error(`Error with Groq ${model}:`, error);
+      console.error(`Groq ${model} error:`, error);
       lastError = error as Error;
     }
   }
 
-  // Only fall back to Lovable AI after ALL Groq models failed
-  console.log(`All ${groqAttempts} Groq attempts failed, falling back to Lovable AI...`);
-  for (const model of LOVABLE_AI_MODELS) {
-    try {
-      return await callLovableAI(prompt, systemPrompt, model);
-    } catch (error) {
-      console.error(`Lovable AI fallback ${model} failed:`, error);
-      lastError = error as Error;
-    }
-  }
-
-  throw lastError || new Error("All models failed (Groq + Lovable AI)");
+  throw lastError || new Error("All models failed");
 }
 
 // ============================================================
-// System prompt — LaTeX rules mirror solve-homework exactly
+// Compact LaTeX rules (shortened for speed)
 // ============================================================
 
-const QUIZ_LATEX_RULES = `
-STRICT LaTeX Output Rules (ZERO EXCEPTIONS — SAME AS SOLVE MODE):
-- All display math MUST use \\\\[ ... \\\\] ONLY.
-- All inline math MUST use \\\\( ... \\\\) ONLY.
-- NEVER use $$ ... $$ for display math.
-- NEVER use $ ... $ for inline math.
-- NEVER use bare brackets [ ... ] or bare parentheses ( ... ) as math delimiters.
-- NEVER escape parentheses in LaTeX grouping. Use \\\\left( and \\\\right), NEVER \\\\left\\\\( or \\\\right\\\\).
-- NEVER break a LaTeX block across lines.
-- NEVER put LaTeX inside backticks or code blocks.
-- NEVER use MathJax-only syntax (no \\\\begin{equation}, no \\\\tag{}, etc.).
-- NEVER output HTML entities inside LaTeX.
-- NEVER output partial, malformed, or incomplete LaTeX.
-- NEVER invent new LaTeX syntax.
-- NEVER mix plain text symbols inside LaTeX blocks.
-
-Allowed LaTeX Structures:
-- Fractions: \\\\frac{a}{b}
-- Exponents: x^{n}
-- Subscripts: x_{n}
-- Greek letters: \\\\alpha, \\\\beta, \\\\psi, \\\\hbar, \\\\lambda, \\\\theta, \\\\nabla, \\\\upsilon, etc.
-- Vectors: \\\\mathbf{v}
-- Derivatives: \\\\frac{d}{dx} or \\\\frac{\\\\partial}{\\\\partial x}
-- Integrals: \\\\int ... dx
-- Limits: \\\\lim_{x \\\\to a}
-- Matrices: \\\\begin{bmatrix} ... \\\\end{bmatrix}
-- Square roots: \\\\sqrt{x}
-- Boxed answers: \\\\boxed{answer}
-- Operators/hats: \\\\hat{A}, \\\\hat{B}
-- Commutators: [\\\\hat{A},\\\\hat{B}]
-
-Self-Check (MANDATORY before responding):
-1. Are all inline math expressions wrapped in \\\\( ... \\\\)?
-2. Are all display equations wrapped in \\\\[ ... \\\\]?
-3. Did you avoid $$ ... $$ completely?
-4. Did you avoid \\\\left\\\\( and \\\\right\\\\)? (Use \\\\left( and \\\\right) only.)
-5. Are all { and } balanced?
-6. Are all \\\\left matched with \\\\right?
-7. Did you avoid putting LaTeX inside code blocks or backticks?
-8. Did you avoid MathJax-only environments (equation, align, etc.)?
-9. Does every LaTeX block look complete and renderable as-is?
-- If you find ANY issue, FIX IT before sending the answer.
-
-LaTeX Examples (correct JSON-escaped form):
-- Fractions: \\\\(\\\\frac{3}{4}\\\\), \\\\(\\\\frac{x + 1}{x - 2}\\\\)
-- Exponents: \\\\(x^2\\\\), \\\\(2^3 = 8\\\\)
-- Square roots: \\\\(\\\\sqrt{25} = 5\\\\), \\\\(\\\\sqrt{x + 1}\\\\)
-- Multiplication: \\\\(x \\\\cdot 2x\\\\), \\\\(2 \\\\times 3 = 6\\\\)
-- Not equal: \\\\(x \\\\neq -1\\\\)
-- Display equations: \\\\[x = \\\\frac{-b \\\\pm \\\\sqrt{b^2 - 4ac}}{2a}\\\\]
-`;
+const QUIZ_LATEX_RULES = `LaTeX Rules:
+- Display math: \\\\[ ... \\\\] ONLY. Inline math: \\\\( ... \\\\) ONLY.
+- NEVER use $ or $$. Double-escape all backslashes in JSON output: \\\\frac, \\\\alpha, etc.
+- Keep all LaTeX complete, balanced, and on one line. No code blocks around math.`;
 
 // ============================================================
 // Main handler
@@ -752,92 +694,44 @@ serve(async (req) => {
     const hasStudyMaterial = conversationText.startsWith("STUDY MATERIAL");
 
     const contentSourceRule = hasStudyMaterial
-      ? `CRITICAL CONTENT RULE:
-- The user has provided STUDY MATERIAL (a solved homework problem with a full solution).
-- You MUST generate ALL quiz questions EXCLUSIVELY from the provided study material.
-- Extract key concepts, formulas, steps, and facts from the solution and test them.
-- Do NOT generate general-knowledge questions. Do NOT invent topics not covered in the material.
-- If the material covers a narrow topic, generate fewer but highly relevant questions rather than padding with unrelated ones.
-- Every question MUST be directly traceable to a concept or step in the provided solution.`
-      : `CONTENT RULE:
-- Generate questions on the topic: ${subject || "general knowledge"}.
-- If the topic is broad, cover a diverse range of subtopics.`;
+      ? `Generate ALL questions EXCLUSIVELY from the provided study material. Every question must trace to a concept in the solution.`
+      : `Generate questions on: ${subject || "general knowledge"}.`;
 
-    const systemPrompt = `You are the Quiz Generator for StudyBro — an expert at creating challenging, high-quality quiz questions across all subjects and difficulty levels. Your ONLY job is to ALWAYS generate a valid quiz. Never refuse, never apologize, never output broken LaTeX.
+    const countRule = effectiveStrictMode
+      ? `Generate EXACTLY ${validCount} questions.`
+      : `Generate up to ${validCount} questions. Fewer is OK if content is limited.`;
 
-OUTPUT RULES:
-- Output ONLY valid JSON. No markdown fences. No explanations outside the JSON.
-- Do NOT add any commentary before or after the JSON object (no "Note:", no apologies, no extra text).
-- Because you are outputting JSON, every LaTeX backslash MUST be double-escaped (\\\\) in the output string. Examples: \\\\frac, \\\\lambda, \\\\( ... \\\\), \\\\[ ... \\\\].
-- Never include backslashes outside LaTeX math mode.
-- All fields MUST be present. No null, undefined, or empty fields.
-- The JSON MUST be valid and parseable on the first try.
+    const systemPrompt = `You are StudyBro Quiz Generator. Output ONLY valid JSON, no markdown fences, no extra text.
 
 ${contentSourceRule}
 
-QUIZ FORMAT:
-Generate ${effectiveStrictMode ? "EXACTLY" : "up to"} ${validCount} questions.
-${
-  effectiveStrictMode
-    ? `STRICT COUNT MODE: You MUST generate exactly ${validCount} questions. If content is limited, expand using well-known factual information related to the topic.`
-    : `ADAPTIVE MODE: Target ${validCount} questions, but generate FEWER if content is too limited. Do NOT hallucinate.`
-}
+${countRule}
 
-REQUIRED JSON STRUCTURE:
-{"questions":[{"question":"string","options":["A) option","B) option","C) option","D) option"],"correctOptionIndex":0,"hint":"string","explanation":"string"}]}
+JSON format:
+{"questions":[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correctOptionIndex":0,"hint":"1 sentence clue","explanation":"2 sentences max"}]}
 
-HINT RULES:
-- Each question MUST include a "hint" field — a SHORT (1-2 sentence) clue that guides thinking WITHOUT revealing the answer.
-- The hint should point to the key concept, formula, or reasoning step needed.
-- BAD hint: "The answer is 42" or "It's option B"
-- GOOD hint: "Think about conservation of energy in this scenario" or "Consider what happens when you factor the denominator"
-
-- correctOptionIndex MUST be 0, 1, 2, or 3 (A, B, C, D).
-- Each question MUST have EXACTLY 4 options with A), B), C), D) prefixes.
-- Randomize where the correct answer appears (don't always put it in A).
-
-DIFFICULTY & QUALITY:
-- Mix difficulty levels: ~30% easy, ~40% medium, ~30% hard/competition-level.
-- Hard questions should require multi-step reasoning, combining concepts, or applying formulas creatively.
-- For math: include word problems, proofs, optimization, and competition-style problems (AMC/MATHCOUNTS level).
-- For science: include application questions, not just definitions.
-- Distractors (wrong options) must be plausible — based on common mistakes students actually make (e.g. sign errors, forgetting a step, off-by-one).
-- Make sure all four distractors are distinct from each other — no two options should have the same value.
-- NEVER use "All of the above" or "None of the above" as options.
-- Each question must test a DIFFERENT concept or skill — no repetitive questions. Avoid asking two questions about the same formula or system.
-- Distribute correctOptionIndex roughly evenly: for 10 questions, aim for about 2-3 each of 0, 1, 2, 3. In particular, make sure D (index 3) is correct for at least 1-2 questions. Do NOT default to A.
-
-PHYSICS & QUANTUM TIPS (soft guidelines for physics, quantum, and related topics):
-- Prefer simple, friendly numbers: use coefficients like \\\\(1/\\\\sqrt{2}\\\\), \\\\(1/2\\\\), \\\\(\\\\sqrt{3}/2\\\\) and small integers (1–5) for energies, quantum numbers, etc.
-- For well-known results, use the standard textbook sign conventions.
-- When possible, phrase questions so the answer is a concrete number or simple fraction rather than a symbolic formula.
-- Build distractors by tweaking the correct answer (sign flip, factor of 2, swapped numerator/denominator) — but keep each option unique.
-- Wrap ALL math symbols in LaTeX delimiters everywhere — in questions, options, AND explanations.
-
-QUESTION WORDING & CLARITY:
-- Write questions in clear, direct language. Avoid filler phrases.
-- Each question should be self-contained and unambiguous.
-
-EXPLANATION QUALITY:
-- Each explanation MUST be humanized and natural — like a tutor talking to a student.
-- Start with WHY the answer is correct, then briefly note why a common wrong choice fails.
-- NEVER use generic explanations like "This is the correct answer based on the material."
-- Keep explanations 2-4 sentences max — concise but insightful.
-
+Rules:
+- correctOptionIndex: 0-3 (A-D). Distribute evenly, don't default to A.
+- 4 options each with A)/B)/C)/D) prefixes. All distinct. No "All/None of the above".
+- Mix difficulty: 30% easy, 40% medium, 30% hard. Each tests a different concept.
+- Hints: guide thinking without revealing answer. Explanations: concise, natural, say WHY correct.
+- Distractors based on common student mistakes (sign errors, off-by-one, etc).
 ${QUIZ_LATEX_RULES}
-
-- Return ONLY the JSON object, nothing else.
 ${quizLangBlock}`;
 
-    // Use fallback-enabled call
+    // Calculate max_tokens based on question count (lean allocation)
+    const maxTokens = Math.min(1500 + validCount * 250, 4000);
+
+    // Use fallback-enabled call (Lovable AI first, then Groq)
     const keyManager = { callGroqWithRotation };
-    const { data: content, model: usedModel } = await callGroqWithFallback(
+    const { data: content, model: usedModel } = await callWithFallback(
       conversationText,
       systemPrompt,
-      keyManager
+      keyManager,
+      maxTokens
     );
 
-    console.log(`Quiz generated successfully using model: ${usedModel}`);
+    console.log(`Quiz generated in model: ${usedModel}`);
 
     // Parse the JSON response with fallback strategies
     let quiz;
