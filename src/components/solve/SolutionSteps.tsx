@@ -67,6 +67,9 @@ function extractFinalAnswer(solution: string): string | null {
   // Skip multi-part questions — they don't have a single final answer
   const partIndicators = (solution.match(/^\s*(?:\d+\.|#{1,3}\s*(?:Part|Question|Problem)\s*\d)/gm) || []).length;
   if (partIndicators >= 2) return null;
+
+  // 1. Prefer \boxed{...} — extract with brace matching
+  const boxedIdx = solution.lastIndexOf('\\boxed{');
   if (boxedIdx !== -1) {
     let depth = 0;
     let start = boxedIdx + 7; // after \boxed{
