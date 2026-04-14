@@ -64,8 +64,9 @@ function isValidLatex(s: string): boolean {
  * then text patterns. Returns null if no valid answer can be extracted.
  */
 function extractFinalAnswer(solution: string): string | null {
-  // 1. Prefer \boxed{...} — extract with brace matching
-  const boxedIdx = solution.lastIndexOf('\\boxed{');
+  // Skip multi-part questions — they don't have a single final answer
+  const partIndicators = (solution.match(/^\s*(?:\d+\.|#{1,3}\s*(?:Part|Question|Problem)\s*\d)/gm) || []).length;
+  if (partIndicators >= 2) return null;
   if (boxedIdx !== -1) {
     let depth = 0;
     let start = boxedIdx + 7; // after \boxed{
