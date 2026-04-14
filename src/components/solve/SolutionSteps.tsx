@@ -44,26 +44,10 @@ function bracesBalanced(s: string): boolean {
  */
 function isValidLatex(s: string): boolean {
   if (!bracesBalanced(s)) return false;
+  // Check for unclosed \left without \right
   const lefts = (s.match(/\\left/g) || []).length;
   const rights = (s.match(/\\right/g) || []).length;
   if (lefts !== rights) return false;
-  // Reject incomplete commands: trailing backslash or command without arg
-  if (/\\$/.test(s.trim())) return false;
-  // Reject unmatched \begin without \end
-  const begins = (s.match(/\\begin\{/g) || []).length;
-  const ends = (s.match(/\\end\{/g) || []).length;
-  if (begins !== ends) return false;
-  // Reject strings that end mid-command (e.g. \frac{ without closing)
-  if (/\\(?:frac|sqrt|text|mathrm|mathbf|operatorname)\{[^}]*$/.test(s)) return false;
-  // Try KaTeX parse as final gate
-  try {
-    const katex = (window as any).katex;
-    if (katex?.renderToString) {
-      katex.renderToString(s, { throwOnError: true, displayMode: true });
-    }
-  } catch {
-    return false;
-  }
   return true;
 }
 
