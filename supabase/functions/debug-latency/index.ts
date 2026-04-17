@@ -216,6 +216,8 @@ serve(async (req) => {
     if (t_total_ms > sumSequential * 1.25) bottleneck = "network";
 
     const result = {
+      health,
+      ocr_mode: ocrMode,
       t_preprocess_ms,
       t_groq_vision_ms,
       t_paddleocr_ms,
