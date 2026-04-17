@@ -737,7 +737,8 @@ serve(async (req) => {
         const mimeType = matches[1];
         const base64Data = matches[2];
 
-        const { vision, ocr, combined_text } = await extractTextFromImage(base64Data, mimeType, answerLanguage);
+        const ocrMode: OcrMode = isPremium ? "solve_pro" : "solve_free";
+        const { vision, ocr, combined_text } = await extractTextFromImage(base64Data, mimeType, answerLanguage, ocrMode);
         console.log(`[Pipeline] Image ${i + 1}: Vision:`, vision.length, "chars, OCR:", ocr.length, "chars");
         
         const label = allImages.length > 1 ? `[Image ${i + 1}]\n` : "";
