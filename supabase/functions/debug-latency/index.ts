@@ -97,15 +97,26 @@ async function callGroqVision(b64: string, mimeType: string): Promise<string> {
   return data.choices?.[0]?.message?.content || "";
 }
 
-async function callPaddleOCR(bytes: Uint8Array, mimeType: string, lang: string): Promise<string> {
+async function callPaddleOCR(bytes: Uint8Array, mimeType: string, mode: string): Promise<string> {
   const ext = mimeType.split("/")[1] || "png";
   const fd = new FormData();
   fd.append("file", new Blob([bytes], { type: mimeType }), `image.${ext}`);
-  fd.append("lang", lang);
+  fd.append("mode", mode);
   const r = await fetch("http://46.224.199.130:8000/ocr", { method: "POST", body: fd });
   if (!r.ok) throw new Error(`OCR ${r.status}`);
   const data = await r.json();
   return (data.text || data.extracted_text || data.result || "").trim();
+}
+
+async function probeHealth(): Promise<{ ok: boolean; status: number; body: string; ms: number }> {
+  const t = now();
+  try {
+    const r = await fetch("http://46.224.199.130:8000/health", { method: "GET" });
+    const body = await r.text();
+    return { ok: r.ok, status: r.status, body: body.slice(0, 200), ms: +(now() - t).toFixed(1) };
+  } catch (e) {
+    return { ok: false, status: 0, body: String(e), ms: +(now() - t).toFixed(1) };
+  }
 }
 
 async function callGroqText(prompt: string, isPremium: boolean): Promise<string> {
