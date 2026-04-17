@@ -139,10 +139,14 @@ serve(async (req) => {
 
   const t_start = now();
   try {
-    const body = (await req.json()) as DebugBody;
-    if (!body?.image) {
-      return new Response(JSON.stringify({ error: "image required" }), {
-        status: 400,
+    const body = (await req.json().catch(() => ({}))) as DebugBody & { mode?: string; healthOnly?: boolean };
+
+    // Always probe /health first
+    const health = await probeHealth();
+
+    if (body?.healthOnly || !body?.image) {
+      return new Response(JSON.stringify({ health, note: body?.image ? undefined : "image required for full run" }, null, 2), {
+        status: body?.image ? 200 : 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -160,6 +164,8 @@ serve(async (req) => {
     const image_size_kb = +(bytes.length / 1024).toFixed(1);
     const t_preprocess_ms = +(now() - t_pre_start).toFixed(1);
 
+    const ocrMode = (body as any).mode || (body.isPremium ? "solve_pro" : "solve_free");
+
     // ── Stage 2 + 3: vision & OCR in parallel (mirrors prod) ──
     const t_v_start = now();
     const visionPromise = callGroqVision(b64, mimeType)
@@ -167,7 +173,7 @@ serve(async (req) => {
       .catch((e) => ({ v: "", ms: +(now() - t_v_start).toFixed(1), err: String(e) }));
 
     const t_o_start = now();
-    const ocrPromise = callPaddleOCR(bytes, mimeType, body.ocrLang || "en")
+    const ocrPromise = callPaddleOCR(bytes, mimeType, ocrMode)
       .then((o) => ({ o, ms: +(now() - t_o_start).toFixed(1) }))
       .catch((e) => ({ o: "", ms: +(now() - t_o_start).toFixed(1), err: String(e) }));
 
