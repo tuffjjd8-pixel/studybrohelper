@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.moderate-user]
 verify_jwt = false
+
+[functions.debug-latency]
+verify_jwt = false
