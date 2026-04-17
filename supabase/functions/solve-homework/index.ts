@@ -427,12 +427,12 @@ async function callExternalOCR(
 // COMBINED PIPELINE: Vision + OCR → merged result
 // Runs both in parallel for speed
 // ============================================================
-async function extractTextFromImage(imageBase64: string, mimeType: string, answerLanguage: string = "en"): Promise<{ vision: string; ocr: string; combined_text: string }> {
-  console.log("[Pipeline] Running Vision + OCR in parallel, answerLanguage:", answerLanguage);
+async function extractTextFromImage(imageBase64: string, mimeType: string, answerLanguage: string = "en", ocrMode: OcrMode = "text"): Promise<{ vision: string; ocr: string; combined_text: string }> {
+  console.log("[Pipeline] Running Vision + OCR in parallel, answerLanguage:", answerLanguage, "ocrMode:", ocrMode);
 
   const [visionResult, ocrResult] = await Promise.allSettled([
     callGroqVision(imageBase64, mimeType),
-    callExternalOCR(imageBase64, mimeType, answerLanguage),
+    callExternalOCR(imageBase64, mimeType, ocrMode, answerLanguage),
   ]);
 
   const vision = visionResult.status === "fulfilled" ? visionResult.value : "";
