@@ -129,6 +129,15 @@ export async function uploadImageForOcr(
     text = json.results.map((r: any) => r?.text ?? "").filter(Boolean).join("\n");
   }
 
+  // ── Cleanup & normalization layer ──
+  const rawText = String(text || "").trim();
+  const { cleanupOcrMath } = await import("@/lib/ocrCleanup");
+  const { cleaned, changed, notes } = cleanupOcrMath(rawText);
+  if (changed) {
+    console.log("[OCR] cleanup applied", { notes, before: rawText, after: cleaned });
+  }
+  text = cleaned;
+
   const compress_ms = Math.round(t_compressed - t_start);
   const network_ms = Math.round(t_recv - t_send);
   const proxy_ms = Number(res.headers.get("x-proxy-ms")) || undefined;
