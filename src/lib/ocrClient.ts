@@ -117,13 +117,17 @@ export async function uploadImageForOcr(
   }
 
   const json: any = await res.json().catch(() => ({}));
-  const text =
+  let text =
     json.text ??
     json.extracted_text ??
     json.ocr_text ??
     json.result?.text ??
     json.data?.text ??
     "";
+  // text-mode returns results: [{text, confidence, box}]
+  if (!text && Array.isArray(json.results)) {
+    text = json.results.map((r: any) => r?.text ?? "").filter(Boolean).join("\n");
+  }
 
   const compress_ms = Math.round(t_compressed - t_start);
   const network_ms = Math.round(t_recv - t_send);
