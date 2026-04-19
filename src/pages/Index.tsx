@@ -202,11 +202,27 @@ const Index = () => {
       // Home only sends instant or essay mode; Instant/Deep handled in camera
       const effectiveMode = solveMode === "essay" ? "essay" : "instant";
 
+      // Run OCR directly for any image inputs, then send only text to reasoning.
+      let ocrText = "";
+      if (imagesArray.length > 0) {
+        const { uploadImageForOcr } = await import("@/lib/ocrClient");
+        const ocrMode = isPremium ? "solve_pro" : "solve_free";
+        const results = await Promise.all(
+          imagesArray.map((img) => uploadImageForOcr(img, ocrMode))
+        );
+        ocrText = results.map((r) => r.text).filter(Boolean).join("\n\n");
+        if (!ocrText) {
+          toast.error("Couldn't read the image. Try a clearer photo.");
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      const combinedQuestion = [input, ocrText].filter(Boolean).join("\n\n");
+
       const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: {
-          question: input,
-          ...(imagesArray.length === 1 ? { image: imagesArray[0] } : {}),
-          ...(imagesArray.length > 1 ? { images: imagesArray } : {}),
+          question: combinedQuestion,
           isPremium,
           animatedSteps: false,
           generateGraph: false,

@@ -108,11 +108,19 @@ export function ScannerModal({
       setLoadingStage("solving");
 
       const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const { uploadImageForOcr } = await import("@/lib/ocrClient");
       const answerLanguage = await getAnswerLanguage(userId);
 
+      const ocrMode = isPremium ? "solve_pro" : "solve_free";
+      const ocr = await uploadImageForOcr(imageData, ocrMode);
+      if (!ocr.text) {
+        toast.error("Couldn't read the image. Try a clearer photo.");
+        handleReset();
+        return;
+      }
+
       const body: Record<string, unknown> = {
-        question: "",
-        image: imageData,
+        question: ocr.text,
         isPremium,
         animatedSteps: false,
         solveMode: isPremium ? selectedMode : "instant",
