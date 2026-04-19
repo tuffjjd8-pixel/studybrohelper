@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.debug-latency]
 verify_jwt = false
+
+[functions.ocr-proxy]
+verify_jwt = false
