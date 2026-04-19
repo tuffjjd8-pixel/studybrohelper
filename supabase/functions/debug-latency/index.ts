@@ -183,9 +183,20 @@ serve(async (req) => {
     const visionText = (visionRes as any).v || "";
     const ocrText = (ocrRes as any).o || "";
 
-    // ── Stage 4: GPT-OSS reasoning ──
+    // ── Stage 4: REASONING SUB-STAGES (post-OCR) ──
+    // 4a: handoff — time from OCR-finished → starting reasoning prep
+    const t_ocr_done = now();
+    const t_handoff_start = t_ocr_done;
+    // (no awaits between OCR completion and parse start; handoff is just the JS gap)
+    const t_handoff_ms = +(now() - t_handoff_start).toFixed(2);
+
+    // 4b: parsing — building the combined prompt from OCR + vision text
+    const t_parse_start = now();
     const combined = `Image description:\n${visionText}\n\nExtracted text (OCR):\n${ocrText}\n\nSolve the problem above.`;
     const prompt_token_estimate = estimateTokens(combined);
+    const t_parse_ocr_ms = +(now() - t_parse_start).toFixed(2);
+
+    // 4c: reasoning — actual LLM call (network + model inference)
     const t_g_start = now();
     let gptText = "";
     let gptErr: string | undefined;
@@ -194,8 +205,19 @@ serve(async (req) => {
     } catch (e) {
       gptErr = String(e);
     }
-    const t_gpt_oss_ms = +(now() - t_g_start).toFixed(1);
+    const t_reasoning_ms = +(now() - t_g_start).toFixed(1);
+    const t_gpt_oss_ms = t_reasoning_ms; // backward-compat alias
+
+    // 4d: output generation — post-processing/cleanup of LLM response
+    const t_out_start = now();
     const response_token_estimate = estimateTokens(gptText);
+    // Mirror prod cleanup: trim + minimal LaTeX delimiter normalize
+    const cleaned = gptText
+      .replace(/\$\$([\s\S]*?)\$\$/g, (_m, i) => `\\[${i.trim()}\\]`)
+      .replace(/(?<!\$)(?<!\\)\$([^\$\n]+?)\$(?!\$)/g, (_m, i) => `\\(${i})\\)`)
+      .trim();
+    const t_output_gen_ms = +(now() - t_out_start).toFixed(2);
+    void cleaned;
 
     const t_total_ms = +(now() - t_start).toFixed(1);
 
