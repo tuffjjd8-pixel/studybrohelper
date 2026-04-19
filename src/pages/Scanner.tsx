@@ -120,11 +120,20 @@ const Scanner = () => {
       setLoadingStage("solving");
       
       const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const { uploadImageForOcr } = await import("@/lib/ocrClient");
       const answerLanguage = await getAnswerLanguage(user?.id);
+
+      const ocr = await uploadImageForOcr(imageData, "text");
+      if (!ocr.text) {
+        toast.error("Couldn't read the image. Try a clearer photo.");
+        setState("idle");
+        setCapturedImage(null);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: { 
-          question: "", 
-          image: imageData,
+          question: ocr.text, 
           isPremium: false,
           animatedSteps: false,
           solveMode: selectedMode,
