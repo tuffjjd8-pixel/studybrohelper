@@ -112,9 +112,8 @@ export function ScannerModal({
       ]);
       const answerLanguagePromise = getAnswerLanguage(userId);
 
-      const ocrMode = isPremium ? "solve_pro" : "solve_free";
       const t_ocr_start = performance.now();
-      const ocr = await uploadImageForOcr(imageData, ocrMode);
+      const ocr = await uploadImageForOcr(imageData, "text");
       const t_ocr_end = performance.now();
       if (!ocr.text) {
         toast.error("Couldn't read the image. Try a clearer photo.");

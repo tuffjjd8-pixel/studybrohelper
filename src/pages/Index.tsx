@@ -208,10 +208,9 @@ const Index = () => {
       const t_pipeline_start = performance.now();
       if (imagesArray.length > 0) {
         const { uploadImageForOcr } = await import("@/lib/ocrClient");
-        const ocrMode = isPremium ? "solve_pro" : "solve_free";
         const t_ocr_start = performance.now();
         const results = await Promise.all(
-          imagesArray.map((img) => uploadImageForOcr(img, ocrMode))
+          imagesArray.map((img) => uploadImageForOcr(img, "text"))
         );
         const t_ocr_end = performance.now();
         ocrText = results.map((r) => r.text).filter(Boolean).join("\n\n");
