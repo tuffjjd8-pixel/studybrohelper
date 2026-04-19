@@ -113,24 +113,28 @@ const Scanner = () => {
       return;
     }
     try {
+      const t_pipeline_start = performance.now();
       setLoadingStage("extracting");
-      await new Promise((r) => setTimeout(r, 300));
-      setLoadingStage("classifying");
-      await new Promise((r) => setTimeout(r, 200));
-      setLoadingStage("solving");
-      
-      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
-      const { uploadImageForOcr } = await import("@/lib/ocrClient");
-      const answerLanguage = await getAnswerLanguage(user?.id);
 
+      const [{ getAnswerLanguage }, { uploadImageForOcr }] = await Promise.all([
+        import("@/hooks/useAnswerLanguage"),
+        import("@/lib/ocrClient"),
+      ]);
+      const answerLanguagePromise = getAnswerLanguage(user?.id);
+
+      const t_ocr_start = performance.now();
       const ocr = await uploadImageForOcr(imageData, "text");
+      const t_ocr_end = performance.now();
       if (!ocr.text) {
         toast.error("Couldn't read the image. Try a clearer photo.");
         setState("idle");
         setCapturedImage(null);
         return;
       }
+      setLoadingStage("solving");
+      const answerLanguage = await answerLanguagePromise;
 
+      const t_reason_start = performance.now();
       const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: { 
           question: ocr.text, 
@@ -143,7 +147,19 @@ const Scanner = () => {
         },
       });
 
+      const t_reason_end = performance.now();
       if (error) throw error;
+
+      console.log("[Scanner] image pipeline timings (ms)", {
+        compress: ocr.compress_ms,
+        ocr_network: ocr.network_ms,
+        ocr_proxy: ocr.proxy_ms,
+        ocr_upstream: ocr.upstream_ms,
+        ocr_total: Math.round(t_ocr_end - t_ocr_start),
+        reasoning: Math.round(t_reason_end - t_reason_start),
+        end_to_end: Math.round(t_reason_end - t_pipeline_start),
+        size_kb: ocr.size_kb,
+      });
 
       const extractedQuestion = data.question || data.extractedText || "Image-based question";
 
