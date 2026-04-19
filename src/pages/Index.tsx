@@ -204,13 +204,26 @@ const Index = () => {
 
       // Run OCR directly for any image inputs, then send only text to reasoning.
       let ocrText = "";
+      let ocrTimings: any = null;
+      const t_pipeline_start = performance.now();
       if (imagesArray.length > 0) {
         const { uploadImageForOcr } = await import("@/lib/ocrClient");
-        const ocrMode = isPremium ? "solve_pro" : "solve_free";
+        const t_ocr_start = performance.now();
         const results = await Promise.all(
-          imagesArray.map((img) => uploadImageForOcr(img, ocrMode))
+          imagesArray.map((img) => uploadImageForOcr(img, "text"))
         );
+        const t_ocr_end = performance.now();
         ocrText = results.map((r) => r.text).filter(Boolean).join("\n\n");
+        ocrTimings = {
+          ocr_total: Math.round(t_ocr_end - t_ocr_start),
+          per_image: results.map((r) => ({
+            compress: r.compress_ms,
+            network: r.network_ms,
+            proxy: r.proxy_ms,
+            upstream: r.upstream_ms,
+            size_kb: r.size_kb,
+          })),
+        };
         if (!ocrText) {
           toast.error("Couldn't read the image. Try a clearer photo.");
           setIsLoading(false);
@@ -220,6 +233,7 @@ const Index = () => {
 
       const combinedQuestion = [input, ocrText].filter(Boolean).join("\n\n");
 
+      const t_reason_start = performance.now();
       const { data, error } = await supabase.functions.invoke("solve-homework", {
         body: {
           question: combinedQuestion,
@@ -232,7 +246,20 @@ const Index = () => {
           ...(solveMode === "essay" ? { essaySettings } : {}),
         },
       });
+      const t_reason_end = performance.now();
       if (error) throw error;
+
+      if (ocrTimings) {
+        console.log("[Index/Ask] image pipeline timings (ms)", {
+          ...ocrTimings,
+          reasoning: Math.round(t_reason_end - t_reason_start),
+          end_to_end: Math.round(t_reason_end - t_pipeline_start),
+        });
+      } else {
+        console.log("[Index/Ask] text pipeline timings (ms)", {
+          reasoning: Math.round(t_reason_end - t_reason_start),
+        });
+      }
 
       let solveId: string | undefined;
 

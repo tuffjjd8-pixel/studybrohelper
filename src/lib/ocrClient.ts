@@ -1,12 +1,10 @@
 /**
  * Direct OCR client.
  * - Compresses images aggressively (max 1024px, JPEG q≈0.65, target 150-300KB).
- * - Uploads directly to the OCR server as multipart/form-data.
- * - Returns extracted text only.
+ * - Uploads via HTTPS proxy as multipart/form-data.
+ * - Returns extracted text + per-stage timings.
  */
 
-// Browsers block HTTP fetches from HTTPS pages (mixed content), so route the
-// upload through an HTTPS pass-through proxy that forwards to the OCR server.
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const OCR_URL = `${SUPABASE_URL}/functions/v1/ocr-proxy`;
 
@@ -53,9 +51,7 @@ async function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise
   );
 }
 
-/**
- * Compress to ≤1024px longest edge and aim for 150–300KB JPEG.
- */
+/** Compress to ≤1024px longest edge, target 150–300KB JPEG. */
 export async function compressForOcr(input: File | Blob | string): Promise<Blob> {
   const bitmap = await inputToImageBitmap(input);
   const scale = Math.min(1, MAX_DIM / Math.max(bitmap.width, bitmap.height));
@@ -75,7 +71,6 @@ export async function compressForOcr(input: File | Blob | string): Promise<Blob>
     const blob = await canvasToBlob(canvas, q);
     bestBlob = blob;
     if (blob.size <= TARGET_MAX_BYTES) {
-      // Good enough — break if we've fallen below target window upper bound
       if (blob.size >= TARGET_MIN_BYTES || q <= 0.5) break;
       return blob;
     }
@@ -86,8 +81,16 @@ export async function compressForOcr(input: File | Blob | string): Promise<Blob>
 export interface OcrResult {
   text: string;
   raw: any;
-  ocr_ms?: number;
-  total_ms?: number;
+  /** Time spent compressing on client (ms). */
+  compress_ms?: number;
+  /** Total round-trip from POST send to response received (ms). */
+  network_ms?: number;
+  /** Proxy total time (header). */
+  proxy_ms?: number;
+  /** Upstream OCR-server time only (header). */
+  upstream_ms?: number;
+  /** Compressed payload size in KB. */
+  size_kb?: number;
 }
 
 export async function uploadImageForOcr(
@@ -95,16 +98,18 @@ export async function uploadImageForOcr(
   mode: OcrMode = "text",
   filename = "upload.jpg"
 ): Promise<OcrResult> {
-  const t0 = performance.now();
+  const t_start = performance.now();
   const blob = await compressForOcr(input);
+  const t_compressed = performance.now();
   const file = new File([blob], filename, { type: "image/jpeg" });
 
   const form = new FormData();
   form.append("file", file);
   form.append("mode", mode);
 
+  const t_send = performance.now();
   const res = await fetch(OCR_URL, { method: "POST", body: form });
-  const total_ms = Math.round(performance.now() - t0);
+  const t_recv = performance.now();
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
@@ -112,14 +117,41 @@ export async function uploadImageForOcr(
   }
 
   const json: any = await res.json().catch(() => ({}));
-  const text =
+  let text =
     json.text ??
     json.extracted_text ??
     json.ocr_text ??
     json.result?.text ??
     json.data?.text ??
     "";
+  // text-mode returns results: [{text, confidence, box}]
+  if (!text && Array.isArray(json.results)) {
+    text = json.results.map((r: any) => r?.text ?? "").filter(Boolean).join("\n");
+  }
 
-  console.log("[OCR]", { mode, size_kb: Math.round(blob.size / 1024), total_ms, ocr_ms: json.ocr_ms });
-  return { text: String(text || "").trim(), raw: json, ocr_ms: json.ocr_ms, total_ms };
+  const compress_ms = Math.round(t_compressed - t_start);
+  const network_ms = Math.round(t_recv - t_send);
+  const proxy_ms = Number(res.headers.get("x-proxy-ms")) || undefined;
+  const upstream_ms = Number(res.headers.get("x-upstream-ms")) || undefined;
+  const size_kb = Math.round(blob.size / 1024);
+
+  console.log("[OCR] timings", {
+    mode,
+    size_kb,
+    compress_ms,
+    network_ms,
+    proxy_ms,
+    upstream_ms,
+    server_ocr_ms: json.ocr_ms,
+  });
+
+  return {
+    text: String(text || "").trim(),
+    raw: json,
+    compress_ms,
+    network_ms,
+    proxy_ms,
+    upstream_ms,
+    size_kb,
+  };
 }
