@@ -243,6 +243,13 @@ serve(async (req) => {
       t_preprocess_ms,
       t_groq_vision_ms,
       t_paddleocr_ms,
+      // Post-OCR reasoning breakdown (what the user asked for)
+      reasoning_breakdown_ms: {
+        handoff_ocr_to_reasoning: t_handoff_ms,   // 1: OCR text → reasoning start
+        parse_ocr_text: t_parse_ocr_ms,           // 2: parsing OCR text
+        reasoning: t_reasoning_ms,                // 3: LLM reasoning (network + model)
+        output_generation: t_output_gen_ms,       // 4: response post-processing
+      },
       t_gpt_oss_ms,
       t_total_ms,
       image_size_kb,
