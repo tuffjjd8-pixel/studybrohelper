@@ -106,25 +106,13 @@ export function ScannerModal({
       const t_pipeline_start = performance.now();
       setLoadingStage("classifying");
 
-      const [{ getAnswerLanguage }, { uploadImageForOcr }] = await Promise.all([
-        import("@/hooks/useAnswerLanguage"),
-        import("@/lib/ocrClient"),
-      ]);
-      const answerLanguagePromise = getAnswerLanguage(userId);
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(userId);
 
-      const t_ocr_start = performance.now();
-      const ocr = await uploadImageForOcr(imageData, "text");
-      const t_ocr_end = performance.now();
-      if (!ocr.text) {
-        toast.error("Couldn't read the image. Try a clearer photo.");
-        handleReset();
-        return;
-      }
       setLoadingStage("solving");
-      const answerLanguage = await answerLanguagePromise;
 
       const body: Record<string, unknown> = {
-        question: ocr.text,
+        image: imageData,
         isPremium,
         animatedSteps: false,
         solveMode: isPremium ? selectedMode : "instant",
@@ -140,14 +128,8 @@ export function ScannerModal({
       if (error) throw error;
 
       console.log("[ScannerModal] image pipeline timings (ms)", {
-        compress: ocr.compress_ms,
-        ocr_network: ocr.network_ms,
-        ocr_proxy: ocr.proxy_ms,
-        ocr_upstream: ocr.upstream_ms,
-        ocr_total: Math.round(t_ocr_end - t_ocr_start),
         reasoning: Math.round(t_reason_end - t_reason_start),
         end_to_end: Math.round(t_reason_end - t_pipeline_start),
-        size_kb: ocr.size_kb,
       });
 
       const extractedQuestion = data.question || data.extractedText || "Image-based question";
