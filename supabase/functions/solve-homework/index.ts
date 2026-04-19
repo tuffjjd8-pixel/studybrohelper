@@ -737,9 +737,16 @@ serve(async (req) => {
         const mimeType = matches[1];
         const base64Data = matches[2];
 
-        const ocrMode: OcrMode = isPremium ? "solve_pro" : "solve_free";
-        const { vision, ocr, combined_text } = await extractTextFromImage(base64Data, mimeType, answerLanguage, ocrMode);
-        console.log(`[Pipeline] Image ${i + 1}: Vision:`, vision.length, "chars, OCR:", ocr.length, "chars");
+        // Always use lightweight text-mode on the OCR server (no solve_free/solve_pro).
+        // GPT-OSS does the reasoning; Groq Vision + cleanup layer normalize the input.
+        const ocrMode: OcrMode = "text";
+        const { vision, ocr: ocrRaw, combined_text: rawCombined } = await extractTextFromImage(base64Data, mimeType, answerLanguage, ocrMode);
+        const { cleanupOcrMath } = await import("../_shared/ocr-cleanup.ts");
+        const ocr = cleanupOcrMath(ocrRaw).cleaned;
+        const combined_text = ocr && vision
+          ? `[Exact text and equations from image]:\n${ocr}\n\n[Visual description and layout]:\n${vision}`
+          : (ocr || vision);
+        console.log(`[Pipeline] Image ${i + 1}: Vision:`, vision.length, "chars, OCR(cleaned):", ocr.length, "chars");
         
         const label = allImages.length > 1 ? `[Image ${i + 1}]\n` : "";
         combinedParts.push(label + combined_text);
