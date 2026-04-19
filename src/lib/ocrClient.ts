@@ -5,7 +5,10 @@
  * - Returns extracted text only.
  */
 
-const OCR_URL = "http://46.224.199.130:8000/ocr";
+// Browsers block HTTP fetches from HTTPS pages (mixed content), so route the
+// upload through an HTTPS pass-through proxy that forwards to the OCR server.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const OCR_URL = `${SUPABASE_URL}/functions/v1/ocr-proxy`;
 
 export type OcrMode = "text" | "table" | "solve_free" | "solve_pro" | "solve_quiz";
 
