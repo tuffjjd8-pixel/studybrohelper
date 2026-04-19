@@ -1,0 +1,122 @@
+/**
+ * Direct OCR client.
+ * - Compresses images aggressively (max 1024px, JPEG q≈0.65, target 150-300KB).
+ * - Uploads directly to the OCR server as multipart/form-data.
+ * - Returns extracted text only.
+ */
+
+const OCR_URL = "http://46.224.199.130:8000/ocr";
+
+export type OcrMode = "text" | "table" | "solve_free" | "solve_pro" | "solve_quiz";
+
+const MAX_DIM = 1024;
+const TARGET_MIN_BYTES = 150 * 1024;
+const TARGET_MAX_BYTES = 300 * 1024;
+const QUALITY_STEPS = [0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4];
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [head, b64] = dataUrl.split(",");
+  const mime = /data:([^;]+)/.exec(head)?.[1] || "image/jpeg";
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+async function inputToImageBitmap(input: File | Blob | string): Promise<ImageBitmap> {
+  let blob: Blob;
+  if (typeof input === "string") {
+    if (input.startsWith("data:")) {
+      blob = dataUrlToBlob(input);
+    } else {
+      const res = await fetch(input);
+      blob = await res.blob();
+    }
+  } else if (input instanceof File || input instanceof Blob) {
+    blob = input;
+  } else {
+    throw new Error("Unsupported image input");
+  }
+  return await createImageBitmap(blob, { imageOrientation: "from-image" } as any);
+}
+
+async function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  return await new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
+      "image/jpeg",
+      quality
+    )
+  );
+}
+
+/**
+ * Compress to ≤1024px longest edge and aim for 150–300KB JPEG.
+ */
+export async function compressForOcr(input: File | Blob | string): Promise<Blob> {
+  const bitmap = await inputToImageBitmap(input);
+  const scale = Math.min(1, MAX_DIM / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas unsupported");
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  if ("close" in bitmap) (bitmap as ImageBitmap).close();
+
+  let bestBlob: Blob | null = null;
+  for (const q of QUALITY_STEPS) {
+    const blob = await canvasToBlob(canvas, q);
+    bestBlob = blob;
+    if (blob.size <= TARGET_MAX_BYTES) {
+      // Good enough — break if we've fallen below target window upper bound
+      if (blob.size >= TARGET_MIN_BYTES || q <= 0.5) break;
+      return blob;
+    }
+  }
+  return bestBlob || (await canvasToBlob(canvas, 0.6));
+}
+
+export interface OcrResult {
+  text: string;
+  raw: any;
+  ocr_ms?: number;
+  total_ms?: number;
+}
+
+export async function uploadImageForOcr(
+  input: File | Blob | string,
+  mode: OcrMode = "text",
+  filename = "upload.jpg"
+): Promise<OcrResult> {
+  const t0 = performance.now();
+  const blob = await compressForOcr(input);
+  const file = new File([blob], filename, { type: "image/jpeg" });
+
+  const form = new FormData();
+  form.append("file", file);
+  form.append("mode", mode);
+
+  const res = await fetch(OCR_URL, { method: "POST", body: form });
+  const total_ms = Math.round(performance.now() - t0);
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(errText || `OCR failed (${res.status})`);
+  }
+
+  const json: any = await res.json().catch(() => ({}));
+  const text =
+    json.text ??
+    json.extracted_text ??
+    json.ocr_text ??
+    json.result?.text ??
+    json.data?.text ??
+    "";
+
+  console.log("[OCR]", { mode, size_kb: Math.round(blob.size / 1024), total_ms, ocr_ms: json.ocr_ms });
+  return { text: String(text || "").trim(), raw: json, ocr_ms: json.ocr_ms, total_ms };
+}
