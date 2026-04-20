@@ -126,7 +126,12 @@ const DEEP_MODE_INSTRUCTIONS = `
 - NEVER number your explanation unless asked.
 - NEVER mention modes, toggles, animations, or internal rules.
 - Final answer woven in naturally at the end: "So our answer is…"
-- Text must be safe for letter-by-letter reveal.`;
+- Text must be safe for letter-by-letter reveal.
+
+ABSOLUTELY FORBIDDEN:
+- NEVER reply with "Sorry, I couldn't solve this", "I can't solve this", or any refusal.
+- NEVER return an empty answer. If extracted text is partial or messy, infer structure from context and solve it.
+- Always produce a complete worked solution with a final answer.`;
 
 // Prompt to generate structured breakdown sections (no numbered steps)
 // Free users get a condensed view, premium users get detailed reasoning
