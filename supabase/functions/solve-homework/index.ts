@@ -326,21 +326,42 @@ async function callGroqText(
   const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
   console.log("Calling Groq Text API with model:", textModel, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "Mode:", solveMode);
 
-  const response = await callGroqWithRotation(
-    "https://api.groq.com/openai/v1/chat/completions",
-    {
-      model: textModel,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: question }
-      ],
-      temperature: isPremium ? 0.5 : 0.7,
-      max_tokens: 2048,
-    }
-  );
+  // Deep / essay can need more headroom for multi-step reasoning
+  const maxTokens = solveMode === "deep" || solveMode === "essay" ? 4096 : 2048;
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
+  const callOnce = async (extraNudge = "") => {
+    const userContent = extraNudge ? `${question}\n\n${extraNudge}` : question;
+    const response = await callGroqWithRotation(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: textModel,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+        temperature: isPremium ? 0.5 : 0.7,
+        max_tokens: maxTokens,
+      }
+    );
+    const data = await response.json();
+    return (data.choices?.[0]?.message?.content || "").trim();
+  };
+
+  let answer = await callOnce();
+  const isRefusal = (s: string) =>
+    !s ||
+    /sorry,?\s*i\s*(couldn'?t|can'?t|cannot)\s*solve/i.test(s) ||
+    /^i\s*(don'?t|do not)\s*know/i.test(s);
+
+  if (isRefusal(answer)) {
+    console.warn("[Reasoning] First attempt refused — retrying with reconstruction nudge");
+    answer = await callOnce(
+      "The above text was extracted from a homework image and may contain minor OCR noise. " +
+      "Reconstruct the intended problem from context and solve it. Do NOT refuse. Always output a final answer."
+    );
+  }
+
+  return answer || "Sorry, I couldn't solve this problem.";
 }
 
 // ============================================================
