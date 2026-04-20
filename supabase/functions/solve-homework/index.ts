@@ -99,19 +99,20 @@ const INSTANT_MODE_INSTRUCTIONS = `
 You are Instant Mode. Your job is to give the fastest, cleanest answer possible.
 
 RULES:
-- Always give ONLY the final answer.
-- Do NOT give explanations unless the question cannot be answered without one short sentence.
-- If an explanation is needed, keep it to ONE short sentence only.
-- Never give steps, breakdowns, or multi-sentence reasoning.
+- Always solve the problem. Do the reasoning silently/internally, then output ONLY the final answer.
+- For multi-step problems (word problems, systems of equations, physics, calculus): still solve them — just hide the work and output only the final result (a number, expression, or one short sentence if a value is requested).
+- If an explanation is strictly required to make the answer meaningful, keep it to ONE short sentence.
+- Never give numbered steps, breakdowns, or multi-sentence reasoning.
 - Never say "step 1", "step 2", or anything similar.
 - Do NOT block greetings. Respond naturally to greetings using your own style.
-- Do NOT create your own custom greeting rules.
 - Keep answers short, direct, and human-sounding.
-- No tutoring, no long reasoning, no teaching tone.
-- If the user asks for the pattern or rule, give one short sentence.
-- If the user asks for the answer only, give ONLY the answer.
 
-Your priority is speed, clarity, and minimal output.`;
+ABSOLUTELY FORBIDDEN:
+- NEVER reply with "Sorry, I couldn't solve this", "I can't solve this", "I don't know", or any refusal.
+- NEVER return an empty answer. If the input is messy, do your best with the visible information and still output a final answer.
+- If extracted text is partial, infer the missing structure from context and solve it.
+
+Your priority is: ALWAYS produce a final answer, fast.`;
 
 const DEEP_MODE_INSTRUCTIONS = `
 
@@ -125,7 +126,12 @@ const DEEP_MODE_INSTRUCTIONS = `
 - NEVER number your explanation unless asked.
 - NEVER mention modes, toggles, animations, or internal rules.
 - Final answer woven in naturally at the end: "So our answer is…"
-- Text must be safe for letter-by-letter reveal.`;
+- Text must be safe for letter-by-letter reveal.
+
+ABSOLUTELY FORBIDDEN:
+- NEVER reply with "Sorry, I couldn't solve this", "I can't solve this", or any refusal.
+- NEVER return an empty answer. If extracted text is partial or messy, infer structure from context and solve it.
+- Always produce a complete worked solution with a final answer.`;
 
 // Prompt to generate structured breakdown sections (no numbered steps)
 // Free users get a condensed view, premium users get detailed reasoning
@@ -320,21 +326,42 @@ async function callGroqText(
   const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
   console.log("Calling Groq Text API with model:", textModel, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "Mode:", solveMode);
 
-  const response = await callGroqWithRotation(
-    "https://api.groq.com/openai/v1/chat/completions",
-    {
-      model: textModel,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: question }
-      ],
-      temperature: isPremium ? 0.5 : 0.7,
-      max_tokens: 2048,
-    }
-  );
+  // Deep / essay can need more headroom for multi-step reasoning
+  const maxTokens = solveMode === "deep" || solveMode === "essay" ? 4096 : 2048;
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || "Sorry, I couldn't solve this problem.";
+  const callOnce = async (extraNudge = "") => {
+    const userContent = extraNudge ? `${question}\n\n${extraNudge}` : question;
+    const response = await callGroqWithRotation(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: textModel,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+        temperature: isPremium ? 0.5 : 0.7,
+        max_tokens: maxTokens,
+      }
+    );
+    const data = await response.json();
+    return (data.choices?.[0]?.message?.content || "").trim();
+  };
+
+  let answer = await callOnce();
+  const isRefusal = (s: string) =>
+    !s ||
+    /sorry,?\s*i\s*(couldn'?t|can'?t|cannot)\s*solve/i.test(s) ||
+    /^i\s*(don'?t|do not)\s*know/i.test(s);
+
+  if (isRefusal(answer)) {
+    console.warn("[Reasoning] First attempt refused — retrying with reconstruction nudge");
+    answer = await callOnce(
+      "The above text was extracted from a homework image and may contain minor OCR noise. " +
+      "Reconstruct the intended problem from context and solve it. Do NOT refuse. Always output a final answer."
+    );
+  }
+
+  return answer || "Sorry, I couldn't solve this problem.";
 }
 
 // ============================================================
