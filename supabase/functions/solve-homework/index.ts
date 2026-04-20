@@ -340,9 +340,13 @@ async function callGroqText(
 // ============================================================
 // VISION: Groq Vision (LLaMA 3.2) — high-level image description
 // ============================================================
-async function callGroqVision(imageBase64: string, mimeType: string): Promise<string> {
-  console.log("[Vision] Calling Groq Vision (", GROQ_VISION_MODEL, ") for image description...");
+// Concise Vision prompt — reduces prefill + output latency. Vision only describes
+// layout/diagrams/symbols; OCR provides exact text. Capped at 512 output tokens.
+const VISION_PROMPT_TEXT =
+  "Describe this image concisely for a homework solver. List: visible text/equations, numbers, variable definitions, diagrams/shapes/graphs and their labels, and how items are laid out. No solving. Be terse.";
 
+async function callGroqVision(imageBase64: string, mimeType: string): Promise<string> {
+  const t0 = Date.now();
   const response = await callGroqWithRotation(
     "https://api.groq.com/openai/v1/chat/completions",
     {
@@ -351,27 +355,19 @@ async function callGroqVision(imageBase64: string, mimeType: string): Promise<st
         {
           role: "user",
           content: [
-            {
-              type: "text",
-              text: "Describe this image in detail. Include: any text, equations, numbers, labels, diagrams, graphs, geometric shapes, tables, and their layout. Be precise about all visible content. Output ONLY the description, no solving."
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${imageBase64}`
-              }
-            }
-          ]
-        }
+            { type: "text", text: VISION_PROMPT_TEXT },
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+          ],
+        },
       ],
-      temperature: 0.2,
-      max_tokens: 2048,
+      temperature: 0.1,
+      max_tokens: 512,
     }
   );
 
   const data = await response.json();
   const description = data.choices?.[0]?.message?.content || "";
-  console.log("[Vision] Description length:", description.length);
+  console.log(`[Vision] ${Date.now() - t0}ms, ${description.length} chars`);
   return description.trim();
 }
 
@@ -388,38 +384,46 @@ async function callExternalOCR(
   mode: OcrMode = "text",
   _answerLanguage: string = "en",
 ): Promise<string> {
-  console.log("[OCR] Extracting text via external OCR API, mode:", mode);
+  const t0 = Date.now();
 
   // Convert base64 to binary
   const binaryString = atob(imageBase64);
   const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
+  for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
 
   const ext = mimeType.split("/")[1] || "png";
-  const fileName = `image.${ext}`;
-
   const formData = new FormData();
-  const blob = new Blob([bytes], { type: mimeType });
-  formData.append("file", blob, fileName);
+  formData.append("file", new Blob([bytes], { type: mimeType }), `image.${ext}`);
   formData.append("mode", mode);
 
-  const response = await fetch("http://46.224.199.130:8000/ocr", {
-    method: "POST",
-    body: formData,
-  });
+  // 12s timeout — PaddleOCR usually returns in 400–900ms; this prevents hangs.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+  let response: Response;
+  try {
+    response = await fetch("http://46.224.199.130:8000/ocr", {
+      method: "POST",
+      body: formData,
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     const errText = await response.text();
-    console.error("[OCR] External OCR API error:", response.status, errText);
+    console.error("[OCR] error", response.status, errText);
     throw new Error("OCR service failed. Please try again.");
   }
 
   const data = await response.json();
-  const extractedText = data.text || data.extracted_text || data.result || (typeof data === "string" ? data : JSON.stringify(data));
+  let extractedText = data.text ?? data.extracted_text ?? data.result ?? "";
+  if (!extractedText && Array.isArray(data.results)) {
+    extractedText = data.results.map((r: any) => r?.text ?? "").filter(Boolean).join("\n");
+  }
+  if (!extractedText && typeof data === "string") extractedText = data;
 
-  console.log("[OCR] Extracted text length:", extractedText?.length || 0);
+  console.log(`[OCR] ${Date.now() - t0}ms, ${(extractedText || "").length} chars, mode=${mode}`);
   return (extractedText || "").trim();
 }
 
@@ -724,50 +728,45 @@ serve(async (req) => {
 
     // Route to appropriate model based on input type and tier
     if (allImages.length > 0) {
-      // Process each image through Vision + OCR pipeline
+      // Process each image through Vision + OCR pipeline (parallel within each image,
+      // and parallel across multiple images for max throughput)
       ocrEngineUsed = "groq_vision+external_ocr";
-      const combinedParts: string[] = [];
+      const tPipelineStart = Date.now();
 
-      for (let i = 0; i < allImages.length; i++) {
-        const img = allImages[i];
+      const { cleanupOcrMath } = await import("../_shared/ocr-cleanup.ts");
+
+      const perImage = await Promise.all(allImages.map(async (img, i) => {
         const matches = img.match(/^data:([^;]+);base64,(.+)$/);
-        if (!matches) {
-          throw new Error(`Invalid image format for image ${i + 1}`);
-        }
+        if (!matches) throw new Error(`Invalid image format for image ${i + 1}`);
         const mimeType = matches[1];
         const base64Data = matches[2];
 
-        // Always use lightweight text-mode on the OCR server (no solve_free/solve_pro).
-        // GPT-OSS does the reasoning; Groq Vision + cleanup layer normalize the input.
-        const ocrMode: OcrMode = "text";
-        const { vision, ocr: ocrRaw, combined_text: rawCombined } = await extractTextFromImage(base64Data, mimeType, answerLanguage, ocrMode);
-        const { cleanupOcrMath } = await import("../_shared/ocr-cleanup.ts");
+        const tImg = Date.now();
+        const { vision, ocr: ocrRaw } = await extractTextFromImage(base64Data, mimeType, answerLanguage, "text");
         const ocr = cleanupOcrMath(ocrRaw).cleaned;
         const combined_text = ocr && vision
           ? `[Exact text and equations from image]:\n${ocr}\n\n[Visual description and layout]:\n${vision}`
           : (ocr || vision);
-        console.log(`[Pipeline] Image ${i + 1}: Vision:`, vision.length, "chars, OCR(cleaned):", ocr.length, "chars");
-        
-        const label = allImages.length > 1 ? `[Image ${i + 1}]\n` : "";
-        combinedParts.push(label + combined_text);
-      }
+        console.log(`[Pipeline] img ${i + 1} extract=${Date.now() - tImg}ms vision=${vision.length} ocr=${ocr.length}`);
+        return (allImages.length > 1 ? `[Image ${i + 1}]\n` : "") + combined_text;
+      }));
 
-      const fullCombined = combinedParts.join("\n\n");
+      const fullCombined = perImage.join("\n\n");
+      console.log(`[Pipeline] all images extract total=${Date.now() - tPipelineStart}ms`);
 
-      // Step 2: Send combined text to GPT-OSS for reasoning
-      let combinedQuestion = question 
-        ? `${question}\n\n${fullCombined}` 
+      let combinedQuestion = question
+        ? `${question}\n\n${fullCombined}`
         : fullCombined;
-      
-      // In Deep Mode, ensure image-only solves get a clear instruction to explain
+
       if (effectiveMode === "deep" && !question) {
         combinedQuestion = `Solve the following problem and explain your reasoning in full detail:\n\n${fullCombined}`;
       }
-      
+
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
+      const tReason = Date.now();
       solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode, answerLanguage, essaySettings);
+      console.log(`[Pipeline] reasoning=${Date.now() - tReason}ms total=${Date.now() - tPipelineStart}ms`);
     } else if (question) {
-      // Text-only input → route to tier-appropriate text model
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
       solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode, answerLanguage, essaySettings);
     } else {
