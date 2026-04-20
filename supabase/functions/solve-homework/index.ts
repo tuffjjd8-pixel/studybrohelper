@@ -340,9 +340,13 @@ async function callGroqText(
 // ============================================================
 // VISION: Groq Vision (LLaMA 3.2) — high-level image description
 // ============================================================
-async function callGroqVision(imageBase64: string, mimeType: string): Promise<string> {
-  console.log("[Vision] Calling Groq Vision (", GROQ_VISION_MODEL, ") for image description...");
+// Concise Vision prompt — reduces prefill + output latency. Vision only describes
+// layout/diagrams/symbols; OCR provides exact text. Capped at 512 output tokens.
+const VISION_PROMPT_TEXT =
+  "Describe this image concisely for a homework solver. List: visible text/equations, numbers, variable definitions, diagrams/shapes/graphs and their labels, and how items are laid out. No solving. Be terse.";
 
+async function callGroqVision(imageBase64: string, mimeType: string): Promise<string> {
+  const t0 = Date.now();
   const response = await callGroqWithRotation(
     "https://api.groq.com/openai/v1/chat/completions",
     {
@@ -351,27 +355,19 @@ async function callGroqVision(imageBase64: string, mimeType: string): Promise<st
         {
           role: "user",
           content: [
-            {
-              type: "text",
-              text: "Describe this image in detail. Include: any text, equations, numbers, labels, diagrams, graphs, geometric shapes, tables, and their layout. Be precise about all visible content. Output ONLY the description, no solving."
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${imageBase64}`
-              }
-            }
-          ]
-        }
+            { type: "text", text: VISION_PROMPT_TEXT },
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+          ],
+        },
       ],
-      temperature: 0.2,
-      max_tokens: 2048,
+      temperature: 0.1,
+      max_tokens: 512,
     }
   );
 
   const data = await response.json();
   const description = data.choices?.[0]?.message?.content || "";
-  console.log("[Vision] Description length:", description.length);
+  console.log(`[Vision] ${Date.now() - t0}ms, ${description.length} chars`);
   return description.trim();
 }
 
