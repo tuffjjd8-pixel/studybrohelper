@@ -326,10 +326,12 @@ async function callGroqText(
   const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
   console.log("Calling Groq Text API with model:", textModel, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "Mode:", solveMode);
 
-  // Deep / essay can need more headroom for multi-step reasoning
-  const maxTokens = solveMode === "deep" || solveMode === "essay" ? 4096 : 2048;
+  // Token budget: keep tight for speed. Essays need more for length compliance.
+  // Deep was 4096 → caused 8-9s generation; 2048 fits virtually all real answers.
+  const maxTokens = solveMode === "essay" ? 3072 : 2048;
 
   const callOnce = async (extraNudge = "") => {
+    const tCall = Date.now();
     const userContent = extraNudge ? `${question}\n\n${extraNudge}` : question;
     const response = await callGroqWithRotation(
       "https://api.groq.com/openai/v1/chat/completions",
@@ -344,17 +346,28 @@ async function callGroqText(
       }
     );
     const data = await response.json();
-    return (data.choices?.[0]?.message?.content || "").trim();
+    const out = (data.choices?.[0]?.message?.content || "").trim();
+    console.log(`[Reasoning] call ${tCall ? Date.now() - tCall : 0}ms, ${out.length} chars, retry=${!!extraNudge}`);
+    return out;
   };
 
   let answer = await callOnce();
-  const isRefusal = (s: string) =>
-    !s ||
-    /sorry,?\s*i\s*(couldn'?t|can'?t|cannot)\s*solve/i.test(s) ||
-    /^i\s*(don'?t|do not)\s*know/i.test(s);
+
+  // STRICT refusal detection: only retry if answer is SHORT and STARTS with a refusal.
+  // Avoids false positives where the model discusses "sorry I couldn't" mid-answer.
+  const isRefusal = (s: string) => {
+    if (!s) return true;
+    if (s.length > 200) return false; // long answer = real solution, never retry
+    const head = s.slice(0, 160).toLowerCase();
+    return (
+      /^(i'?m\s+)?sorry[,.\s]*i\s*(couldn'?t|can'?t|cannot)\s*solve/.test(head) ||
+      /^i\s*(don'?t|do not)\s*know/.test(head) ||
+      /^i\s*(cannot|can'?t)\s*(help|answer|solve|provide)/.test(head)
+    );
+  };
 
   if (isRefusal(answer)) {
-    console.warn("[Reasoning] First attempt refused — retrying with reconstruction nudge");
+    console.warn(`[Reasoning] First attempt refused (len=${answer.length}) — retrying with nudge`);
     answer = await callOnce(
       "The above text was extracted from a homework image and may contain minor OCR noise. " +
       "Reconstruct the intended problem from context and solve it. Do NOT refuse. Always output a final answer."
