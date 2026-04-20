@@ -384,38 +384,46 @@ async function callExternalOCR(
   mode: OcrMode = "text",
   _answerLanguage: string = "en",
 ): Promise<string> {
-  console.log("[OCR] Extracting text via external OCR API, mode:", mode);
+  const t0 = Date.now();
 
   // Convert base64 to binary
   const binaryString = atob(imageBase64);
   const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
+  for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
 
   const ext = mimeType.split("/")[1] || "png";
-  const fileName = `image.${ext}`;
-
   const formData = new FormData();
-  const blob = new Blob([bytes], { type: mimeType });
-  formData.append("file", blob, fileName);
+  formData.append("file", new Blob([bytes], { type: mimeType }), `image.${ext}`);
   formData.append("mode", mode);
 
-  const response = await fetch("http://46.224.199.130:8000/ocr", {
-    method: "POST",
-    body: formData,
-  });
+  // 12s timeout — PaddleOCR usually returns in 400–900ms; this prevents hangs.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+  let response: Response;
+  try {
+    response = await fetch("http://46.224.199.130:8000/ocr", {
+      method: "POST",
+      body: formData,
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     const errText = await response.text();
-    console.error("[OCR] External OCR API error:", response.status, errText);
+    console.error("[OCR] error", response.status, errText);
     throw new Error("OCR service failed. Please try again.");
   }
 
   const data = await response.json();
-  const extractedText = data.text || data.extracted_text || data.result || (typeof data === "string" ? data : JSON.stringify(data));
+  let extractedText = data.text ?? data.extracted_text ?? data.result ?? "";
+  if (!extractedText && Array.isArray(data.results)) {
+    extractedText = data.results.map((r: any) => r?.text ?? "").filter(Boolean).join("\n");
+  }
+  if (!extractedText && typeof data === "string") extractedText = data;
 
-  console.log("[OCR] Extracted text length:", extractedText?.length || 0);
+  console.log(`[OCR] ${Date.now() - t0}ms, ${(extractedText || "").length} chars, mode=${mode}`);
   return (extractedText || "").trim();
 }
 
