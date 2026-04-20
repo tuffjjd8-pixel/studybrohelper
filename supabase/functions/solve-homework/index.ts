@@ -728,50 +728,45 @@ serve(async (req) => {
 
     // Route to appropriate model based on input type and tier
     if (allImages.length > 0) {
-      // Process each image through Vision + OCR pipeline
+      // Process each image through Vision + OCR pipeline (parallel within each image,
+      // and parallel across multiple images for max throughput)
       ocrEngineUsed = "groq_vision+external_ocr";
-      const combinedParts: string[] = [];
+      const tPipelineStart = Date.now();
 
-      for (let i = 0; i < allImages.length; i++) {
-        const img = allImages[i];
+      const { cleanupOcrMath } = await import("../_shared/ocr-cleanup.ts");
+
+      const perImage = await Promise.all(allImages.map(async (img, i) => {
         const matches = img.match(/^data:([^;]+);base64,(.+)$/);
-        if (!matches) {
-          throw new Error(`Invalid image format for image ${i + 1}`);
-        }
+        if (!matches) throw new Error(`Invalid image format for image ${i + 1}`);
         const mimeType = matches[1];
         const base64Data = matches[2];
 
-        // Always use lightweight text-mode on the OCR server (no solve_free/solve_pro).
-        // GPT-OSS does the reasoning; Groq Vision + cleanup layer normalize the input.
-        const ocrMode: OcrMode = "text";
-        const { vision, ocr: ocrRaw, combined_text: rawCombined } = await extractTextFromImage(base64Data, mimeType, answerLanguage, ocrMode);
-        const { cleanupOcrMath } = await import("../_shared/ocr-cleanup.ts");
+        const tImg = Date.now();
+        const { vision, ocr: ocrRaw } = await extractTextFromImage(base64Data, mimeType, answerLanguage, "text");
         const ocr = cleanupOcrMath(ocrRaw).cleaned;
         const combined_text = ocr && vision
           ? `[Exact text and equations from image]:\n${ocr}\n\n[Visual description and layout]:\n${vision}`
           : (ocr || vision);
-        console.log(`[Pipeline] Image ${i + 1}: Vision:`, vision.length, "chars, OCR(cleaned):", ocr.length, "chars");
-        
-        const label = allImages.length > 1 ? `[Image ${i + 1}]\n` : "";
-        combinedParts.push(label + combined_text);
-      }
+        console.log(`[Pipeline] img ${i + 1} extract=${Date.now() - tImg}ms vision=${vision.length} ocr=${ocr.length}`);
+        return (allImages.length > 1 ? `[Image ${i + 1}]\n` : "") + combined_text;
+      }));
 
-      const fullCombined = combinedParts.join("\n\n");
+      const fullCombined = perImage.join("\n\n");
+      console.log(`[Pipeline] all images extract total=${Date.now() - tPipelineStart}ms`);
 
-      // Step 2: Send combined text to GPT-OSS for reasoning
-      let combinedQuestion = question 
-        ? `${question}\n\n${fullCombined}` 
+      let combinedQuestion = question
+        ? `${question}\n\n${fullCombined}`
         : fullCombined;
-      
-      // In Deep Mode, ensure image-only solves get a clear instruction to explain
+
       if (effectiveMode === "deep" && !question) {
         combinedQuestion = `Solve the following problem and explain your reasoning in full detail:\n\n${fullCombined}`;
       }
-      
+
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
+      const tReason = Date.now();
       solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode, answerLanguage, essaySettings);
+      console.log(`[Pipeline] reasoning=${Date.now() - tReason}ms total=${Date.now() - tPipelineStart}ms`);
     } else if (question) {
-      // Text-only input → route to tier-appropriate text model
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
       solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode, answerLanguage, essaySettings);
     } else {
