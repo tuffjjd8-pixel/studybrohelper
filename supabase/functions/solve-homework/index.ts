@@ -106,6 +106,7 @@ STRICT OUTPUT FORMAT:
    - \`Key Result: <one-line equation or value>\` (only if essential)
    - \`Why: <max one short sentence>\`
    - \`Unit: <unit>\` (only if needed)
+   - TRIVIAL PROBLEMS (basic arithmetic, obvious one-step results, simple definitions): return ONLY the \`Final Answer:\` line. No Why, no Key Result, no Unit.
 3. TOTAL output ≤ 4 lines. No paragraphs. No derivations. No multi-step calculations. No unit-conversion walkthroughs. No headings beyond the labels above. No greetings, no preamble, no closing remarks.
 4. Solve the problem fully in your head. Output ONLY the final result + (optionally) one tiny justification.
 5. Never use "Step 1", numbered lists, bullet breakdowns, or the word "steps".
