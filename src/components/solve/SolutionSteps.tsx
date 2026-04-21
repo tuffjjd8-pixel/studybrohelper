@@ -391,8 +391,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           )}
 
           {isDeepMode && !isHistory ? (
-            <DeepModeReveal content={displayedSolution} />
-          ) : (
+            <DeepModeReveal content={bodySolution} />
+          ) : bodySolution.trim().length === 0 ? null : (
             <div className="prose prose-invert prose-base max-w-none math-solution">
               <ReactMarkdown
                 remarkPlugins={[remarkMath]}
@@ -415,7 +415,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                   td: ({ children }) => <td className="px-4 py-2 text-foreground/75 border-b border-border/50">{children}</td>,
                 }}
               >
-                {preprocessMath(displayedSolution)}
+                {preprocessMath(bodySolution)}
               </ReactMarkdown>
             </div>
           )}
