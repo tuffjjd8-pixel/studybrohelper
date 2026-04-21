@@ -181,6 +181,16 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const navigate = useNavigate();
 
   const finalAnswer = useMemo(() => extractFinalAnswer(displayedSolution), [displayedSolution]);
+  // When the final answer is surfaced at the top, strip the leading "Final Answer:" line(s)
+  // from the body to avoid duplication. Also strip a trailing duplicate at the end.
+  const bodySolution = useMemo(() => {
+    if (!finalAnswer) return displayedSolution;
+    let s = displayedSolution;
+    s = s.replace(/^\s*\**\s*Final\s*Answer\s*:\s*[^\n]*\n+/i, "");
+    s = s.replace(/^\s*\**\s*Answer\s*:\s*[^\n]*\n+/i, "");
+    s = s.replace(/\n+\s*\**\s*Final\s*Answer\s*:\s*[^\n]*\s*$/i, "");
+    return s.trim();
+  }, [displayedSolution, finalAnswer]);
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
   const showFollowUp = !isHistory;
 
@@ -381,8 +391,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           )}
 
           {isDeepMode && !isHistory ? (
-            <DeepModeReveal content={displayedSolution} />
-          ) : (
+            <DeepModeReveal content={bodySolution} />
+          ) : bodySolution.trim().length === 0 ? null : (
             <div className="prose prose-invert prose-base max-w-none math-solution">
               <ReactMarkdown
                 remarkPlugins={[remarkMath]}
@@ -405,7 +415,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                   td: ({ children }) => <td className="px-4 py-2 text-foreground/75 border-b border-border/50">{children}</td>,
                 }}
               >
-                {preprocessMath(displayedSolution)}
+                {preprocessMath(bodySolution)}
               </ReactMarkdown>
             </div>
           )}
