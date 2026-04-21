@@ -181,14 +181,15 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const navigate = useNavigate();
 
   const finalAnswer = useMemo(() => extractFinalAnswer(displayedSolution), [displayedSolution]);
-  // When the final answer is surfaced at the top, strip the leading "Final Answer:" line(s)
-  // from the body to avoid duplication. Also strip a trailing duplicate at the end.
+  // When the final answer is surfaced at the top, strip ANY "Final Answer:" / "Answer:" lines
+  // from the body to avoid duplication (leading, trailing, or standalone).
   const bodySolution = useMemo(() => {
     if (!finalAnswer) return displayedSolution;
     let s = displayedSolution;
-    s = s.replace(/^\s*\**\s*Final\s*Answer\s*:\s*[^\n]*\n+/i, "");
-    s = s.replace(/^\s*\**\s*Answer\s*:\s*[^\n]*\n+/i, "");
-    s = s.replace(/\n+\s*\**\s*Final\s*Answer\s*:\s*[^\n]*\s*$/i, "");
+    // Remove every line that is just "Final Answer: ..." or "Answer: ..." (with optional ** **)
+    s = s.replace(/^[ \t]*\**[ \t]*(?:Final\s*Answer|Answer)[ \t]*:[ \t]*[^\n]*\**[ \t]*$\n?/gim, "");
+    // Collapse leftover blank lines
+    s = s.replace(/\n{3,}/g, "\n\n");
     return s.trim();
   }, [displayedSolution, finalAnswer]);
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
