@@ -21,12 +21,33 @@ interface Solve {
 }
 const subjectIcons: Record<string, string> = {
   math: "📐",
+  physics: "⚛️",
+  chemistry: "🧪",
+  biology: "🧬",
+  engineering: "⚙️",
+  statistics: "📊",
+  "computer science": "💻",
+  "logic / puzzle": "🧩",
+  // legacy fallbacks
   science: "🔬",
   history: "📜",
   english: "📖",
   language: "🌍",
-  general: "📚"
+  general: "📚",
+  other: "📚",
 };
+const subjectLabels: Record<string, string> = {
+  math: "Math",
+  physics: "Physics",
+  chemistry: "Chemistry",
+  biology: "Biology",
+  engineering: "Engineering",
+  statistics: "Statistics",
+  "computer science": "Computer Science",
+  "logic / puzzle": "Logic / Puzzle",
+};
+const formatSubject = (s: string) =>
+  subjectLabels[s] || s.charAt(0).toUpperCase() + s.slice(1);
 const History = () => {
   const navigate = useNavigate();
   const {
@@ -216,12 +237,12 @@ const History = () => {
                           {accessible ? (subjectIcons[solve.subject] || "📚") : <Lock className="w-5 h-5 text-muted-foreground" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm sm:text-base line-clamp-2 leading-snug">
-                            {solve.question_text || "Image question"}
+                          <p className="font-semibold text-sm sm:text-base line-clamp-2 leading-snug">
+                            {solve.question_text || "Study Problem"}
                           </p>
                           <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                            <span className="capitalize bg-muted/50 px-2 py-0.5 rounded-md">
-                              {solve.subject}
+                            <span className="bg-muted/50 px-2 py-0.5 rounded-md">
+                              {formatSubject(solve.subject)}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
@@ -259,13 +280,13 @@ const History = () => {
                       <span className="text-2xl">
                         {subjectIcons[selectedSolve.subject] || "📚"}
                       </span>
-                      <span className="text-sm font-medium capitalize px-3 py-1 bg-primary/10 text-primary rounded-lg">
-                        {selectedSolve.subject}
+                      <span className="text-sm font-medium px-3 py-1 bg-primary/10 text-primary rounded-lg">
+                        {formatSubject(selectedSolve.subject)}
                       </span>
                     </div>
 
                     <h3 className="font-heading font-bold text-lg mb-4 leading-snug">
-                      {selectedSolve.question_text || "Image question"}
+                      {selectedSolve.question_text || "Study Problem"}
                     </h3>
 
                     <div className="prose prose-invert prose-sm max-h-64 overflow-y-auto mb-6 bg-muted/30 rounded-lg p-4">

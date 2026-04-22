@@ -132,22 +132,27 @@ export function ScannerModal({
         end_to_end: Math.round(t_reason_end - t_pipeline_start),
       });
 
-      const extractedQuestion = data.question || data.extractedText || "Image-based question";
+      const extractedQuestion = data.question || data.extractedText || "";
+      // Use AI-generated short topic title for history; fall back to a snippet of the extracted text.
+      const titleForHistory =
+        (data.title && String(data.title).trim()) ||
+        (extractedQuestion && extractedQuestion.split(/\s+/).slice(0, 8).join(" ")) ||
+        "Study Problem";
 
       if (userId) {
         const { uploadSolveImage } = await import("@/lib/solveImageUpload");
         const persistedImageUrl = await uploadSolveImage(imageData, userId);
         await supabase.from("solves").insert({
           user_id: userId,
-          subject: data.subject || "general",
-          question_text: extractedQuestion,
+          subject: data.subject || "math",
+          question_text: titleForHistory,
           question_image_url: persistedImageUrl,
           solution_markdown: data.solution,
           mode: isPremium ? selectedMode : "instant",
         });
       }
 
-      onSolved(extractedQuestion, data.solution, data.subject || "general", imageData);
+      onSolved(extractedQuestion || titleForHistory, data.solution, data.subject || "math", imageData);
       handleReset();
       onClose();
     } catch (error) {
