@@ -611,6 +611,22 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
           )}
         </motion.div>
       )}
+
+      {/* Full-screen image lightbox */}
+      {questionImage && (
+        <Dialog open={imageOpen} onOpenChange={setImageOpen}>
+          <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto p-2 bg-background/95 backdrop-blur-sm border-border">
+            <div className="flex items-center justify-center w-full h-full overflow-auto">
+              <img
+                src={questionImage}
+                alt="Question (full view)"
+                className="max-w-full max-h-[88vh] object-contain rounded-md touch-pinch-zoom"
+                style={{ touchAction: "pinch-zoom" }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </motion.div>
   );
 }
