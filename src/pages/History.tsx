@@ -280,13 +280,13 @@ const History = () => {
                       <span className="text-2xl">
                         {subjectIcons[selectedSolve.subject] || "📚"}
                       </span>
-                      <span className="text-sm font-medium capitalize px-3 py-1 bg-primary/10 text-primary rounded-lg">
-                        {selectedSolve.subject}
+                      <span className="text-sm font-medium px-3 py-1 bg-primary/10 text-primary rounded-lg">
+                        {formatSubject(selectedSolve.subject)}
                       </span>
                     </div>
 
                     <h3 className="font-heading font-bold text-lg mb-4 leading-snug">
-                      {selectedSolve.question_text || "Image question"}
+                      {selectedSolve.question_text || "Study Problem"}
                     </h3>
 
                     <div className="prose prose-invert prose-sm max-h-64 overflow-y-auto mb-6 bg-muted/30 rounded-lg p-4">
