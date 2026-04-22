@@ -145,11 +145,22 @@ export function SolutionDisplay({
         </div>
         <div className="p-4">
           {questionImage && (
-            <img 
-              src={questionImage} 
-              alt="Question" 
-              className="max-h-36 rounded-xl mb-4 object-contain border border-border/50"
-            />
+            <div
+              className="inline-block mb-4 rounded-xl border border-white/10 p-1.5"
+              style={{
+                background:
+                  "linear-gradient(135deg, hsl(var(--muted) / 0.5), hsl(var(--muted) / 0.25)), repeating-conic-gradient(hsl(var(--foreground) / 0.04) 0% 25%, transparent 0% 50%) 50% / 12px 12px",
+                boxShadow: "0 2px 10px hsl(0 0% 0% / 0.25), inset 0 0 0 1px hsl(var(--foreground) / 0.04)",
+              }}
+            >
+              <img
+                src={questionImage}
+                alt="Question"
+                loading="lazy"
+                decoding="async"
+                className="block max-h-36 w-auto object-contain rounded-lg"
+              />
+            </div>
           )}
           <p className="text-foreground leading-relaxed">
             {extractedQuestion || "Image-based question"}
