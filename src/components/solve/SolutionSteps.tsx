@@ -186,12 +186,17 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const bodySolution = useMemo(() => {
     if (!finalAnswer) return displayedSolution;
     let s = displayedSolution;
-    // Remove every line that is just "Final Answer: ..." or "Answer: ..." (with optional ** **)
-    s = s.replace(/^[ \t]*\**[ \t]*(?:Final\s*Answer|Answer)[ \t]*:[ \t]*[^\n]*\**[ \t]*$\n?/gim, "");
-    // Collapse leftover blank lines
+    // Instant Mode: strip ALL "Final Answer:" / "Answer:" lines (avoids duplication with top card).
+    // Deep Mode: only strip the FIRST leading "Final Answer:" line so the structured body
+    // (Setup/Solve/Result/Quick Check) stays intact.
+    if (!isDeepMode) {
+      s = s.replace(/^[ \t]*\**[ \t]*(?:Final\s*Answer|Answer)[ \t]*:[ \t]*[^\n]*\**[ \t]*$\n?/gim, "");
+    } else {
+      s = s.replace(/^[ \t]*\**[ \t]*Final\s*Answer[ \t]*:[ \t]*[^\n]*\**[ \t]*\n?/i, "");
+    }
     s = s.replace(/\n{3,}/g, "\n\n");
     return s.trim();
-  }, [displayedSolution, finalAnswer]);
+  }, [displayedSolution, finalAnswer, isDeepMode]);
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
   const showFollowUp = !isHistory;
 
