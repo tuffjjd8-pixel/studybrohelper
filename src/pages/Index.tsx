@@ -243,10 +243,16 @@ const Index = () => {
           const { uploadSolveImage } = await import("@/lib/solveImageUpload");
           persistedImageUrl = await uploadSolveImage(imagesArray[0], user.id);
         }
+        // Build a meaningful, short title for history (avoid "Image-based question")
+        const titleForHistory =
+          (data.title && String(data.title).trim()) ||
+          (input && input.trim().split(/\s+/).slice(0, 8).join(" ")) ||
+          (data.question && String(data.question).split(/\s+/).slice(0, 8).join(" ")) ||
+          "Study Problem";
         const insertPromise = supabase.from("solves").insert({
           user_id: user.id,
-          subject: data.subject || "other",
-          question_text: input || null,
+          subject: data.subject || "math",
+          question_text: titleForHistory,
           question_image_url: persistedImageUrl,
           solution_markdown: data.solution,
           mode: effectiveMode,
