@@ -889,23 +889,14 @@ serve(async (req) => {
       }
     }
 
-    // Detect subject from response
-    let subject = "other";
-    const lowerSolution = solution.toLowerCase();
-    if (lowerSolution.includes("math") || lowerSolution.includes("equation") || lowerSolution.includes("calculate")) {
-      subject = "math";
-    } else if (lowerSolution.includes("science") || lowerSolution.includes("physics") || lowerSolution.includes("chemistry") || lowerSolution.includes("biology")) {
-      subject = "science";
-    } else if (lowerSolution.includes("history") || lowerSolution.includes("historical")) {
-      subject = "history";
-    } else if (lowerSolution.includes("english") || lowerSolution.includes("essay") || lowerSolution.includes("grammar")) {
-      subject = "english";
-    }
+    // ---- Smart subject + title classification (heuristic, no extra LLM call) ----
+    const { subject, title } = classifySubjectAndTitle(question || "", solution);
 
     // Build response object
     const responseData: Record<string, unknown> = {
       solution: cleanSolutionText(solution, isPremium),
       subject,
+      title,
       tier: isPremium ? "premium" : "free",
       debug: {
         model_used: modelUsed!,
