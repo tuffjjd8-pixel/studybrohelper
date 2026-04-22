@@ -293,10 +293,15 @@ const Index = () => {
         }
       } else {
         solveId = `guest-${Date.now()}`;
+        const guestTitle =
+          (data.title && String(data.title).trim()) ||
+          (input && input.trim().split(/\s+/).slice(0, 8).join(" ")) ||
+          (data.question && String(data.question).split(/\s+/).slice(0, 8).join(" ")) ||
+          "Study Problem";
         const guestSolve = {
           id: solveId,
-          subject: data.subject || "other",
-          question_text: input || null,
+          subject: data.subject || "math",
+          question_text: guestTitle,
           question_image_url: imageData || null,
           solution_markdown: data.solution,
           created_at: new Date().toISOString(),
