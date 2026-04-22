@@ -141,11 +141,15 @@ const Scanner = () => {
         end_to_end: Math.round(t_reason_end - t_pipeline_start),
       });
 
-      const extractedQuestion = data.question || data.extractedText || "Image-based question";
+      const extractedQuestion = data.question || data.extractedText || "";
+      const titleForHistory =
+        (data.title && String(data.title).trim()) ||
+        (extractedQuestion && extractedQuestion.split(/\s+/).slice(0, 8).join(" ")) ||
+        "Study Problem";
 
       setSolution({
-        subject: data.subject || "general",
-        question: extractedQuestion,
+        subject: data.subject || "math",
+        question: extractedQuestion || titleForHistory,
         solution: data.solution,
         image: imageData,
       });
@@ -155,8 +159,8 @@ const Scanner = () => {
         const persistedImageUrl = await uploadSolveImage(imageData, user.id);
         await supabase.from("solves").insert({
           user_id: user.id,
-          subject: data.subject || "general",
-          question_text: extractedQuestion,
+          subject: data.subject || "math",
+          question_text: titleForHistory,
           question_image_url: persistedImageUrl,
           solution_markdown: data.solution,
           mode: selectedMode,
