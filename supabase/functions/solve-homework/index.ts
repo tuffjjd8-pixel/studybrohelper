@@ -635,6 +635,118 @@ Output ONLY the description. No solving, no commentary.`;
   return description.trim();
 }
 
+// ---------- Subject + Title classification ----------
+function classifySubjectAndTitle(question: string, solution: string): { subject: string; title: string } {
+  const q = (question || "").toLowerCase();
+  const s = (solution || "").toLowerCase();
+  const both = `${q}\n${s}`;
+
+  const has = (re: RegExp) => re.test(both);
+
+  // --- Subject scoring (richer than before, never defaults to "other") ---
+  const scores: Record<string, number> = {
+    physics: 0, chemistry: 0, biology: 0, engineering: 0,
+    statistics: 0, "computer science": 0, "logic / puzzle": 0, math: 0,
+  };
+
+  if (has(/\b(force|velocity|acceleration|momentum|newton|gravity|kinetic|potential energy|wavelength|frequency|voltage|current|circuit|ohm|magnetic|electric field|quantum|photon|relativity|finite well|schr[oö]dinger|hamiltonian|torque|inertia|projectile)\b/)) scores.physics += 3;
+  if (has(/\b(mole|molar|reaction|reagent|acid|base|ph|enthalpy|entropy|stoichiometr|covalent|ionic|periodic|electrolysis|titration|oxidation|reduction|catalyst|organic|alkane|alkene|benzene)\b/)) scores.chemistry += 3;
+  if (has(/\b(cell|mitosis|meiosis|dna|rna|protein|enzyme|gene|chromosome|photosynthes|respiration|ecosystem|organism|evolution|species|tissue|organ|neuron|hormone|bacteria|virus)\b/)) scores.biology += 3;
+  if (has(/\b(beam|truss|stress|strain|bending moment|shear|circuit design|signal|amplifier|transistor|fluid mechanics|thermodynam|control system|finite element)\b/)) scores.engineering += 3;
+  if (has(/\b(probability|mean|median|mode|standard deviation|variance|normal distribution|hypothesis|p-value|regression|correlation|sample|confidence interval|chi-square|binomial|poisson)\b/)) scores.statistics += 3;
+  if (has(/\b(algorithm|big-?o|complexity|recursion|linked list|binary tree|hash map|stack|queue|sorting|graph traversal|dijkstra|dynamic programming|compile|runtime|python|javascript|typescript|java|c\+\+|sql query|function call|class method|api endpoint)\b/)) scores["computer science"] += 3;
+  if (has(/\b(puzzle|riddle|sequence|pattern|next number|next term|logic|deduce|truth table|knights and knaves)\b/)) scores["logic / puzzle"] += 3;
+  if (has(/\b(equation|solve for|integral|derivative|limit|matrix|vector|polynomial|quadratic|linear|geometry|triangle|circle|angle|theorem|trigonometr|sin|cos|tan|logarithm|exponent|fraction|factor|simplify)\b/)) scores.math += 2;
+  if (/\\frac|\\int|\\sum|\\sqrt|\^\{|_\{|\\alpha|\\beta|\\theta|\\pi/.test(solution)) scores.math += 1;
+
+  let subject = "math";
+  let best = 0;
+  for (const [k, v] of Object.entries(scores)) {
+    if (v > best) { best = v; subject = k; }
+  }
+  if (best === 0) subject = "math"; // safe default — closest match, never "other"
+
+  // --- Title generation (2–5 words) ---
+  const title = generateTitle(question, solution, subject);
+  return { subject, title };
+}
+
+function generateTitle(question: string, solution: string, subject: string): string {
+  const q = (question || "").trim();
+  const s = (solution || "").trim();
+
+  // Topic patterns — checked in priority order
+  const patterns: Array<[RegExp, string]> = [
+    [/finite (square )?well/i, "Finite Well Physics"],
+    [/schr[oö]dinger/i, "Schrödinger Equation"],
+    [/projectile/i, "Projectile Motion"],
+    [/free[- ]?body|newton'?s (second|2nd) law/i, "Newton's Law Problem"],
+    [/ohm'?s law|kirchhoff/i, "Circuit Analysis"],
+    [/quadratic/i, "Quadratic Equation"],
+    [/linear (equation|system)|system of equations/i, "Linear Equation"],
+    [/polynomial/i, "Polynomial Problem"],
+    [/derivativ|differentiat/i, "Derivative Problem"],
+    [/integral|integrat/i, "Integration Problem"],
+    [/limit\b/i, "Limit Problem"],
+    [/matrix|matrices|determinant/i, "Matrix Problem"],
+    [/vector/i, "Vector Problem"],
+    [/probabilit/i, "Probability Problem"],
+    [/standard deviation|variance|normal distribution/i, "Statistics Problem"],
+    [/regression|correlation/i, "Regression Analysis"],
+    [/triangle/i, "Geometry Triangle Problem"],
+    [/circle\b/i, "Circle Geometry"],
+    [/trigonometr|\bsin\b|\bcos\b|\btan\b/i, "Trigonometry Problem"],
+    [/logarithm/i, "Logarithm Problem"],
+    [/exponent/i, "Exponent Problem"],
+    [/fraction/i, "Fraction Problem"],
+    [/factor(ing|ize)/i, "Factoring Problem"],
+    [/stoichiometr|mole ratio/i, "Stoichiometry Problem"],
+    [/titration/i, "Titration Problem"],
+    [/acid|base|\bph\b/i, "Acid-Base Chemistry"],
+    [/organic chemistry|alkane|alkene|benzene/i, "Organic Chemistry"],
+    [/photosynthes/i, "Photosynthesis"],
+    [/mitosis|meiosis/i, "Cell Division"],
+    [/dna|rna|gene|chromosome/i, "Genetics Problem"],
+    [/ecosystem|food (chain|web)/i, "Ecology Problem"],
+    [/algorithm|big-?o|complexity/i, "Algorithm Analysis"],
+    [/recursion|recursive/i, "Recursion Problem"],
+    [/linked list|binary tree|hash map|stack|queue/i, "Data Structure Problem"],
+    [/sorting/i, "Sorting Algorithm"],
+    [/sql|database query/i, "SQL Query"],
+    [/pattern|sequence|next (number|term)/i, "Pattern Puzzle"],
+    [/riddle|puzzle/i, "Logic Puzzle"],
+    [/essay|paragraph|write a/i, "Writing Task"],
+  ];
+
+  const haystack = `${q}\n${s.slice(0, 600)}`;
+  for (const [re, label] of patterns) {
+    if (re.test(haystack)) return label;
+  }
+
+  // Fallback: take first meaningful chunk of the question
+  if (q) {
+    const cleaned = q.replace(/\s+/g, " ").replace(/[^\p{L}\p{N}\s+\-=^*/().,]/gu, "").trim();
+    const words = cleaned.split(" ").filter(Boolean);
+    if (words.length >= 2) {
+      const title = words.slice(0, 5).join(" ");
+      return title.charAt(0).toUpperCase() + title.slice(1);
+    }
+  }
+
+  // Subject-based fallback (never "Image-based question")
+  const subjectLabels: Record<string, string> = {
+    math: "Math Problem",
+    physics: "Physics Problem",
+    chemistry: "Chemistry Problem",
+    biology: "Biology Problem",
+    engineering: "Engineering Problem",
+    statistics: "Statistics Problem",
+    "computer science": "CS Problem",
+    "logic / puzzle": "Logic Puzzle",
+  };
+  return subjectLabels[subject] || "Study Problem";
+}
+
 // Parse structured sections from solution (used only for Solve Flow feature)
 function parseAnimatedSections(solution: string, maxSections: number): Array<{ title: string; content: string }> {
   const sections: Array<{ title: string; content: string }> = [];
