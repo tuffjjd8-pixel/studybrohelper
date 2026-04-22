@@ -237,12 +237,19 @@ const Index = () => {
         const solveTimeSeconds = (Date.now() - startTime) / 1000;
         const isSpeedSolve = solveTimeSeconds <= 120;
         const isEarlySolve = new Date().getHours() < 8;
+        // Persist captured image to storage so history reloads exactly
+        let persistedImageUrl: string | null = null;
+        if (imagesArray.length > 0) {
+          const { uploadSolveImage } = await import("@/lib/solveImageUpload");
+          persistedImageUrl = await uploadSolveImage(imagesArray[0], user.id);
+        }
         const insertPromise = supabase.from("solves").insert({
           user_id: user.id,
           subject: data.subject || "other",
           question_text: input || null,
-          question_image_url: imagesArray.length > 0 ? imagesArray[0] : null,
+          question_image_url: persistedImageUrl,
           solution_markdown: data.solution,
+          mode: effectiveMode,
         }).select("id").single();
 
         const profileUpdates: Record<string, unknown> = {

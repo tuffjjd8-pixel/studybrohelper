@@ -135,12 +135,15 @@ export function ScannerModal({
       const extractedQuestion = data.question || data.extractedText || "Image-based question";
 
       if (userId) {
+        const { uploadSolveImage } = await import("@/lib/solveImageUpload");
+        const persistedImageUrl = await uploadSolveImage(imageData, userId);
         await supabase.from("solves").insert({
           user_id: userId,
           subject: data.subject || "general",
           question_text: extractedQuestion,
-          question_image_url: imageData.substring(0, 500),
+          question_image_url: persistedImageUrl,
           solution_markdown: data.solution,
+          mode: isPremium ? selectedMode : "instant",
         });
       }
 

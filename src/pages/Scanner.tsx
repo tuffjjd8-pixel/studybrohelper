@@ -151,12 +151,15 @@ const Scanner = () => {
       });
 
       if (user) {
+        const { uploadSolveImage } = await import("@/lib/solveImageUpload");
+        const persistedImageUrl = await uploadSolveImage(imageData, user.id);
         await supabase.from("solves").insert({
           user_id: user.id,
           subject: data.subject || "general",
           question_text: extractedQuestion,
-          question_image_url: imageData.substring(0, 500),
+          question_image_url: persistedImageUrl,
           solution_markdown: data.solution,
+          mode: selectedMode,
         });
       }
 

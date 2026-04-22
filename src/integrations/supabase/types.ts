@@ -707,6 +707,7 @@ export type Database = {
           created_at: string
           id: string
           is_public: boolean
+          mode: string
           question_image_url: string | null
           question_text: string | null
           solution_markdown: string
@@ -717,6 +718,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_public?: boolean
+          mode?: string
           question_image_url?: string | null
           question_text?: string | null
           solution_markdown: string
@@ -727,6 +729,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_public?: boolean
+          mode?: string
           question_image_url?: string | null
           question_text?: string | null
           solution_markdown?: string

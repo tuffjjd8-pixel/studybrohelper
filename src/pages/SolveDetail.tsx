@@ -19,6 +19,7 @@ interface Solve {
   question_image_url: string | null;
   solution_markdown: string;
   created_at: string;
+  mode?: string | null;
 }
 
 interface Message {
@@ -241,7 +242,7 @@ const SolveDetail = () => {
               solveId={solve.id}
               isPremium={isPremium}
               isHistory={true}
-              isDeepMode={false}
+              isDeepMode={solve.mode === "deep"}
               isAuthenticated={!!user}
             />
             {/* Soft CTA for non-authenticated viewers */}
