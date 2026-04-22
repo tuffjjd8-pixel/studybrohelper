@@ -343,15 +343,39 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       <div className="space-y-4">
 
         {/* Question */}
-        <div className="glass-card p-4">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            Question
-          </h3>
-          {questionImage && (
-            <img src={questionImage} alt="Question" className="max-h-48 rounded-lg mb-3 object-contain" />
-          )}
-          <p className="text-foreground">{question}</p>
-        </div>
+        {(() => {
+          const hasImage = !!questionImage;
+          const isPlaceholder = !question || /^image[- ]based question$/i.test(question.trim());
+          const showText = !!question && !(hasImage && isPlaceholder);
+          if (!hasImage && !showText) return null;
+          return (
+            <div className="glass-card p-4">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                Question
+              </h3>
+              {hasImage && (
+                <button
+                  type="button"
+                  onClick={() => setImageOpen(true)}
+                  className="group relative inline-block mb-3 rounded-lg overflow-hidden border border-border/60 bg-muted/30 hover:border-primary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  aria-label="View question image full screen"
+                >
+                  <img
+                    src={questionImage}
+                    alt="Question"
+                    loading="lazy"
+                    decoding="async"
+                    className="block max-h-[110px] w-auto object-contain"
+                  />
+                  <span className="absolute top-1 right-1 flex items-center justify-center w-6 h-6 rounded-full bg-background/70 backdrop-blur-sm text-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+              )}
+              {showText && <p className="text-foreground">{question}</p>}
+            </div>
+          );
+        })()}
 
         {/* Solution */}
         <motion.div
