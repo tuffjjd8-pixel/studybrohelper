@@ -4,7 +4,8 @@ import rehypeKatex from "rehype-katex";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { motion } from "framer-motion";
-import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send, Sparkles, Crown, Lock } from "lucide-react";
+import { BookOpen, Calculator, Beaker, Globe, Pencil, Copy, Share2, Check, Send, Sparkles, Crown, Lock, X, ZoomIn } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -178,6 +179,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
   const [humanizeUsed, setHumanizeUsed] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
   const navigate = useNavigate();
 
   const finalAnswer = useMemo(() => extractFinalAnswer(displayedSolution), [displayedSolution]);
@@ -341,15 +343,39 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       <div className="space-y-4">
 
         {/* Question */}
-        <div className="glass-card p-4">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            Question
-          </h3>
-          {questionImage && (
-            <img src={questionImage} alt="Question" className="max-h-48 rounded-lg mb-3 object-contain" />
-          )}
-          <p className="text-foreground">{question}</p>
-        </div>
+        {(() => {
+          const hasImage = !!questionImage;
+          const isPlaceholder = !question || /^image[- ]based question$/i.test(question.trim());
+          const showText = !!question && !(hasImage && isPlaceholder);
+          if (!hasImage && !showText) return null;
+          return (
+            <div className="glass-card p-4">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                Question
+              </h3>
+              {hasImage && (
+                <button
+                  type="button"
+                  onClick={() => setImageOpen(true)}
+                  className="group relative inline-block mb-3 rounded-lg overflow-hidden border border-border/60 bg-muted/30 hover:border-primary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  aria-label="View question image full screen"
+                >
+                  <img
+                    src={questionImage}
+                    alt="Question"
+                    loading="lazy"
+                    decoding="async"
+                    className="block max-h-[110px] w-auto object-contain"
+                  />
+                  <span className="absolute top-1 right-1 flex items-center justify-center w-6 h-6 rounded-full bg-background/70 backdrop-blur-sm text-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+              )}
+              {showText && <p className="text-foreground">{question}</p>}
+            </div>
+          );
+        })()}
 
         {/* Solution */}
         <motion.div
@@ -584,6 +610,22 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </>
           )}
         </motion.div>
+      )}
+
+      {/* Full-screen image lightbox */}
+      {questionImage && (
+        <Dialog open={imageOpen} onOpenChange={setImageOpen}>
+          <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto p-2 bg-background/95 backdrop-blur-sm border-border">
+            <div className="flex items-center justify-center w-full h-full overflow-auto">
+              <img
+                src={questionImage}
+                alt="Question (full view)"
+                className="max-w-full max-h-[88vh] object-contain rounded-md touch-pinch-zoom"
+                style={{ touchAction: "pinch-zoom" }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </motion.div>
   );
