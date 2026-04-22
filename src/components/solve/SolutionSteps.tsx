@@ -357,7 +357,12 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                 <button
                   type="button"
                   onClick={() => setImageOpen(true)}
-                  className="group relative inline-block mb-3 rounded-lg overflow-hidden border border-border/60 bg-muted/30 hover:border-primary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="group relative inline-block mb-3 rounded-lg overflow-hidden border border-white/10 hover:border-primary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 p-1.5"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, hsl(var(--muted) / 0.5), hsl(var(--muted) / 0.25)), repeating-conic-gradient(hsl(var(--foreground) / 0.04) 0% 25%, transparent 0% 50%) 50% / 12px 12px",
+                    boxShadow: "0 2px 10px hsl(0 0% 0% / 0.25), inset 0 0 0 1px hsl(var(--foreground) / 0.04)",
+                  }}
                   aria-label="View question image full screen"
                 >
                   <img
@@ -365,9 +370,9 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
                     alt="Question"
                     loading="lazy"
                     decoding="async"
-                    className="block max-h-[110px] w-auto object-contain"
+                    className="block max-h-[110px] w-auto object-contain rounded-md"
                   />
-                  <span className="absolute top-1 right-1 flex items-center justify-center w-6 h-6 rounded-full bg-background/70 backdrop-blur-sm text-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="absolute top-2 right-2 flex items-center justify-center w-6 h-6 rounded-full bg-background/70 backdrop-blur-sm text-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity">
                     <ZoomIn className="w-3.5 h-3.5" />
                   </span>
                 </button>
