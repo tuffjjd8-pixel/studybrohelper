@@ -133,6 +133,12 @@ Max 3 lines. Do NOT guess or hallucinate.
 \`Issue: <short issue>\`
 \`Fix: <minimal correction>\`
 
+CONTRADICTION RULE (CRITICAL):
+- If solving eliminates all variables and leaves a FALSE statement (e.g., \`5 = 10\`, \`0 = 7\`, \`3 = -3\`), the problem is INVALID — NOT "no solution".
+- STOP solving immediately the moment a contradiction appears. Do not continue algebra. Do not write "no solution" or "∅".
+- Output the INVALID format above. \`Issue:\` must name the contradiction (e.g., "leads to 5 = 10"). \`Fix:\` must suggest the smallest realistic correction (e.g., "change 5 to 10 on the left side").
+- An identity like \`0 = 0\` is NOT a contradiction — that means infinitely many solutions, handle as MEDIUM.
+
 GLOBAL RULES:
 - NEVER output both raw answer and "Final Answer:" — pick one based on tier.
 - NEVER include: steps, derivations, long equations, paragraphs, headings, greetings, preamble, closings.
