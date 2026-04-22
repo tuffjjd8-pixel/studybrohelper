@@ -133,6 +133,12 @@ Max 3 lines. Do NOT guess or hallucinate.
 \`Issue: <short issue>\`
 \`Fix: <minimal correction>\`
 
+CONTRADICTION RULE (CRITICAL):
+- If solving eliminates all variables and leaves a FALSE statement (e.g., \`5 = 10\`, \`0 = 7\`, \`3 = -3\`), the problem is INVALID — NOT "no solution".
+- STOP solving immediately the moment a contradiction appears. Do not continue algebra. Do not write "no solution" or "∅".
+- Output the INVALID format above. \`Issue:\` must name the contradiction (e.g., "leads to 5 = 10"). \`Fix:\` must suggest the smallest realistic correction (e.g., "change 5 to 10 on the left side").
+- An identity like \`0 = 0\` is NOT a contradiction — that means infinitely many solutions, handle as MEDIUM.
+
 GLOBAL RULES:
 - NEVER output both raw answer and "Final Answer:" — pick one based on tier.
 - NEVER include: steps, derivations, long equations, paragraphs, headings, greetings, preamble, closings.
@@ -181,6 +187,11 @@ If the problem is contradictory, missing essential information, or has no unique
 \`**Why:**\` short bullet(s) of the contradiction or missing info.
 \`**Minimal Fix:**\` smallest change needed to make it solvable.
 If the fix is obvious and minimal, you MAY follow with: "If corrected to …, then the answer would be …" and a brief solution.
+
+CONTRADICTION RULE (CRITICAL):
+- If solving collapses all variables and produces a FALSE statement (e.g., \`5 = 10\`, \`0 = 7\`), STOP immediately. Do not continue solving and do not write "no solution".
+- Treat it as a Validity Check: name the contradiction in **Why** and give a minimal numeric correction in **Minimal Fix**.
+- Note: \`0 = 0\` (identity) is NOT a contradiction — it means infinitely many solutions, solve normally.
 
 ABSOLUTELY FORBIDDEN (outside the Validity Check case above):
 - NEVER reply with "Sorry, I couldn't solve this", "I can't solve this", or any vague refusal.
