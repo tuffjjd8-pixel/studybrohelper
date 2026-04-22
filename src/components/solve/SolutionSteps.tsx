@@ -179,6 +179,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const { humanize, isHumanizing, isHumanized, limitReached, reset: resetHumanize } = useHumanize({ isPremium, isAuthenticated });
   const [humanizeUsed, setHumanizeUsed] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
   const navigate = useNavigate();
 
   const finalAnswer = useMemo(() => extractFinalAnswer(displayedSolution), [displayedSolution]);
