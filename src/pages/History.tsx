@@ -212,34 +212,12 @@ const History = () => {
                 WebkitTapHighlightColor: 'transparent'
               }}>
                       <div className="flex items-center gap-3">
-                        {accessible && solve.question_image_url ? (
-                          <div
-                            className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border border-white/10 p-0.5"
-                            style={{
-                              background:
-                                "linear-gradient(135deg, hsl(var(--muted) / 0.5), hsl(var(--muted) / 0.25)), repeating-conic-gradient(hsl(var(--foreground) / 0.04) 0% 25%, transparent 0% 50%) 50% / 8px 8px",
-                              boxShadow: "0 2px 6px hsl(0 0% 0% / 0.25)",
-                            }}
-                          >
-                            <img
-                              src={solve.question_image_url}
-                              alt="Question"
-                              loading="lazy"
-                              decoding="async"
-                              className="w-full h-full object-cover rounded-md"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).style.display = "none";
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div className="text-2xl flex-shrink-0 w-10 flex items-center justify-center">
-                            {accessible ? (subjectIcons[solve.subject] || "📚") : <Lock className="w-5 h-5 text-muted-foreground" />}
-                          </div>
-                        )}
+                        <div className="text-2xl flex-shrink-0">
+                          {accessible ? (subjectIcons[solve.subject] || "📚") : <Lock className="w-5 h-5 text-muted-foreground" />}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm sm:text-base line-clamp-2 leading-snug">
-                            {solve.question_text || (solve.question_image_url ? "📷 Image problem" : "Untitled problem")}
+                            {solve.question_text || "Image question"}
                           </p>
                           <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
                             <span className="capitalize bg-muted/50 px-2 py-0.5 rounded-md">
