@@ -21,12 +21,33 @@ interface Solve {
 }
 const subjectIcons: Record<string, string> = {
   math: "📐",
+  physics: "⚛️",
+  chemistry: "🧪",
+  biology: "🧬",
+  engineering: "⚙️",
+  statistics: "📊",
+  "computer science": "💻",
+  "logic / puzzle": "🧩",
+  // legacy fallbacks
   science: "🔬",
   history: "📜",
   english: "📖",
   language: "🌍",
-  general: "📚"
+  general: "📚",
+  other: "📚",
 };
+const subjectLabels: Record<string, string> = {
+  math: "Math",
+  physics: "Physics",
+  chemistry: "Chemistry",
+  biology: "Biology",
+  engineering: "Engineering",
+  statistics: "Statistics",
+  "computer science": "Computer Science",
+  "logic / puzzle": "Logic / Puzzle",
+};
+const formatSubject = (s: string) =>
+  subjectLabels[s] || s.charAt(0).toUpperCase() + s.slice(1);
 const History = () => {
   const navigate = useNavigate();
   const {
