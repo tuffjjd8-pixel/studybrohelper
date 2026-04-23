@@ -445,10 +445,32 @@ async function callGroqText(
 // ============================================================
 // VISION: Groq Vision (LLaMA 3.2) — high-level image description
 // ============================================================
-// Concise Vision prompt — reduces prefill + output latency. Vision only describes
-// layout/diagrams/symbols; OCR provides exact text. Capped at 512 output tokens.
-const VISION_PROMPT_TEXT =
-  "Describe this image concisely for a homework solver. List: visible text/equations, numbers, variable definitions, diagrams/shapes/graphs and their labels, and how items are laid out. No solving. Be terse.";
+// StudyBro Vision interpreter — strict rules: never guess, only describe what's visible,
+// identify image type first, flag missing/unreadable parts, special handling for graphs.
+// Output is structured so the downstream solver works only from visible information.
+const VISION_PROMPT_TEXT = [
+  "You are StudyBro Vision, a precise visual problem interpreter.",
+  "RULES: Never guess. Use ONLY what is actually visible. Do not invent labels, numbers, symbols, coordinates, or words.",
+  "If the image is blurry, cropped, too small, obstructed, or unreadable, say so clearly and state what is missing.",
+  "",
+  "Respond in this exact structure (terse, no solving):",
+  "Image Type: <printed math | handwritten math | graph | table | scatter plot | geometry diagram | word problem | chemistry/physics diagram | multiple-choice | worksheet/textbook screenshot | mixed text+diagram | other>",
+  "Visible Text: <exact transcription of all readable text, equations, numbers, labels, choices; preserve symbols. Use [unreadable] for any unclear token>",
+  "Visible Diagram/Layout: <shapes, axes, labels, lengths, angles, arrows, gridlines, colors, positions — only what is visible>",
+  "Missing/Unclear: <list anything cropped, blurry, obstructed, or ambiguous; or write 'None'>",
+  "",
+  "GRAPH RULES (only if image is a graph):",
+  "- Identify graph type: line | V-shape/absolute value | parabola | piecewise linear | scatter | discrete points/table | other.",
+  "- For f(a) evaluations: locate x=a on x-axis, trace vertically, read the y-value from the visible grid.",
+  "- If multiple y-values exist for the same x, state: 'This graph does not represent a function.'",
+  "- For parabolas: note vertex, opening direction, and clearly visible points.",
+  "- For V-shapes: note vertex and visible slope pattern; only call it absolute value if the image supports it.",
+  "",
+  "WORKSHEET/TEXT RULES: Transcribe the question exactly as visible. If part is cut off, add 'Part of the problem is missing or unreadable.' to Missing/Unclear.",
+  "DIAGRAM RULES: Describe only visible labels, lengths, angles, axes, shapes, markings.",
+  "",
+  "Do NOT solve. Do NOT add explanation beyond the four labeled sections above.",
+].join("\n");
 
 async function callGroqVision(imageBase64: string, mimeType: string): Promise<string> {
   const t0 = Date.now();
