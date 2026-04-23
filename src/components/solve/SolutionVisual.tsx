@@ -156,14 +156,7 @@ function GraphVisual({ payload }: { payload: GraphPayload }) {
               >
                 <Label value={yLabel} angle={-90} position="insideLeft" fill={axis} fontSize={11} />
               </YAxis>
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  color: "hsl(var(--foreground))",
-                }}
-              />
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: axis, strokeOpacity: 0.3 }} />
               <ReferenceLine x={0} stroke={axis} strokeOpacity={0.4} />
               <ReferenceLine y={0} stroke={axis} strokeOpacity={0.4} />
               <Scatter data={data} fill={accent} />
