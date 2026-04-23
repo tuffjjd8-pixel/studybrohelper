@@ -105,6 +105,28 @@ function GraphVisual({ payload }: { payload: GraphPayload }) {
   const xLabel = payload.x_label || "x";
   const yLabel = payload.y_label || "y";
 
+  const CustomTooltip = ({ active, payload: tipPayload }: { active?: boolean; payload?: Array<{ payload?: { x: number; y: number } }> }) => {
+    if (!active || !tipPayload || !tipPayload.length) return null;
+    const point = tipPayload[0]?.payload;
+    if (!point || typeof point.x !== "number" || typeof point.y !== "number") return null;
+    return (
+      <div
+        style={{
+          background: "hsl(var(--card))",
+          border: "1px solid hsl(var(--border))",
+          borderRadius: "8px",
+          color: "hsl(var(--foreground))",
+          padding: "6px 10px",
+          fontSize: "12px",
+          lineHeight: 1.4,
+        }}
+      >
+        <div>{xLabel}: {round(point.x)}</div>
+        <div>{yLabel}: {round(point.y)}</div>
+      </div>
+    );
+  };
+
   return (
     <div className="rounded-xl border border-border/60 bg-card/60 p-4">
       <div className="flex items-center gap-2 mb-3">
@@ -134,14 +156,7 @@ function GraphVisual({ payload }: { payload: GraphPayload }) {
               >
                 <Label value={yLabel} angle={-90} position="insideLeft" fill={axis} fontSize={11} />
               </YAxis>
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  color: "hsl(var(--foreground))",
-                }}
-              />
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: axis, strokeOpacity: 0.3 }} />
               <ReferenceLine x={0} stroke={axis} strokeOpacity={0.4} />
               <ReferenceLine y={0} stroke={axis} strokeOpacity={0.4} />
               <Scatter data={data} fill={accent} />
@@ -167,14 +182,7 @@ function GraphVisual({ payload }: { payload: GraphPayload }) {
               >
                 <Label value={yLabel} angle={-90} position="insideLeft" fill={axis} fontSize={11} />
               </YAxis>
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  color: "hsl(var(--foreground))",
-                }}
-              />
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: axis, strokeOpacity: 0.3 }} />
               <ReferenceLine x={0} stroke={axis} strokeOpacity={0.4} />
               <ReferenceLine y={0} stroke={axis} strokeOpacity={0.4} />
               <Line
