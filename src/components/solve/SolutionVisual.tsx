@@ -86,15 +86,6 @@ function round(n: number): number {
 
 function GraphVisual({ payload }: { payload: GraphPayload }) {
   const data = useMemo(() => buildLineSeries(payload), [payload]);
-
-  if (data.length === 0) return null;
-
-  const isScatter = payload.type === "points" && (!payload.equation && data.length < 30);
-  const accent = "hsl(var(--primary))";
-  const grid = "hsl(var(--border))";
-  const axis = "hsl(var(--muted-foreground))";
-  const xLabel = payload.x_label || "x";
-  const yLabel = payload.y_label || "y";
   const keyPointEntries = useMemo<Array<[string, [number, number]]>>(() => {
     const entries: Array<[string, [number, number]]> = [];
     if (payload.key_points) {
@@ -104,6 +95,15 @@ function GraphVisual({ payload }: { payload: GraphPayload }) {
     }
     return entries;
   }, [payload]);
+
+  if (data.length === 0) return null;
+
+  const isScatter = payload.type === "points" && (!payload.equation && data.length < 30);
+  const accent = "hsl(var(--primary))";
+  const grid = "hsl(var(--border))";
+  const axis = "hsl(var(--muted-foreground))";
+  const xLabel = payload.x_label || "x";
+  const yLabel = payload.y_label || "y";
 
   return (
     <div className="rounded-xl border border-border/60 bg-card/60 p-4">
