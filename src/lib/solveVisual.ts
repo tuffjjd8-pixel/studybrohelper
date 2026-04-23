@@ -3,7 +3,7 @@
 // end of the solution text. This module extracts and validates it.
 
 export type GraphPayload = {
-  type: "line" | "parabola" | "points";
+  type: "function" | "line" | "parabola" | "points";
   equation?: string;
   x_min?: number;
   x_max?: number;
