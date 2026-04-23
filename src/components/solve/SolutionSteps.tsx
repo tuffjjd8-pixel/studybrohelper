@@ -464,6 +464,13 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </div>
           )}
 
+          {/* Optional AI-returned visual (graph or table) */}
+          {visual && (
+            <div className="mt-4">
+              <SolutionVisual visual={visual} />
+            </div>
+          )}
+
           {/* Humanize section — fully inside capture area */}
           {!isHistory || isPremium ? (
             <div className="mt-4 pt-4 border-t border-border/50 space-y-3 humanize-section">
