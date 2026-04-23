@@ -56,12 +56,16 @@ const SHARED_FORMATTING_RULES = `
 - Do NOT add a visual for trivial arithmetic, prose questions, or essays.
 - Do NOT describe the graph or table in the text. Do NOT invent values. Do NOT guess missing data.
 - Format (must be the LAST thing in the response, on its own lines, exact tags):
-  <visual>{ "visual_type": "graph", "visual_payload": { "type": "line" | "parabola" | "points", "equation": "y = ...", "x_min": -10, "x_max": 10, "vertex": [h,k], "slope": m, "intercept": b, "points": [[x,y], ...] } }</visual>
+  <visual>{ "visual_type": "graph", "visual_payload": { "type": "function" | "line" | "parabola" | "points", "equation": "y = ...", "x_min": -10, "x_max": 10, "vertex": [h,k], "slope": m, "intercept": b, "points": [[x,y], ...] } }</visual>
   OR
   <visual>{ "visual_type": "table", "visual_payload": { "columns": ["Col1","Col2"], "rows": [["v1","v2"], ...] } }</visual>
-- JSON inside <visual>...</visual> must be valid (double quotes, no comments, no trailing commas).
-- Only include the fields that apply. For "line" provide equation OR slope+intercept. For "parabola" provide equation and (optionally) vertex. For "points" provide points. For tables, keep <= 8 columns and <= 20 rows.
-- If unsure, OMIT the visual block entirely.
+- Prefer "function" with an equation + x_min/x_max for any equation-based curve so the frontend can render a smooth curve. Only use "points" when no equation is known. Use "line" only for clearly linear y = mx + b. Use "parabola" only for explicit quadratics where you also want to flag the vertex.
+- STRICT JSON RULES (the <visual> block MUST be the LAST part of the response):
+  - JSON must be strictly valid (double quotes, properly closed brackets).
+  - No comments, no explanations, no markdown, no code fences inside the JSON.
+  - No trailing commas. No NaN/Infinity. Only ASCII numbers and strings.
+  - Only include fields that apply. For tables, keep <= 8 columns and <= 20 rows.
+- If you are not 100% sure the JSON will be valid, DO NOT return a <visual> block at all.
 
 ## Math Safety:
 - Restate all numbers exactly before using them.
