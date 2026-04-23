@@ -18,6 +18,8 @@ import { useNavigate } from "react-router-dom";
 import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
 import { getPublicSolveUrl } from "@/lib/publicAppUrl";
+import { extractVisualFromText, stripVisualBlock } from "@/lib/solveVisual";
+import { SolutionVisual } from "@/components/solve/SolutionVisual";
 
 /**
  * Count occurrences of a character in a string.
