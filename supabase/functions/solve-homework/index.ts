@@ -880,6 +880,80 @@ function cleanSolutionText(solution: string, _isPremium: boolean): string {
   return cleaned.trim();
 }
 
+// Remove graph blocks from solution text
+function cleanSolutionText(solution: string, _isPremium: boolean): string {
+  let cleaned = solution;
+  
+  // Remove legacy graph code blocks
+  cleaned = cleaned.replace(/```graph\n?[\s\S]*?\n?```/g, "");
+  // Remove inline <visual>...</visual> blocks (handled separately)
+  cleaned = cleaned.replace(/<visual>[\s\S]*?<\/visual>/gi, "");
+  
+  // Fix LaTeX delimiters
+  cleaned = fixLatexDelimiters(cleaned);
+  
+  return cleaned.trim();
+}
+
+// Extract the optional <visual>...</visual> JSON block from a solution.
+// Returns a sanitized { visual_type, visual_payload } or null.
+function extractVisualBlock(
+  solution: string
+): { visual_type: "graph" | "table"; visual_payload: Record<string, unknown> } | null {
+  if (!solution) return null;
+  const match = solution.match(/<visual>([\s\S]*?)<\/visual>/i);
+  if (!match) return null;
+  let raw = match[1].trim();
+  if (raw.startsWith("```")) {
+    raw = raw.replace(/```(?:json)?\n?/g, "").replace(/\n?```$/g, "").trim();
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    const vt = parsed?.visual_type;
+    const vp = parsed?.visual_payload;
+    if ((vt !== "graph" && vt !== "table") || !vp || typeof vp !== "object") return null;
+
+    if (vt === "table") {
+      const columns = Array.isArray(vp.columns) ? vp.columns.map((c: unknown) => String(c)).slice(0, 8) : null;
+      const rows = Array.isArray(vp.rows)
+        ? vp.rows
+            .filter((r: unknown) => Array.isArray(r))
+            .slice(0, 20)
+            .map((r: unknown[]) => r.slice(0, 8).map((c) => (c == null ? "" : String(c))))
+        : null;
+      if (!columns || !rows || columns.length === 0) return null;
+      return { visual_type: "table", visual_payload: { columns, rows } };
+    }
+
+    // graph
+    const type = ["line", "parabola", "points"].includes(vp.type) ? vp.type : null;
+    if (!type) return null;
+    const payload: Record<string, unknown> = { type };
+    if (typeof vp.equation === "string") payload.equation = vp.equation.slice(0, 200);
+    if (typeof vp.x_min === "number" && Number.isFinite(vp.x_min)) payload.x_min = vp.x_min;
+    if (typeof vp.x_max === "number" && Number.isFinite(vp.x_max)) payload.x_max = vp.x_max;
+    if (typeof vp.slope === "number" && Number.isFinite(vp.slope)) payload.slope = vp.slope;
+    if (typeof vp.intercept === "number" && Number.isFinite(vp.intercept)) payload.intercept = vp.intercept;
+    if (Array.isArray(vp.vertex) && vp.vertex.length === 2 && vp.vertex.every((n: unknown) => typeof n === "number")) {
+      payload.vertex = vp.vertex;
+    }
+    if (Array.isArray(vp.points)) {
+      const pts = vp.points
+        .filter((p: unknown) => Array.isArray(p) && p.length === 2 && typeof p[0] === "number" && typeof p[1] === "number" && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+        .slice(0, 200);
+      if (pts.length > 0) payload.points = pts;
+    }
+    // Require at least equation, points, or slope+intercept
+    if (!payload.equation && !payload.points && !(typeof payload.slope === "number" && typeof payload.intercept === "number")) {
+      return null;
+    }
+    return { visual_type: "graph", visual_payload: payload };
+  } catch (e) {
+    console.error("Failed to parse <visual> block:", e, "raw:", raw.slice(0, 200));
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
