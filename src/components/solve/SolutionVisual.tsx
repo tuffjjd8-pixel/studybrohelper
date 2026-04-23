@@ -8,6 +8,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  ReferenceDot,
+  Label,
   ScatterChart,
   Scatter,
 } from "recharts";
