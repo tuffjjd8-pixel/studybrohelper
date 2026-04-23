@@ -3,7 +3,7 @@
 // end of the solution text. This module extracts and validates it.
 
 export type GraphPayload = {
-  type: "line" | "parabola" | "points";
+  type: "function" | "line" | "parabola" | "points";
   equation?: string;
   x_min?: number;
   x_max?: number;
@@ -71,7 +71,7 @@ export function validateVisual(parsed: unknown): SolveVisual | null {
 
   if (vt === "graph") {
     const type = vp.type;
-    if (type !== "line" && type !== "parabola" && type !== "points") return null;
+    if (type !== "function" && type !== "line" && type !== "parabola" && type !== "points") return null;
     const out: GraphPayload = { type };
     if (typeof vp.equation === "string") out.equation = String(vp.equation).slice(0, 200);
     if (typeof vp.x_min === "number" && Number.isFinite(vp.x_min)) out.x_min = vp.x_min;
