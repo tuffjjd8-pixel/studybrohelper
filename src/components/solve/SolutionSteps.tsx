@@ -18,6 +18,8 @@ import { useNavigate } from "react-router-dom";
 import { DeepModeReveal } from "@/components/solve/DeepModeReveal";
 import { preprocessMath } from "@/lib/mathPreprocess";
 import { getPublicSolveUrl } from "@/lib/publicAppUrl";
+import { extractVisualFromText, stripVisualBlock } from "@/lib/solveVisual";
+import { SolutionVisual } from "@/components/solve/SolutionVisual";
 
 /**
  * Count occurrences of a character in a string.
@@ -182,12 +184,17 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const [imageOpen, setImageOpen] = useState(false);
   const navigate = useNavigate();
 
-  const finalAnswer = useMemo(() => extractFinalAnswer(displayedSolution), [displayedSolution]);
+  // Extract optional graph/table visual from solution text
+  const visual = useMemo(() => extractVisualFromText(displayedSolution), [displayedSolution]);
+  // Solution text with the <visual> JSON block removed (used for all rendering/extraction)
+  const cleanSolution = useMemo(() => stripVisualBlock(displayedSolution), [displayedSolution]);
+
+  const finalAnswer = useMemo(() => extractFinalAnswer(cleanSolution), [cleanSolution]);
   // When the final answer is surfaced at the top, strip ANY "Final Answer:" / "Answer:" lines
   // from the body to avoid duplication (leading, trailing, or standalone).
   const bodySolution = useMemo(() => {
-    if (!finalAnswer) return displayedSolution;
-    let s = displayedSolution;
+    if (!finalAnswer) return cleanSolution;
+    let s = cleanSolution;
     // Instant Mode: strip ALL "Final Answer:" / "Answer:" lines (avoids duplication with top card).
     // Deep Mode: only strip the FIRST leading "Final Answer:" line so the structured body
     // (Setup/Solve/Result/Quick Check) stays intact.
@@ -198,7 +205,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
     }
     s = s.replace(/\n{3,}/g, "\n\n");
     return s.trim();
-  }, [displayedSolution, finalAnswer, isDeepMode]);
+  }, [cleanSolution, finalAnswer, isDeepMode]);
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
   const showFollowUp = !isHistory;
 
@@ -454,6 +461,13 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
               >
                 {preprocessMath(bodySolution)}
               </ReactMarkdown>
+            </div>
+          )}
+
+          {/* Optional AI-returned visual (graph or table) */}
+          {visual && (
+            <div className="mt-4">
+              <SolutionVisual visual={visual} />
             </div>
           )}
 

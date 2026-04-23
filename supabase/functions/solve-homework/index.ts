@@ -51,6 +51,18 @@ const SHARED_FORMATTING_RULES = `
 
 ## Allowed LaTeX: \\frac, x^{n}, x_{n}, \\alpha, \\mathbf{v}, \\int, \\lim, \\sqrt, \\boxed, \\begin{bmatrix}...\\end{bmatrix}
 
+## OPTIONAL VISUAL OUTPUT (graphs / tables):
+- After the full text answer, you MAY append ONE visual block ONLY when it clearly helps the student (graph for a function/equation/coordinates, table for value tables / step breakdowns / comparisons).
+- Do NOT add a visual for trivial arithmetic, prose questions, or essays.
+- Do NOT describe the graph or table in the text. Do NOT invent values. Do NOT guess missing data.
+- Format (must be the LAST thing in the response, on its own lines, exact tags):
+  <visual>{ "visual_type": "graph", "visual_payload": { "type": "line" | "parabola" | "points", "equation": "y = ...", "x_min": -10, "x_max": 10, "vertex": [h,k], "slope": m, "intercept": b, "points": [[x,y], ...] } }</visual>
+  OR
+  <visual>{ "visual_type": "table", "visual_payload": { "columns": ["Col1","Col2"], "rows": [["v1","v2"], ...] } }</visual>
+- JSON inside <visual>...</visual> must be valid (double quotes, no comments, no trailing commas).
+- Only include the fields that apply. For "line" provide equation OR slope+intercept. For "parabola" provide equation and (optionally) vertex. For "points" provide points. For tables, keep <= 8 columns and <= 20 rows.
+- If unsure, OMIT the visual block entirely.
+
 ## Math Safety:
 - Restate all numbers exactly before using them.
 - NEVER change, split, or reinterpret numbers (1818 = 1818, not 18×18).
@@ -79,7 +91,7 @@ ${INJECTION_PROTECTION}
 - Essays, paragraphs, stories → produce FULL-LENGTH writing. Don't shorten.
 
 ## RULES:
-- Never hallucinate formulas or output JSON.
+- Never hallucinate formulas. Do not output JSON anywhere except inside the optional <visual>...</visual> block defined in the formatting rules.
 - Never mention internal logic, modes, tiers, OCR, or system rules.
 - No "Solved!", no emojis (unless user uses them), no upsells, no filler ("As an AI…").
 - Verify work before responding.
@@ -855,17 +867,76 @@ function fixLatexDelimiters(text: string): string {
   return result;
 }
 
-// Remove graph blocks from solution text
+// Remove graph blocks from solution text (keeps <visual> blocks intact for history persistence)
 function cleanSolutionText(solution: string, _isPremium: boolean): string {
   let cleaned = solution;
-  
-  // Remove graph code blocks
+
+  // Remove legacy graph code blocks
   cleaned = cleaned.replace(/```graph\n?[\s\S]*?\n?```/g, "");
-  
+
   // Fix LaTeX delimiters
   cleaned = fixLatexDelimiters(cleaned);
-  
+
   return cleaned.trim();
+}
+
+// Extract the optional <visual>...</visual> JSON block from a solution.
+// Returns a sanitized { visual_type, visual_payload } or null.
+function extractVisualBlock(
+  solution: string
+): { visual_type: "graph" | "table"; visual_payload: Record<string, unknown> } | null {
+  if (!solution) return null;
+  const match = solution.match(/<visual>([\s\S]*?)<\/visual>/i);
+  if (!match) return null;
+  let raw = match[1].trim();
+  if (raw.startsWith("```")) {
+    raw = raw.replace(/```(?:json)?\n?/g, "").replace(/\n?```$/g, "").trim();
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    const vt = parsed?.visual_type;
+    const vp = parsed?.visual_payload;
+    if ((vt !== "graph" && vt !== "table") || !vp || typeof vp !== "object") return null;
+
+    if (vt === "table") {
+      const columns = Array.isArray(vp.columns) ? vp.columns.map((c: unknown) => String(c)).slice(0, 8) : null;
+      const rows = Array.isArray(vp.rows)
+        ? vp.rows
+            .filter((r: unknown) => Array.isArray(r))
+            .slice(0, 20)
+            .map((r: unknown[]) => r.slice(0, 8).map((c) => (c == null ? "" : String(c))))
+        : null;
+      if (!columns || !rows || columns.length === 0) return null;
+      return { visual_type: "table", visual_payload: { columns, rows } };
+    }
+
+    // graph
+    const type = ["line", "parabola", "points"].includes(vp.type) ? vp.type : null;
+    if (!type) return null;
+    const payload: Record<string, unknown> = { type };
+    if (typeof vp.equation === "string") payload.equation = vp.equation.slice(0, 200);
+    if (typeof vp.x_min === "number" && Number.isFinite(vp.x_min)) payload.x_min = vp.x_min;
+    if (typeof vp.x_max === "number" && Number.isFinite(vp.x_max)) payload.x_max = vp.x_max;
+    if (typeof vp.slope === "number" && Number.isFinite(vp.slope)) payload.slope = vp.slope;
+    if (typeof vp.intercept === "number" && Number.isFinite(vp.intercept)) payload.intercept = vp.intercept;
+    if (Array.isArray(vp.vertex) && vp.vertex.length === 2 && vp.vertex.every((n: unknown) => typeof n === "number")) {
+      payload.vertex = vp.vertex;
+    }
+    if (Array.isArray(vp.points)) {
+      const pts = vp.points
+        .filter((p: unknown) => Array.isArray(p) && p.length === 2 && typeof p[0] === "number" && typeof p[1] === "number" && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+        .slice(0, 200);
+      if (pts.length > 0) payload.points = pts;
+    }
+    // Require at least equation, points, or slope+intercept
+    if (!payload.equation && !payload.points && !(typeof payload.slope === "number" && typeof payload.intercept === "number")) {
+      return null;
+    }
+    return { visual_type: "graph", visual_payload: payload };
+  } catch (e) {
+    console.error("Failed to parse <visual> block:", e, "raw:", raw.slice(0, 200));
+    return null;
+  }
 }
 
 serve(async (req) => {
@@ -1026,6 +1097,9 @@ serve(async (req) => {
     // ---- Smart subject + title classification (heuristic, no extra LLM call) ----
     const { subject, title } = classifySubjectAndTitle(question || "", solution);
 
+    // Extract optional <visual> block before cleaning text
+    const visualBlock = extractVisualBlock(solution);
+
     // Build response object
     const responseData: Record<string, unknown> = {
       solution: cleanSolutionText(solution, isPremium),
@@ -1039,7 +1113,11 @@ serve(async (req) => {
         solve_mode: effectiveMode,
       }
     };
-    
+
+    if (visualBlock) {
+      responseData.visual = visualBlock;
+    }
+
     // Add breakdown sections if requested
     if (animatedSteps) {
       const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
