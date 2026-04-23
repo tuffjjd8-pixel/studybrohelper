@@ -93,6 +93,17 @@ function GraphVisual({ payload }: { payload: GraphPayload }) {
   const accent = "hsl(var(--primary))";
   const grid = "hsl(var(--border))";
   const axis = "hsl(var(--muted-foreground))";
+  const xLabel = payload.x_label || "x";
+  const yLabel = payload.y_label || "y";
+  const keyPointEntries = useMemo<Array<[string, [number, number]]>>(() => {
+    const entries: Array<[string, [number, number]]> = [];
+    if (payload.key_points) {
+      for (const [k, v] of Object.entries(payload.key_points)) entries.push([k, v]);
+    } else if (payload.vertex) {
+      entries.push(["vertex", payload.vertex]);
+    }
+    return entries;
+  }, [payload]);
 
   return (
     <div className="rounded-xl border border-border/60 bg-card/60 p-4">
