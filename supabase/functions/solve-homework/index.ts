@@ -871,19 +871,6 @@ function fixLatexDelimiters(text: string): string {
 function cleanSolutionText(solution: string, _isPremium: boolean): string {
   let cleaned = solution;
   
-  // Remove graph code blocks
-  cleaned = cleaned.replace(/```graph\n?[\s\S]*?\n?```/g, "");
-  
-  // Fix LaTeX delimiters
-  cleaned = fixLatexDelimiters(cleaned);
-  
-  return cleaned.trim();
-}
-
-// Remove graph blocks from solution text
-function cleanSolutionText(solution: string, _isPremium: boolean): string {
-  let cleaned = solution;
-  
   // Remove legacy graph code blocks
   cleaned = cleaned.replace(/```graph\n?[\s\S]*?\n?```/g, "");
   // Remove inline <visual>...</visual> blocks (handled separately)
