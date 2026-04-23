@@ -8,6 +8,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  ReferenceDot,
+  Label,
   ScatterChart,
   Scatter,
 } from "recharts";
@@ -84,6 +86,15 @@ function round(n: number): number {
 
 function GraphVisual({ payload }: { payload: GraphPayload }) {
   const data = useMemo(() => buildLineSeries(payload), [payload]);
+  const keyPointEntries = useMemo<Array<[string, [number, number]]>>(() => {
+    const entries: Array<[string, [number, number]]> = [];
+    if (payload.key_points) {
+      for (const [k, v] of Object.entries(payload.key_points)) entries.push([k, v]);
+    } else if (payload.vertex) {
+      entries.push(["vertex", payload.vertex]);
+    }
+    return entries;
+  }, [payload]);
 
   if (data.length === 0) return null;
 
@@ -91,6 +102,8 @@ function GraphVisual({ payload }: { payload: GraphPayload }) {
   const accent = "hsl(var(--primary))";
   const grid = "hsl(var(--border))";
   const axis = "hsl(var(--muted-foreground))";
+  const xLabel = payload.x_label || "x";
+  const yLabel = payload.y_label || "y";
 
   return (
     <div className="rounded-xl border border-border/60 bg-card/60 p-4">
@@ -103,20 +116,24 @@ function GraphVisual({ payload }: { payload: GraphPayload }) {
       <div className="w-full h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
           {isScatter ? (
-            <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+            <ScatterChart margin={{ top: 8, right: 16, left: 8, bottom: 20 }}>
               <CartesianGrid stroke={grid} strokeDasharray="3 3" />
               <XAxis
                 type="number"
                 dataKey="x"
                 stroke={axis}
                 tick={{ fill: axis, fontSize: 11 }}
-              />
+              >
+                <Label value={xLabel} position="insideBottom" offset={-8} fill={axis} fontSize={11} />
+              </XAxis>
               <YAxis
                 type="number"
                 dataKey="y"
                 stroke={axis}
                 tick={{ fill: axis, fontSize: 11 }}
-              />
+              >
+                <Label value={yLabel} angle={-90} position="insideLeft" fill={axis} fontSize={11} />
+              </YAxis>
               <Tooltip
                 contentStyle={{
                   background: "hsl(var(--card))",
@@ -128,9 +145,12 @@ function GraphVisual({ payload }: { payload: GraphPayload }) {
               <ReferenceLine x={0} stroke={axis} strokeOpacity={0.4} />
               <ReferenceLine y={0} stroke={axis} strokeOpacity={0.4} />
               <Scatter data={data} fill={accent} />
+              {keyPointEntries.map(([k, [x, y]]) => (
+                <ReferenceDot key={k} x={x} y={y} r={4} fill={accent} stroke="hsl(var(--background))" strokeWidth={1.5} />
+              ))}
             </ScatterChart>
           ) : (
-            <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+            <LineChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 20 }}>
               <CartesianGrid stroke={grid} strokeDasharray="3 3" />
               <XAxis
                 dataKey="x"
@@ -138,11 +158,15 @@ function GraphVisual({ payload }: { payload: GraphPayload }) {
                 domain={["dataMin", "dataMax"]}
                 stroke={axis}
                 tick={{ fill: axis, fontSize: 11 }}
-              />
+              >
+                <Label value={xLabel} position="insideBottom" offset={-8} fill={axis} fontSize={11} />
+              </XAxis>
               <YAxis
                 stroke={axis}
                 tick={{ fill: axis, fontSize: 11 }}
-              />
+              >
+                <Label value={yLabel} angle={-90} position="insideLeft" fill={axis} fontSize={11} />
+              </YAxis>
               <Tooltip
                 contentStyle={{
                   background: "hsl(var(--card))",
@@ -161,11 +185,21 @@ function GraphVisual({ payload }: { payload: GraphPayload }) {
                 dot={false}
                 isAnimationActive={false}
               />
+              {keyPointEntries.map(([k, [x, y]]) => (
+                <ReferenceDot key={k} x={x} y={y} r={4} fill={accent} stroke="hsl(var(--background))" strokeWidth={1.5} />
+              ))}
             </LineChart>
           )}
         </ResponsiveContainer>
       </div>
-      {payload.vertex && (
+      {keyPointEntries.length > 0 && (
+        <p className="text-xs text-muted-foreground mt-2">
+          {keyPointEntries
+            .map(([k, [x, y]]) => `${k}: (${x}, ${y})`)
+            .join(" · ")}
+        </p>
+      )}
+      {keyPointEntries.length === 0 && payload.vertex && (
         <p className="text-xs text-muted-foreground mt-2">
           Vertex: ({payload.vertex[0]}, {payload.vertex[1]})
         </p>

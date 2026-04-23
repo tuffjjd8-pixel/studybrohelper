@@ -7,10 +7,13 @@ export type GraphPayload = {
   equation?: string;
   x_min?: number;
   x_max?: number;
+  x_label?: string;
+  y_label?: string;
   vertex?: [number, number];
   slope?: number;
   intercept?: number;
   points?: Array<[number, number]>;
+  key_points?: Record<string, [number, number]>;
 };
 
 export type TablePayload = {
@@ -76,6 +79,8 @@ export function validateVisual(parsed: unknown): SolveVisual | null {
     if (typeof vp.equation === "string") out.equation = String(vp.equation).slice(0, 200);
     if (typeof vp.x_min === "number" && Number.isFinite(vp.x_min)) out.x_min = vp.x_min;
     if (typeof vp.x_max === "number" && Number.isFinite(vp.x_max)) out.x_max = vp.x_max;
+    if (typeof vp.x_label === "string") out.x_label = String(vp.x_label).slice(0, 24);
+    if (typeof vp.y_label === "string") out.y_label = String(vp.y_label).slice(0, 24);
     if (typeof vp.slope === "number" && Number.isFinite(vp.slope)) out.slope = vp.slope;
     if (typeof vp.intercept === "number" && Number.isFinite(vp.intercept)) out.intercept = vp.intercept;
     if (
@@ -99,6 +104,22 @@ export function validateVisual(parsed: unknown): SolveVisual | null {
         )
         .slice(0, 200) as Array<[number, number]>;
       if (pts.length > 0) out.points = pts;
+    }
+    if (vp.key_points && typeof vp.key_points === "object" && !Array.isArray(vp.key_points)) {
+      const kp: Record<string, [number, number]> = {};
+      for (const [k, v] of Object.entries(vp.key_points as Record<string, unknown>)) {
+        if (
+          Array.isArray(v) &&
+          (v as unknown[]).length === 2 &&
+          typeof (v as unknown[])[0] === "number" &&
+          typeof (v as unknown[])[1] === "number" &&
+          Number.isFinite((v as number[])[0]) &&
+          Number.isFinite((v as number[])[1])
+        ) {
+          kp[String(k).slice(0, 24)] = v as [number, number];
+        }
+      }
+      if (Object.keys(kp).length > 0) out.key_points = kp;
     }
     if (!out.equation && !out.points && !(typeof out.slope === "number" && typeof out.intercept === "number")) {
       return null;

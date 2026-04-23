@@ -52,11 +52,16 @@ const SHARED_FORMATTING_RULES = `
 ## Allowed LaTeX: \\frac, x^{n}, x_{n}, \\alpha, \\mathbf{v}, \\int, \\lim, \\sqrt, \\boxed, \\begin{bmatrix}...\\end{bmatrix}
 
 ## OPTIONAL VISUAL OUTPUT (graphs / tables):
-- After the full text answer, you MAY append ONE visual block ONLY when it clearly helps the student (graph for a function/equation/coordinates, table for value tables / step breakdowns / comparisons).
-- Do NOT add a visual for trivial arithmetic, prose questions, or essays.
+- After the full text answer, you MAY append ONE visual block ONLY when it clearly ADDS VALUE for the student.
+- SHOW a graph for: explicit "graph y = …" requests, function behavior (parabolas, lines, curves), coordinate problems, transformations, patterns where a picture aids thinking.
+- DO NOT show a graph for: basic arithmetic (e.g. 10 × 10), simple equation solving (e.g. 2x + 5 = 11), definitions, conceptual/word problems with no visual meaning, essays. If unsure whether a graph helps → DO NOT include one.
+- Tables: only for value tables, step breakdowns, or comparisons that genuinely benefit from tabular layout.
 - Do NOT describe the graph or table in the text. Do NOT invent values. Do NOT guess missing data.
+- When a graph IS included, also append ONE short line right before the <visual> block, max ~60 chars, summarizing the key feature. Examples: "Slope = 2, intercept = 3" or "Vertex at (2, -1), opens upward". No teaching, no extra sentences.
+- Use lowercase variables in equations: y = x^2 - 4x + 3 (not Y = X^2). Always include "x_label" and "y_label" (typically "x" and "y", or units when relevant).
+- For LINE graphs include "slope" and "intercept". For PARABOLA include "vertex" (and intercepts via "key_points" when easily derived).
 - Format (must be the LAST thing in the response, on its own lines, exact tags):
-  <visual>{ "visual_type": "graph", "visual_payload": { "type": "function" | "line" | "parabola" | "points", "equation": "y = ...", "x_min": -10, "x_max": 10, "vertex": [h,k], "slope": m, "intercept": b, "points": [[x,y], ...] } }</visual>
+  <visual>{ "visual_type": "graph", "visual_payload": { "type": "function" | "line" | "parabola" | "points", "equation": "y = ...", "x_min": -10, "x_max": 10, "x_label": "x", "y_label": "y", "vertex": [h,k], "slope": m, "intercept": b, "points": [[x,y], ...], "key_points": { "vertex": [h,k], "intercept": [0,b] } } }</visual>
   OR
   <visual>{ "visual_type": "table", "visual_payload": { "columns": ["Col1","Col2"], "rows": [["v1","v2"], ...] } }</visual>
 - Prefer "function" with an equation + x_min/x_max for any equation-based curve so the frontend can render a smooth curve. Only use "points" when no equation is known. Use "line" only for clearly linear y = mx + b. Use "parabola" only for explicit quadratics where you also want to flag the vertex.
@@ -915,12 +920,14 @@ function extractVisualBlock(
     }
 
     // graph
-    const type = ["line", "parabola", "points"].includes(vp.type) ? vp.type : null;
+    const type = ["function", "line", "parabola", "points"].includes(vp.type) ? vp.type : null;
     if (!type) return null;
     const payload: Record<string, unknown> = { type };
     if (typeof vp.equation === "string") payload.equation = vp.equation.slice(0, 200);
     if (typeof vp.x_min === "number" && Number.isFinite(vp.x_min)) payload.x_min = vp.x_min;
     if (typeof vp.x_max === "number" && Number.isFinite(vp.x_max)) payload.x_max = vp.x_max;
+    if (typeof vp.x_label === "string") payload.x_label = vp.x_label.slice(0, 24);
+    if (typeof vp.y_label === "string") payload.y_label = vp.y_label.slice(0, 24);
     if (typeof vp.slope === "number" && Number.isFinite(vp.slope)) payload.slope = vp.slope;
     if (typeof vp.intercept === "number" && Number.isFinite(vp.intercept)) payload.intercept = vp.intercept;
     if (Array.isArray(vp.vertex) && vp.vertex.length === 2 && vp.vertex.every((n: unknown) => typeof n === "number")) {
@@ -931,6 +938,19 @@ function extractVisualBlock(
         .filter((p: unknown) => Array.isArray(p) && p.length === 2 && typeof p[0] === "number" && typeof p[1] === "number" && Number.isFinite(p[0]) && Number.isFinite(p[1]))
         .slice(0, 200);
       if (pts.length > 0) payload.points = pts;
+    }
+    if (vp.key_points && typeof vp.key_points === "object" && !Array.isArray(vp.key_points)) {
+      const kp: Record<string, [number, number]> = {};
+      for (const [k, v] of Object.entries(vp.key_points as Record<string, unknown>)) {
+        if (
+          Array.isArray(v) && v.length === 2 &&
+          typeof v[0] === "number" && typeof v[1] === "number" &&
+          Number.isFinite(v[0]) && Number.isFinite(v[1])
+        ) {
+          kp[String(k).slice(0, 24)] = [v[0], v[1]];
+        }
+      }
+      if (Object.keys(kp).length > 0) payload.key_points = kp;
     }
     // Require at least equation, points, or slope+intercept
     if (!payload.equation && !payload.points && !(typeof payload.slope === "number" && typeof payload.intercept === "number")) {
