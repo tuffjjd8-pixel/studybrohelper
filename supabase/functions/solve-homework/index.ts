@@ -867,18 +867,16 @@ function fixLatexDelimiters(text: string): string {
   return result;
 }
 
-// Remove graph blocks from solution text
+// Remove graph blocks from solution text (keeps <visual> blocks intact for history persistence)
 function cleanSolutionText(solution: string, _isPremium: boolean): string {
   let cleaned = solution;
-  
+
   // Remove legacy graph code blocks
   cleaned = cleaned.replace(/```graph\n?[\s\S]*?\n?```/g, "");
-  // Remove inline <visual>...</visual> blocks (handled separately)
-  cleaned = cleaned.replace(/<visual>[\s\S]*?<\/visual>/gi, "");
-  
+
   // Fix LaTeX delimiters
   cleaned = fixLatexDelimiters(cleaned);
-  
+
   return cleaned.trim();
 }
 
