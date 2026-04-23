@@ -51,6 +51,18 @@ const SHARED_FORMATTING_RULES = `
 
 ## Allowed LaTeX: \\frac, x^{n}, x_{n}, \\alpha, \\mathbf{v}, \\int, \\lim, \\sqrt, \\boxed, \\begin{bmatrix}...\\end{bmatrix}
 
+## OPTIONAL VISUAL OUTPUT (graphs / tables):
+- After the full text answer, you MAY append ONE visual block ONLY when it clearly helps the student (graph for a function/equation/coordinates, table for value tables / step breakdowns / comparisons).
+- Do NOT add a visual for trivial arithmetic, prose questions, or essays.
+- Do NOT describe the graph or table in the text. Do NOT invent values. Do NOT guess missing data.
+- Format (must be the LAST thing in the response, on its own lines, exact tags):
+  <visual>{ "visual_type": "graph", "visual_payload": { "type": "line" | "parabola" | "points", "equation": "y = ...", "x_min": -10, "x_max": 10, "vertex": [h,k], "slope": m, "intercept": b, "points": [[x,y], ...] } }</visual>
+  OR
+  <visual>{ "visual_type": "table", "visual_payload": { "columns": ["Col1","Col2"], "rows": [["v1","v2"], ...] } }</visual>
+- JSON inside <visual>...</visual> must be valid (double quotes, no comments, no trailing commas).
+- Only include the fields that apply. For "line" provide equation OR slope+intercept. For "parabola" provide equation and (optionally) vertex. For "points" provide points. For tables, keep <= 8 columns and <= 20 rows.
+- If unsure, OMIT the visual block entirely.
+
 ## Math Safety:
 - Restate all numbers exactly before using them.
 - NEVER change, split, or reinterpret numbers (1818 = 1818, not 18×18).
