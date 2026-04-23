@@ -1099,6 +1099,9 @@ serve(async (req) => {
     // ---- Smart subject + title classification (heuristic, no extra LLM call) ----
     const { subject, title } = classifySubjectAndTitle(question || "", solution);
 
+    // Extract optional <visual> block before cleaning text
+    const visualBlock = extractVisualBlock(solution);
+
     // Build response object
     const responseData: Record<string, unknown> = {
       solution: cleanSolutionText(solution, isPremium),
@@ -1112,7 +1115,11 @@ serve(async (req) => {
         solve_mode: effectiveMode,
       }
     };
-    
+
+    if (visualBlock) {
+      responseData.visual = visualBlock;
+    }
+
     // Add breakdown sections if requested
     if (animatedSteps) {
       const maxSections = isPremium ? PREMIUM_MAX_SECTIONS : FREE_MAX_SECTIONS;
