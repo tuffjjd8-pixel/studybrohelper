@@ -276,7 +276,38 @@ Rules:
 - Do not describe the graph.
 - Only output the JSON object.`;
 
-// Check if problem should trigger graph generation
+// ============================================================
+// Smart auto-mode routing.
+// If user picked "instant" but the problem clearly needs Deep (multi-step,
+// word problem, pattern puzzle, equations with variables, long input),
+// upgrade to Deep automatically. Never downgrades Deep → Instant.
+// ============================================================
+function autoUpgradeMode(currentMode: string, combinedText: string): string {
+  if (currentMode !== "instant") return currentMode;
+  const t = (combinedText || "").trim();
+  if (!t) return currentMode;
+
+  // Long inputs almost always need depth
+  if (t.length > 280) return "deep";
+
+  const lower = t.toLowerCase();
+  // Pattern / puzzle / sequence
+  if (/\b(pattern|sequence|next (number|term)|riddle|puzzle)\b/.test(lower)) return "deep";
+  // Word problems & explanation requests
+  if (/\b(explain|why|prove|derive|describe|interpret|find the|how (do|does|can))\b/.test(lower)) return "deep";
+  if (/\b(word problem|story problem)\b/.test(lower)) return "deep";
+  // Multi-step math markers
+  if (/\b(integral|derivative|limit|matrix|eigen|quantum|schr[oö]dinger)\b/.test(lower)) return "deep";
+  // Multi-part questions (a) (b) (c) or "1." "2." "3."
+  if ((t.match(/\(\s*[a-d]\s*\)/g) || []).length >= 2) return "deep";
+  if ((t.match(/^\s*\d+\.\s/gm) || []).length >= 2) return "deep";
+  // Equations involving variables (not pure arithmetic)
+  if (/[a-zA-Z]\s*[=+\-*^/]/.test(t) && /[=+\-*^/]\s*[a-zA-Z\d]/.test(t) && t.length > 40) return "deep";
+
+  return currentMode;
+}
+
+
 function shouldGenerateGraph(question: string): boolean {
   const lowerQ = question.toLowerCase();
   return (
