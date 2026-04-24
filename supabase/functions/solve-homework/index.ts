@@ -145,128 +145,71 @@ ${SHARED_FORMATTING_RULES}
 - Literature: original content with clear thesis
 - Coding: syntax highlighting + brief logic explanation`;
 
-// Mode-specific instructions appended based on solveMode
+// Mode-specific instructions appended based on solveMode.
+// Compressed ~40% to cut prompt tokens & first-token latency without losing structure.
 const INSTANT_MODE_INSTRUCTIONS = `
 
-## SOLVE MODE: INSTANT (ANSWER-FIRST, ULTRA-FAST)
+## SOLVE MODE: INSTANT (answer-first, ultra-fast)
 
-Your job: make the user feel "I got the answer instantly." Output must be readable in under 1 second.
+Classify the QUESTION (top-down, first match wins):
+1. INVALID — contradiction / missing essential info / impossible.
+2. HARD — derive/prove/integral/derivative/limit/matrix/quantum/eigen/advanced calc or physics.
+3. SIMPLE — one-step (e.g. 2x+5=11, direct plug-in).
+4. TRIVIAL — pure arithmetic only (10×10, 5+3) — no variables, no words.
+5. MEDIUM — everything else (word problems, multi-step algebra).
 
-STEP 1 — CLASSIFY the QUESTION (not the solution) into ONE tier, in this strict order:
-1. INVALID: contradictions, missing essential info, impossible conditions.
-2. HARD: contains "derive", "prove", "integral", "derivative", "limit", "matrix", "quantum", "eigen", or is advanced physics/calculus/linear algebra.
-3. SIMPLE: one-step equation like "solve for x", "2x+5=11", direct formula plug-in.
-4. TRIVIAL: pure arithmetic only (10×10, 5+3, 20/4) — no variables, no words.
-5. MEDIUM: everything else (word problems, multi-step algebra, requires setup + solve).
-Pick the FIRST matching tier from top to bottom.
+Output by tier (EXACT):
+- TRIVIAL → just the raw answer. Example: \`100\`
+- SIMPLE → one line: \`Final Answer: <answer>\`
+- MEDIUM → 2 lines: \`Final Answer: <answer>\` then \`Why: <≤8 words>\`
+- HARD → 3 lines max: \`Final Answer: <answer>\` then \`Why: <short concept>\`
+- INVALID → 3 lines:
+  \`Validity Check: The problem cannot be solved as written.\`
+  \`Issue: <short>\`
+  \`Fix: <minimal correction>\`
 
-STEP 2 — OUTPUT by tier (follow EXACTLY):
+Contradiction rule: if algebra collapses to a FALSE statement (5=10, 0=7), STOP and output INVALID — never "no solution". \`0=0\` is identity (infinite solutions, treat as MEDIUM).
 
-### TRIVIAL
-Return ONLY the raw answer. No label, no "Final Answer:", no explanation.
-Example: \`100\`
-
-### SIMPLE
-One line only.
-Format: \`Final Answer: <answer>\`
-Example: \`Final Answer: x = 3\`
-
-### MEDIUM
-Max 2 lines.
-\`Final Answer: <answer>\`
-\`Why: <≤8 words>\`
-
-### HARD
-Max 3 lines. No derivations, no long equations.
-\`Final Answer: <answer>\`
-\`Why: <short intuitive concept>\`
-
-### INVALID (use ONLY when truly impossible)
-Max 3 lines. Do NOT guess or hallucinate.
-\`Validity Check: The problem cannot be solved as written.\`
-\`Issue: <short issue>\`
-\`Fix: <minimal correction>\`
-
-CONTRADICTION RULE (CRITICAL):
-- If solving eliminates all variables and leaves a FALSE statement (e.g., \`5 = 10\`, \`0 = 7\`, \`3 = -3\`), the problem is INVALID — NOT "no solution".
-- STOP solving immediately the moment a contradiction appears. Do not continue algebra. Do not write "no solution" or "∅".
-- Output the INVALID format above. \`Issue:\` must name the contradiction (e.g., "leads to 5 = 10"). \`Fix:\` must suggest the smallest realistic correction (e.g., "change 5 to 10 on the left side").
-- An identity like \`0 = 0\` is NOT a contradiction — that means infinitely many solutions, handle as MEDIUM.
-
-GLOBAL RULES:
-- NEVER output both raw answer and "Final Answer:" — pick one based on tier.
-- NEVER include: steps, derivations, long equations, paragraphs, headings, greetings, preamble, closings.
-- NEVER say: "let's solve", "step 1", "we find", "the answer is", "to find", "here is".
-- NEVER use numbered lists or the word "steps".
-- NEVER repeat the question. NEVER add commentary after the answer.
-- NEVER reply with "Sorry", "I can't solve this", or vague refusals (outside INVALID tier).
-- If OCR is messy but intent is clear, infer and answer.
-- Prefer plain words over symbols when both work equally well.
-- The very first characters must be the answer itself, \`Final Answer:\`, or \`Validity Check:\`.
-
-Optimize for: speed of understanding, visual simplicity, mobile readability.`;
+NEVER: steps, derivations, paragraphs, headings, greetings, "let's solve", "step 1", "the answer is", numbered lists, repeated question, commentary after answer, vague refusals.
+First characters MUST be the answer, \`Final Answer:\`, or \`Validity Check:\`.
+If OCR is messy but intent is clear, infer and answer. Output a SINGLE \`Final Answer:\` line — never duplicate it.`;
 
 const DEEP_MODE_INSTRUCTIONS = `
 
-## SOLVE MODE: DEEP (Premium Tutor — Insight-First, Structured)
+## SOLVE MODE: DEEP (insight-first tutor — structured, NEVER compressed)
 
-GOAL: Make the user feel "I actually understand this now." Clear, structured, intuitive — fast to read, smarter than a textbook.
+REQUIRED STRUCTURE (exact labels, every time):
+1. First line: \`Final Answer: <direct result>\`
+2. \`**Setup**\` — what the problem is asking, in plain terms. State the governing equation/assumption if useful.
+3. \`**Solve**\` — KEY IDEA first, then the math. Logical, clean, skip trivial algebra.
+4. \`**Result**\` — restate the answer with units / interpretation.
+5. \`**Quick Check**\` — verify (substitute back / sanity check / confirm rule). Skip only if genuinely useless.
 
-REQUIRED STRUCTURE (use these EXACT section labels, in this order, every time):
-1. FIRST LINE must be: \`Final Answer: <direct result>\`
-2. \`**Setup**\` — explain what the problem is asking in simple, plain terms. State assumptions or governing equation if helpful.
-3. \`**Solve**\` — walk through the reasoning. Lead with the KEY IDEA / insight, then confirm with the math. Keep it logical and clean. Skip trivial algebra.
-4. \`**Result**\` — restate the final result clearly with units / interpretation.
-5. \`**Quick Check**\` — briefly verify the answer (substitute back, sanity check, or confirm the rule holds). Skip ONLY if genuinely not useful.
+Depth is REQUIRED. Never compress to 1–2 lines. Never act like Instant. Even simple problems get a real Setup + Solve.
 
-DEPTH IS REQUIRED (ANTI-INSTANT RULE):
-- NEVER compress into 1–2 lines. NEVER return only "Final Answer + Why".
-- NEVER behave like Instant Mode. Deep Mode MUST have all sections above (Setup + Solve + Result minimum).
-- If the problem is trivial, still give a real Setup + Solve explaining the concept — depth over brevity.
+Pattern / puzzle problems:
+1. State the rule cleanly (e.g. \`a + b = a(a+b)\`).
+2. Verify against ≥2 given examples.
+3. Apply to the target value.
+4. Briefly explain WHY it works.
 
-PATTERN / PUZZLE RULE:
-If the problem is a pattern, sequence, or non-standard rule:
-1. Identify the underlying rule.
-2. Verify it against at least 2 given examples.
-3. Apply it to the missing/target value.
-4. Briefly explain WHY the rule works.
+Tone — smart human tutor, not a textbook:
+- AVOID: "It follows that", "We observe that", "Hence", "Thus we obtain", "The equation implies".
+- USE: "Notice:", "This means:", "So,", "From this,", "Quick check:".
 
-ANTI-TEXTBOOK TONE (CRITICAL):
-- AVOID: "It follows that", "We observe that", "The equation implies", "Hence", "Thus we obtain", "The functional equation forces".
-- USE INSTEAD: "Notice:", "This means:", "So,", "From this,", "Quick check:".
-- Sound like a smart human tutor — confident, premium, never robotic, never lecture-y.
+Style: insight before math. Short paragraphs. \\( \\) inline, \\[ \\] display. Preserve units. Use ≈ for approximations.
+For multi-part questions answer EVERY part — each part gets its own mini Final Answer line under its section. Only ONE top-level \`Final Answer:\` at the very top — never restate it mid-solution.
+NEVER: "Step 1", numbered lists for the explanation, the word "steps", greetings, "Let's solve", filler, duplicated sections.
 
-STYLE:
-- Start with insight, then math.
-- Short paragraphs. Clean spacing. Mobile-readable. No walls of text.
-- Use LaTeX cleanly: \\( \\) inline, \\[ \\] display.
-- Preserve units. Distinguish exact vs approximate (use "≈", "to 3 s.f.").
-- For multi-part questions, answer EVERY part — each gets its own mini Final Answer line under its section.
-- Only ONE top-level \`Final Answer:\` line at the very top. Never restate "Final Answer (1)" mid-solution.
-- NEVER use "Step 1", numbered lists for the explanation, or the word "steps".
-- NEVER mention modes, toggles, animations, or internal rules.
-- No greetings, no "Let's solve…", no filler, no upsells.
-- Text must be safe for letter-by-letter reveal (no raw HTML, no markdown tables inside equations).
-
-VISUAL RULE:
-- You MAY include a graph or table if it genuinely helps understanding.
-- Visuals NEVER replace explanation depth — the written reasoning always comes first.
-
-VALIDITY CHECK (use ONLY when truly impossible):
-If the problem is contradictory, missing essential info, or has no unique solution as written, do NOT force an answer. Output:
+Validity Check (only when truly impossible / contradictory / missing essential info):
 \`Validity Check: The problem cannot be solved as written.\`
-\`**Why:**\` short bullet(s) naming the contradiction or missing info.
-\`**Minimal Fix:**\` smallest change needed to make it solvable.
-If the fix is obvious, you MAY add: "If corrected to …, then the answer would be …" with a brief solution.
+\`**Why:**\` short bullet(s).
+\`**Minimal Fix:**\` smallest change to make it solvable.
+If the fix is obvious you MAY add: "If corrected to …, then …" with a brief solution.
 
-CONTRADICTION RULE (CRITICAL):
-- If solving collapses all variables to a FALSE statement (e.g., \`5 = 10\`, \`0 = 7\`), STOP immediately. Treat as Validity Check.
-- \`0 = 0\` (identity) is NOT a contradiction — solve normally as infinitely many solutions.
+Contradiction rule: collapsing variables to a FALSE statement (5=10, 0=7) → STOP, treat as Validity Check. \`0=0\` is identity — solve normally.
 
-ABSOLUTELY FORBIDDEN (outside Validity Check):
-- NEVER reply "Sorry, I couldn't solve this" or any vague refusal.
-- NEVER return an empty answer. If OCR is messy but intent is clear, reconstruct and solve.
-- Always produce a complete, structured solution with the final answer clearly visible at the top.`;
+NEVER reply "Sorry, I couldn't solve this". If OCR is messy but intent is clear, reconstruct and solve. Always produce a complete structured solution with the final answer at the top.`;
 
 // Prompt to generate structured breakdown sections (no numbered steps)
 // Free users get a condensed view, premium users get detailed reasoning
@@ -333,7 +276,38 @@ Rules:
 - Do not describe the graph.
 - Only output the JSON object.`;
 
-// Check if problem should trigger graph generation
+// ============================================================
+// Smart auto-mode routing.
+// If user picked "instant" but the problem clearly needs Deep (multi-step,
+// word problem, pattern puzzle, equations with variables, long input),
+// upgrade to Deep automatically. Never downgrades Deep → Instant.
+// ============================================================
+function autoUpgradeMode(currentMode: string, combinedText: string): string {
+  if (currentMode !== "instant") return currentMode;
+  const t = (combinedText || "").trim();
+  if (!t) return currentMode;
+
+  // Long inputs almost always need depth
+  if (t.length > 280) return "deep";
+
+  const lower = t.toLowerCase();
+  // Pattern / puzzle / sequence
+  if (/\b(pattern|sequence|next (number|term)|riddle|puzzle)\b/.test(lower)) return "deep";
+  // Word problems & explanation requests
+  if (/\b(explain|why|prove|derive|describe|interpret|find the|how (do|does|can))\b/.test(lower)) return "deep";
+  if (/\b(word problem|story problem)\b/.test(lower)) return "deep";
+  // Multi-step math markers
+  if (/\b(integral|derivative|limit|matrix|eigen|quantum|schr[oö]dinger)\b/.test(lower)) return "deep";
+  // Multi-part questions (a) (b) (c) or "1." "2." "3."
+  if ((t.match(/\(\s*[a-d]\s*\)/g) || []).length >= 2) return "deep";
+  if ((t.match(/^\s*\d+\.\s/gm) || []).length >= 2) return "deep";
+  // Equations involving variables (not pure arithmetic)
+  if (/[a-zA-Z]\s*[=+\-*^/]/.test(t) && /[=+\-*^/]\s*[a-zA-Z\d]/.test(t) && t.length > 40) return "deep";
+
+  return currentMode;
+}
+
+
 function shouldGenerateGraph(question: string): boolean {
   const lowerQ = question.toLowerCase();
   return (
@@ -461,13 +435,16 @@ async function callGroqText(
   const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
   console.log("Calling Groq Text API with model:", textModel, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "Mode:", solveMode);
 
-  // Token budget: tight = faster perceived latency. Instant rarely needs >300 tokens.
-  // Deep needs room for Setup/Solve/Result/Quick Check but 1536 fits >99% of real answers.
-  // Essays still need headroom for paragraph/sentence count compliance.
+  // Token budget — balanced for quality + speed.
+  // Instant: tight (most replies are <200 tokens).
+  // Deep: increased to 2048 so Setup/Solve/Result/Quick Check never get truncated.
+  // Essay: keep generous headroom for paragraph/sentence count compliance.
+  // Short questions get a smaller deep budget to stay snappy.
+  const isShortQuestion = (question || "").length < 80;
   const maxTokens =
     solveMode === "essay" ? 3072 :
-    solveMode === "deep" ? 1536 :
-    512; // instant / generation
+    solveMode === "deep" ? (isShortQuestion ? 1400 : 2048) :
+    500; // instant / generation
 
   const callOnce = async (extraNudge = "") => {
     const tCall = Date.now();
@@ -632,29 +609,58 @@ async function callExternalOCR(
 // COMBINED PIPELINE: Vision + OCR → merged result
 // Runs both in parallel for speed
 // ============================================================
-async function extractTextFromImage(imageBase64: string, mimeType: string, answerLanguage: string = "en", ocrMode: OcrMode = "text"): Promise<{ vision: string; ocr: string; combined_text: string }> {
-  console.log("[Pipeline] Running Vision + OCR in parallel, answerLanguage:", answerLanguage, "ocrMode:", ocrMode);
+// Smart OCR-skip detection.
+// Vision often returns clean text already. If the "Visible Text:" block looks
+// complete and unambiguous, we don't need to wait for PaddleOCR — saves ~1-2s.
+// ============================================================
+function extractVisionText(vision: string): string {
+  if (!vision) return "";
+  const m = vision.match(/Visible Text:\s*([\s\S]*?)(?:\n\s*Visible Diagram|\n\s*Missing\/Unclear|$)/i);
+  return (m?.[1] || "").trim();
+}
 
-  const [visionResult, ocrResult] = await Promise.allSettled([
-    callGroqVision(imageBase64, mimeType),
-    callExternalOCR(imageBase64, mimeType, ocrMode, answerLanguage),
-  ]);
+function visionTextIsClean(vision: string): boolean {
+  const txt = extractVisionText(vision);
+  if (!txt || txt.length < 8) return false;
+  // Reject if vision flagged unreadable / missing parts
+  if (/\[unreadable\]/i.test(txt)) return false;
+  if (/Missing\/Unclear:\s*(?!none\b)\S/i.test(vision)) return false;
+  // Need either real characters or recognizable equation tokens
+  const hasEq = /[=+\-×x*/^()]/i.test(txt) && /\d|[a-zA-Z]/.test(txt);
+  const hasWords = /[a-zA-Z]{3,}/.test(txt);
+  return hasEq || hasWords;
+}
 
-  const vision = visionResult.status === "fulfilled" ? visionResult.value : "";
-  const ocr = ocrResult.status === "fulfilled" ? ocrResult.value : "";
+async function extractTextFromImage(imageBase64: string, mimeType: string, answerLanguage: string = "en", ocrMode: OcrMode = "text"): Promise<{ vision: string; ocr: string; combined_text: string; ocr_skipped: boolean }> {
+  console.log("[Pipeline] Vision + OCR (with smart skip), answerLanguage:", answerLanguage, "ocrMode:", ocrMode);
 
-  if (visionResult.status === "rejected") {
-    console.error("[Pipeline] Vision failed:", visionResult.reason);
+  // Start both in parallel — we may still skip OCR if vision wins quickly with clean text.
+  const visionPromise = callGroqVision(imageBase64, mimeType);
+  const ocrPromise = callExternalOCR(imageBase64, mimeType, ocrMode, answerLanguage)
+    .catch((e) => { console.error("[Pipeline] OCR failed:", e); return ""; });
+
+  let vision = "";
+  let ocr = "";
+  let ocr_skipped = false;
+
+  try {
+    vision = await visionPromise;
+  } catch (e) {
+    console.error("[Pipeline] Vision failed:", e);
   }
-  if (ocrResult.status === "rejected") {
-    console.error("[Pipeline] OCR failed:", ocrResult.reason);
+
+  if (visionTextIsClean(vision)) {
+    // Don't await OCR — vision text is enough. Let it finish in background but ignore.
+    ocr_skipped = true;
+    console.log("[Pipeline] OCR skipped — vision text is clean");
+  } else {
+    ocr = await ocrPromise;
   }
 
   if (!vision && !ocr) {
     throw new Error("Could not extract text from image. Please try a clearer photo.");
   }
 
-  // Combine: OCR provides exact text/equations, Vision provides layout/diagram context
   let combined_text = "";
   if (ocr && vision) {
     combined_text = `[Exact text and equations from image]:\n${ocr}\n\n[Visual description and layout]:\n${vision}`;
@@ -664,8 +670,8 @@ async function extractTextFromImage(imageBase64: string, mimeType: string, answe
     combined_text = vision;
   }
 
-  console.log("[Pipeline] Combined text length:", combined_text.length);
-  return { vision, ocr, combined_text };
+  console.log("[Pipeline] Combined text length:", combined_text.length, "ocr_skipped:", ocr_skipped);
+  return { vision, ocr, combined_text, ocr_skipped };
 }
 
 // ============================================================
@@ -929,7 +935,8 @@ function fixLatexDelimiters(text: string): string {
   return result;
 }
 
-// Remove graph blocks from solution text (keeps <visual> blocks intact for history persistence)
+// Remove graph blocks from solution text (keeps <visual> blocks intact for history persistence).
+// Also dedupes accidental duplicate "Final Answer:" lines so the user only ever sees one.
 function cleanSolutionText(solution: string, _isPremium: boolean): string {
   let cleaned = solution;
 
@@ -938,6 +945,23 @@ function cleanSolutionText(solution: string, _isPremium: boolean): string {
 
   // Fix LaTeX delimiters
   cleaned = fixLatexDelimiters(cleaned);
+
+  // Dedupe top-level "Final Answer:" lines — keep only the first occurrence.
+  // (Sub-question "Final Answer (1):" / "Final Answer for part b:" are preserved.)
+  let seenFinal = false;
+  cleaned = cleaned
+    .split("\n")
+    .filter((line) => {
+      if (/^\s*final answer\s*:/i.test(line)) {
+        if (seenFinal) return false;
+        seenFinal = true;
+      }
+      return true;
+    })
+    .join("\n");
+
+  // Collapse runs of 3+ blank lines into 2
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
 
   return cleaned.trim();
 }
@@ -1116,13 +1140,14 @@ serve(async (req) => {
 
     // Route to appropriate model based on input type and tier
     if (allImages.length > 0) {
-      // Process each image through Vision + OCR pipeline (parallel within each image,
-      // and parallel across multiple images for max throughput)
+      // Process each image through Vision + OCR pipeline (with smart OCR-skip).
+      // Multiple images run in parallel.
       ocrEngineUsed = "groq_vision+external_ocr";
       const tPipelineStart = Date.now();
 
       const { cleanupOcrMath } = await import("../_shared/ocr-cleanup.ts");
 
+      let anyOcrSkipped = false;
       const perImage = await Promise.all(allImages.map(async (img, i) => {
         const matches = img.match(/^data:([^;]+);base64,(.+)$/);
         if (!matches) throw new Error(`Invalid image format for image ${i + 1}`);
@@ -1130,33 +1155,51 @@ serve(async (req) => {
         const base64Data = matches[2];
 
         const tImg = Date.now();
-        const { vision, ocr: ocrRaw } = await extractTextFromImage(base64Data, mimeType, answerLanguage, "text");
-        const ocr = cleanupOcrMath(ocrRaw).cleaned;
+        const { vision, ocr: ocrRaw, ocr_skipped } = await extractTextFromImage(base64Data, mimeType, answerLanguage, "text");
+        if (ocr_skipped) anyOcrSkipped = true;
+        const ocr = ocrRaw ? cleanupOcrMath(ocrRaw).cleaned : "";
         const combined_text = ocr && vision
           ? `[Exact text and equations from image]:\n${ocr}\n\n[Visual description and layout]:\n${vision}`
           : (ocr || vision);
-        console.log(`[Pipeline] img ${i + 1} extract=${Date.now() - tImg}ms vision=${vision.length} ocr=${ocr.length}`);
+        console.log(`[Pipeline] img ${i + 1} extract=${Date.now() - tImg}ms vision=${vision.length} ocr=${ocr.length} skipped=${ocr_skipped}`);
         return (allImages.length > 1 ? `[Image ${i + 1}]\n` : "") + combined_text;
       }));
 
       const fullCombined = perImage.join("\n\n");
-      console.log(`[Pipeline] all images extract total=${Date.now() - tPipelineStart}ms`);
+      const extractMs = Date.now() - tPipelineStart;
+      console.log(`[Pipeline] all images extract total=${extractMs}ms ocr_skipped=${anyOcrSkipped}`);
+      if (anyOcrSkipped) ocrEngineUsed = "groq_vision_only";
 
       let combinedQuestion = question
         ? `${question}\n\n${fullCombined}`
         : fullCombined;
 
-      if (effectiveMode === "deep" && !question) {
+      // Smart auto-routing: upgrade Instant → Deep when content clearly needs depth.
+      const routedMode = autoUpgradeMode(effectiveMode, combinedQuestion);
+      if (routedMode !== effectiveMode) {
+        console.log(`[Solve] Auto-upgraded mode: ${effectiveMode} → ${routedMode}`);
+      }
+
+      if (routedMode === "deep" && !question) {
         combinedQuestion = `Solve the following problem and explain your reasoning in full detail:\n\n${fullCombined}`;
       }
 
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
       const tReason = Date.now();
-      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode, answerLanguage, essaySettings);
-      console.log(`[Pipeline] reasoning=${Date.now() - tReason}ms total=${Date.now() - tPipelineStart}ms`);
+      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, routedMode, answerLanguage, essaySettings);
+      const reasonMs = Date.now() - tReason;
+      const totalMs = Date.now() - tPipelineStart;
+      console.log(`[Pipeline] extract=${extractMs}ms reasoning=${reasonMs}ms total=${totalMs}ms mode=${routedMode} model=${modelUsed} chars=${solution.length}`);
     } else if (question) {
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-      solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode, answerLanguage, essaySettings);
+      // Auto-route text-only solves too
+      const routedMode = autoUpgradeMode(effectiveMode, question);
+      if (routedMode !== effectiveMode) {
+        console.log(`[Solve] Auto-upgraded mode (text): ${effectiveMode} → ${routedMode}`);
+      }
+      const tReason = Date.now();
+      solution = await callGroqText(question, isPremium, animatedSteps, routedMode, answerLanguage, essaySettings);
+      console.log(`[Pipeline] text reasoning=${Date.now() - tReason}ms mode=${routedMode} chars=${solution.length}`);
     } else {
       throw new Error("Please provide a question or image");
     }
