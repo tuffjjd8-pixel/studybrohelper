@@ -1074,6 +1074,7 @@ serve(async (req) => {
     
     // Use solveMode as-is — backend access control is handled externally
     const effectiveMode = solveMode;
+    console.log(`[Solve] Mode received: ${solveMode} → effectiveMode: ${effectiveMode} (isPremium: ${isPremium}, hasImages: ${allImages.length > 0})`);
 
     // === PRO MONTHLY LIMIT CHECK ===
     if (isPremium && requestUserId) {

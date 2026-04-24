@@ -110,11 +110,13 @@ export function ScannerModal({
 
       setLoadingStage("solving");
 
+      console.log("[ScannerModal] Solve mode sent:", modeForSolve, "(isPremium:", isPremium, ")");
+
       const body: Record<string, unknown> = {
         image: imageData,
         isPremium,
         animatedSteps: false,
-        solveMode: isPremium ? modeForSolve : "instant",
+        solveMode: modeForSolve,
         generateGraph: false,
         deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
         answerLanguage,
@@ -147,7 +149,7 @@ export function ScannerModal({
           question_text: titleForHistory,
           question_image_url: persistedImageUrl,
           solution_markdown: data.solution,
-          mode: isPremium ? modeForSolve : "instant",
+          mode: modeForSolve,
         });
       }
 
