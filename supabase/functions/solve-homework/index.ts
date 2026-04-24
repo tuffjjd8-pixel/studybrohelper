@@ -578,29 +578,58 @@ async function callExternalOCR(
 // COMBINED PIPELINE: Vision + OCR → merged result
 // Runs both in parallel for speed
 // ============================================================
-async function extractTextFromImage(imageBase64: string, mimeType: string, answerLanguage: string = "en", ocrMode: OcrMode = "text"): Promise<{ vision: string; ocr: string; combined_text: string }> {
-  console.log("[Pipeline] Running Vision + OCR in parallel, answerLanguage:", answerLanguage, "ocrMode:", ocrMode);
+// Smart OCR-skip detection.
+// Vision often returns clean text already. If the "Visible Text:" block looks
+// complete and unambiguous, we don't need to wait for PaddleOCR — saves ~1-2s.
+// ============================================================
+function extractVisionText(vision: string): string {
+  if (!vision) return "";
+  const m = vision.match(/Visible Text:\s*([\s\S]*?)(?:\n\s*Visible Diagram|\n\s*Missing\/Unclear|$)/i);
+  return (m?.[1] || "").trim();
+}
 
-  const [visionResult, ocrResult] = await Promise.allSettled([
-    callGroqVision(imageBase64, mimeType),
-    callExternalOCR(imageBase64, mimeType, ocrMode, answerLanguage),
-  ]);
+function visionTextIsClean(vision: string): boolean {
+  const txt = extractVisionText(vision);
+  if (!txt || txt.length < 8) return false;
+  // Reject if vision flagged unreadable / missing parts
+  if (/\[unreadable\]/i.test(txt)) return false;
+  if (/Missing\/Unclear:\s*(?!none\b)\S/i.test(vision)) return false;
+  // Need either real characters or recognizable equation tokens
+  const hasEq = /[=+\-×x*/^()]/i.test(txt) && /\d|[a-zA-Z]/.test(txt);
+  const hasWords = /[a-zA-Z]{3,}/.test(txt);
+  return hasEq || hasWords;
+}
 
-  const vision = visionResult.status === "fulfilled" ? visionResult.value : "";
-  const ocr = ocrResult.status === "fulfilled" ? ocrResult.value : "";
+async function extractTextFromImage(imageBase64: string, mimeType: string, answerLanguage: string = "en", ocrMode: OcrMode = "text"): Promise<{ vision: string; ocr: string; combined_text: string; ocr_skipped: boolean }> {
+  console.log("[Pipeline] Vision + OCR (with smart skip), answerLanguage:", answerLanguage, "ocrMode:", ocrMode);
 
-  if (visionResult.status === "rejected") {
-    console.error("[Pipeline] Vision failed:", visionResult.reason);
+  // Start both in parallel — we may still skip OCR if vision wins quickly with clean text.
+  const visionPromise = callGroqVision(imageBase64, mimeType);
+  const ocrPromise = callExternalOCR(imageBase64, mimeType, ocrMode, answerLanguage)
+    .catch((e) => { console.error("[Pipeline] OCR failed:", e); return ""; });
+
+  let vision = "";
+  let ocr = "";
+  let ocr_skipped = false;
+
+  try {
+    vision = await visionPromise;
+  } catch (e) {
+    console.error("[Pipeline] Vision failed:", e);
   }
-  if (ocrResult.status === "rejected") {
-    console.error("[Pipeline] OCR failed:", ocrResult.reason);
+
+  if (visionTextIsClean(vision)) {
+    // Don't await OCR — vision text is enough. Let it finish in background but ignore.
+    ocr_skipped = true;
+    console.log("[Pipeline] OCR skipped — vision text is clean");
+  } else {
+    ocr = await ocrPromise;
   }
 
   if (!vision && !ocr) {
     throw new Error("Could not extract text from image. Please try a clearer photo.");
   }
 
-  // Combine: OCR provides exact text/equations, Vision provides layout/diagram context
   let combined_text = "";
   if (ocr && vision) {
     combined_text = `[Exact text and equations from image]:\n${ocr}\n\n[Visual description and layout]:\n${vision}`;
@@ -610,8 +639,8 @@ async function extractTextFromImage(imageBase64: string, mimeType: string, answe
     combined_text = vision;
   }
 
-  console.log("[Pipeline] Combined text length:", combined_text.length);
-  return { vision, ocr, combined_text };
+  console.log("[Pipeline] Combined text length:", combined_text.length, "ocr_skipped:", ocr_skipped);
+  return { vision, ocr, combined_text, ocr_skipped };
 }
 
 // ============================================================
