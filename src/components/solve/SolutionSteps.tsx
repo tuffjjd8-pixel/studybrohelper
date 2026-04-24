@@ -217,17 +217,26 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const bodySolution = useMemo(() => {
     if (!finalAnswer) return cleanSolution;
     let s = cleanSolution;
-    // Instant Mode: strip ALL "Final Answer:" / "Answer:" lines (avoids duplication with top card).
-    // Deep Mode: only strip the FIRST leading "Final Answer:" line so the structured body
-    // (Setup/Solve/Result/Quick Check) stays intact.
+    // Pass 1: peel off any leading "Final Answer:" block — handles blank lines,
+    // spaces, ** wrappers, dash separator, and trailing newlines.
+    s = s.replace(/^\s*(?:\*\*)?[ \t]*Final\s*Answer[ \t]*(?:\*\*)?[ \t]*[:\-][^\n]*\n+/i, "");
+    // Pass 2: catch a doubled leading line (model occasionally repeats).
+    s = s.replace(/^\s*(?:\*\*)?[ \t]*Final\s*Answer[ \t]*(?:\*\*)?[ \t]*[:\-][^\n]*\n+/i, "");
+    // Pass 3 (HARD RULE): nuke any remaining "Final Answer:" line anywhere in the body
+    // so the green card is the single source of truth.
+    s = s.replace(/^[ \t]*\**[ \t]*Final\s*Answer[ \t]*\**[ \t]*[:\-][^\n]*$\n?/gim, "");
+    // Instant Mode: also strip standalone "Answer:" lines (Deep Mode keeps "Result:" sections).
     if (!isDeepMode) {
-      s = s.replace(/^[ \t]*\**[ \t]*(?:Final\s*Answer|Answer)[ \t]*:[ \t]*[^\n]*\**[ \t]*$\n?/gim, "");
-    } else {
-      // Deep Mode: strip the FIRST "Final Answer:" line wherever it appears in the
-      // first few lines (model may emit a leading blank line or a ** wrapper).
-      s = s.replace(/^[ \t\n]*\**[ \t]*Final\s*Answer[ \t]*:[ \t]*[^\n]*\**[ \t]*\n?/i, "");
+      s = s.replace(/^[ \t]*\**[ \t]*Answer[ \t]*\**[ \t]*[:\-][^\n]*$\n?/gim, "");
     }
     s = s.replace(/\n{3,}/g, "\n\n");
+    if (typeof window !== "undefined" && (window as unknown as { __SB_DEBUG?: boolean }).__SB_DEBUG) {
+      // Debug log (gated behind window.__SB_DEBUG = true)
+      // eslint-disable-next-line no-console
+      console.log("[StudyBro] extracted_final_answer:", finalAnswer);
+      // eslint-disable-next-line no-console
+      console.log("[StudyBro] stripped_body_preview:", s.trim().slice(0, 100));
+    }
     return s.trim();
   }, [cleanSolution, finalAnswer, isDeepMode]);
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
