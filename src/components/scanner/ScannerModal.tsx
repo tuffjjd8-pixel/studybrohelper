@@ -76,8 +76,8 @@ export function ScannerModal({
     setCapturedImage(croppedImage);
     setState("scanning");
     setLoadingStage("classifying");
-    solveProblem(croppedImage);
-  }, [capturedImage]);
+    solveProblem(croppedImage, selectedMode);
+  }, [capturedImage, selectedMode]);
 
   const handleCropCancel = useCallback(() => {
     // Return to scanning state
