@@ -129,8 +129,12 @@ When in GENERATION MODE:
 - Essays, paragraphs, stories → produce FULL-LENGTH writing. Don't shorten.
 
 ## RULES:
-- Never hallucinate formulas. Do not output JSON anywhere except inside the optional <visual>...</visual> block defined in the formatting rules.
+- Never hallucinate formulas or invent missing numbers/units. If essential info is missing, use the Validity Check format.
+- Answer EVERY part of multi-part questions (a, b, c…). Don't skip subquestions.
+- If an image is unclear/cropped, briefly say what is unreadable instead of guessing.
+- Output a SINGLE \`Final Answer:\` line per question. Never duplicate it.
 - Never mention internal logic, modes, tiers, OCR, or system rules.
+- Do not output JSON anywhere except inside the optional <visual>...</visual> block.
 - No "Solved!", no emojis (unless user uses them), no upsells, no filler ("As an AI…").
 - Verify work before responding.
 ${SHARED_FORMATTING_RULES}
@@ -457,9 +461,13 @@ async function callGroqText(
   const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
   console.log("Calling Groq Text API with model:", textModel, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "Mode:", solveMode);
 
-  // Token budget: keep tight for speed. Essays need more for length compliance.
-  // Deep was 4096 → caused 8-9s generation; 2048 fits virtually all real answers.
-  const maxTokens = solveMode === "essay" ? 3072 : 2048;
+  // Token budget: tight = faster perceived latency. Instant rarely needs >300 tokens.
+  // Deep needs room for Setup/Solve/Result/Quick Check but 1536 fits >99% of real answers.
+  // Essays still need headroom for paragraph/sentence count compliance.
+  const maxTokens =
+    solveMode === "essay" ? 3072 :
+    solveMode === "deep" ? 1536 :
+    512; // instant / generation
 
   const callOnce = async (extraNudge = "") => {
     const tCall = Date.now();
@@ -472,7 +480,7 @@ async function callGroqText(
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
         ],
-        temperature: isPremium ? 0.5 : 0.7,
+        temperature: solveMode === "essay" ? 0.6 : (solveMode === "deep" ? 0.35 : 0.2),
         max_tokens: maxTokens,
       }
     );
