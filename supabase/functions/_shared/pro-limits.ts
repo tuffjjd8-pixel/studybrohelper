@@ -4,16 +4,30 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // ADMIN BYPASS — unlimited usage for admin accounts
 // ============================================================
 export async function isAdmin(userId: string): Promise<boolean> {
+  if (!userId) return false;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
-  const { data } = await supabase
+
+  // 1) Check user_roles table for admin role
+  const { data: roleRow } = await supabase
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
     .eq("role", "admin")
     .maybeSingle();
-  return !!data;
+  if (roleRow) return true;
+
+  // 2) Legacy admin email bypass (matches public.is_poll_admin)
+  try {
+    const { data: userData } = await supabase.auth.admin.getUserById(userId);
+    const email = userData?.user?.email?.toLowerCase();
+    if (email === "apexwavesstudios@gmail.com") return true;
+  } catch (_) {
+    // ignore — fall through as non-admin
+  }
+
+  return false;
 }
 
 // ============================================================
