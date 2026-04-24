@@ -63,15 +63,38 @@ function isValidLatex(s: string): boolean {
 
 /**
  * Extract a complete, valid final answer from the solution text.
- * LaTeX-aware: prefers boxed answers, then final display-math blocks,
- * then text patterns. Returns null if no valid answer can be extracted.
+ * Priority:
+ *   1. Explicit "Final Answer: ..." / "**Final Answer:** ..." line (Deep + Instant Mode)
+ *   2. \boxed{...}
+ *   3. Last valid display-math block in tail
+ *   4. "Answer is ..." plain-text patterns
+ *   5. Trailing "= 42" numeric result
  */
 function extractFinalAnswer(solution: string): string | null {
   // Skip multi-part questions — they don't have a single final answer
   const partIndicators = (solution.match(/^\s*(?:\d+\.|#{1,3}\s*(?:Part|Question|Problem)\s*\d)/gm) || []).length;
   if (partIndicators >= 2) return null;
 
-  // 1. Prefer \boxed{...} — extract with brace matching
+  // 1. PRIMARY: explicit "Final Answer:" line (handles **, leading spaces, blank lines).
+  // Flexible regex per spec — multiline, allows ** wrappers and dash separator.
+  const finalAnswerLine = solution.match(
+    /^[ \t]*\**[ \t]*final\s*answer[ \t]*\**[ \t]*[:\-][ \t]*\**[ \t]*([^\n]+?)[ \t]*\**[ \t]*$/im,
+  );
+  if (finalAnswerLine?.[1]) {
+    const raw = finalAnswerLine[1].trim().replace(/\*{1,2}/g, "").trim();
+    if (raw.length > 0 && raw.length < 300) {
+      // If it contains LaTeX, validate it; otherwise return as plain text.
+      if (raw.includes("\\")) {
+        if (bracesBalanced(raw) && isValidLatex(raw.replace(/\\\(|\\\)|\\\[|\\\]|\$\$/g, ""))) {
+          return raw;
+        }
+      } else if (bracesBalanced(raw)) {
+        return raw;
+      }
+    }
+  }
+
+  // 2. Prefer \boxed{...} — extract with brace matching
   const boxedIdx = solution.lastIndexOf('\\boxed{');
   if (boxedIdx !== -1) {
     let depth = 0;
@@ -91,20 +114,20 @@ function extractFinalAnswer(solution: string): string | null {
     }
   }
 
-  // 2. Find the last display-math block near the end (last 40% of text)
+  // 3. Find the last display-math block near the end (last 40% of text)
   const searchStart = Math.floor(solution.length * 0.6);
   const tail = solution.slice(searchStart);
-  
+
   // Match \[ ... \] blocks
   const displayBlocks = [...tail.matchAll(/\\\[([\s\S]*?)\\\]/g)];
   // Match $$ ... $$ blocks
   const dollarBlocks = [...tail.matchAll(/\$\$([\s\S]*?)\$\$/g)];
-  
+
   const allBlocks = [
     ...displayBlocks.map(m => ({ content: m[1].trim(), full: m[0] })),
     ...dollarBlocks.map(m => ({ content: m[1].trim(), full: m[0] })),
   ];
-  
+
   // Take the last valid block
   for (let i = allBlocks.length - 1; i >= 0; i--) {
     const block = allBlocks[i];
@@ -113,24 +136,22 @@ function extractFinalAnswer(solution: string): string | null {
     }
   }
 
-  // 3. Plain-text patterns (non-math answers) — prefer the FIRST "Final Answer:" line
-  // (Deep Mode always puts it on line 1, Instant Mode on its only output line).
+  // 4. Plain-text "the answer is …" / "**Answer:**" patterns
   const textPatterns = [
-    /\*{0,2}\s*(?:final\s*answer|the\s*answer\s*is)\s*\*{0,2}\s*[:\-]\s*\*{0,2}([^\n]+?)\*{0,2}\s*$/im,
+    /\*{0,2}\s*the\s*answer\s*is\s*\*{0,2}\s*[:\-]\s*\*{0,2}([^\n]+?)\*{0,2}\s*$/im,
     /\*\*Answer:\*\*\s*([^\n]+?)\s*$/im,
   ];
   for (const pattern of textPatterns) {
     const match = solution.match(pattern);
     if (match?.[1]) {
       const answer = match[1].trim().replace(/\*{1,2}/g, "").trim();
-      // Only use if it looks like a clean plain-text answer (no broken LaTeX)
       if (answer.length > 0 && answer.length < 200 && !answer.includes('\\') && bracesBalanced(answer)) {
         return answer;
       }
     }
   }
 
-  // 4. Simple numeric/short result at end: "= 42" or "= 100"
+  // 5. Simple numeric/short result at end: "= 42" or "= 100"
   const simpleResult = solution.match(/=\s*([0-9][0-9,.\s]*)\s*$/m);
   if (simpleResult?.[1]) {
     const val = simpleResult[1].trim();
@@ -196,17 +217,26 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const bodySolution = useMemo(() => {
     if (!finalAnswer) return cleanSolution;
     let s = cleanSolution;
-    // Instant Mode: strip ALL "Final Answer:" / "Answer:" lines (avoids duplication with top card).
-    // Deep Mode: only strip the FIRST leading "Final Answer:" line so the structured body
-    // (Setup/Solve/Result/Quick Check) stays intact.
+    // Pass 1: peel off any leading "Final Answer:" block — handles blank lines,
+    // spaces, ** wrappers, dash separator, and trailing newlines.
+    s = s.replace(/^\s*(?:\*\*)?[ \t]*Final\s*Answer[ \t]*(?:\*\*)?[ \t]*[:\-][^\n]*\n+/i, "");
+    // Pass 2: catch a doubled leading line (model occasionally repeats).
+    s = s.replace(/^\s*(?:\*\*)?[ \t]*Final\s*Answer[ \t]*(?:\*\*)?[ \t]*[:\-][^\n]*\n+/i, "");
+    // Pass 3 (HARD RULE): nuke any remaining "Final Answer:" line anywhere in the body
+    // so the green card is the single source of truth.
+    s = s.replace(/^[ \t]*\**[ \t]*Final\s*Answer[ \t]*\**[ \t]*[:\-][^\n]*$\n?/gim, "");
+    // Instant Mode: also strip standalone "Answer:" lines (Deep Mode keeps "Result:" sections).
     if (!isDeepMode) {
-      s = s.replace(/^[ \t]*\**[ \t]*(?:Final\s*Answer|Answer)[ \t]*:[ \t]*[^\n]*\**[ \t]*$\n?/gim, "");
-    } else {
-      // Deep Mode: strip the FIRST "Final Answer:" line wherever it appears in the
-      // first few lines (model may emit a leading blank line or a ** wrapper).
-      s = s.replace(/^[ \t\n]*\**[ \t]*Final\s*Answer[ \t]*:[ \t]*[^\n]*\**[ \t]*\n?/i, "");
+      s = s.replace(/^[ \t]*\**[ \t]*Answer[ \t]*\**[ \t]*[:\-][^\n]*$\n?/gim, "");
     }
     s = s.replace(/\n{3,}/g, "\n\n");
+    if (typeof window !== "undefined" && (window as unknown as { __SB_DEBUG?: boolean }).__SB_DEBUG) {
+      // Debug log (gated behind window.__SB_DEBUG = true)
+      // eslint-disable-next-line no-console
+      console.log("[StudyBro] extracted_final_answer:", finalAnswer);
+      // eslint-disable-next-line no-console
+      console.log("[StudyBro] stripped_body_preview:", s.trim().slice(0, 100));
+    }
     return s.trim();
   }, [cleanSolution, finalAnswer, isDeepMode]);
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
