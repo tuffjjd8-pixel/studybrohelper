@@ -39,7 +39,7 @@ export function ScannerModal({
   // Auto-solve after capture: brief preview then solve
   const handleCameraCapture = useCallback(async (result: CameraCaptureResult) => {
     let imageData = result.images[0];
-    
+
     // Safety net: if somehow we still get a non-data-URL, normalize it
     if (!imageData.startsWith("data:image/")) {
       try {
@@ -51,23 +51,21 @@ export function ScannerModal({
         return;
       }
     }
-    
-    console.log(`[ScannerModal] Camera capture: length=${imageData.length}`);
+
+    console.log(`[ScannerModal] Camera capture: mode=${result.mode}, length=${imageData.length}`);
     setCapturedImage(imageData);
     setSelectedMode(result.mode);
     setState("previewing");
-  }, []);
 
-  // Auto-transition from preview → scanning after 400ms
-  useEffect(() => {
-    if (state !== "previewing" || !capturedImage) return;
-    const timer = setTimeout(() => {
+    // Kick off the solve directly with the captured data + mode so we don't
+    // depend on a useEffect closure that can be stale or cancelled by re-renders.
+    window.setTimeout(() => {
+      console.log("[ScannerModal] Auto-transition: previewing → scanning");
       setState("scanning");
       setLoadingStage("classifying");
-      solveProblem(capturedImage);
+      solveProblem(imageData, result.mode);
     }, 400);
-    return () => clearTimeout(timer);
-  }, [state, capturedImage]);
+  }, []);
 
   const handleCropRequest = useCallback(() => {
     setState("cropping");
