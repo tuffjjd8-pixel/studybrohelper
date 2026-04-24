@@ -228,9 +228,12 @@ function TableVisual({ payload }: { payload: TablePayload }) {
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="border-primary/30 hover:bg-transparent">
               {payload.columns.map((c, i) => (
-                <TableHead key={i} className="text-foreground/90 font-semibold">
+                <TableHead
+                  key={i}
+                  className="text-primary font-bold uppercase tracking-wide text-xs bg-primary/10"
+                >
                   {c}
                 </TableHead>
               ))}
@@ -238,9 +241,9 @@ function TableVisual({ payload }: { payload: TablePayload }) {
           </TableHeader>
           <TableBody>
             {payload.rows.map((row, rIdx) => (
-              <TableRow key={rIdx}>
+              <TableRow key={rIdx} className="border-border/40">
                 {row.map((cell, cIdx) => (
-                  <TableCell key={cIdx} className="text-foreground/85">
+                  <TableCell key={cIdx} className="text-foreground/90 font-mono text-sm">
                     {cell}
                   </TableCell>
                 ))}
