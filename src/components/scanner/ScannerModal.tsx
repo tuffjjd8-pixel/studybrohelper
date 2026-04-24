@@ -149,7 +149,7 @@ export function ScannerModal({
           question_text: titleForHistory,
           question_image_url: persistedImageUrl,
           solution_markdown: data.solution,
-          mode: isPremium ? modeForSolve : "instant",
+          mode: modeForSolve,
         });
       }
 
