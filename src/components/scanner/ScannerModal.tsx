@@ -39,7 +39,7 @@ export function ScannerModal({
   // Auto-solve after capture: brief preview then solve
   const handleCameraCapture = useCallback(async (result: CameraCaptureResult) => {
     let imageData = result.images[0];
-    
+
     // Safety net: if somehow we still get a non-data-URL, normalize it
     if (!imageData.startsWith("data:image/")) {
       try {
@@ -51,23 +51,21 @@ export function ScannerModal({
         return;
       }
     }
-    
-    console.log(`[ScannerModal] Camera capture: length=${imageData.length}`);
+
+    console.log(`[ScannerModal] Camera capture: mode=${result.mode}, length=${imageData.length}`);
     setCapturedImage(imageData);
     setSelectedMode(result.mode);
     setState("previewing");
-  }, []);
 
-  // Auto-transition from preview → scanning after 400ms
-  useEffect(() => {
-    if (state !== "previewing" || !capturedImage) return;
-    const timer = setTimeout(() => {
+    // Kick off the solve directly with the captured data + mode so we don't
+    // depend on a useEffect closure that can be stale or cancelled by re-renders.
+    window.setTimeout(() => {
+      console.log("[ScannerModal] Auto-transition: previewing → scanning");
       setState("scanning");
       setLoadingStage("classifying");
-      solveProblem(capturedImage);
+      solveProblem(imageData, result.mode);
     }, 400);
-    return () => clearTimeout(timer);
-  }, [state, capturedImage]);
+  }, []);
 
   const handleCropRequest = useCallback(() => {
     setState("cropping");
@@ -78,8 +76,8 @@ export function ScannerModal({
     setCapturedImage(croppedImage);
     setState("scanning");
     setLoadingStage("classifying");
-    solveProblem(croppedImage);
-  }, [capturedImage]);
+    solveProblem(croppedImage, selectedMode);
+  }, [capturedImage, selectedMode]);
 
   const handleCropCancel = useCallback(() => {
     // Return to scanning state
@@ -97,11 +95,12 @@ export function ScannerModal({
     onClose();
   }, [onClose]);
 
-  const solveProblem = async (imageData: string) => {
+  const solveProblem = async (imageData: string, modeOverride?: CameraSolveMode) => {
     if (!userId) {
       toast.error("Please sign in to use AI features.");
       return;
     }
+    const modeForSolve = modeOverride ?? selectedMode;
     try {
       const t_pipeline_start = performance.now();
       setLoadingStage("classifying");
@@ -115,7 +114,7 @@ export function ScannerModal({
         image: imageData,
         isPremium,
         animatedSteps: false,
-        solveMode: isPremium ? selectedMode : "instant",
+        solveMode: isPremium ? modeForSolve : "instant",
         generateGraph: false,
         deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
         answerLanguage,
@@ -148,7 +147,7 @@ export function ScannerModal({
           question_text: titleForHistory,
           question_image_url: persistedImageUrl,
           solution_markdown: data.solution,
-          mode: isPremium ? selectedMode : "instant",
+          mode: isPremium ? modeForSolve : "instant",
         });
       }
 
