@@ -476,7 +476,7 @@ async function callGroqText(
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
         ],
-        temperature: isPremium ? 0.5 : 0.7,
+        temperature: solveMode === "essay" ? 0.6 : (solveMode === "deep" ? 0.35 : 0.2),
         max_tokens: maxTokens,
       }
     );
