@@ -113,10 +113,11 @@ function extractFinalAnswer(solution: string): string | null {
     }
   }
 
-  // 3. Plain-text patterns (non-math answers)
+  // 3. Plain-text patterns (non-math answers) — prefer the FIRST "Final Answer:" line
+  // (Deep Mode always puts it on line 1, Instant Mode on its only output line).
   const textPatterns = [
-    /(?:final\s*answer|the\s*answer\s*is)[:\s]*\*{0,2}([^$\\*\n]+?)(?:\*{0,2})(?:\n|$)/i,
-    /\*\*Answer:\*\*\s*([^$\\*\n]+?)(?:\n|$)/i,
+    /\*{0,2}\s*(?:final\s*answer|the\s*answer\s*is)\s*\*{0,2}\s*[:\-]\s*\*{0,2}([^\n]+?)\*{0,2}\s*$/im,
+    /\*\*Answer:\*\*\s*([^\n]+?)\s*$/im,
   ];
   for (const pattern of textPatterns) {
     const match = solution.match(pattern);
@@ -201,7 +202,9 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
     if (!isDeepMode) {
       s = s.replace(/^[ \t]*\**[ \t]*(?:Final\s*Answer|Answer)[ \t]*:[ \t]*[^\n]*\**[ \t]*$\n?/gim, "");
     } else {
-      s = s.replace(/^[ \t]*\**[ \t]*Final\s*Answer[ \t]*:[ \t]*[^\n]*\**[ \t]*\n?/i, "");
+      // Deep Mode: strip the FIRST "Final Answer:" line wherever it appears in the
+      // first few lines (model may emit a leading blank line or a ** wrapper).
+      s = s.replace(/^[ \t\n]*\**[ \t]*Final\s*Answer[ \t]*:[ \t]*[^\n]*\**[ \t]*\n?/i, "");
     }
     s = s.replace(/\n{3,}/g, "\n\n");
     return s.trim();
