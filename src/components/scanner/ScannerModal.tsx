@@ -95,11 +95,12 @@ export function ScannerModal({
     onClose();
   }, [onClose]);
 
-  const solveProblem = async (imageData: string) => {
+  const solveProblem = async (imageData: string, modeOverride?: CameraSolveMode) => {
     if (!userId) {
       toast.error("Please sign in to use AI features.");
       return;
     }
+    const modeForSolve = modeOverride ?? selectedMode;
     try {
       const t_pipeline_start = performance.now();
       setLoadingStage("classifying");
@@ -113,7 +114,7 @@ export function ScannerModal({
         image: imageData,
         isPremium,
         animatedSteps: false,
-        solveMode: isPremium ? selectedMode : "instant",
+        solveMode: isPremium ? modeForSolve : "instant",
         generateGraph: false,
         deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
         answerLanguage,
