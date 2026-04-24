@@ -55,7 +55,7 @@ const SHARED_FORMATTING_RULES = `
 - After the full text answer, you MAY append ONE visual block ONLY when it clearly ADDS VALUE for the student.
 - SHOW a graph for: explicit "graph y = …" requests, function behavior (parabolas, lines, curves), coordinate problems, transformations, patterns where a picture aids thinking.
 - DO NOT show a graph for: basic arithmetic (e.g. 10 × 10), simple equation solving (e.g. 2x + 5 = 11), definitions, conceptual/word problems with no visual meaning, essays. If unsure whether a graph helps → DO NOT include one.
-- Tables: only for value tables, step breakdowns, or comparisons that genuinely benefit from tabular layout.
+- Tables: SHOW a <visual> table whenever the user asks for "table", "table of values", input/output pairs, function evaluation across multiple x values, or sequences. Also use a table for clean comparisons or step breakdowns that genuinely benefit from tabular layout. When a table is shown, keep the surrounding text minimal — the table IS the answer.
 - Do NOT describe the graph or table in the text. Do NOT invent values. Do NOT guess missing data.
 - When a graph IS included, also append ONE short line right before the <visual> block, max ~60 chars, summarizing the key feature. Examples: "Slope = 2, intercept = 3" or "Vertex at (2, -1), opens upward". No teaching, no extra sentences.
 - Use lowercase variables in equations: y = x^2 - 4x + 3 (not Y = X^2). Always include "x_label" and "y_label" (typically "x" and "y", or units when relevant).
