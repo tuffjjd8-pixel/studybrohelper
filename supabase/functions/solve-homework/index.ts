@@ -875,7 +875,8 @@ function fixLatexDelimiters(text: string): string {
   return result;
 }
 
-// Remove graph blocks from solution text (keeps <visual> blocks intact for history persistence)
+// Remove graph blocks from solution text (keeps <visual> blocks intact for history persistence).
+// Also dedupes accidental duplicate "Final Answer:" lines so the user only ever sees one.
 function cleanSolutionText(solution: string, _isPremium: boolean): string {
   let cleaned = solution;
 
@@ -884,6 +885,23 @@ function cleanSolutionText(solution: string, _isPremium: boolean): string {
 
   // Fix LaTeX delimiters
   cleaned = fixLatexDelimiters(cleaned);
+
+  // Dedupe top-level "Final Answer:" lines — keep only the first occurrence.
+  // (Sub-question "Final Answer (1):" / "Final Answer for part b:" are preserved.)
+  let seenFinal = false;
+  cleaned = cleaned
+    .split("\n")
+    .filter((line) => {
+      if (/^\s*final answer\s*:/i.test(line)) {
+        if (seenFinal) return false;
+        seenFinal = true;
+      }
+      return true;
+    })
+    .join("\n");
+
+  // Collapse runs of 3+ blank lines into 2
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
 
   return cleaned.trim();
 }
