@@ -233,6 +233,23 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       s = s.replace(/^[ \t]*\**[ \t]*Answer[ \t]*\**[ \t]*[:\-][^\n]*$\n?/gim, "");
     }
     s = s.replace(/\n{3,}/g, "\n\n").trim();
+
+    // INSTANT MODE: remove body if it's just a duplicate of the final answer
+    if (!isDeepMode && finalAnswer) {
+      const fa = finalAnswer.trim();
+      const faEscaped = fa.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // Strip simple wrappers: "= 100", "Answer: 100", "100.", "**100**", "$100$"
+      const dupPattern = new RegExp(
+        `^\\s*[*_$]*\\s*(?:answer\\s*[:=]\\s*|=\\s*)?[*_$\\\\()\\[\\]{}]*\\s*${faEscaped}\\s*[*_$\\\\()\\[\\]{}]*\\s*\\.?\\s*$`,
+        "i",
+      );
+      if (dupPattern.test(s)) {
+        s = "";
+      } else if (s.trim() === fa) {
+        s = "";
+      }
+    }
+
     if (typeof window !== "undefined" && (window as unknown as { __SB_DEBUG?: boolean }).__SB_DEBUG) {
       console.log("[StudyBro] extracted_final_answer:", finalAnswer);
       console.log("[StudyBro] stripped_body_preview:", s.slice(0, 100));
