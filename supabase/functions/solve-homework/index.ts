@@ -404,13 +404,16 @@ async function callGroqText(
   const textModel = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
   console.log("Calling Groq Text API with model:", textModel, "Premium:", isPremium, "AnimatedSteps:", animatedSteps, "Mode:", solveMode);
 
-  // Token budget: tight = faster perceived latency. Instant rarely needs >300 tokens.
-  // Deep needs room for Setup/Solve/Result/Quick Check but 1536 fits >99% of real answers.
-  // Essays still need headroom for paragraph/sentence count compliance.
+  // Token budget — balanced for quality + speed.
+  // Instant: tight (most replies are <200 tokens).
+  // Deep: increased to 2048 so Setup/Solve/Result/Quick Check never get truncated.
+  // Essay: keep generous headroom for paragraph/sentence count compliance.
+  // Short questions get a smaller deep budget to stay snappy.
+  const isShortQuestion = (question || "").length < 80;
   const maxTokens =
     solveMode === "essay" ? 3072 :
-    solveMode === "deep" ? 1536 :
-    512; // instant / generation
+    solveMode === "deep" ? (isShortQuestion ? 1400 : 2048) :
+    500; // instant / generation
 
   const callOnce = async (extraNudge = "") => {
     const tCall = Date.now();
