@@ -1140,13 +1140,14 @@ serve(async (req) => {
 
     // Route to appropriate model based on input type and tier
     if (allImages.length > 0) {
-      // Process each image through Vision + OCR pipeline (parallel within each image,
-      // and parallel across multiple images for max throughput)
+      // Process each image through Vision + OCR pipeline (with smart OCR-skip).
+      // Multiple images run in parallel.
       ocrEngineUsed = "groq_vision+external_ocr";
       const tPipelineStart = Date.now();
 
       const { cleanupOcrMath } = await import("../_shared/ocr-cleanup.ts");
 
+      let anyOcrSkipped = false;
       const perImage = await Promise.all(allImages.map(async (img, i) => {
         const matches = img.match(/^data:([^;]+);base64,(.+)$/);
         if (!matches) throw new Error(`Invalid image format for image ${i + 1}`);
@@ -1154,33 +1155,51 @@ serve(async (req) => {
         const base64Data = matches[2];
 
         const tImg = Date.now();
-        const { vision, ocr: ocrRaw } = await extractTextFromImage(base64Data, mimeType, answerLanguage, "text");
-        const ocr = cleanupOcrMath(ocrRaw).cleaned;
+        const { vision, ocr: ocrRaw, ocr_skipped } = await extractTextFromImage(base64Data, mimeType, answerLanguage, "text");
+        if (ocr_skipped) anyOcrSkipped = true;
+        const ocr = ocrRaw ? cleanupOcrMath(ocrRaw).cleaned : "";
         const combined_text = ocr && vision
           ? `[Exact text and equations from image]:\n${ocr}\n\n[Visual description and layout]:\n${vision}`
           : (ocr || vision);
-        console.log(`[Pipeline] img ${i + 1} extract=${Date.now() - tImg}ms vision=${vision.length} ocr=${ocr.length}`);
+        console.log(`[Pipeline] img ${i + 1} extract=${Date.now() - tImg}ms vision=${vision.length} ocr=${ocr.length} skipped=${ocr_skipped}`);
         return (allImages.length > 1 ? `[Image ${i + 1}]\n` : "") + combined_text;
       }));
 
       const fullCombined = perImage.join("\n\n");
-      console.log(`[Pipeline] all images extract total=${Date.now() - tPipelineStart}ms`);
+      const extractMs = Date.now() - tPipelineStart;
+      console.log(`[Pipeline] all images extract total=${extractMs}ms ocr_skipped=${anyOcrSkipped}`);
+      if (anyOcrSkipped) ocrEngineUsed = "groq_vision_only";
 
       let combinedQuestion = question
         ? `${question}\n\n${fullCombined}`
         : fullCombined;
 
-      if (effectiveMode === "deep" && !question) {
+      // Smart auto-routing: upgrade Instant → Deep when content clearly needs depth.
+      const routedMode = autoUpgradeMode(effectiveMode, combinedQuestion);
+      if (routedMode !== effectiveMode) {
+        console.log(`[Solve] Auto-upgraded mode: ${effectiveMode} → ${routedMode}`);
+      }
+
+      if (routedMode === "deep" && !question) {
         combinedQuestion = `Solve the following problem and explain your reasoning in full detail:\n\n${fullCombined}`;
       }
 
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
       const tReason = Date.now();
-      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, effectiveMode, answerLanguage, essaySettings);
-      console.log(`[Pipeline] reasoning=${Date.now() - tReason}ms total=${Date.now() - tPipelineStart}ms`);
+      solution = await callGroqText(combinedQuestion, isPremium, animatedSteps, routedMode, answerLanguage, essaySettings);
+      const reasonMs = Date.now() - tReason;
+      const totalMs = Date.now() - tPipelineStart;
+      console.log(`[Pipeline] extract=${extractMs}ms reasoning=${reasonMs}ms total=${totalMs}ms mode=${routedMode} model=${modelUsed} chars=${solution.length}`);
     } else if (question) {
       modelUsed = isPremium ? PRO_TEXT_MODEL : FREE_TEXT_MODEL;
-      solution = await callGroqText(question, isPremium, animatedSteps, effectiveMode, answerLanguage, essaySettings);
+      // Auto-route text-only solves too
+      const routedMode = autoUpgradeMode(effectiveMode, question);
+      if (routedMode !== effectiveMode) {
+        console.log(`[Solve] Auto-upgraded mode (text): ${effectiveMode} → ${routedMode}`);
+      }
+      const tReason = Date.now();
+      solution = await callGroqText(question, isPremium, animatedSteps, routedMode, answerLanguage, essaySettings);
+      console.log(`[Pipeline] text reasoning=${Date.now() - tReason}ms mode=${routedMode} chars=${solution.length}`);
     } else {
       throw new Error("Please provide a question or image");
     }
