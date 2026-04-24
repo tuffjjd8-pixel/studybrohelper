@@ -65,45 +65,61 @@ function isValidLatex(s: string): boolean {
  * Extract a complete, valid final answer from the solution text.
  * Priority:
  *   1. Explicit "Final Answer: ..." / "**Final Answer:** ..." line (Deep + Instant Mode)
- *   2. \boxed{...}
- *   3. Last valid display-math block in tail
- *   4. "Answer is ..." plain-text patterns
- *   5. Trailing "= 42" numeric result
+ *   2. First line before Setup/Solve/Result/Quick Check if it looks like a final answer
+ *   3. \boxed{...}
+ *   4. Last valid display-math block in tail
+ *   5. "Answer is ..." plain-text patterns
+ *   6. Trailing "= 42" numeric result
  */
 function extractFinalAnswer(solution: string): string | null {
+  const normalized = solution.replace(/\r\n?/g, "\n");
+
   // Skip multi-part questions — they don't have a single final answer
-  const partIndicators = (solution.match(/^\s*(?:\d+\.|#{1,3}\s*(?:Part|Question|Problem)\s*\d)/gm) || []).length;
+  const partIndicators = (normalized.match(/^\s*(?:\d+\.|#{1,3}\s*(?:Part|Question|Problem)\s*\d)/gm) || []).length;
   if (partIndicators >= 2) return null;
 
-  // 1. PRIMARY: explicit "Final Answer:" line (handles **, leading spaces, blank lines).
-  // Flexible regex per spec — multiline, allows ** wrappers and dash separator.
-  const finalAnswerLine = solution.match(
-    /^[ \t]*\**[ \t]*final\s*answer[ \t]*\**[ \t]*[:\-][ \t]*\**[ \t]*([^\n]+?)[ \t]*\**[ \t]*$/im,
-  );
-  if (finalAnswerLine?.[1]) {
-    const raw = finalAnswerLine[1].trim().replace(/\*{1,2}/g, "").trim();
-    if (raw.length > 0 && raw.length < 300) {
-      // If it contains LaTeX, validate it; otherwise return as plain text.
-      if (raw.includes("\\")) {
-        if (bracesBalanced(raw) && isValidLatex(raw.replace(/\\\(|\\\)|\\\[|\\\]|\$\$/g, ""))) {
-          return raw;
-        }
-      } else if (bracesBalanced(raw)) {
-        return raw;
-      }
+  const cleanCandidate = (value: string): string | null => {
+    const raw = value.trim().replace(/^\*+|\*+$/g, "").trim();
+    if (!raw || raw.length >= 300) return null;
+    if (raw.includes("\\")) return bracesBalanced(raw) ? raw : null;
+    return bracesBalanced(raw) ? raw : null;
+  };
+
+  // 1. PRIMARY: explicit "Final Answer:" line (handles **, spaces, blank lines, colon optional)
+  const explicitMatch = normalized.match(/(?:^|\n)\s*(?:\*\*)?Final Answer:?\s*\**\s*([^\n*]+?)(?:\*\*)?(?=\n|$)/i);
+  if (explicitMatch?.[1]) {
+    const cleaned = cleanCandidate(explicitMatch[1]);
+    if (cleaned) return cleaned;
+  }
+
+  // 2. Fallback: first meaningful line before Setup/Solve/Result/Quick Check
+  const firstSectionIndex = normalized.search(/^\s*(?:\*\*)?(?:Setup|Solve|Result|Quick Check)(?:\*\*)?\s*:?.*$/im);
+  const head = firstSectionIndex >= 0 ? normalized.slice(0, firstSectionIndex) : normalized.slice(0, 160);
+  const headLines = head
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (headLines.length > 0) {
+    const firstLine = headLines[headLines.length - 1]
+      .replace(/^(?:\*\*)?Final Answer:?\s*/i, "")
+      .replace(/^\*+|\*+$/g, "")
+      .trim();
+    if (firstLine && !/^(?:Setup|Solve|Result|Quick Check)\b/i.test(firstLine)) {
+      const cleaned = cleanCandidate(firstLine);
+      if (cleaned) return cleaned;
     }
   }
 
-  // 2. Prefer \boxed{...} — extract with brace matching
-  const boxedIdx = solution.lastIndexOf('\\boxed{');
+  // 3. Prefer \boxed{...} — extract with brace matching
+  const boxedIdx = normalized.lastIndexOf('\\boxed{');
   if (boxedIdx !== -1) {
     let depth = 0;
-    let start = boxedIdx + 7; // after \boxed{
-    for (let i = start; i < solution.length; i++) {
-      if (solution[i] === '{') depth++;
-      else if (solution[i] === '}') {
+    const start = boxedIdx + 7;
+    for (let i = start; i < normalized.length; i++) {
+      if (normalized[i] === '{') depth++;
+      else if (normalized[i] === '}') {
         if (depth === 0) {
-          const inner = solution.slice(start, i).trim();
+          const inner = normalized.slice(start, i).trim();
           if (inner.length > 0 && inner.length < 500 && isValidLatex(inner)) {
             return `$$${inner}$$`;
           }
@@ -114,21 +130,15 @@ function extractFinalAnswer(solution: string): string | null {
     }
   }
 
-  // 3. Find the last display-math block near the end (last 40% of text)
-  const searchStart = Math.floor(solution.length * 0.6);
-  const tail = solution.slice(searchStart);
-
-  // Match \[ ... \] blocks
+  // 4. Find the last display-math block near the end (last 40% of text)
+  const searchStart = Math.floor(normalized.length * 0.6);
+  const tail = normalized.slice(searchStart);
   const displayBlocks = [...tail.matchAll(/\\\[([\s\S]*?)\\\]/g)];
-  // Match $$ ... $$ blocks
   const dollarBlocks = [...tail.matchAll(/\$\$([\s\S]*?)\$\$/g)];
-
   const allBlocks = [
-    ...displayBlocks.map(m => ({ content: m[1].trim(), full: m[0] })),
-    ...dollarBlocks.map(m => ({ content: m[1].trim(), full: m[0] })),
+    ...displayBlocks.map((m) => ({ content: m[1].trim() })),
+    ...dollarBlocks.map((m) => ({ content: m[1].trim() })),
   ];
-
-  // Take the last valid block
   for (let i = allBlocks.length - 1; i >= 0; i--) {
     const block = allBlocks[i];
     if (block.content.length > 0 && block.content.length < 500 && isValidLatex(block.content)) {
@@ -136,23 +146,21 @@ function extractFinalAnswer(solution: string): string | null {
     }
   }
 
-  // 4. Plain-text "the answer is …" / "**Answer:**" patterns
+  // 5. Plain-text "the answer is …" / "**Answer:**" patterns
   const textPatterns = [
-    /\*{0,2}\s*the\s*answer\s*is\s*\*{0,2}\s*[:\-]\s*\*{0,2}([^\n]+?)\*{0,2}\s*$/im,
+    /\*{0,2}\s*the\s*answer\s*is\s*\*{0,2}\s*[:\-]?\s*\*{0,2}([^\n]+?)\*{0,2}\s*$/im,
     /\*\*Answer:\*\*\s*([^\n]+?)\s*$/im,
   ];
   for (const pattern of textPatterns) {
-    const match = solution.match(pattern);
+    const match = normalized.match(pattern);
     if (match?.[1]) {
-      const answer = match[1].trim().replace(/\*{1,2}/g, "").trim();
-      if (answer.length > 0 && answer.length < 200 && !answer.includes('\\') && bracesBalanced(answer)) {
-        return answer;
-      }
+      const cleaned = cleanCandidate(match[1]);
+      if (cleaned) return cleaned;
     }
   }
 
-  // 5. Simple numeric/short result at end: "= 42" or "= 100"
-  const simpleResult = solution.match(/=\s*([0-9][0-9,.\s]*)\s*$/m);
+  // 6. Simple numeric/short result at end: "= 42" or "= 100"
+  const simpleResult = normalized.match(/=\s*([0-9][0-9,.\s]*)\s*$/m);
   if (simpleResult?.[1]) {
     const val = simpleResult[1].trim();
     if (val.length > 0 && val.length < 50) return val;
@@ -215,29 +223,21 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   // When the final answer is surfaced at the top, strip ANY "Final Answer:" / "Answer:" lines
   // from the body to avoid duplication (leading, trailing, or standalone).
   const bodySolution = useMemo(() => {
-    if (!finalAnswer) return cleanSolution;
     let s = cleanSolution;
-    // Pass 1: peel off any leading "Final Answer:" block — handles blank lines,
-    // spaces, ** wrappers, dash separator, and trailing newlines.
-    s = s.replace(/^\s*(?:\*\*)?[ \t]*Final\s*Answer[ \t]*(?:\*\*)?[ \t]*[:\-][^\n]*\n+/i, "");
-    // Pass 2: catch a doubled leading line (model occasionally repeats).
-    s = s.replace(/^\s*(?:\*\*)?[ \t]*Final\s*Answer[ \t]*(?:\*\*)?[ \t]*[:\-][^\n]*\n+/i, "");
-    // Pass 3 (HARD RULE): nuke any remaining "Final Answer:" line anywhere in the body
-    // so the green card is the single source of truth.
-    s = s.replace(/^[ \t]*\**[ \t]*Final\s*Answer[ \t]*\**[ \t]*[:\-][^\n]*$\n?/gim, "");
-    // Instant Mode: also strip standalone "Answer:" lines (Deep Mode keeps "Result:" sections).
+    // Always strip Final Answer from the body, even if extraction failed,
+    // so the body never leaks the answer line.
+    s = s.replace(/^\s*(?:\*\*)?Final Answer:?\s*\**\s*[^\n]*\n+/i, "");
+    s = s.replace(/^\s*(?:\*\*)?Final Answer:?\s*\**\s*[^\n]*\n+/i, "");
+    s = s.replace(/^[ \t]*(?:\*\*)?Final Answer:?\s*\**\s*.*$\n?/gim, "");
     if (!isDeepMode) {
       s = s.replace(/^[ \t]*\**[ \t]*Answer[ \t]*\**[ \t]*[:\-][^\n]*$\n?/gim, "");
     }
-    s = s.replace(/\n{3,}/g, "\n\n");
+    s = s.replace(/\n{3,}/g, "\n\n").trim();
     if (typeof window !== "undefined" && (window as unknown as { __SB_DEBUG?: boolean }).__SB_DEBUG) {
-      // Debug log (gated behind window.__SB_DEBUG = true)
-      // eslint-disable-next-line no-console
       console.log("[StudyBro] extracted_final_answer:", finalAnswer);
-      // eslint-disable-next-line no-console
-      console.log("[StudyBro] stripped_body_preview:", s.trim().slice(0, 100));
+      console.log("[StudyBro] stripped_body_preview:", s.slice(0, 100));
     }
-    return s.trim();
+    return s;
   }, [cleanSolution, finalAnswer, isDeepMode]);
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
   const showFollowUp = !isHistory;
