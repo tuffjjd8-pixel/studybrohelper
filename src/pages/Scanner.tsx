@@ -37,10 +37,14 @@ const Scanner = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [solution, setSolution] = useState<SolutionData | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
+  const [selectedMode, setSelectedMode] = useState<CameraSolveMode>(() => {
+    return localStorage.getItem("camera_solve_mode") === "deep" ? "deep" : "instant";
+  });
   const [showFollowUp, setShowFollowUp] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
-  const [activeSolveMode, setActiveSolveMode] = useState<CameraSolveMode>("instant");
+  const [activeSolveMode, setActiveSolveMode] = useState<CameraSolveMode>(() => {
+    return localStorage.getItem("camera_solve_mode") === "deep" ? "deep" : "instant";
+  });
 
   const handleOpenCamera = useCallback(() => {
     setState("camera");
