@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/components/scanner/CustomCamera";
@@ -60,7 +60,7 @@ export function ScannerModal({
     setState("previewing");
 
     // Kick off the solve directly with the captured data + mode so we don't
-    // depend on a useEffect closure that can be stale or cancelled by re-renders.
+    // depend on stale React state or delayed effects.
     console.log("[ScannerModal] Auto-transition: previewing → scanning");
     setState("scanning");
     setLoadingStage("classifying");
