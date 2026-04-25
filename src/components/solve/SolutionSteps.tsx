@@ -256,6 +256,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
     let s = cleanSolution;
     // Strip ALL "Final Answer: ..." lines anywhere in the body (handles bold, leading spaces).
     s = s.replace(/^[ \t]*(?:\*\*)?\s*Final\s*Answer\s*:?\s*\**\s*[^\n]*\n?/gim, "");
+    // Strip the Explain-mode upsell line — we render it as a separate CTA.
+    s = s.replace(/^\s*Want a full breakdown \+ verification\??\s*$/gim, "");
     // Strip stray leading blank lines
     s = s.replace(/^\s+/, "");
     if (!isDeepMode) {
@@ -264,7 +266,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
     s = s.replace(/\n{3,}/g, "\n\n").trim();
 
     // INSTANT MODE: remove body if it's just a duplicate of the final answer
-    if (!isDeepMode && finalAnswer) {
+    if (!isDeepMode && !isExplainMode && finalAnswer) {
       const fa = finalAnswer.trim();
       const faEscaped = fa.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const dupPattern = new RegExp(
@@ -278,13 +280,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       }
     }
 
-    // Temporary debug
-    if (typeof window !== "undefined") {
-      console.log("finalAnswer extracted:", finalAnswer);
-      console.log("body starts:", s.slice(0, 120));
-    }
     return s;
-  }, [cleanSolution, finalAnswer, isDeepMode]);
+  }, [cleanSolution, finalAnswer, isDeepMode, isExplainMode]);
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
   const showFollowUp = !isHistory;
 
