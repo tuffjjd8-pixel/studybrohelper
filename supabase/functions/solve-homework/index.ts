@@ -211,6 +211,29 @@ Contradiction rule: collapsing variables to a FALSE statement (5=10, 0=7) → ST
 
 NEVER reply "Sorry, I couldn't solve this". If OCR is messy but intent is clear, reconstruct and solve. Always produce a complete structured solution with the final answer at the top.`;
 
+const EXPLAIN_MODE_INSTRUCTIONS = `
+
+## SOLVE MODE: EXPLAIN (mid-depth, free tier — clear but not exhaustive)
+
+REQUIRED STRUCTURE (exact labels):
+1. First line: \`Final Answer: <direct result>\`
+2. \`**Setup**\` — 1–2 sentences restating what's being solved.
+3. \`**Solve**\` — the basic working steps in short, plain prose. Show the key math, no deep tangents.
+4. \`**Result**\` — one line restating the answer (with units if applicable).
+
+DO NOT include:
+- a "Quick Check" / verification section
+- multiple solving methods or alternative approaches
+- deep pattern analysis or "why it works" essays
+- numbered "Step 1 / Step 2" lists or the word "steps"
+
+Keep total length tight. Aim for clarity, not depth. Use lowercase variables (e.g. y = 2x + 3, never Y = 2X + 3).
+
+After the \`**Result**\` line, on its own final line, append EXACTLY:
+Want a full breakdown + verification?
+
+NEVER restate \`Final Answer:\` more than once. NEVER add filler like "Let's solve" or "As an AI". If OCR is messy but intent is clear, infer and solve.`;
+
 // Prompt to generate structured breakdown sections (no numbered steps)
 // Free users get a condensed view, premium users get detailed reasoning
 function getAnimatedSectionsPrompt(maxSections: number, isPremium: boolean): string {
