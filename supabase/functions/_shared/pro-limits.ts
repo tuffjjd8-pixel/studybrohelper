@@ -107,7 +107,7 @@ export async function checkAndUseProFeature(
     await supabase
       .from("pro_usage")
       .update({ [feature]: currentUsed + 1, updated_at: new Date().toISOString() })
-      .eq("id", existing.id);
+      .eq("id", (existing as Record<string, any>).id);
   } else {
     await supabase
       .from("pro_usage")
