@@ -100,7 +100,7 @@ async function callGroqVision(b64: string, mimeType: string): Promise<string> {
 async function callPaddleOCR(bytes: Uint8Array, mimeType: string, mode: string): Promise<string> {
   const ext = mimeType.split("/")[1] || "png";
   const fd = new FormData();
-  fd.append("file", new Blob([bytes as BlobPart], { type: mimeType }), `image.${ext}`);
+  fd.append("file", new Blob([bytes], { type: mimeType }), `image.${ext}`);
   fd.append("mode", mode);
   const r = await fetch("http://46.224.199.130:8000/ocr", { method: "POST", body: fd });
   if (!r.ok) throw new Error(`OCR ${r.status}`);
