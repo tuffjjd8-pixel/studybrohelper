@@ -1143,9 +1143,12 @@ serve(async (req) => {
       }
     }
     
-    // Clamp deep → explain for non-premium users (no silent downgrade to instant).
+    // Tier-aware mode clamping (server-side safety, never silently downgrade to instant):
+    //   Free user: deep → explain
+    //   Pro user:  explain → deep (Pro never gets the free Explain tier)
     let effectiveMode = solveMode;
     if (effectiveMode === "deep" && !isPremium) effectiveMode = "explain";
+    else if (effectiveMode === "explain" && isPremium) effectiveMode = "deep";
     console.log(`[Solve] Mode received: ${solveMode} → effectiveMode: ${effectiveMode} (isPremium: ${isPremium}, hasImages: ${allImages.length > 0})`);
 
     // === PRO MONTHLY LIMIT CHECK ===
