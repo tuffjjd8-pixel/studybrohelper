@@ -166,41 +166,6 @@ function extractFinalAnswer(solution: string): string | null {
     if (val.length > 0 && val.length < 50) return val;
   }
 
-  // 7. Humanized output fallback: look for a bolded value near
-  //    a Result/Answer/Conclusion section heading or keyword.
-  //    e.g. "### Result\n... should be **126**." or "Result: **126**"
-  const resultSectionMatch = normalized.match(
-    /(?:^|\n)(?:#{1,4}\s*)?(?:\*\*)?(?:Result|Answer|Conclusion|Final)(?:\*\*)?\s*:?[^\n]*\n?([\s\S]{0,400})/i,
-  );
-  if (resultSectionMatch?.[1]) {
-    const section = resultSectionMatch[1];
-    const boldMatches = [...section.matchAll(/\*\*([^*\n]+?)\*\*/g)];
-    if (boldMatches.length > 0) {
-      const last = boldMatches[boldMatches.length - 1][1].trim();
-      const cleaned = cleanCandidate(last);
-      if (cleaned) return cleaned;
-    }
-    // Or a trailing number with optional punctuation
-    const numMatch = section.match(/([0-9][0-9,.\s/-]*)\s*\.?\s*$/m);
-    if (numMatch?.[1]) {
-      const val = numMatch[1].trim().replace(/[.\s]+$/, "");
-      if (val.length > 0 && val.length < 50) return val;
-    }
-  }
-
-  // 8. Last-bold-near-end fallback: any **value** in the final 30% of the text
-  const tailStart = Math.floor(normalized.length * 0.7);
-  const endTail = normalized.slice(tailStart);
-  const tailBolds = [...endTail.matchAll(/\*\*([^*\n]{1,80}?)\*\*/g)];
-  if (tailBolds.length > 0) {
-    const last = tailBolds[tailBolds.length - 1][1].trim();
-    // Only accept short, answer-like values (numbers, short expressions)
-    if (/^[0-9$\\(){}\[\].,\s+\-*/=^_a-zA-Z]+$/.test(last) && last.length < 80) {
-      const cleaned = cleanCandidate(last);
-      if (cleaned) return cleaned;
-    }
-  }
-
   return null;
 }
 
