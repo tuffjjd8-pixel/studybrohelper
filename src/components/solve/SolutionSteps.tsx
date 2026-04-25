@@ -264,8 +264,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       s = s.replace(/^[ \t]*\**[ \t]*Answer[ \t]*\**[ \t]*[:\-][^\n]*$\n?/gim, "");
     }
     s = s.replace(/\n{3,}/g, "\n\n").trim();
-    // Strip stray trailing punctuation/quotes (e.g. lone ' " ` , ; : at end of body).
-    s = s.replace(/[\s'"`,;:.]+$/u, (m) => (/[.?!)]/.test(m) ? m : "")).trim();
+    // Strip stray trailing apostrophes / quotes / backticks (formatting bug guard).
+    s = s.replace(/[\s'"`]+$/u, "").trim();
 
     // INSTANT MODE: remove body if it's just a duplicate of the final answer
     if (!isDeepMode && !isExplainMode && finalAnswer) {
