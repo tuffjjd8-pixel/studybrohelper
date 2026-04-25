@@ -16,6 +16,7 @@ import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { getSolveErrorMessage, invokeSolveHomework } from "@/lib/solveFunction";
 
 type ScannerState = "idle" | "camera" | "previewing" | "scanning" | "cropping" | "solved";
 type LoadingStage = "extracting" | "classifying" | "solving";
@@ -39,6 +40,7 @@ const Scanner = () => {
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
   const [showFollowUp, setShowFollowUp] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
+  const [activeSolveMode, setActiveSolveMode] = useState<CameraSolveMode>("instant");
 
   const handleOpenCamera = useCallback(() => {
     setState("camera");
@@ -49,18 +51,10 @@ const Scanner = () => {
     const img = result.images[0];
     setCapturedImage(img);
     setSelectedMode(result.mode);
-    setState("previewing");
-  }, []);
-
-  // Auto-transition from preview → scanning after 400ms
-  useEffect(() => {
-    if (state !== "previewing" || !capturedImage) return;
-    const timer = setTimeout(() => {
-      setState("scanning");
-      solveProblem(capturedImage);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [state, capturedImage]);
+    setActiveSolveMode(result.mode);
+    setState("scanning");
+    void solveProblem(img, result.mode);
+  }, [user]);
 
   const handleCameraClose = useCallback(() => {
     setState("idle");
@@ -84,8 +78,8 @@ const Scanner = () => {
     }
     setCapturedImage(croppedData);
     setState("scanning");
-    solveProblem(croppedData);
-  }, [capturedImage]);
+    void solveProblem(croppedData, activeSolveMode);
+  }, [capturedImage, activeSolveMode, user]);
 
   const handleCropCancel = useCallback(() => {
     // Go back to scanning/solved state depending on where we were
@@ -107,11 +101,14 @@ const Scanner = () => {
     setState("camera");
   }, [capturedImage]);
 
-  const solveProblem = async (imageData: string) => {
+  const solveProblem = async (imageData: string, modeOverride?: CameraSolveMode) => {
     if (!user) {
       toast.error("Please sign in to use AI features.");
+      setState("idle");
       return;
     }
+    const modeForSolve = modeOverride ?? selectedMode;
+    setActiveSolveMode(modeForSolve);
     try {
       const t_pipeline_start = performance.now();
       setLoadingStage("extracting");
@@ -121,20 +118,19 @@ const Scanner = () => {
 
       setLoadingStage("solving");
       const t_reason_start = performance.now();
-      const { data, error } = await supabase.functions.invoke("solve-homework", {
-        body: {
-          image: imageData,
-          isPremium: false,
-          animatedSteps: false,
-          solveMode: selectedMode,
-          generateGraph: false,
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-          answerLanguage,
-        },
+      const { data, error } = await invokeSolveHomework({
+        image: imageData,
+        isPremium: false,
+        animatedSteps: false,
+        solveMode: modeForSolve,
+        generateGraph: false,
+        deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+        answerLanguage,
       });
 
       const t_reason_end = performance.now();
       if (error) throw error;
+      if (!data?.solution) throw new Error(data?.message || data?.error || "empty_solution");
 
       console.log("[Scanner] image pipeline timings (ms)", {
         reasoning: Math.round(t_reason_end - t_reason_start),
@@ -163,7 +159,7 @@ const Scanner = () => {
           question_text: titleForHistory,
           question_image_url: persistedImageUrl,
           solution_markdown: data.solution,
-          mode: selectedMode,
+          mode: modeForSolve,
         });
       }
 
@@ -171,7 +167,7 @@ const Scanner = () => {
       setShowConfetti(true);
     } catch (error) {
       console.error("Scan error:", error);
-      toast.error("Failed to scan homework. Please try again.");
+      toast.error(getSolveErrorMessage(error));
       setState("idle");
       setCapturedImage(null);
     }
