@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen } from "lucide-react";
+import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen, Lightbulb } from "lucide-react";
 import { normalizeImageInput } from "@/lib/image";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-export type CameraSolveMode = "instant" | "deep";
+export type CameraSolveMode = "instant" | "explain" | "deep";
 
 export interface CameraCaptureResult {
   images: string[];
@@ -38,7 +38,9 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   // Camera mode (instant/deep) — persisted in localStorage
   const [cameraMode, setCameraMode] = useState<CameraSolveMode>(() => {
     const saved = localStorage.getItem("camera_solve_mode");
-    return saved === "deep" ? "deep" : "instant";
+    if (saved === "deep") return "deep";
+    if (saved === "explain") return "explain";
+    return "instant";
   });
 
   // Keep mode for session
@@ -318,7 +320,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
               <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15">
                 <button
                   onClick={() => setCameraMode("instant")}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                     cameraMode === "instant"
                       ? "bg-primary text-primary-foreground shadow-lg"
                       : "text-white/70 hover:text-white"
@@ -328,6 +330,17 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
                   Instant
                 </button>
                 <button
+                  onClick={() => setCameraMode("explain")}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                    cameraMode === "explain"
+                      ? "bg-primary text-primary-foreground shadow-lg"
+                      : "text-white/70 hover:text-white"
+                  }`}
+                >
+                  <Lightbulb className="w-3.5 h-3.5" />
+                  Explain
+                </button>
+                <button
                   onClick={() => {
                     if (!isPremium) {
                       toast("Upgrade to Pro to unlock Deep Mode", { icon: "👑" });
@@ -335,7 +348,7 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
                     }
                     setCameraMode("deep");
                   }}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                     cameraMode === "deep"
                       ? "bg-primary text-primary-foreground shadow-lg"
                       : "text-white/70 hover:text-white"
