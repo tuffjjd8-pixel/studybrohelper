@@ -287,7 +287,16 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const solveDeepLink = getPublicSolveUrl(solveId);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(solution);
+    // Build copy text: ensure "Final Answer: X" label is present at the top
+    let copyText = solution;
+    if (finalAnswer) {
+      const plainAnswer = finalAnswer.replace(/\$\$/g, "").replace(/\\\[|\\\]/g, "").trim();
+      const hasLabel = /(?:^|\n)\s*(?:\*\*)?\s*Final\s*Answer\s*:/i.test(solution);
+      if (!hasLabel) {
+        copyText = `Final Answer: ${plainAnswer}\n\n${solution}`;
+      }
+    }
+    await navigator.clipboard.writeText(copyText);
     setCopied(true);
     toast.success("Solution copied!");
     setTimeout(() => setCopied(false), 2000);
