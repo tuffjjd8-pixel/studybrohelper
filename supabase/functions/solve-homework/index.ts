@@ -1130,8 +1130,9 @@ serve(async (req) => {
       }
     }
     
-    // Use solveMode as-is — backend access control is handled externally
-    const effectiveMode = solveMode;
+    // Clamp deep → explain for non-premium users (no silent downgrade to instant).
+    let effectiveMode = solveMode;
+    if (effectiveMode === "deep" && !isPremium) effectiveMode = "explain";
     console.log(`[Solve] Mode received: ${solveMode} → effectiveMode: ${effectiveMode} (isPremium: ${isPremium}, hasImages: ${allImages.length > 0})`);
 
     // === PRO MONTHLY LIMIT CHECK ===
