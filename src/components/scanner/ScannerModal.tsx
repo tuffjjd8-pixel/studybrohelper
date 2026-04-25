@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CustomCamera, type CameraCaptureResult, type CameraSolveMode } from "@/components/scanner/CustomCamera";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { RotateCcw, Crop } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getSolveErrorMessage, invokeSolveHomework } from "@/lib/solveFunction";
 
 type ScannerState = "idle" | "camera" | "previewing" | "cropping" | "scanning";
 type LoadingStage = "extracting" | "classifying" | "solving";
@@ -15,7 +16,7 @@ type LoadingStage = "extracting" | "classifying" | "solving";
 interface ScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSolved: (question: string, solution: string, subject: string, image?: string) => void;
+  onSolved: (question: string, solution: string, subject: string, image?: string, mode?: CameraSolveMode) => void;
   userId?: string;
   isPremium?: boolean;
   solveMode?: "instant" | "deep" | "essay";
@@ -33,6 +34,7 @@ export function ScannerModal({
   const [loadingStage, setLoadingStage] = useState<LoadingStage>("extracting");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<CameraSolveMode>("instant");
+  const solveInFlightRef = useRef(false);
 
   const cameraActive = isOpen && (state === "idle" || state === "camera");
 
@@ -58,14 +60,12 @@ export function ScannerModal({
     setState("previewing");
 
     // Kick off the solve directly with the captured data + mode so we don't
-    // depend on a useEffect closure that can be stale or cancelled by re-renders.
-    window.setTimeout(() => {
-      console.log("[ScannerModal] Auto-transition: previewing → scanning");
-      setState("scanning");
-      setLoadingStage("classifying");
-      solveProblem(imageData, result.mode);
-    }, 400);
-  }, []);
+    // depend on stale React state or delayed effects.
+    console.log("[ScannerModal] Auto-transition: previewing → scanning");
+    setState("scanning");
+    setLoadingStage("classifying");
+    void solveProblem(imageData, result.mode);
+  }, [userId, isPremium]);
 
   const handleCropRequest = useCallback(() => {
     setState("cropping");
@@ -76,8 +76,8 @@ export function ScannerModal({
     setCapturedImage(croppedImage);
     setState("scanning");
     setLoadingStage("classifying");
-    solveProblem(croppedImage, selectedMode);
-  }, [capturedImage, selectedMode]);
+    void solveProblem(croppedImage, selectedMode);
+  }, [capturedImage, selectedMode, userId, isPremium]);
 
   const handleCropCancel = useCallback(() => {
     // Return to scanning state
@@ -96,11 +96,14 @@ export function ScannerModal({
   }, [onClose]);
 
   const solveProblem = async (imageData: string, modeOverride?: CameraSolveMode) => {
+    if (solveInFlightRef.current) return;
     if (!userId) {
       toast.error("Please sign in to use AI features.");
+      handleReset();
       return;
     }
     const modeForSolve = modeOverride ?? selectedMode;
+    solveInFlightRef.current = true;
     try {
       const t_pipeline_start = performance.now();
       setLoadingStage("classifying");
@@ -123,10 +126,11 @@ export function ScannerModal({
       };
 
       const t_reason_start = performance.now();
-      const { data, error } = await supabase.functions.invoke("solve-homework", { body });
+      const { data, error } = await invokeSolveHomework(body);
       const t_reason_end = performance.now();
 
       if (error) throw error;
+      if (!data?.solution) throw new Error(data?.message || data?.error || "empty_solution");
 
       console.log("[ScannerModal] image pipeline timings (ms)", {
         reasoning: Math.round(t_reason_end - t_reason_start),
@@ -153,13 +157,15 @@ export function ScannerModal({
         });
       }
 
-      onSolved(extractedQuestion || titleForHistory, data.solution, data.subject || "math", imageData);
+      onSolved(extractedQuestion || titleForHistory, data.solution, data.subject || "math", imageData, modeForSolve);
       handleReset();
       onClose();
     } catch (error) {
       console.error("Scan error:", error);
-      toast.error("Failed to scan homework. Please try again.");
+      toast.error(getSolveErrorMessage(error));
       handleReset();
+    } finally {
+      solveInFlightRef.current = false;
     }
   };
 

@@ -23,6 +23,7 @@ import { useSolveUsage } from "@/hooks/useSolveUsage";
 import { useBadges } from "@/hooks/useBadges";
 import { DailyMissions } from "@/components/home/DailyMissions";
 import { toast } from "sonner";
+import { getSolveErrorMessage, invokeSolveHomework } from "@/lib/solveFunction";
 
 interface SolutionData {
   subject: string;
@@ -30,6 +31,7 @@ interface SolutionData {
   answer: string;
   image?: string;
   solveId?: string;
+  mode?: "instant" | "deep" | "essay";
 }
 
 const Index = () => {
@@ -204,21 +206,20 @@ const Index = () => {
 
       const t_pipeline_start = performance.now();
       const t_reason_start = performance.now();
-      const { data, error } = await supabase.functions.invoke("solve-homework", {
-        body: {
-          question: input || undefined,
-          ...(imagesArray.length > 0 ? { images: imagesArray } : {}),
-          isPremium,
-          animatedSteps: false,
-          generateGraph: false,
-          solveMode: effectiveMode,
-          deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
-          answerLanguage,
-          ...(solveMode === "essay" ? { essaySettings } : {}),
-        },
+      const { data, error } = await invokeSolveHomework({
+        question: input || undefined,
+        ...(imagesArray.length > 0 ? { images: imagesArray } : {}),
+        isPremium,
+        animatedSteps: false,
+        generateGraph: false,
+        solveMode: effectiveMode,
+        deviceType: (window as any).Capacitor?.isNativePlatform?.() ? "capacitor" : "web",
+        answerLanguage,
+        ...(solveMode === "essay" ? { essaySettings } : {}),
       });
       const t_reason_end = performance.now();
       if (error) throw error;
+      if (!data?.solution) throw new Error(data?.message || data?.error || "empty_solution");
 
       if (imagesArray.length > 0) {
         console.log("[Index/Ask] image pipeline timings (ms)", {
@@ -328,16 +329,12 @@ const Index = () => {
         answer: data.solution,
         image: imagesArray.length > 0 ? imagesArray[0] : undefined,
         solveId,
+        mode: effectiveMode,
       });
       setShowConfetti(true);
     } catch (error: unknown) {
       console.error("Solve error:", error);
-      const errMsg = error instanceof Error ? error.message : "";
-      if (errMsg.includes("429")) {
-        toast.error("AI is busy. Please try again in a moment.");
-      } else {
-        toast.error("Failed to solve. Please try again.");
-      }
+      toast.error(getSolveErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -355,8 +352,8 @@ const Index = () => {
     toast.info("Image ready! Press Enter or type a question to solve.");
   };
 
-  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string) => {
-    setSolution({ subject, question, answer: solutionText, image });
+  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string, mode?: "instant" | "deep") => {
+    setSolution({ subject, question, answer: solutionText, image, mode });
     setShowConfetti(true);
     fetchRecentSolves();
     fetchProfile();
@@ -542,7 +539,7 @@ const Index = () => {
                 questionImage={solution.image}
                 solveId={solution.solveId}
                 isPremium={isPremium}
-                isDeepMode={false}
+                isDeepMode={solution.mode === "deep"}
                 isAuthenticated={!!user}
               />
             </motion.div>

@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 interface ScannerLoadingStateProps {
@@ -15,13 +15,15 @@ const ROTATING_STATUS = [
 
 export function ScannerLoadingState({ image }: ScannerLoadingStateProps) {
   const [statusIndex, setStatusIndex] = useState(0);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reduceMotion) return;
     const id = setInterval(() => {
       setStatusIndex((i) => (i + 1) % ROTATING_STATUS.length);
     }, 1800);
     return () => clearInterval(id);
-  }, []);
+  }, [reduceMotion]);
 
   return (
     <motion.div
@@ -31,13 +33,12 @@ export function ScannerLoadingState({ image }: ScannerLoadingStateProps) {
       transition={{ duration: 0.25, ease: "easeOut" }}
       className="flex flex-col items-center gap-7 py-10 w-full max-w-md mx-auto"
     >
-      {/* Image preview with subtle shimmer */}
       {image && (
         <motion.div
           initial={{ scale: 0.96, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className="relative rounded-2xl overflow-hidden border border-primary/20"
+          className="relative rounded-2xl overflow-hidden border border-primary/20 bg-card/70"
           style={{
             boxShadow: "0 0 40px hsl(var(--primary) / 0.18)",
           }}
@@ -48,27 +49,21 @@ export function ScannerLoadingState({ image }: ScannerLoadingStateProps) {
             className="max-h-44 object-contain"
           />
           <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                "linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.18) 50%, transparent 100%)",
-              backgroundSize: "200% 100%",
-              animation: "shimmer 1.8s infinite",
-            }}
+            className="absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent via-primary/15 to-transparent bg-[length:200%_100%] animate-shimmer"
           />
         </motion.div>
       )}
 
-      {/* Spinner with neon glow */}
       <div className="relative flex items-center justify-center">
-        {/* Soft outer halo */}
-        <div
+        <motion.div
           className="absolute w-20 h-20 rounded-full blur-2xl opacity-60"
+          animate={reduceMotion ? undefined : { scale: [0.92, 1.08, 0.92], opacity: [0.35, 0.65, 0.35] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
           style={{ background: "hsl(var(--primary) / 0.35)" }}
         />
         <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+          animate={reduceMotion ? undefined : { rotate: 360 }}
+          transition={{ duration: 0.95, repeat: Infinity, ease: "linear" }}
           className="relative w-14 h-14 rounded-full border-[3px] border-muted/40 border-t-primary"
           style={{
             boxShadow:
@@ -77,7 +72,6 @@ export function ScannerLoadingState({ image }: ScannerLoadingStateProps) {
         />
       </div>
 
-      {/* Headline + rotating subtle status */}
       <div className="text-center space-y-2 min-h-[3.5rem]">
         <p className="font-heading font-semibold text-xl text-foreground tracking-tight">
           Analyzing
