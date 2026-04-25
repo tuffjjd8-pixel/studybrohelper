@@ -16,7 +16,7 @@ type LoadingStage = "extracting" | "classifying" | "solving";
 interface ScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSolved: (question: string, solution: string, subject: string, image?: string) => void;
+  onSolved: (question: string, solution: string, subject: string, image?: string, mode?: CameraSolveMode) => void;
   userId?: string;
   isPremium?: boolean;
   solveMode?: "instant" | "deep" | "essay";
@@ -157,7 +157,7 @@ export function ScannerModal({
         });
       }
 
-      onSolved(extractedQuestion || titleForHistory, data.solution, data.subject || "math", imageData);
+      onSolved(extractedQuestion || titleForHistory, data.solution, data.subject || "math", imageData, modeForSolve);
       handleReset();
       onClose();
     } catch (error) {
