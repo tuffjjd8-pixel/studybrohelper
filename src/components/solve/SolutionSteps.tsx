@@ -74,9 +74,13 @@ function isValidLatex(s: string): boolean {
 function extractFinalAnswer(solution: string): string | null {
   const normalized = solution.replace(/\r\n?/g, "\n");
 
-  // Skip multi-part questions — they don't have a single final answer
-  const partIndicators = (normalized.match(/^\s*(?:\d+\.|#{1,3}\s*(?:Part|Question|Problem)\s*\d)/gm) || []).length;
-  if (partIndicators >= 2) return null;
+  // Skip multi-part questions ONLY when there's no explicit Final Answer line.
+  // Numbered steps inside a single solution (e.g. "1. \(2+3=10\)") must NOT trigger this.
+  const hasExplicitFinal = /(?:^|\n)\s*(?:\*\*)?\s*Final\s*Answer\s*:/i.test(normalized);
+  if (!hasExplicitFinal) {
+    const partIndicators = (normalized.match(/^\s*#{1,3}\s*(?:Part|Question|Problem)\s*\d/gim) || []).length;
+    if (partIndicators >= 2) return null;
+  }
 
   const cleanCandidate = (value: string): string | null => {
     const raw = value.trim().replace(/^\*+|\*+$/g, "").trim();
