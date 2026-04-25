@@ -282,6 +282,20 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
     if (!isDeepMode) {
       s = s.replace(/^[ \t]*\**[ \t]*Answer[ \t]*\**[ \t]*[:\-][^\n]*$\n?/gim, "");
     }
+
+    if (finalAnswer) {
+      const plainAnswer = finalAnswer.replace(/\$\$/g, "").replace(/\\\[|\\\]/g, "").trim();
+      const answerEscaped = plainAnswer.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (answerEscaped) {
+        s = s.replace(
+          new RegExp(
+            `(^|\\n)[ \\t]*(?:#{1,4}[ \\t]*)?(?:\\*\\*)?(?:Result|Answer|Conclusion|Final)(?:\\*\\*)?[ \\t]*(?::[ \\t]*)?\\n([\\s\\S]*?${answerEscaped}[\\s\\S]*?)(?=\\n[ \\t]*(?:#{1,4}[ \\t]*)?(?:\\*\\*)?(?:Setup|Solve|Quick Check|Check|Result|Answer|Conclusion|Final)(?:\\*\\*)?[ \\t]*:?|\\s*$)`,
+            "gi",
+          ),
+          "$1",
+        );
+      }
+    }
     s = s.replace(/\n{3,}/g, "\n\n").trim();
 
     // INSTANT MODE: remove body if it's just a duplicate of the final answer
