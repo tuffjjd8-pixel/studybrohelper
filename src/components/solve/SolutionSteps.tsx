@@ -249,11 +249,10 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   // from the body to avoid duplication (leading, trailing, or standalone).
   const bodySolution = useMemo(() => {
     let s = cleanSolution;
-    // Always strip Final Answer from the body, even if extraction failed,
-    // so the body never leaks the answer line.
-    s = s.replace(/^\s*(?:\*\*)?Final Answer:?\s*\**\s*[^\n]*\n+/i, "");
-    s = s.replace(/^\s*(?:\*\*)?Final Answer:?\s*\**\s*[^\n]*\n+/i, "");
-    s = s.replace(/^[ \t]*(?:\*\*)?Final Answer:?\s*\**\s*.*$\n?/gim, "");
+    // Strip ALL "Final Answer: ..." lines anywhere in the body (handles bold, leading spaces).
+    s = s.replace(/^[ \t]*(?:\*\*)?\s*Final\s*Answer\s*:?\s*\**\s*[^\n]*\n?/gim, "");
+    // Strip stray leading blank lines
+    s = s.replace(/^\s+/, "");
     if (!isDeepMode) {
       s = s.replace(/^[ \t]*\**[ \t]*Answer[ \t]*\**[ \t]*[:\-][^\n]*$\n?/gim, "");
     }
@@ -263,7 +262,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
     if (!isDeepMode && finalAnswer) {
       const fa = finalAnswer.trim();
       const faEscaped = fa.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      // Strip simple wrappers: "= 100", "Answer: 100", "100.", "**100**", "$100$"
       const dupPattern = new RegExp(
         `^\\s*[*_$]*\\s*(?:answer\\s*[:=]\\s*|=\\s*)?[*_$\\\\()\\[\\]{}]*\\s*${faEscaped}\\s*[*_$\\\\()\\[\\]{}]*\\s*\\.?\\s*$`,
         "i",
@@ -275,9 +273,10 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       }
     }
 
-    if (typeof window !== "undefined" && (window as unknown as { __SB_DEBUG?: boolean }).__SB_DEBUG) {
-      console.log("[StudyBro] extracted_final_answer:", finalAnswer);
-      console.log("[StudyBro] stripped_body_preview:", s.slice(0, 100));
+    // Temporary debug
+    if (typeof window !== "undefined") {
+      console.log("finalAnswer extracted:", finalAnswer);
+      console.log("body starts:", s.slice(0, 120));
     }
     return s;
   }, [cleanSolution, finalAnswer, isDeepMode]);
