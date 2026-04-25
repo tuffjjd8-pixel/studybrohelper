@@ -38,10 +38,26 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
   // Camera mode (instant/deep) — persisted in localStorage
   const [cameraMode, setCameraMode] = useState<CameraSolveMode>(() => {
     const saved = localStorage.getItem("camera_solve_mode");
-    if (saved === "deep") return "deep";
+    // Tier-aware default: Pro can have deep, Free can have explain.
+    if (isPremium) {
+      if (saved === "deep") return "deep";
+      return "instant";
+    }
     if (saved === "explain") return "explain";
     return "instant";
   });
+
+  // Reconcile saved mode against current tier whenever premium status changes.
+  useEffect(() => {
+    setCameraMode((prev) => {
+      if (isPremium) {
+        // Pro: only instant or deep allowed.
+        return prev === "deep" ? "deep" : "instant";
+      }
+      // Free: only instant or explain allowed.
+      return prev === "explain" ? "explain" : "instant";
+    });
+  }, [isPremium]);
 
   // Keep mode for session
   const [keepMode, setKeepMode] = useState(() => {
