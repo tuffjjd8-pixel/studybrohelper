@@ -79,10 +79,32 @@ function extractFinalAnswer(solution: string): string | null {
   if (partIndicators >= 2) return null;
 
   const cleanCandidate = (value: string): string | null => {
-    const raw = value.trim().replace(/^\*+|\*+$/g, "").trim();
+    const raw = value.trim().replace(/^\*+|\*+$/g, "").trim().replace(/([0-9])\.$/, "$1");
     if (!raw || raw.length >= 300) return null;
     if (raw.includes("\\")) return bracesBalanced(raw) ? raw : null;
     return bracesBalanced(raw) ? raw : null;
+  };
+
+  const extractAnswerLikeValue = (text: string): string | null => {
+    const boldMatches = [...text.matchAll(/\*\*([^*\n]+?)\*\*/g)];
+    if (boldMatches.length > 0) {
+      const cleaned = cleanCandidate(boldMatches[boldMatches.length - 1][1]);
+      if (cleaned) return cleaned;
+    }
+
+    const equalsMatches = [...text.matchAll(/=\s*([+-]?(?:\d[\d,]*(?:\.\d+)?|\.\d+)(?:\s*\/\s*[+-]?\d[\d,]*(?:\.\d+)?)?)(?=[\s.!?,;)]*(?:\n|$))/g)];
+    if (equalsMatches.length > 0) {
+      const cleaned = cleanCandidate(equalsMatches[equalsMatches.length - 1][1]);
+      if (cleaned) return cleaned;
+    }
+
+    const trailingNumber = text.match(/([+-]?(?:\d[\d,]*(?:\.\d+)?|\.\d+)(?:\s*\/\s*[+-]?\d[\d,]*(?:\.\d+)?)?)\s*[.!?]?\s*$/m);
+    if (trailingNumber?.[1]) {
+      const cleaned = cleanCandidate(trailingNumber[1]);
+      if (cleaned) return cleaned;
+    }
+
+    return null;
   };
 
   // 1. PRIMARY: explicit "Final Answer:" line (handles **, spaces, blank lines, colon optional)
@@ -159,33 +181,26 @@ function extractFinalAnswer(solution: string): string | null {
     }
   }
 
-  // 6. Simple numeric/short result at end: "= 42" or "= 100"
-  const simpleResult = normalized.match(/=\s*([0-9][0-9,.\s]*)\s*$/m);
-  if (simpleResult?.[1]) {
-    const val = simpleResult[1].trim();
-    if (val.length > 0 && val.length < 50) return val;
-  }
-
-  // 7. Humanized output fallback: look for a bolded value near
-  //    a Result/Answer/Conclusion section heading or keyword.
-  //    e.g. "### Result\n... should be **126**." or "Result: **126**"
-  const resultSectionMatch = normalized.match(
-    /(?:^|\n)(?:#{1,4}\s*)?(?:\*\*)?(?:Result|Answer|Conclusion|Final)(?:\*\*)?\s*:?[^\n]*\n?([\s\S]{0,400})/i,
-  );
-  if (resultSectionMatch?.[1]) {
-    const section = resultSectionMatch[1];
-    const boldMatches = [...section.matchAll(/\*\*([^*\n]+?)\*\*/g)];
-    if (boldMatches.length > 0) {
-      const last = boldMatches[boldMatches.length - 1][1].trim();
-      const cleaned = cleanCandidate(last);
+  // 6. Humanized/plain output fallback: parse Result/Answer sections without
+  //    letting heading whitespace consume the answer line.
+  const sectionPatterns = [
+    /(?:^|\n)[ \t]*(?:#{1,4}[ \t]*)?(?:\*\*)?(?:Result|Answer|Conclusion|Final)(?:\*\*)?[ \t]*:[ \t]*([^\n]+)/i,
+    /(?:^|\n)[ \t]*(?:#{1,4}[ \t]*)?(?:\*\*)?(?:Result|Answer|Conclusion|Final)(?:\*\*)?[ \t]*(?::[ \t]*)?\n([\s\S]*?)(?=\n[ \t]*(?:#{1,4}[ \t]*)?(?:\*\*)?(?:Setup|Solve|Quick Check|Check|Result|Answer|Conclusion|Final)(?:\*\*)?[ \t]*:?|\s*$)/i,
+  ];
+  for (const pattern of sectionPatterns) {
+    const match = normalized.match(pattern);
+    if (match?.[1]) {
+      const cleaned = extractAnswerLikeValue(match[1]);
       if (cleaned) return cleaned;
     }
-    // Or a trailing number with optional punctuation
-    const numMatch = section.match(/([0-9][0-9,.\s/-]*)\s*\.?\s*$/m);
-    if (numMatch?.[1]) {
-      const val = numMatch[1].trim().replace(/[.\s]+$/, "");
-      if (val.length > 0 && val.length < 50) return val;
-    }
+  }
+
+  // 7. Simple numeric/short result at end: use the LAST "= 42" style value,
+  //    not the first intermediate calculation.
+  const simpleResults = [...normalized.matchAll(/=\s*([0-9][0-9,.\s]*)\s*$/gm)];
+  if (simpleResults.length > 0) {
+    const val = simpleResults[simpleResults.length - 1][1].trim().replace(/[.\s]+$/, "");
+    if (val.length > 0 && val.length < 50) return val;
   }
 
   // 8. Last-bold-near-end fallback: any **value** in the final 30% of the text
