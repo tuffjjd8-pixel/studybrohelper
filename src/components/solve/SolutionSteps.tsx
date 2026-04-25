@@ -86,10 +86,35 @@ function extractFinalAnswer(solution: string): string | null {
   };
 
   // 1. PRIMARY: explicit "Final Answer:" line (handles **, spaces, blank lines, colon optional)
-  const explicitMatch = normalized.match(/(?:^|\n)\s*(?:\*\*)?Final Answer:?\s*\**\s*([^\n*]+?)(?:\*\*)?(?=\n|$)/i);
+  const explicitMatch = normalized.match(/(?:^|\n)\s*(?:\*\*)?\s*Final\s*Answer\s*:?\s*\**\s*([^\n*]+?)(?:\*\*)?\s*(?=\n|$)/i);
   if (explicitMatch?.[1]) {
     const cleaned = cleanCandidate(explicitMatch[1]);
     if (cleaned) return cleaned;
+  }
+
+  // 1b. Plain "Answer: X" line
+  const answerMatch = normalized.match(/(?:^|\n)\s*(?:\*\*)?\s*Answer\s*:?\s*\**\s*([^\n*]+?)(?:\*\*)?\s*(?=\n|$)/i);
+  if (answerMatch?.[1]) {
+    const cleaned = cleanCandidate(answerMatch[1]);
+    if (cleaned) return cleaned;
+  }
+
+  // 1c. Result section — grab the strongest equation (e.g. "9 + 5 = 126") or final number
+  const resultSectionMatch = normalized.match(/(?:^|\n)\s*(?:\*\*)?\s*Result\s*:?\s*\**\s*([\s\S]*?)(?=\n\s*(?:\*\*)?\s*(?:Quick Check|Setup|Solve|Final Answer)\b|$)/i);
+  if (resultSectionMatch?.[1]) {
+    const block = resultSectionMatch[1];
+    // Prefer "= X" pattern
+    const eqMatches = [...block.matchAll(/=\s*([0-9][0-9.,/\-\s]*)/g)];
+    if (eqMatches.length > 0) {
+      const last = eqMatches[eqMatches.length - 1][1].trim().replace(/[.,]$/, "");
+      if (last && last.length < 50) return last;
+    }
+    // "the answer X" pattern
+    const ansWord = block.match(/answer\s+(?:is\s+)?([0-9][0-9.,/\-\s]*)/i);
+    if (ansWord?.[1]) {
+      const v = ansWord[1].trim().replace(/[.,]$/, "");
+      if (v) return v;
+    }
   }
 
   // 2. Fallback: first meaningful line before Setup/Solve/Result/Quick Check
@@ -224,11 +249,10 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   // from the body to avoid duplication (leading, trailing, or standalone).
   const bodySolution = useMemo(() => {
     let s = cleanSolution;
-    // Always strip Final Answer from the body, even if extraction failed,
-    // so the body never leaks the answer line.
-    s = s.replace(/^\s*(?:\*\*)?Final Answer:?\s*\**\s*[^\n]*\n+/i, "");
-    s = s.replace(/^\s*(?:\*\*)?Final Answer:?\s*\**\s*[^\n]*\n+/i, "");
-    s = s.replace(/^[ \t]*(?:\*\*)?Final Answer:?\s*\**\s*.*$\n?/gim, "");
+    // Strip ALL "Final Answer: ..." lines anywhere in the body (handles bold, leading spaces).
+    s = s.replace(/^[ \t]*(?:\*\*)?\s*Final\s*Answer\s*:?\s*\**\s*[^\n]*\n?/gim, "");
+    // Strip stray leading blank lines
+    s = s.replace(/^\s+/, "");
     if (!isDeepMode) {
       s = s.replace(/^[ \t]*\**[ \t]*Answer[ \t]*\**[ \t]*[:\-][^\n]*$\n?/gim, "");
     }
@@ -238,7 +262,6 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
     if (!isDeepMode && finalAnswer) {
       const fa = finalAnswer.trim();
       const faEscaped = fa.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      // Strip simple wrappers: "= 100", "Answer: 100", "100.", "**100**", "$100$"
       const dupPattern = new RegExp(
         `^\\s*[*_$]*\\s*(?:answer\\s*[:=]\\s*|=\\s*)?[*_$\\\\()\\[\\]{}]*\\s*${faEscaped}\\s*[*_$\\\\()\\[\\]{}]*\\s*\\.?\\s*$`,
         "i",
@@ -250,9 +273,10 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       }
     }
 
-    if (typeof window !== "undefined" && (window as unknown as { __SB_DEBUG?: boolean }).__SB_DEBUG) {
-      console.log("[StudyBro] extracted_final_answer:", finalAnswer);
-      console.log("[StudyBro] stripped_body_preview:", s.slice(0, 100));
+    // Temporary debug
+    if (typeof window !== "undefined") {
+      console.log("finalAnswer extracted:", finalAnswer);
+      console.log("body starts:", s.slice(0, 120));
     }
     return s;
   }, [cleanSolution, finalAnswer, isDeepMode]);
@@ -263,7 +287,16 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
   const solveDeepLink = getPublicSolveUrl(solveId);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(solution);
+    // Build copy text: ensure "Final Answer: X" label is present at the top
+    let copyText = solution;
+    if (finalAnswer) {
+      const plainAnswer = finalAnswer.replace(/\$\$/g, "").replace(/\\\[|\\\]/g, "").trim();
+      const hasLabel = /(?:^|\n)\s*(?:\*\*)?\s*Final\s*Answer\s*:/i.test(solution);
+      if (!hasLabel) {
+        copyText = `Final Answer: ${plainAnswer}\n\n${solution}`;
+      }
+    }
+    await navigator.clipboard.writeText(copyText);
     setCopied(true);
     toast.success("Solution copied!");
     setTimeout(() => setCopied(false), 2000);
