@@ -210,6 +210,7 @@ interface SolutionStepsProps {
   followUpCount?: number;
   maxFollowUps?: number;
   isDeepMode?: boolean;
+  isExplainMode?: boolean;
   isAuthenticated?: boolean;
 }
 
@@ -229,7 +230,7 @@ const subjectGradients: Record<string, string> = {
   other: "from-muted to-muted/50",
 };
 
-export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, isAuthenticated = false }: SolutionStepsProps) {
+export function SolutionSteps({ subject, question, solution, questionImage, solveId, onFollowUp, isPremium = false, isHistory = false, followUpCount = 0, maxFollowUps = 2, isDeepMode = false, isExplainMode = false, isAuthenticated = false }: SolutionStepsProps) {
   const [copied, setCopied] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -255,6 +256,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
     let s = cleanSolution;
     // Strip ALL "Final Answer: ..." lines anywhere in the body (handles bold, leading spaces).
     s = s.replace(/^[ \t]*(?:\*\*)?\s*Final\s*Answer\s*:?\s*\**\s*[^\n]*\n?/gim, "");
+    // Strip the Explain-mode upsell line — we render it as a separate CTA.
+    s = s.replace(/^\s*Want a full breakdown \+ verification\??\s*$/gim, "");
     // Strip stray leading blank lines
     s = s.replace(/^\s+/, "");
     if (!isDeepMode) {
@@ -263,7 +266,7 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
     s = s.replace(/\n{3,}/g, "\n\n").trim();
 
     // INSTANT MODE: remove body if it's just a duplicate of the final answer
-    if (!isDeepMode && finalAnswer) {
+    if (!isDeepMode && !isExplainMode && finalAnswer) {
       const fa = finalAnswer.trim();
       const faEscaped = fa.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const dupPattern = new RegExp(
@@ -277,13 +280,8 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       }
     }
 
-    // Temporary debug
-    if (typeof window !== "undefined") {
-      console.log("finalAnswer extracted:", finalAnswer);
-      console.log("body starts:", s.slice(0, 120));
-    }
     return s;
-  }, [cleanSolution, finalAnswer, isDeepMode]);
+  }, [cleanSolution, finalAnswer, isDeepMode, isExplainMode]);
   const followUpLimitReached = !isPremium && localFollowUpCount >= maxFollowUps;
   const showFollowUp = !isHistory;
 
@@ -556,6 +554,20 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             <div className="mt-4">
               <SolutionVisual visual={visual} />
             </div>
+          )}
+
+          {/* Explain-mode upsell — soft CTA to convert free → Deep */}
+          {isExplainMode && !isPremium && !isHistory && (
+            <button
+              type="button"
+              onClick={() => navigate("/premium")}
+              className="mt-4 w-full rounded-xl px-4 py-3 text-sm font-medium text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Crown className="w-4 h-4 text-amber-400" />
+                Want a full breakdown + verification?
+              </span>
+            </button>
           )}
 
           {/* Humanize section — fully inside capture area */}

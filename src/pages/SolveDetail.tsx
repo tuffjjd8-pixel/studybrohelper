@@ -243,6 +243,7 @@ const SolveDetail = () => {
               isPremium={isPremium}
               isHistory={true}
               isDeepMode={solve.mode === "deep"}
+              isExplainMode={solve.mode === "explain"}
               isAuthenticated={!!user}
             />
             {/* Soft CTA for non-authenticated viewers */}
