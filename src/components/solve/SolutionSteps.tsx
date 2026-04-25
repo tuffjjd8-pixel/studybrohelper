@@ -556,6 +556,20 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
             </div>
           )}
 
+          {/* Explain-mode upsell — soft CTA to convert free → Deep */}
+          {isExplainMode && !isPremium && !isHistory && (
+            <button
+              type="button"
+              onClick={() => navigate("/premium")}
+              className="mt-4 w-full rounded-xl px-4 py-3 text-sm font-medium text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Crown className="w-4 h-4 text-amber-400" />
+                Want a full breakdown + verification?
+              </span>
+            </button>
+          )}
+
           {/* Humanize section — fully inside capture area */}
           {!isHistory || isPremium ? (
             <div className="mt-4 pt-4 border-t border-border/50 space-y-3 humanize-section">
