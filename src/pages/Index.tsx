@@ -31,7 +31,7 @@ interface SolutionData {
   answer: string;
   image?: string;
   solveId?: string;
-  mode?: "instant" | "deep" | "essay";
+  mode?: "instant" | "explain" | "deep" | "essay";
 }
 
 const Index = () => {
@@ -352,7 +352,7 @@ const Index = () => {
     toast.info("Image ready! Press Enter or type a question to solve.");
   };
 
-  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string, mode?: "instant" | "deep") => {
+  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string, mode?: "instant" | "explain" | "deep") => {
     setSolution({ subject, question, answer: solutionText, image, mode });
     setShowConfetti(true);
     fetchRecentSolves();
@@ -540,6 +540,7 @@ const Index = () => {
                 solveId={solution.solveId}
                 isPremium={isPremium}
                 isDeepMode={solution.mode === "deep"}
+                isExplainMode={solution.mode === "explain"}
                 isAuthenticated={!!user}
               />
             </motion.div>
