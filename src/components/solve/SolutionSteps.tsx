@@ -86,10 +86,35 @@ function extractFinalAnswer(solution: string): string | null {
   };
 
   // 1. PRIMARY: explicit "Final Answer:" line (handles **, spaces, blank lines, colon optional)
-  const explicitMatch = normalized.match(/(?:^|\n)\s*(?:\*\*)?Final Answer:?\s*\**\s*([^\n*]+?)(?:\*\*)?(?=\n|$)/i);
+  const explicitMatch = normalized.match(/(?:^|\n)\s*(?:\*\*)?\s*Final\s*Answer\s*:?\s*\**\s*([^\n*]+?)(?:\*\*)?\s*(?=\n|$)/i);
   if (explicitMatch?.[1]) {
     const cleaned = cleanCandidate(explicitMatch[1]);
     if (cleaned) return cleaned;
+  }
+
+  // 1b. Plain "Answer: X" line
+  const answerMatch = normalized.match(/(?:^|\n)\s*(?:\*\*)?\s*Answer\s*:?\s*\**\s*([^\n*]+?)(?:\*\*)?\s*(?=\n|$)/i);
+  if (answerMatch?.[1]) {
+    const cleaned = cleanCandidate(answerMatch[1]);
+    if (cleaned) return cleaned;
+  }
+
+  // 1c. Result section — grab the strongest equation (e.g. "9 + 5 = 126") or final number
+  const resultSectionMatch = normalized.match(/(?:^|\n)\s*(?:\*\*)?\s*Result\s*:?\s*\**\s*([\s\S]*?)(?=\n\s*(?:\*\*)?\s*(?:Quick Check|Setup|Solve|Final Answer)\b|$)/i);
+  if (resultSectionMatch?.[1]) {
+    const block = resultSectionMatch[1];
+    // Prefer "= X" pattern
+    const eqMatches = [...block.matchAll(/=\s*([0-9][0-9.,/\-\s]*)/g)];
+    if (eqMatches.length > 0) {
+      const last = eqMatches[eqMatches.length - 1][1].trim().replace(/[.,]$/, "");
+      if (last && last.length < 50) return last;
+    }
+    // "the answer X" pattern
+    const ansWord = block.match(/answer\s+(?:is\s+)?([0-9][0-9.,/\-\s]*)/i);
+    if (ansWord?.[1]) {
+      const v = ansWord[1].trim().replace(/[.,]$/, "");
+      if (v) return v;
+    }
   }
 
   // 2. Fallback: first meaningful line before Setup/Solve/Result/Quick Check
