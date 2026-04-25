@@ -469,6 +469,7 @@ async function callGroqText(
   const maxTokens =
     solveMode === "essay" ? 3072 :
     solveMode === "deep" ? (isShortQuestion ? 1400 : 2048) :
+    solveMode === "explain" ? 800 :
     500; // instant / generation
 
   const callOnce = async (extraNudge = "") => {
