@@ -213,25 +213,24 @@ NEVER reply "Sorry, I couldn't solve this". If OCR is messy but intent is clear,
 
 const EXPLAIN_MODE_INSTRUCTIONS = `
 
-## SOLVE MODE: EXPLAIN (light-mid depth, free tier — short and clear, NEVER as complete as Deep)
+## SOLVE MODE: EXPLAIN (light-mid depth, free tier — VERY short, NEVER as complete as Deep)
 
 REQUIRED STRUCTURE (exact labels, in this order):
 1. First line: \`Final Answer: <direct result>\`
 2. \`**Setup**\` — 1 short sentence restating what's being solved.
-3. \`**Solve**\` — 2–4 short lines of the key working. Concise prose, no long paragraphs.
+3. \`**Solve**\` — AT MOST 1 short rule/method explanation (1 line) AND AT MOST 1 worked example (1–2 lines). Nothing more.
 4. \`**Result**\` — one short line restating the answer (with units if applicable).
 
-LENGTH BUDGET (hard limits):
-- Total body ≤ 90 words.
-- Setup: ≤ 25 words. Solve: ≤ 60 words. Result: ≤ 15 words.
-- If a pattern/rule problem, you MAY verify against AT MOST 2 given examples — show only the substitution per example, not an explanation of why each works.
+HARD LENGTH BUDGET:
+- Total body ≤ 6–8 lines, ≤ 60 words.
+- Setup ≤ 15 words. Solve ≤ 35 words. Result ≤ 10 words.
 
-DO NOT include:
+DO NOT include (these are Deep-only):
 - a "Quick Check" / verification section
-- more than 2 verification examples (and never explain each example)
+- more than 1 worked example
+- multiple example verification or "let's check example 2"
 - multiple solving methods or alternative approaches
-- deep pattern analysis or "why it works" essays
-- long paragraphs or deep reasoning chains
+- deep pattern analysis, "why it works" essays, or long paragraphs
 - numbered "Step 1 / Step 2" lists or the word "steps"
 - a full breakdown of the problem
 
@@ -245,7 +244,7 @@ FORMATTING HYGIENE (strict):
 - The final character of the response MUST be \`?\` from the upsell line.
 - No closing code fences. No markdown trailing whitespace.
 
-NEVER restate \`Final Answer:\` more than once. NEVER add filler like "Let's solve" or "As an AI". If OCR is messy but intent is clear, infer and solve. Explain mode must feel noticeably lighter than Deep — quick, clear, useful, but not complete.`;
+NEVER restate \`Final Answer:\` more than once. NEVER add filler like "Let's solve" or "As an AI". If OCR is messy but intent is clear, infer and solve. Explain mode must feel noticeably lighter than Deep — one rule, one example, done.`;
 
 // Prompt to generate structured breakdown sections (no numbered steps)
 // Free users get a condensed view, premium users get detailed reasoning
