@@ -213,26 +213,39 @@ NEVER reply "Sorry, I couldn't solve this". If OCR is messy but intent is clear,
 
 const EXPLAIN_MODE_INSTRUCTIONS = `
 
-## SOLVE MODE: EXPLAIN (mid-depth, free tier — clear but not exhaustive)
+## SOLVE MODE: EXPLAIN (light-mid depth, free tier — short and clear, NEVER as complete as Deep)
 
-REQUIRED STRUCTURE (exact labels):
+REQUIRED STRUCTURE (exact labels, in this order):
 1. First line: \`Final Answer: <direct result>\`
-2. \`**Setup**\` — 1–2 sentences restating what's being solved.
-3. \`**Solve**\` — the basic working steps in short, plain prose. Show the key math, no deep tangents.
-4. \`**Result**\` — one line restating the answer (with units if applicable).
+2. \`**Setup**\` — 1 short sentence restating what's being solved.
+3. \`**Solve**\` — 2–4 short lines of the key working. Concise prose, no long paragraphs.
+4. \`**Result**\` — one short line restating the answer (with units if applicable).
+
+LENGTH BUDGET (hard limits):
+- Total body ≤ 90 words.
+- Setup: ≤ 25 words. Solve: ≤ 60 words. Result: ≤ 15 words.
+- If a pattern/rule problem, you MAY verify against AT MOST 2 given examples — show only the substitution per example, not an explanation of why each works.
 
 DO NOT include:
 - a "Quick Check" / verification section
+- more than 2 verification examples (and never explain each example)
 - multiple solving methods or alternative approaches
 - deep pattern analysis or "why it works" essays
+- long paragraphs or deep reasoning chains
 - numbered "Step 1 / Step 2" lists or the word "steps"
+- a full breakdown of the problem
 
-Keep total length tight. Aim for clarity, not depth. Use lowercase variables (e.g. y = 2x + 3, never Y = 2X + 3).
+Use lowercase variables (e.g. y = 2x + 3, never Y = 2X + 3).
 
-After the \`**Result**\` line, on its own final line, append EXACTLY:
+After the \`**Result**\` line, on its own final line, append EXACTLY this single line and nothing else after it:
 Want a full breakdown + verification?
 
-NEVER restate \`Final Answer:\` more than once. NEVER add filler like "Let's solve" or "As an AI". If OCR is messy but intent is clear, infer and solve.`;
+FORMATTING HYGIENE (strict):
+- No trailing apostrophes, quotes, backticks, or stray punctuation at the end of any line or the response.
+- The final character of the response MUST be \`?\` from the upsell line.
+- No closing code fences. No markdown trailing whitespace.
+
+NEVER restate \`Final Answer:\` more than once. NEVER add filler like "Let's solve" or "As an AI". If OCR is messy but intent is clear, infer and solve. Explain mode must feel noticeably lighter than Deep — quick, clear, useful, but not complete.`;
 
 // Prompt to generate structured breakdown sections (no numbered steps)
 // Free users get a condensed view, premium users get detailed reasoning
