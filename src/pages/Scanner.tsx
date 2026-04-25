@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Sparkles, Camera, MessageCircle, Crop, RotateCcw, Wand2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -63,8 +63,10 @@ const Scanner = () => {
   // Gallery/drop-zone: also auto-solve immediately
   const handleImageSelect = useCallback((imageData: string) => {
     setCapturedImage(imageData);
-    setState("previewing");
-  }, []);
+    setActiveSolveMode(selectedMode);
+    setState("scanning");
+    void solveProblem(imageData, selectedMode);
+  }, [selectedMode, user]);
 
   // Optional crop: user chose to crop
   const handleCropRequest = useCallback(() => {
