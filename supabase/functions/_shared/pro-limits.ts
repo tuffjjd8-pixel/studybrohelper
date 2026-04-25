@@ -92,7 +92,8 @@ export async function checkAndUseProFeature(
     .eq("usage_month", usageMonth)
     .maybeSingle();
 
-  const currentUsed = existing ? (existing as Record<string, any>)[feature] || 0 : 0;
+  const existingRow = existing as Record<string, any> | null;
+  const currentUsed = existingRow ? existingRow[feature] || 0 : 0;
 
   if (currentUsed >= limit) {
     return { allowed: false, used: currentUsed, limit };
@@ -103,11 +104,11 @@ export async function checkAndUseProFeature(
   }
 
   // Increment usage
-  if (existing) {
+  if (existingRow) {
     await supabase
       .from("pro_usage")
       .update({ [feature]: currentUsed + 1, updated_at: new Date().toISOString() })
-      .eq("id", existing.id);
+      .eq("id", existingRow.id);
   } else {
     await supabase
       .from("pro_usage")
