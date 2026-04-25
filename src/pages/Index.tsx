@@ -31,6 +31,7 @@ interface SolutionData {
   answer: string;
   image?: string;
   solveId?: string;
+  mode?: "instant" | "deep" | "essay";
 }
 
 const Index = () => {
@@ -328,6 +329,7 @@ const Index = () => {
         answer: data.solution,
         image: imagesArray.length > 0 ? imagesArray[0] : undefined,
         solveId,
+        mode: effectiveMode,
       });
       setShowConfetti(true);
     } catch (error: unknown) {
@@ -350,8 +352,8 @@ const Index = () => {
     toast.info("Image ready! Press Enter or type a question to solve.");
   };
 
-  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string) => {
-    setSolution({ subject, question, answer: solutionText, image });
+  const handleScannerSolved = (question: string, solutionText: string, subject: string, image?: string, mode?: "instant" | "deep") => {
+    setSolution({ subject, question, answer: solutionText, image, mode });
     setShowConfetti(true);
     fetchRecentSolves();
     fetchProfile();
@@ -537,7 +539,7 @@ const Index = () => {
                 questionImage={solution.image}
                 solveId={solution.solveId}
                 isPremium={isPremium}
-                isDeepMode={false}
+                isDeepMode={solution.mode === "deep"}
                 isAuthenticated={!!user}
               />
             </motion.div>
