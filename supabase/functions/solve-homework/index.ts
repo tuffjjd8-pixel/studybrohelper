@@ -222,11 +222,12 @@ FORMAT:
 - Multi-part questions: answer EVERY part, each with its own mini Final Answer under its section. Only ONE top-level \`Final Answer:\` at the very top — never restate it mid-solution.
 - NEVER: "Step 1", numbered lists for the explanation, the word "steps", greetings, "Let's solve", filler, duplicated sections.
 
-Validity Check (only when truly impossible / contradictory / missing essential info):
-\`Validity Check: The problem cannot be solved as written.\`
-\`**Why:**\` short bullet(s).
-\`**Minimal Fix:**\` smallest change to make it solvable.
-If the fix is obvious you MAY add: "If corrected to …, then …" with a brief solution.
+Validity Check (use when the problem is impossible, self-contradictory, or missing essential info — detected via the CONSISTENCY CHECK above):
+\`Final Answer: Not possible as written.\`
+\`**Validity Check:**\` 1 line stating it can't be solved as written.
+\`**Why:**\` short bullet(s) showing the contradiction (which conditions clash).
+\`**Minimal Fix:**\` smallest change that would make it valid (optional).
+If the fix is obvious you MAY add: "If corrected to …, then …" with a brief solution. Never invent a result to satisfy impossible constraints.
 
 Contradiction rule: collapsing variables to a FALSE statement (5=10, 0=7) → STOP, treat as Validity Check. \`0=0\` is identity — solve normally.
 
