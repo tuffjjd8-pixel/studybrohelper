@@ -227,9 +227,8 @@ FORMAT:
 Validity Check (use when the problem is impossible, self-contradictory, or missing essential info — detected via the CONSISTENCY CHECK above):
 \`Final Answer: Not possible as written.\`
 \`**Validity Check:**\` 1 line stating it can't be solved as written.
-\`**Why:**\` short bullet(s) showing the contradiction (which conditions clash).
-\`**Minimal Fix:**\` smallest change that would make it valid (optional).
-If the fix is obvious you MAY add: "If corrected to …, then …" with a brief solution. Never invent a result to satisfy impossible constraints.
+\`**Why:**\` short bullet(s) showing the contradiction using the ORIGINAL given numbers (do not substitute different values).
+STRICT: Never change a given quantity. Never propose alternative numbers that would "work". Never solve a modified version. The \`Minimal Fix\` line and any "If corrected to …" follow-up are REMOVED — do not include them. Just evaluate as written and stop.
 
 Contradiction rule: collapsing variables to a FALSE statement (5=10, 0=7) → STOP, treat as Validity Check. \`0=0\` is identity — solve normally.
 
