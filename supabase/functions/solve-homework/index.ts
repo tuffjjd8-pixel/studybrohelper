@@ -214,13 +214,27 @@ FORMAT:
 - Multi-part questions: answer EVERY part, each with its own mini Final Answer under its section. Only ONE top-level \`Final Answer:\` at the very top — never restate it mid-solution.
 - NEVER: "Step 1", numbered lists for the explanation, the word "steps", greetings, "Let's solve", filler, duplicated sections.
 
-Validity Check (only when truly impossible / contradictory / missing essential info):
-\`Validity Check: The problem cannot be solved as written.\`
-\`**Why:**\` short bullet(s).
-\`**Minimal Fix:**\` smallest change to make it solvable.
-If the fix is obvious you MAY add: "If corrected to …, then …" with a brief solution.
+INVALID / IMPOSSIBLE PROBLEM HANDLING (only when the problem genuinely cannot be solved as written — contradictions, non-integer results where integers are required, missing essential info, impossible geometry, etc.):
+- In place of the normal \`Final Answer\`, start with: \`Final Answer: This problem is incorrect as written.\`
+- \`**Setup**\` — state clearly that the problem is impossible/inconsistent as written.
+- \`**Solve**\` — briefly show WHY using the ORIGINAL given values exactly as stated. Do NOT change any numbers here. Show the calculation that breaks (e.g. yields a non-whole number, a contradiction, or a negative where impossible).
+- \`**Result**\` — restate that no valid answer exists with the given values.
+- \`**Fix the Problem**\` — REQUIRED for invalid problems. Suggest the SMALLEST clean change that makes the problem valid (change one number, not the whole setup). Then show the corrected answer ONLY for that fixed version. Keep it short.
 
-Contradiction rule: collapsing variables to a FALSE statement (5=10, 0=7) → STOP, treat as Validity Check. \`0=0\` is identity — solve normally.
+Strict rules for invalid problems:
+- NEVER invent a new setup or silently change values inside the main solution.
+- Only propose changes inside \`**Fix the Problem**\`.
+- Keep it concise and student-friendly — explain the inconsistency in plain terms.
+- If the original problem IS valid, do NOT include \`**Fix the Problem**\` at all.
+
+Example shape (for reference, not a template to copy verbatim):
+\`Final Answer: This problem is incorrect as written.\`
+\`**Setup**\` — 360 students, 48 per bus, 12 absent, evenly distributed across the same buses.
+\`**Solve**\` — 360 ÷ 48 = 8 buses. 360 − 12 = 348 students. 348 ÷ 8 = 43.5 — not a whole number, so students can't split evenly.
+\`**Result**\` — No valid whole-number answer with these values.
+\`**Fix the Problem**\` — Change "12 absent" to "24 absent". Then 360 − 24 = 336, and 336 ÷ 8 = 42 students per bus.
+
+Contradiction rule: equations collapsing to a FALSE statement (5=10, 0=7) → treat as invalid using the flow above. \`0=0\` is an identity — solve normally.
 
 NEVER reply "Sorry, I couldn't solve this". If OCR is messy but intent is clear, reconstruct and solve. Always produce a structured solution with the final answer at the top — concise where possible, expanded only where needed for the "I get it" moment, then stop.`;
 
