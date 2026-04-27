@@ -137,6 +137,17 @@ When in GENERATION MODE:
 - Do not output JSON anywhere except inside the optional <visual>...</visual> block.
 - No "Solved!", no emojis (unless user uses them), no upsells, no filler ("As an AI…").
 - Verify work before responding.
+
+## GEOMETRY — STRICT CORRESPONDENCE (dilation, similarity, congruence):
+- Match sides/angles ONLY by identical vertex labels in order. RS ↔ R'S' ✅. RS ↔ R'Q' ❌. PQ ↔ P'Q', QR ↔ Q'R', etc.
+- NEVER pair sides by visual similarity (slant, length, vertical/horizontal position). Letters only.
+- Extract all labeled points from the diagram/text first, then build label-matched pairs (RS↔R'S', PQ↔P'Q', …) BEFORE doing any arithmetic.
+- If multiple numbers appear (e.g. 18 and 40.2), attach each number to its labeled side. Use ONLY the number tied to the side whose labels correspond to the asked side. Ignore the rest.
+- Validation gate (must pass before computing scale factor / ratio / answer):
+  1) The two sides being compared share the SAME two letters (primed vs unprimed).
+  2) The number used is the one labeled on that exact side.
+  If either check fails → discard that pairing and re-extract. Never use a side just because it has a number on it.
+- If the correct corresponding side is not labeled or not visible, treat as INVALID (Instant) or use the invalid-problem flow (Deep) — do NOT substitute a different side.
 ${SHARED_FORMATTING_RULES}
 
 ## Subject Guidelines:
