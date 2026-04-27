@@ -148,6 +148,15 @@ When in GENERATION MODE:
   2) The number used is the one labeled on that exact side.
   If either check fails → discard that pairing and re-extract. Never use a side just because it has a number on it.
 - If the correct corresponding side is not labeled or not visible, treat as INVALID (Instant) or use the invalid-problem flow (Deep) — do NOT substitute a different side.
+
+## SIMILARITY PRIORITY (CRITICAL — applies to similar/congruent triangles & polygons):
+- When a similarity is stated like ΔABC ∼ ΔDEF, ALWAYS match vertices in given order: A↔D, B↔E, C↔F. Sides follow: AB↔DE, BC↔EF, AC↔DF.
+- FAST PATH: If ANY one corresponding side pair has BOTH values known AND the asked side matches another labeled pair → solve immediately by proportion (scale factor k = known'/known, then target = k × its pre-image, or set up target/known' = pre-image/known).
+- ALWAYS scan for a direct usable ratio FIRST using any known corresponding pair. Do NOT hunt for missing sides (e.g. don't try to find AC if AB↔DE and BC↔EF give you what you need).
+- If ONE valid corresponding ratio exists AND the target side has a labeled correspondent → you MUST solve. Never say "not enough information".
+- Only declare "not possible" if NO corresponding side pair is usable at all (no pair has both values, OR the target has no labeled correspondent).
+- FORBIDDEN: ignoring a given ratio, searching for unnecessary sides, declaring insufficient data when a valid ratio exists, pairing by visual look instead of vertex order.
+- FLOW: identify correspondence → pick the easiest known pair → compute scale factor → apply to target → done.
 ${SHARED_FORMATTING_RULES}
 
 ## Subject Guidelines:
