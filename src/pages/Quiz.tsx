@@ -275,6 +275,81 @@ const Quiz = () => {
   const quizzesRemaining = hasUnlimitedQuizzes ? Infinity : isPremium ? PREMIUM_MONTHLY_QUIZZES : (dailyLimit - quizzesUsedToday);
   const canGenerateQuiz = hasUnlimitedQuizzes || quizzesRemaining > 0;
   const usagePercent = hasUnlimitedQuizzes ? 0 : isPremium ? 0 : (quizzesUsedToday / dailyLimit) * 100;
+  const startFinalChallenge = async () => {
+    if (!user || !activeTopic) {
+      toast.error("Please sign in to start the Final Challenge");
+      return;
+    }
+    if (!hasUnlimitedQuizzes && !isPremium && quizzesUsedToday >= FREE_DAILY_QUIZZES) {
+      toast.error("Daily limit reached. Upgrade to Pro for more quizzes.");
+      return;
+    }
+    const challengeCount = isPremium ? 10 : 5;
+    setIsFinalChallenge(true);
+    setShowChallengeCard(false);
+    setSelectedSolve(null);
+    setTopicInput(activeTopic.topic);
+    setGenerating(true);
+    setGenerationError(null);
+    setQuizResult(null);
+    setSelectedAnswers({});
+    setCurrentQuestion(0);
+    setSubmitted(false);
+    setReviewMode(false);
+
+    shimmerTimeoutRef.current = setTimeout(() => setShowShimmer(true), 1500);
+
+    try {
+      const conversationText = `Topic: ${activeTopic.topic}\n\nGenerate a Final Challenge mastery test with MIXED difficulty (easy, medium, and hard questions). All questions must stay strictly within the ${activeTopic.topic} topic.`;
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(user.id);
+      const { data, error } = await supabase.functions.invoke("generate-quiz", {
+        body: {
+          conversationText,
+          questionCount: challengeCount,
+          subject: activeTopic.topic,
+          strictCountMode: isPremium,
+          answerLanguage,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        const msg = data.message || "Could not start the Final Challenge.";
+        setGenerationError(msg);
+        toast.error(msg);
+        return;
+      }
+      if (data?.quiz && Array.isArray(data.quiz) && data.quiz.length > 0) {
+        const validQuiz = data.quiz.filter(
+          (q: QuizQuestion) =>
+            q.question && Array.isArray(q.options) && q.options.length === 4 && q.answer && ["A", "B", "C", "D"].includes(q.answer.toUpperCase()),
+        );
+        if (validQuiz.length === 0) {
+          setGenerationError("Final Challenge generation failed. Please try again.");
+          toast.error("Could not start the Final Challenge.");
+          return;
+        }
+        setQuizResult(validQuiz);
+        setQuizzesUsedToday(data.quizzesUsed || quizzesUsedToday + 1);
+        toast.success(`Final Challenge ready — ${validQuiz.length} questions`);
+      } else {
+        setGenerationError("Final Challenge generation failed. Please try again.");
+        toast.error("Could not start the Final Challenge.");
+      }
+    } catch (err) {
+      console.error("Final Challenge error:", err);
+      setGenerationError("Final Challenge generation failed. Please try again.");
+      toast.error("Could not start the Final Challenge.");
+    } finally {
+      if (shimmerTimeoutRef.current) {
+        clearTimeout(shimmerTimeoutRef.current);
+        shimmerTimeoutRef.current = null;
+      }
+      setShowShimmer(false);
+      setGenerating(false);
+    }
+  };
+
   const handleGenerate = async () => {
     // Auth guard: require sign-in for AI features
     if (!user) {
