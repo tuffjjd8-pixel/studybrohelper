@@ -24,8 +24,17 @@ interface Options {
   onNext?: () => void;
 }
 
-const TRIGGER_WORDS = ["go", "snap", "shoot"];
-const NEXT_WORDS = ["next", "continue"];
+// Accent-tolerant variants. Kept tight enough that random speech doesn't fire.
+const TRIGGER_WORDS = new Set([
+  // "go" family
+  "go", "goh", "goo", "gooo", "gho", "geo", "goe", "gow",
+  // "snap" family
+  "snap", "snaps", "snab", "snapp", "snappp", "snip", "snap.", "snap!",
+]);
+const NEXT_WORDS = new Set(["next", "nex", "nextt", "continue"]);
+
+// Strip non-letters so "go." / "snap!" / "go," still match.
+const clean = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "").trim();
 
 function getRecognitionCtor(): any | null {
   if (typeof window === "undefined") return null;
@@ -65,27 +74,29 @@ export function useVoiceCapture({ enabled, onTrigger, onNext }: Options) {
     recognition.maxAlternatives = 1;
 
     const handleResult = (event: any) => {
-      // Debounce — avoid double-fires from interim+final of the same utterance.
+      // Cooldown — avoid double-fires from interim+final of the same utterance
+      // and prevent rapid back-to-back captures.
       const now = performance.now();
-      if (now - lastFireRef.current < 1200) return;
+      if (now - lastFireRef.current < 1500) return;
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = String(event.results[i][0]?.transcript || "")
-          .toLowerCase()
-          .trim();
-        if (!transcript) continue;
+        const raw = String(event.results[i][0]?.transcript || "").toLowerCase().trim();
+        if (!raw) continue;
 
-        // Match whole-word at the END of the buffer (most recent speech).
-        const tokens = transcript.split(/\s+/);
+        // Look at the last 1-2 spoken tokens, normalized (letters only).
+        const tokens = raw.split(/\s+/).map(clean).filter(Boolean);
+        if (!tokens.length) continue;
         const last = tokens[tokens.length - 1];
-        const lastTwo = tokens.slice(-2).join(" ");
+        const prev = tokens[tokens.length - 2];
 
-        if (TRIGGER_WORDS.includes(last) || TRIGGER_WORDS.some(w => lastTwo === w)) {
+        const candidates = [last, prev].filter(Boolean) as string[];
+
+        if (candidates.some((c) => TRIGGER_WORDS.has(c))) {
           lastFireRef.current = now;
           onTriggerRef.current();
           return;
         }
-        if (onNextRef.current && (NEXT_WORDS.includes(last) || NEXT_WORDS.some(w => lastTwo === w))) {
+        if (onNextRef.current && candidates.some((c) => NEXT_WORDS.has(c))) {
           lastFireRef.current = now;
           onNextRef.current();
           return;
