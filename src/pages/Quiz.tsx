@@ -751,6 +751,20 @@ const Quiz = () => {
 
           
 
+          {/* Final Challenge suggestion — only when user has enough activity in a topic */}
+          {!quizResult && !generating && activeTopic && showChallengeCard && !isFinalChallengeSnoozed(activeTopic.topic) && (
+            <FinalChallengeCard
+              topic={activeTopic.topic}
+              isPremium={isPremium}
+              visible={true}
+              onStart={startFinalChallenge}
+              onLater={() => {
+                snoozeFinalChallenge(activeTopic.topic);
+                setShowChallengeCard(false);
+              }}
+            />
+          )}
+
           {/* Configuration Card - Hide when quiz is active */}
           {!quizResult && <motion.div initial={{
             opacity: 0,
