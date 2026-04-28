@@ -940,13 +940,26 @@ const Quiz = () => {
               opacity: 1,
               scale: 1
             }} className="bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30 rounded-xl p-6 mb-6 text-center">
+                {isFinalChallenge && (
+                  <div className="inline-flex items-center gap-1.5 mb-2 px-3 py-1 rounded-full bg-primary/15 border border-primary/40 text-primary text-xs font-bold uppercase tracking-wide">
+                    <Sparkles className="w-3 h-3" />
+                    Final Challenge
+                  </div>
+                )}
                 <Trophy className="w-12 h-12 text-primary mx-auto mb-3" />
                 <h2 className="text-2xl font-heading font-bold mb-2">
                   {score.correct} out of {score.total} correct!
                 </h2>
                 <p className="text-muted-foreground mb-4">
-                  {score.correct === score.total ? "Perfect score! 🎉" : score.correct >= score.total / 2 ? "Good job! Keep practicing." : "Keep studying and try again!"}
+                  {isFinalChallenge && activeTopic
+                    ? score.correct === score.total
+                      ? `Mastery unlocked in ${activeTopic.topic}! 🎉`
+                      : score.correct >= score.total * 0.7
+                        ? `You're improving in ${activeTopic.topic} — keep it up!`
+                        : `Keep practicing ${activeTopic.topic} — you're getting there.`
+                    : score.correct === score.total ? "Perfect score! 🎉" : score.correct >= score.total / 2 ? "Good job! Keep practicing." : "Keep studying and try again!"}
                 </p>
+                
                 
                 {/* Review Mode Toggle - Premium unlocks full review with correct answers */}
                 <div className="flex flex-col items-center gap-3">
