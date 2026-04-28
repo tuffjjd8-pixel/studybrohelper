@@ -198,7 +198,10 @@ const Quiz = () => {
   const [hintUsed, setHintUsed] = useState<Record<number, boolean>>({});
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizzesUsedToday, setQuizzesUsedToday] = useState(0);
+  const [isFinalChallenge, setIsFinalChallenge] = useState(false);
+  const [showChallengeCard, setShowChallengeCard] = useState(true);
   const shimmerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { activeTopic } = useActiveTopic(user?.id);
 
   // Detect if user is typing equation-related content
   const showSolveRedirect = useMemo(() => {
