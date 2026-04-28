@@ -19,6 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { isSolveRequest } from "@/lib/intentRouting";
 import { QuizLoadingShimmer } from "@/components/quiz/QuizLoadingShimmer";
+import { FinalChallengeCard } from "@/components/quiz/FinalChallengeCard";
+import { useActiveTopic, isFinalChallengeSnoozed, snoozeFinalChallenge } from "@/hooks/useActiveTopic";
 interface Solve {
   id: string;
   subject: string;
