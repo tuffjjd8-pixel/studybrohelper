@@ -557,7 +557,6 @@ const History = () => {
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-destructive" />
               Clear ALL history?
-            </AlertTriangle>
             </AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete every solve in your history ({solves.length} item{solves.length === 1 ? "" : "s"}). This cannot be undone.
