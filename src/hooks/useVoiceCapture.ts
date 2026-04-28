@@ -24,8 +24,17 @@ interface Options {
   onNext?: () => void;
 }
 
-const TRIGGER_WORDS = ["go", "snap", "shoot"];
-const NEXT_WORDS = ["next", "continue"];
+// Accent-tolerant variants. Kept tight enough that random speech doesn't fire.
+const TRIGGER_WORDS = new Set([
+  // "go" family
+  "go", "goh", "goo", "gooo", "gho", "geo", "goe", "gow",
+  // "snap" family
+  "snap", "snaps", "snab", "snapp", "snappp", "snip", "snap.", "snap!",
+]);
+const NEXT_WORDS = new Set(["next", "nex", "nextt", "continue"]);
+
+// Strip non-letters so "go." / "snap!" / "go," still match.
+const clean = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "").trim();
 
 function getRecognitionCtor(): any | null {
   if (typeof window === "undefined") return null;
