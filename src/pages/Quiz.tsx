@@ -612,6 +612,7 @@ const Quiz = () => {
     setShowHint({});
     setRevealed({});
     setHintUsed({});
+    setIsFinalChallenge(false);
   };
   const handleCountChange = (value: string) => {
     const num = parseInt(value);
