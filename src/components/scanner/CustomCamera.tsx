@@ -247,6 +247,13 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
     onClose();
   }, [stopStream, onClose, keepMode]);
 
+  // Hands-free voice trigger — listens only while camera is open & ready.
+  // "Go" → instant shutter. Zero backend / AI cost.
+  const { listening: voiceListening } = useVoiceCapture({
+    enabled: isOpen && isReady,
+    onTrigger: capturePhoto,
+  });
+
   if (!isOpen) return null;
 
   return (
