@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen, Lightbulb } from "lucide-react";
+import { X, Zap, ZapOff, ImageIcon, Crown, BookOpen, Lightbulb, Mic } from "lucide-react";
 import { normalizeImageInput } from "@/lib/image";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useVoiceCapture } from "@/hooks/useVoiceCapture";
 
 export type CameraSolveMode = "instant" | "explain" | "deep";
 
