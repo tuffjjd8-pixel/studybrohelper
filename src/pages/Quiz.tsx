@@ -6,7 +6,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle, Crown, AlertCircle, Calculator, RefreshCw, Target } from "lucide-react";
+import { Loader2, ChevronDown, Check, RotateCcw, Trophy, Eye, Lock, CheckCircle2, XCircle, Crown, AlertCircle, Calculator, RefreshCw, Target, Sparkles } from "lucide-react";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { isSolveRequest } from "@/lib/intentRouting";
 import { QuizLoadingShimmer } from "@/components/quiz/QuizLoadingShimmer";
+import { FinalChallengeCard } from "@/components/quiz/FinalChallengeCard";
+import { useActiveTopic, isFinalChallengeSnoozed, snoozeFinalChallenge } from "@/hooks/useActiveTopic";
 interface Solve {
   id: string;
   subject: string;
@@ -196,7 +198,10 @@ const Quiz = () => {
   const [hintUsed, setHintUsed] = useState<Record<number, boolean>>({});
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quizzesUsedToday, setQuizzesUsedToday] = useState(0);
+  const [isFinalChallenge, setIsFinalChallenge] = useState(false);
+  const [showChallengeCard, setShowChallengeCard] = useState(true);
   const shimmerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { activeTopic } = useActiveTopic(user?.id);
 
   // Detect if user is typing equation-related content
   const showSolveRedirect = useMemo(() => {
@@ -270,6 +275,81 @@ const Quiz = () => {
   const quizzesRemaining = hasUnlimitedQuizzes ? Infinity : isPremium ? PREMIUM_MONTHLY_QUIZZES : (dailyLimit - quizzesUsedToday);
   const canGenerateQuiz = hasUnlimitedQuizzes || quizzesRemaining > 0;
   const usagePercent = hasUnlimitedQuizzes ? 0 : isPremium ? 0 : (quizzesUsedToday / dailyLimit) * 100;
+  const startFinalChallenge = async () => {
+    if (!user || !activeTopic) {
+      toast.error("Please sign in to start the Final Challenge");
+      return;
+    }
+    if (!hasUnlimitedQuizzes && !isPremium && quizzesUsedToday >= FREE_DAILY_QUIZZES) {
+      toast.error("Daily limit reached. Upgrade to Pro for more quizzes.");
+      return;
+    }
+    const challengeCount = isPremium ? 10 : 5;
+    setIsFinalChallenge(true);
+    setShowChallengeCard(false);
+    setSelectedSolve(null);
+    setTopicInput(activeTopic.topic);
+    setGenerating(true);
+    setGenerationError(null);
+    setQuizResult(null);
+    setSelectedAnswers({});
+    setCurrentQuestion(0);
+    setSubmitted(false);
+    setReviewMode(false);
+
+    shimmerTimeoutRef.current = setTimeout(() => setShowShimmer(true), 1500);
+
+    try {
+      const conversationText = `Topic: ${activeTopic.topic}\n\nGenerate a Final Challenge mastery test with MIXED difficulty (easy, medium, and hard questions). All questions must stay strictly within the ${activeTopic.topic} topic.`;
+      const { getAnswerLanguage } = await import("@/hooks/useAnswerLanguage");
+      const answerLanguage = await getAnswerLanguage(user.id);
+      const { data, error } = await supabase.functions.invoke("generate-quiz", {
+        body: {
+          conversationText,
+          questionCount: challengeCount,
+          subject: activeTopic.topic,
+          strictCountMode: isPremium,
+          answerLanguage,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        const msg = data.message || "Could not start the Final Challenge.";
+        setGenerationError(msg);
+        toast.error(msg);
+        return;
+      }
+      if (data?.quiz && Array.isArray(data.quiz) && data.quiz.length > 0) {
+        const validQuiz = data.quiz.filter(
+          (q: QuizQuestion) =>
+            q.question && Array.isArray(q.options) && q.options.length === 4 && q.answer && ["A", "B", "C", "D"].includes(q.answer.toUpperCase()),
+        );
+        if (validQuiz.length === 0) {
+          setGenerationError("Final Challenge generation failed. Please try again.");
+          toast.error("Could not start the Final Challenge.");
+          return;
+        }
+        setQuizResult(validQuiz);
+        setQuizzesUsedToday(data.quizzesUsed || quizzesUsedToday + 1);
+        toast.success(`Final Challenge ready — ${validQuiz.length} questions`);
+      } else {
+        setGenerationError("Final Challenge generation failed. Please try again.");
+        toast.error("Could not start the Final Challenge.");
+      }
+    } catch (err) {
+      console.error("Final Challenge error:", err);
+      setGenerationError("Final Challenge generation failed. Please try again.");
+      toast.error("Could not start the Final Challenge.");
+    } finally {
+      if (shimmerTimeoutRef.current) {
+        clearTimeout(shimmerTimeoutRef.current);
+        shimmerTimeoutRef.current = null;
+      }
+      setShowShimmer(false);
+      setGenerating(false);
+    }
+  };
+
   const handleGenerate = async () => {
     // Auth guard: require sign-in for AI features
     if (!user) {
@@ -532,6 +612,7 @@ const Quiz = () => {
     setShowHint({});
     setRevealed({});
     setHintUsed({});
+    setIsFinalChallenge(false);
   };
   const handleCountChange = (value: string) => {
     const num = parseInt(value);
@@ -669,6 +750,20 @@ const Quiz = () => {
 
 
           
+
+          {/* Final Challenge suggestion — only when user has enough activity in a topic */}
+          {!quizResult && !generating && activeTopic && showChallengeCard && !isFinalChallengeSnoozed(activeTopic.topic) && (
+            <FinalChallengeCard
+              topic={activeTopic.topic}
+              isPremium={isPremium}
+              visible={true}
+              onStart={startFinalChallenge}
+              onLater={() => {
+                snoozeFinalChallenge(activeTopic.topic);
+                setShowChallengeCard(false);
+              }}
+            />
+          )}
 
           {/* Configuration Card - Hide when quiz is active */}
           {!quizResult && <motion.div initial={{
@@ -845,13 +940,26 @@ const Quiz = () => {
               opacity: 1,
               scale: 1
             }} className="bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30 rounded-xl p-6 mb-6 text-center">
+                {isFinalChallenge && (
+                  <div className="inline-flex items-center gap-1.5 mb-2 px-3 py-1 rounded-full bg-primary/15 border border-primary/40 text-primary text-xs font-bold uppercase tracking-wide">
+                    <Sparkles className="w-3 h-3" />
+                    Final Challenge
+                  </div>
+                )}
                 <Trophy className="w-12 h-12 text-primary mx-auto mb-3" />
                 <h2 className="text-2xl font-heading font-bold mb-2">
                   {score.correct} out of {score.total} correct!
                 </h2>
                 <p className="text-muted-foreground mb-4">
-                  {score.correct === score.total ? "Perfect score! 🎉" : score.correct >= score.total / 2 ? "Good job! Keep practicing." : "Keep studying and try again!"}
+                  {isFinalChallenge && activeTopic
+                    ? score.correct === score.total
+                      ? `Mastery unlocked in ${activeTopic.topic}! 🎉`
+                      : score.correct >= score.total * 0.7
+                        ? `You're improving in ${activeTopic.topic} — keep it up!`
+                        : `Keep practicing ${activeTopic.topic} — you're getting there.`
+                    : score.correct === score.total ? "Perfect score! 🎉" : score.correct >= score.total / 2 ? "Good job! Keep practicing." : "Keep studying and try again!"}
                 </p>
+                
                 
                 {/* Review Mode Toggle - Premium unlocks full review with correct answers */}
                 <div className="flex flex-col items-center gap-3">
