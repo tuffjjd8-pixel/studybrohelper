@@ -321,6 +321,18 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
               <X className="w-5 h-5 text-white" />
             </button>
 
+            {/* Subtle voice listening indicator — no mic button, just status */}
+            {voiceListening && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-primary/30">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 animate-ping" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
+                </span>
+                <Mic className="w-3 h-3 text-white/80" />
+                <span className="text-[10px] text-white/70 font-medium tracking-wide">Say "Go"</span>
+              </div>
+            )}
+
             {torchSupported && (
               <button
                 onClick={toggleTorch}
