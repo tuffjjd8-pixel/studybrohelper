@@ -40,27 +40,27 @@
 
     --border: 240 6% 20%;
     --input: 240 6% 20%;
-    --ring: 82 100% 67%;
+    --ring: 88 70% 58%;
 
     --radius: 1rem;
 
     /* Custom StudyBro tokens */
-    --neon-glow: 82 100% 67%;
-    --cyan-glow: 187 100% 42%;
+    --neon-glow: 88 70% 58%;
+    --cyan-glow: 187 80% 45%;
     --surface-elevated: 240 8% 12%;
     --surface-overlay: 240 10% 6%;
     
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(82 100% 67%) 0%, hsl(100 80% 50%) 100%);
-    --gradient-secondary: linear-gradient(135deg, hsl(187 100% 42%) 0%, hsl(200 100% 50%) 100%);
+    /* Gradients (softened) */
+    --gradient-primary: linear-gradient(135deg, hsl(88 65% 62%) 0%, hsl(100 55% 55%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(187 80% 45%) 0%, hsl(200 80% 52%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(240 8% 10%) 0%, hsl(240 8% 6%) 100%);
     --gradient-hero: linear-gradient(180deg, hsl(240 10% 6%) 0%, hsl(240 10% 3%) 100%);
     
-    /* Shadows */
-    --shadow-neon: 0 0 30px hsl(82 100% 67% / 0.3), 0 0 60px hsl(82 100% 67% / 0.1);
-    --shadow-cyan: 0 0 30px hsl(187 100% 42% / 0.3), 0 0 60px hsl(187 100% 42% / 0.1);
+    /* Shadows (reduced glow) */
+    --shadow-neon: 0 0 16px hsl(88 70% 58% / 0.18), 0 0 30px hsl(88 70% 58% / 0.06);
+    --shadow-cyan: 0 0 16px hsl(187 80% 45% / 0.18), 0 0 30px hsl(187 80% 45% / 0.06);
     --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.4);
-    --shadow-button: 0 4px 20px hsl(82 100% 67% / 0.25);
+    --shadow-button: 0 4px 14px hsl(88 70% 58% / 0.18);
 
     --sidebar-background: 240 8% 6%;
     --sidebar-foreground: 0 0% 95%;
