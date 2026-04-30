@@ -20,10 +20,10 @@ const buttonVariants = cva(
         cyan: "bg-secondary text-secondary-foreground shadow-cyan hover:shadow-[0_0_40px_hsl(var(--secondary)/0.5)]",
         glass: "bg-card/80 backdrop-blur-xl text-foreground hover:bg-card/90 border border-border/50",
         hero: "bg-primary text-primary-foreground text-lg font-bold shadow-neon hover:shadow-[0_0_50px_hsl(var(--primary)/0.6)] hover:scale-105",
-        // Premium neon green button - Gauth-style with glowing border
-        neonGreen: "relative bg-background text-primary font-bold border-2 border-primary shadow-[0_0_20px_hsl(var(--primary)/0.4),inset_0_0_20px_hsl(var(--primary)/0.1)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.6),inset_0_0_25px_hsl(var(--primary)/0.15)] hover:border-primary/90 hover:bg-primary/5",
-        // Filled neon green button variant
-        neonGreenFilled: "bg-primary text-primary-foreground font-bold border-2 border-primary shadow-[0_0_25px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.7)] hover:bg-primary/90",
+        // Premium neon green button - softened for eye comfort
+        neonGreen: "relative bg-background text-primary font-bold border-2 border-primary/80 shadow-[0_0_12px_hsl(var(--primary)/0.22),inset_0_0_12px_hsl(var(--primary)/0.06)] hover:shadow-[0_0_22px_hsl(var(--primary)/0.4),inset_0_0_18px_hsl(var(--primary)/0.1)] hover:border-primary hover:bg-primary/5",
+        // Filled neon green button variant (softened)
+        neonGreenFilled: "bg-primary text-primary-foreground font-bold border-2 border-primary/80 shadow-[0_0_14px_hsl(var(--primary)/0.28)] hover:shadow-[0_0_24px_hsl(var(--primary)/0.45)] hover:bg-primary/95 hover:brightness-105",
       },
       size: {
         default: "h-11 px-5 py-2",
