@@ -19,9 +19,11 @@
     --popover: 240 8% 8%;
     --popover-foreground: 0 0% 95%;
 
-    /* Electric Lime - Primary Brand Color */
-    --primary: 82 100% 67%;
+    /* Electric Lime - Primary Brand Color (softened for eye comfort) */
+    --primary: 88 70% 58%;
     --primary-foreground: 240 10% 4%;
+    /* Softer green for large text/headlines */
+    --primary-soft: 90 55% 72%;
 
     /* Cyan Blue - Secondary Accent */
     --secondary: 187 100% 42%;
