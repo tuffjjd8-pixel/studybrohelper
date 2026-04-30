@@ -42,8 +42,8 @@ export function BottomNav() {
                 <div
                   className="absolute inset-0 rounded-xl transition-opacity duration-100 ease-out"
                   style={{
-                    background: 'hsl(var(--primary) / 0.12)',
-                    boxShadow: '0 0 12px hsl(var(--primary) / 0.15)',
+                    background: 'hsl(var(--primary) / 0.08)',
+                    boxShadow: '0 0 6px hsl(var(--primary) / 0.08)',
                   }}
                 />
               )}
