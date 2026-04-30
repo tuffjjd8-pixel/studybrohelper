@@ -35,17 +35,17 @@ export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
         <>
           <motion.div
             className="absolute inset-0 rounded-full"
-            style={{ border: "2px solid hsl(var(--primary) / 0.3)" }}
-            initial={{ scale: 1, opacity: 0.5 }}
-            animate={{ scale: 1.4, opacity: 0 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+            style={{ border: "2px solid hsl(var(--primary) / 0.18)" }}
+            initial={{ scale: 1, opacity: 0.35 }}
+            animate={{ scale: 1.35, opacity: 0 }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }}
           />
           <motion.div
             className="absolute inset-0 rounded-full"
-            style={{ border: "2px solid hsl(var(--primary) / 0.2)" }}
-            initial={{ scale: 1, opacity: 0.3 }}
-            animate={{ scale: 1.8, opacity: 0 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.5 }}
+            style={{ border: "2px solid hsl(var(--primary) / 0.12)" }}
+            initial={{ scale: 1, opacity: 0.2 }}
+            animate={{ scale: 1.7, opacity: 0 }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut", delay: 0.5 }}
           />
         </>
       )}
