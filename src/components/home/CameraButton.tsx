@@ -21,12 +21,12 @@ export function CameraButton({ isLoading, onClick }: CameraButtonProps) {
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.5, type: "spring" }}
     >
-      {/* Outer glow */}
+      {/* Outer glow (softened) */}
       <div 
-        className="absolute inset-0 rounded-full blur-2xl"
+        className="absolute inset-0 rounded-full blur-xl"
         style={{
-          background: "hsl(var(--primary) / 0.25)",
-          transform: "scale(1.5)",
+          background: "hsl(var(--primary) / 0.12)",
+          transform: "scale(1.3)",
         }}
       />
 
