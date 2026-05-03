@@ -197,17 +197,9 @@ export function TextInputBox({
 
       console.log(`[STT] UI mode: ${mode}, backend mode: ${backendMode}, language: ${language ?? 'auto-detect'}`);
 
-      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body
-      });
-
-      if (error) throw error;
-
-      if (data?.text) {
-        setText(prev => prev ? `${prev} ${data.text}` : data.text);
-        toast.success(mode === "translate" ? "Translated to English!" : "Transcription complete!");
-        await onSpeechUsed?.();
-      }
+      // Server-side transcription removed; use browser Web Speech API instead.
+      void body;
+      toast.error("Speech-to-text is unavailable.");
     } catch (error) {
       console.error('Transcription error:', error);
       toast.error("Failed to transcribe audio. Please try again.");
