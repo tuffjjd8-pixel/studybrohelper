@@ -1137,7 +1137,6 @@ serve(async (req) => {
       question, 
       image, 
       images,
-      isPremium = false,
       animatedSteps = false,
       generateGraph = false,
       userGraphCount = 0,
@@ -1152,7 +1151,33 @@ serve(async (req) => {
       ? (Array.isArray(images) ? images : [images])
       : (image ? [image] : []);
 
-    // Enforce image count limits: Free = 1, Pro = 2
+    // Derive premium status SERVER-SIDE from the verified JWT only.
+    // Never trust a client-supplied isPremium flag.
+    let requestUserId: string | null = null;
+    let isPremium = false;
+    const authH = req.headers.get("Authorization");
+    if (authH) {
+      try {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authH } } });
+        const { data: { user: u } } = await sb.auth.getUser();
+        requestUserId = u?.id || null;
+        if (requestUserId) {
+          const sbAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+          const { data: profile } = await sbAdmin
+            .from("profiles")
+            .select("is_premium, premium_until")
+            .eq("user_id", requestUserId)
+            .maybeSingle();
+          if (profile?.is_premium) {
+            const stillValid = !profile.premium_until || new Date(profile.premium_until) > new Date();
+            isPremium = !!stillValid;
+          }
+        }
+      } catch (e) { console.error("[Solve] auth/profile lookup failed:", e); }
+    }
+
+    // Enforce image count limits: Free = 1, Pro = 2 (using server-derived isPremium)
     const maxImages = isPremium ? 2 : 1;
     if (allImages.length > maxImages) {
       return new Response(
@@ -1164,18 +1189,6 @@ serve(async (req) => {
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    }
-
-    // Check if user is banned or limited
-    let requestUserId: string | null = null;
-    const authH = req.headers.get("Authorization");
-    if (authH) {
-      try {
-        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authH } } });
-        const { data: { user: u } } = await sb.auth.getUser();
-        requestUserId = u?.id || null;
-      } catch (_) {}
     }
 
     const blockStatus = await checkUserBlocked(requestUserId);
