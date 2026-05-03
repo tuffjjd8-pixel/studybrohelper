@@ -1137,6 +1137,7 @@ serve(async (req) => {
       question, 
       image, 
       images,
+      isPremium = false,
       animatedSteps = false,
       generateGraph = false,
       userGraphCount = 0,
@@ -1145,33 +1146,6 @@ serve(async (req) => {
       answerLanguage = "en",
       essaySettings = null,
     } = await req.json();
-
-    // Derive premium status server-side from authenticated user (NEVER trust client)
-    let requestUserId: string | null = null;
-    let isPremium = false;
-    const authH = req.headers.get("Authorization");
-    if (authH) {
-      try {
-        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authH } } });
-        const { data: { user: u } } = await sb.auth.getUser();
-        requestUserId = u?.id || null;
-        if (requestUserId) {
-          const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-          const { data: profile } = await admin
-            .from("profiles")
-            .select("is_premium")
-            .eq("user_id", requestUserId)
-            .maybeSingle();
-          isPremium = profile?.is_premium === true;
-          // Admin bypass keeps premium-tier privileges
-          if (!isPremium) {
-            const { isAdmin } = await import("../_shared/pro-limits.ts");
-            if (await isAdmin(requestUserId)) isPremium = true;
-          }
-        }
-      } catch (_) {}
-    }
 
     // Normalize images: support single `image` string or `images` array
     const allImages: string[] = images
@@ -1192,7 +1166,17 @@ serve(async (req) => {
       );
     }
 
-    // (requestUserId / isPremium derived above from verified JWT)
+    // Check if user is banned or limited
+    let requestUserId: string | null = null;
+    const authH = req.headers.get("Authorization");
+    if (authH) {
+      try {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authH } } });
+        const { data: { user: u } } = await sb.auth.getUser();
+        requestUserId = u?.id || null;
+      } catch (_) {}
+    }
 
     const blockStatus = await checkUserBlocked(requestUserId);
     const blocked = blockedResponse(blockStatus, corsHeaders);
