@@ -1192,17 +1192,7 @@ serve(async (req) => {
       );
     }
 
-    // Check if user is banned or limited
-    let requestUserId: string | null = null;
-    const authH = req.headers.get("Authorization");
-    if (authH) {
-      try {
-        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authH } } });
-        const { data: { user: u } } = await sb.auth.getUser();
-        requestUserId = u?.id || null;
-      } catch (_) {}
-    }
+    // (requestUserId / isPremium derived above from verified JWT)
 
     const blockStatus = await checkUserBlocked(requestUserId);
     const blocked = blockedResponse(blockStatus, corsHeaders);
