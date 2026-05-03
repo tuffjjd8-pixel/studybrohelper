@@ -284,17 +284,8 @@ export function TextInputBox({
         body.language = language;
       }
 
-      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body
-      });
-
-      if (error) throw error;
-
-      if (data?.text) {
-        setText(prev => prev ? `${prev} ${data.text}` : data.text);
-        toast.success(mode === "translate" ? "Translated to English!" : "Transcription complete!");
-        await onSpeechUsed?.();
-      }
+      console.log(`[STT-file] disabled — body keys:`, Object.keys(body));
+      toast.error("Voice transcription is disabled.");
     } catch (error) {
       console.error('Transcription error:', error);
       toast.error("Failed to transcribe audio file. Please try again.");
