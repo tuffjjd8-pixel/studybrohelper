@@ -185,6 +185,32 @@ const Premium = () => {
               </p>
             </div>
 
+            {/* Why upgrade — value-driven, no model talk */}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="p-4 rounded-2xl border border-border bg-card space-y-2">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-primary" />
+                  <span className="font-semibold text-sm">Pro · $5.99</span>
+                </div>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  <li>⚡ Faster answers</li>
+                  <li>📷 Scan & solve instantly</li>
+                  <li>🧠 No category switching</li>
+                </ul>
+              </div>
+              <div className="p-4 rounded-2xl border border-primary/40 bg-primary/5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Crown className="w-4 h-4 text-primary" />
+                  <span className="font-semibold text-sm">Premium · $7.99</span>
+                </div>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  <li>🧠 Deep explanations</li>
+                  <li>🌍 Answers in your language</li>
+                  <li>⚡ Priority speed</li>
+                </ul>
+              </div>
+            </div>
+
             {/* Already Premium Banner */}
             {userIsPremium && (
               <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 text-center space-y-2">
