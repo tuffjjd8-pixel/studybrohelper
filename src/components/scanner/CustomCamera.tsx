@@ -349,6 +349,21 @@ export function CustomCamera({ isOpen, onCapture, onClose, isPremium = false }: 
             )}
           </div>
 
+          {/* Value-prop tagline */}
+          {isReady && !error && (
+            <div
+              className="absolute left-0 right-0 z-10 flex flex-col items-center pointer-events-none"
+              style={{ top: "calc(env(safe-area-inset-top, 12px) + 72px)" }}
+            >
+              <p className="text-white font-semibold text-sm tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                No categories. Just scan.
+              </p>
+              <p className="text-white/70 text-[11px] mt-0.5 drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
+                We detect and solve automatically
+              </p>
+            </div>
+          )}
+
           {/* Controls area above bottom */}
           <div className="absolute bottom-36 left-0 right-0 px-5 z-20 space-y-3">
             {/* Solve Mode Selector — Free: Instant + Explain · Pro: Instant + Deep */}
