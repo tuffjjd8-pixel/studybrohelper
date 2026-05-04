@@ -24,6 +24,8 @@ import { useBadges } from "@/hooks/useBadges";
 import { DailyMissions } from "@/components/home/DailyMissions";
 import { toast } from "sonner";
 import { getSolveErrorMessage, invokeSolveHomework } from "@/lib/solveFunction";
+import { FirstRunOnboarding } from "@/components/onboarding/FirstRunOnboarding";
+import { OneTimeTooltip } from "@/components/onboarding/OneTimeTooltip";
 
 interface SolutionData {
   subject: string;
