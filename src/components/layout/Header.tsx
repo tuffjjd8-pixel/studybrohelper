@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { AIBrainIcon } from "@/components/ui/AIBrainIcon";
 import { openPremiumPage } from "@/lib/mobileDetection";
 import { HeaderLanguagePill } from "@/components/layout/HeaderLanguagePill";
+import { OneTimeTooltip } from "@/components/onboarding/OneTimeTooltip";
 
 interface HeaderProps {
   streak: number;
@@ -51,7 +52,15 @@ export function Header({ streak, totalSolves, isPremium }: HeaderProps) {
 
         {/* Stats & Premium & Auth */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <HeaderLanguagePill isPremium={isPremium} />
+          <div className="relative">
+            <HeaderLanguagePill isPremium={isPremium} />
+            <OneTimeTooltip
+              storageKey="tooltip_language_seen"
+              text="Change answer language here"
+              delayMs={1800}
+              className="absolute top-full right-0 mt-2 whitespace-nowrap"
+            />
+          </div>
           <StreakCounter streak={streak} totalSolves={totalSolves} />
           
           {!isPremium && (
