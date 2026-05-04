@@ -69,6 +69,19 @@ const Index = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
 
+  // First-run onboarding (lightweight, skippable)
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("studybro_onboarded") !== "1";
+  });
+
+  const finishOnboarding = () => {
+    try { localStorage.setItem("studybro_onboarded", "1"); } catch {}
+    setShowOnboarding(false);
+    // Speed-to-value: jump straight into the camera.
+    setTimeout(() => setScannerOpen(true), 50);
+  };
+
   // Pending image state
   const [pendingImages, setPendingImages] = useState<string[]>([]);
 
