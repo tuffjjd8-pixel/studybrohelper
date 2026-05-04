@@ -372,6 +372,13 @@ const Index = () => {
     setShowConfetti(true);
     fetchRecentSolves();
     fetchProfile();
+    // First "aha" moment — subtle, non-blocking
+    try {
+      if (localStorage.getItem("studybro_first_solve_seen") !== "1") {
+        localStorage.setItem("studybro_first_solve_seen", "1");
+        toast.success("You're ready ⚡", { description: "This is how fast it works.", duration: 2500 });
+      }
+    } catch {}
   };
 
   const handleTextSubmit = (text: string) => {
