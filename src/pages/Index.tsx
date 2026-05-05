@@ -24,8 +24,6 @@ import { useBadges } from "@/hooks/useBadges";
 import { DailyMissions } from "@/components/home/DailyMissions";
 import { toast } from "sonner";
 import { getSolveErrorMessage, invokeSolveHomework } from "@/lib/solveFunction";
-import { FirstRunOnboarding } from "@/components/onboarding/FirstRunOnboarding";
-import { OneTimeTooltip } from "@/components/onboarding/OneTimeTooltip";
 
 interface SolutionData {
   subject: string;
@@ -68,19 +66,6 @@ const Index = () => {
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
-
-  // First-run onboarding (lightweight, skippable)
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("studybro_onboarded") !== "1";
-  });
-
-  const finishOnboarding = () => {
-    try { localStorage.setItem("studybro_onboarded", "1"); } catch {}
-    setShowOnboarding(false);
-    // Speed-to-value: jump straight into the camera.
-    setTimeout(() => setScannerOpen(true), 50);
-  };
 
   // Pending image state
   const [pendingImages, setPendingImages] = useState<string[]>([]);
@@ -372,13 +357,6 @@ const Index = () => {
     setShowConfetti(true);
     fetchRecentSolves();
     fetchProfile();
-    // First "aha" moment — subtle, non-blocking
-    try {
-      if (localStorage.getItem("studybro_first_solve_seen") !== "1") {
-        localStorage.setItem("studybro_first_solve_seen", "1");
-        toast.success("You're ready ⚡", { description: "This is how fast it works.", duration: 2500 });
-      }
-    } catch {}
   };
 
   const handleTextSubmit = (text: string) => {
@@ -411,7 +389,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {showOnboarding && <FirstRunOnboarding onDone={finishOnboarding} />}
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
 
@@ -442,15 +419,8 @@ const Index = () => {
                 </motion.p>
               </div>
 
-              {/* Camera button — dominant action with first-run tooltip */}
-              <div className="relative flex flex-col items-center">
-                <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
-                <OneTimeTooltip
-                  storageKey="tooltip_camera_seen"
-                  text="Just scan your problem"
-                  className="mt-3"
-                />
-              </div>
+              {/* Camera button — dominant action, no friction above it */}
+              <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
 
               {/* Daily missions */}
               <DailyMissions totalSolves={profile?.total_solves || 0} streak={profile?.streak_count || 0} />

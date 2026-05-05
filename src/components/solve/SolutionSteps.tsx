@@ -424,23 +424,14 @@ export function SolutionSteps({ subject, question, solution, questionImage, solv
       animate={{ opacity: 1, y: 0 }}
       className="w-full max-w-3xl mx-auto space-y-4"
     >
-      {/* Subject badge + auto-detect / speed micro-cues */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className={`
-          inline-flex items-center gap-2 px-4 py-2 rounded-full
-          bg-gradient-to-r ${subjectGradients[subject] || subjectGradients.other}
-          border border-border/50
-        `}>
-          {subjectIcons[subject] || subjectIcons.other}
-          <span className="font-medium capitalize text-sm">{subject}</span>
-        </div>
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-medium text-primary">
-          <Sparkles className="w-3 h-3" />
-          Auto-detected
-        </span>
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card/60 border border-border text-[11px] text-muted-foreground">
-          Solved in seconds ⚡
-        </span>
+      {/* Subject badge */}
+      <div className={`
+        inline-flex items-center gap-2 px-4 py-2 rounded-full
+        bg-gradient-to-r ${subjectGradients[subject] || subjectGradients.other}
+        border border-border/50
+      `}>
+        {subjectIcons[subject] || subjectIcons.other}
+        <span className="font-medium capitalize text-sm">{subject}</span>
       </div>
 
       <div className="space-y-4">

@@ -8,9 +8,9 @@ interface ScannerLoadingStateProps {
 }
 
 const ROTATING_STATUS = [
-  "Detecting problem...",
-  "Understanding question...",
-  "Solving...",
+  "reading problem...",
+  "figuring it out...",
+  "almost there...",
 ];
 
 export function ScannerLoadingState({ image }: ScannerLoadingStateProps) {
