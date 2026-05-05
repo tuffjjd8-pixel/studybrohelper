@@ -24,6 +24,10 @@ import { useBadges } from "@/hooks/useBadges";
 import { DailyMissions } from "@/components/home/DailyMissions";
 import { toast } from "sonner";
 import { getSolveErrorMessage, invokeSolveHomework } from "@/lib/solveFunction";
+import { FirstRunOnboarding, shouldShowOnboarding } from "@/components/onboarding/FirstRunOnboarding";
+import { OneTimeTooltip } from "@/components/onboarding/OneTimeTooltip";
+
+const FIRST_SOLVE_KEY = "studybro_first_solve_seen";
 
 interface SolutionData {
   subject: string;
@@ -66,6 +70,13 @@ const Index = () => {
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => shouldShowOnboarding());
+
+  const finishOnboarding = () => {
+    setShowOnboarding(false);
+    // Auto-open camera immediately for instant value
+    setTimeout(() => setScannerOpen(true), 50);
+  };
 
   // Pending image state
   const [pendingImages, setPendingImages] = useState<string[]>([]);
@@ -357,6 +368,12 @@ const Index = () => {
     setShowConfetti(true);
     fetchRecentSolves();
     fetchProfile();
+    try {
+      if (!localStorage.getItem(FIRST_SOLVE_KEY)) {
+        localStorage.setItem(FIRST_SOLVE_KEY, "1");
+        toast.success("You're ready ⚡", { description: "This is how fast it works." });
+      }
+    } catch {}
   };
 
   const handleTextSubmit = (text: string) => {
@@ -389,6 +406,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {showOnboarding && <FirstRunOnboarding onFinish={finishOnboarding} />}
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
 
@@ -420,7 +438,16 @@ const Index = () => {
               </div>
 
               {/* Camera button — dominant action, no friction above it */}
-              <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
+              <div className="relative">
+                <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
+                <OneTimeTooltip
+                  storageKey="tooltip_camera_seen"
+                  text="Just scan your problem"
+                  position="bottom"
+                  delay={800}
+                  active={!showOnboarding && !scannerOpen}
+                />
+              </div>
 
               {/* Daily missions */}
               <DailyMissions totalSolves={profile?.total_solves || 0} streak={profile?.streak_count || 0} />
