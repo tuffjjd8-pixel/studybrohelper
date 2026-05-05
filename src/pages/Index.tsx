@@ -437,7 +437,16 @@ const Index = () => {
               </div>
 
               {/* Camera button — dominant action, no friction above it */}
-              <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
+              <div className="relative">
+                <CameraButton onClick={() => setScannerOpen(true)} isLoading={isLoading} />
+                <OneTimeTooltip
+                  storageKey="tooltip_camera_seen"
+                  text="Just scan your problem"
+                  position="bottom"
+                  delay={800}
+                  active={!showOnboarding && !scannerOpen}
+                />
+              </div>
 
               {/* Daily missions */}
               <DailyMissions totalSolves={profile?.total_solves || 0} streak={profile?.streak_count || 0} />
