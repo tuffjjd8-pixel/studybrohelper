@@ -368,6 +368,12 @@ const Index = () => {
     setShowConfetti(true);
     fetchRecentSolves();
     fetchProfile();
+    try {
+      if (!localStorage.getItem(FIRST_SOLVE_KEY)) {
+        localStorage.setItem(FIRST_SOLVE_KEY, "1");
+        toast.success("You're ready ⚡", { description: "This is how fast it works." });
+      }
+    } catch {}
   };
 
   const handleTextSubmit = (text: string) => {
