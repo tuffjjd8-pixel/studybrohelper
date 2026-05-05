@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Globe, X } from "lucide-react";
+import { Camera, Globe, X, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -10,9 +10,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ANSWER_LANGUAGES } from "@/components/settings/AnswerLanguageSelector";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-const ONBOARDED_KEY = "studybro_onboarded";
+const ONBOARDED_KEY_GUEST = "studybro_onboarded";
 const ANSWER_LANG_KEY = "answer_language";
+
+function userKey(userId?: string | null) {
+  return userId ? `studybro_onboarded_${userId}` : ONBOARDED_KEY_GUEST;
+}
 
 function detectDeviceLang(): string {
   try {
@@ -26,37 +32,77 @@ function detectDeviceLang(): string {
 
 interface Props {
   onFinish: () => void;
+  userId?: string | null;
+  isPremium?: boolean;
 }
 
-export function FirstRunOnboarding({ onFinish }: Props) {
+export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Props) {
   const [step, setStep] = useState<0 | 1>(0);
-  const initialLang = useMemo(
-    () => localStorage.getItem(ANSWER_LANG_KEY) || detectDeviceLang(),
-    []
-  );
+  const initialLang = useMemo(() => {
+    const saved = localStorage.getItem(ANSWER_LANG_KEY);
+    const candidate = saved || detectDeviceLang();
+    // Free users: clamp to a free language
+    if (!isPremium) {
+      const lang = ANSWER_LANGUAGES.find((l) => l.code === candidate);
+      if (!lang || !lang.free) return "en";
+    }
+    return candidate;
+  }, [isPremium]);
   const [lang, setLang] = useState(initialLang);
 
-  // Pre-set the device language immediately so even Skip respects it
   useEffect(() => {
     if (!localStorage.getItem(ANSWER_LANG_KEY)) {
       localStorage.setItem(ANSWER_LANG_KEY, initialLang);
     }
   }, [initialLang]);
 
-  const finish = () => {
-    localStorage.setItem(ANSWER_LANG_KEY, lang);
-    localStorage.setItem(ONBOARDED_KEY, "1");
+  const persistCompletion = async () => {
+    try {
+      localStorage.setItem(userKey(userId), "1");
+      // Also mark guest key so we don't reshow before auth resolves on next load
+      localStorage.setItem(ONBOARDED_KEY_GUEST, "1");
+    } catch {}
+  };
+
+  const persistLanguage = async (code: string) => {
+    try {
+      localStorage.setItem(ANSWER_LANG_KEY, code);
+      if (userId) {
+        // Best-effort; don't block
+        supabase
+          .from("profiles")
+          .update({ answer_language: code } as any)
+          .eq("user_id", userId)
+          .then(() => {});
+      }
+    } catch {}
+  };
+
+  const finish = async () => {
+    await persistLanguage(lang);
+    await persistCompletion();
     onFinish();
   };
 
-  const skip = () => {
-    localStorage.setItem(ONBOARDED_KEY, "1");
+  const skip = async () => {
+    await persistCompletion();
     onFinish();
+  };
+
+  const handleLangChange = (code: string) => {
+    const l = ANSWER_LANGUAGES.find((x) => x.code === code);
+    if (!l) return;
+    if (!l.free && !isPremium) {
+      toast.message("Pro language", {
+        description: "Upgrade to Pro to use this language.",
+      });
+      return;
+    }
+    setLang(code);
   };
 
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col">
-      {/* Skip */}
       <div className="absolute top-4 right-4 z-10">
         <button
           onClick={skip}
@@ -119,20 +165,33 @@ export function FirstRunOnboarding({ onFinish }: Props) {
                 Answers in your language. Instantly.
               </p>
               <p className="mt-4 text-[11px] text-muted-foreground/60">
-                20+ languages supported 🌍
+                Free includes 4 languages. Pro unlocks 24. 🌍
               </p>
 
               <div className="mt-6 w-full max-w-[260px]">
-                <Select value={lang} onValueChange={setLang}>
+                <Select value={lang} onValueChange={handleLangChange}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
-                    {ANSWER_LANGUAGES.map((l) => (
-                      <SelectItem key={l.code} value={l.code}>
-                        {l.label}
-                      </SelectItem>
-                    ))}
+                    {ANSWER_LANGUAGES.map((l) => {
+                      const locked = !l.free && !isPremium;
+                      return (
+                        <SelectItem
+                          key={l.code}
+                          value={l.code}
+                          disabled={locked}
+                          className="flex items-center justify-between"
+                        >
+                          <span className="flex items-center gap-2">
+                            {l.label}
+                            {locked && (
+                              <Lock className="w-3 h-3 text-muted-foreground" />
+                            )}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -172,9 +231,13 @@ function GlowIcon({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function shouldShowOnboarding(): boolean {
+export function shouldShowOnboarding(userId?: string | null): boolean {
   try {
-    return !localStorage.getItem(ONBOARDED_KEY);
+    if (userId) {
+      // For signed-in users, only the user-scoped key matters.
+      return !localStorage.getItem(`studybro_onboarded_${userId}`);
+    }
+    return !localStorage.getItem(ONBOARDED_KEY_GUEST);
   } catch {
     return false;
   }
