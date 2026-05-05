@@ -70,6 +70,13 @@ const Index = () => {
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => shouldShowOnboarding());
+
+  const finishOnboarding = () => {
+    setShowOnboarding(false);
+    // Auto-open camera immediately for instant value
+    setTimeout(() => setScannerOpen(true), 50);
+  };
 
   // Pending image state
   const [pendingImages, setPendingImages] = useState<string[]>([]);
