@@ -406,6 +406,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {showOnboarding && <FirstRunOnboarding onFinish={finishOnboarding} />}
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <Header streak={profile?.streak_count || 0} totalSolves={profile?.total_solves || 0} />
 
