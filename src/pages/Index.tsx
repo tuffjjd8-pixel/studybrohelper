@@ -24,6 +24,10 @@ import { useBadges } from "@/hooks/useBadges";
 import { DailyMissions } from "@/components/home/DailyMissions";
 import { toast } from "sonner";
 import { getSolveErrorMessage, invokeSolveHomework } from "@/lib/solveFunction";
+import { FirstRunOnboarding, shouldShowOnboarding } from "@/components/onboarding/FirstRunOnboarding";
+import { OneTimeTooltip } from "@/components/onboarding/OneTimeTooltip";
+
+const FIRST_SOLVE_KEY = "studybro_first_solve_seen";
 
 interface SolutionData {
   subject: string;
