@@ -70,13 +70,20 @@ const Index = () => {
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => shouldShowOnboarding());
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => shouldShowOnboarding(null));
 
   const finishOnboarding = () => {
     setShowOnboarding(false);
     // Auto-open camera immediately for instant value
     setTimeout(() => setScannerOpen(true), 50);
   };
+
+  // Re-evaluate when auth resolves so newly-signed-in users see onboarding
+  useEffect(() => {
+    if (user?.id && shouldShowOnboarding(user.id)) {
+      setShowOnboarding(true);
+    }
+  }, [user?.id]);
 
   // Pending image state
   const [pendingImages, setPendingImages] = useState<string[]>([]);
