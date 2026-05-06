@@ -47,6 +47,7 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
     return candidate;
   }, [isPremium]);
   const [lang, setLang] = useState(initialLang);
+  const [langOpen, setLangOpen] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem(ANSWER_LANG_KEY)) {
