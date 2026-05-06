@@ -489,6 +489,7 @@ export type Database = {
           last_solve_date: string | null
           last_speech_reset: string | null
           last_usage_date: string | null
+          onboarded: boolean
           premium_until: string | null
           quizzes_used_today: number | null
           referral_code: string | null
@@ -521,6 +522,7 @@ export type Database = {
           last_solve_date?: string | null
           last_speech_reset?: string | null
           last_usage_date?: string | null
+          onboarded?: boolean
           premium_until?: string | null
           quizzes_used_today?: number | null
           referral_code?: string | null
@@ -553,6 +555,7 @@ export type Database = {
           last_solve_date?: string | null
           last_speech_reset?: string | null
           last_usage_date?: string | null
+          onboarded?: boolean
           premium_until?: string | null
           quizzes_used_today?: number | null
           referral_code?: string | null
