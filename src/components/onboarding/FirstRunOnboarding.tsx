@@ -3,12 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Globe, X, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ANSWER_LANGUAGES } from "@/components/settings/AnswerLanguageSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -41,7 +40,6 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
   const initialLang = useMemo(() => {
     const saved = localStorage.getItem(ANSWER_LANG_KEY);
     const candidate = saved || detectDeviceLang();
-    // Free users: clamp to a free language
     if (!isPremium) {
       const lang = ANSWER_LANGUAGES.find((l) => l.code === candidate);
       if (!lang || !lang.free) return "en";
@@ -59,8 +57,15 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
   const persistCompletion = async () => {
     try {
       localStorage.setItem(userKey(userId), "1");
-      // Also mark guest key so we don't reshow before auth resolves on next load
       localStorage.setItem(ONBOARDED_KEY_GUEST, "1");
+      if (userId) {
+        // Best-effort DB flag for cross-device persistence
+        supabase
+          .from("profiles")
+          .update({ onboarded: true } as any)
+          .eq("user_id", userId)
+          .then(() => {});
+      }
     } catch {}
   };
 
@@ -68,7 +73,6 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
     try {
       localStorage.setItem(ANSWER_LANG_KEY, code);
       if (userId) {
-        // Best-effort; don't block
         supabase
           .from("profiles")
           .update({ answer_language: code } as any)
@@ -100,6 +104,9 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
     }
     setLang(code);
   };
+
+  const currentLangLabel =
+    ANSWER_LANGUAGES.find((l) => l.code === lang)?.label || "English";
 
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col">
@@ -164,43 +171,62 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
               <p className="mt-3 text-muted-foreground text-sm">
                 Answers in your language. Instantly.
               </p>
-              <p className="mt-4 text-[11px] text-muted-foreground/60">
-                Free includes 4 languages. Pro unlocks 24. 🌍
-              </p>
 
-              <div className="mt-6 w-full max-w-[260px]">
-                <Select value={lang} onValueChange={handleLangChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-64">
+              {/* Compact language pill — optional, non-blocking */}
+              <div className="mt-5">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-xs font-medium border border-border/50 transition-colors active:scale-95"
+                    >
+                      <span>🌍</span>
+                      <span>{currentLangLabel}</span>
+                      <span className="text-muted-foreground">▼</span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="center"
+                    className="max-h-64 overflow-y-auto w-48"
+                  >
                     {ANSWER_LANGUAGES.map((l) => {
                       const locked = !l.free && !isPremium;
                       return (
-                        <SelectItem
+                        <DropdownMenuItem
                           key={l.code}
-                          value={l.code}
-                          disabled={locked}
-                          className="flex items-center justify-between"
+                          onSelect={(e) => {
+                            if (locked) {
+                              e.preventDefault();
+                            }
+                            handleLangChange(l.code);
+                          }}
+                          className="flex items-center justify-between text-xs"
                         >
-                          <span className="flex items-center gap-2">
-                            {l.label}
-                            {locked && (
-                              <Lock className="w-3 h-3 text-muted-foreground" />
-                            )}
-                          </span>
-                        </SelectItem>
+                          <span>{l.label}</span>
+                          {locked ? (
+                            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <Lock className="w-3 h-3" /> Pro
+                            </span>
+                          ) : null}
+                        </DropdownMenuItem>
                       );
                     })}
-                  </SelectContent>
-                </Select>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
+
+              <p className="mt-3 text-[11px] text-muted-foreground/70">
+                Free includes 4 languages • Pro unlocks 24 🌍
+              </p>
+              <p className="mt-1 text-[10px] text-muted-foreground/50">
+                Change anytime in Profile → Settings
+              </p>
 
               <Button
                 onClick={finish}
                 variant="neonGreenFilled"
                 size="lg"
-                className="mt-6 w-full max-w-[260px] active:scale-[0.97] transition-transform"
+                className="mt-8 w-full max-w-[260px] active:scale-[0.97] transition-transform"
               >
                 Start →
               </Button>
@@ -231,10 +257,48 @@ function GlowIcon({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Sync onboarding state from DB for signed-in users.
+ * If the DB says onboarded=true, mirror to localStorage so we don't reshow.
+ * If DB says false but local says true, push local truth to DB.
+ * Returns true if onboarding should be shown.
+ */
+export async function resolveOnboardingForUser(userId: string): Promise<boolean> {
+  try {
+    const localKey = `studybro_onboarded_${userId}`;
+    const localDone = !!localStorage.getItem(localKey);
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("onboarded" as any)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const dbDone = !!(data as any)?.onboarded;
+
+    if (dbDone) {
+      try { localStorage.setItem(localKey, "1"); } catch {}
+      return false;
+    }
+    if (localDone) {
+      // push local truth to DB
+      supabase.from("profiles").update({ onboarded: true } as any).eq("user_id", userId).then(() => {});
+      return false;
+    }
+    return true;
+  } catch {
+    // Fall back to local-only
+    try {
+      return !localStorage.getItem(`studybro_onboarded_${userId}`);
+    } catch {
+      return false;
+    }
+  }
+}
+
 export function shouldShowOnboarding(userId?: string | null): boolean {
   try {
     if (userId) {
-      // For signed-in users, only the user-scoped key matters.
       return !localStorage.getItem(`studybro_onboarded_${userId}`);
     }
     return !localStorage.getItem(ONBOARDED_KEY_GUEST);

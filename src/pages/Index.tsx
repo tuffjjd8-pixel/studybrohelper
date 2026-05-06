@@ -24,7 +24,7 @@ import { useBadges } from "@/hooks/useBadges";
 import { DailyMissions } from "@/components/home/DailyMissions";
 import { toast } from "sonner";
 import { getSolveErrorMessage, invokeSolveHomework } from "@/lib/solveFunction";
-import { FirstRunOnboarding, shouldShowOnboarding } from "@/components/onboarding/FirstRunOnboarding";
+import { FirstRunOnboarding, shouldShowOnboarding, resolveOnboardingForUser } from "@/components/onboarding/FirstRunOnboarding";
 import { OneTimeTooltip } from "@/components/onboarding/OneTimeTooltip";
 
 const FIRST_SOLVE_KEY = "studybro_first_solve_seen";
@@ -78,11 +78,14 @@ const Index = () => {
     setTimeout(() => setScannerOpen(true), 50);
   };
 
-  // Re-evaluate when auth resolves so newly-signed-in users see onboarding
+  // Re-evaluate when auth resolves so newly-signed-in users see onboarding (DB-backed across devices)
   useEffect(() => {
-    if (user?.id && shouldShowOnboarding(user.id)) {
-      setShowOnboarding(true);
-    }
+    if (!user?.id) return;
+    let cancelled = false;
+    resolveOnboardingForUser(user.id).then((show) => {
+      if (!cancelled && show) setShowOnboarding(true);
+    });
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   // Pending image state
