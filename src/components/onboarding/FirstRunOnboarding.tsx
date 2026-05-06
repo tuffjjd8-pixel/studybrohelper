@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Globe, X, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ANSWER_LANGUAGES } from "@/components/settings/AnswerLanguageSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -35,7 +40,6 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
   const initialLang = useMemo(() => {
     const saved = localStorage.getItem(ANSWER_LANG_KEY);
     const candidate = saved || detectDeviceLang();
-    // Free users: clamp to a free language
     if (!isPremium) {
       const lang = ANSWER_LANGUAGES.find((l) => l.code === candidate);
       if (!lang || !lang.free) return "en";
@@ -43,6 +47,7 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
     return candidate;
   }, [isPremium]);
   const [lang, setLang] = useState(initialLang);
+  const [langOpen, setLangOpen] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem(ANSWER_LANG_KEY)) {
@@ -53,8 +58,15 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
   const persistCompletion = async () => {
     try {
       localStorage.setItem(userKey(userId), "1");
-      // Also mark guest key so we don't reshow before auth resolves on next load
       localStorage.setItem(ONBOARDED_KEY_GUEST, "1");
+      if (userId) {
+        // Best-effort DB flag for cross-device persistence
+        supabase
+          .from("profiles")
+          .update({ onboarded: true } as any)
+          .eq("user_id", userId)
+          .then(() => {});
+      }
     } catch {}
   };
 
@@ -62,7 +74,6 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
     try {
       localStorage.setItem(ANSWER_LANG_KEY, code);
       if (userId) {
-        // Best-effort; don't block
         supabase
           .from("profiles")
           .update({ answer_language: code } as any)
@@ -95,6 +106,9 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
     setLang(code);
   };
 
+  const currentLangLabel =
+    ANSWER_LANGUAGES.find((l) => l.code === lang)?.label || "English";
+
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col">
       <div className="absolute top-4 right-4 z-10">
@@ -124,8 +138,12 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
                 Scan anything. <br />
                 Get answers instantly.
               </h1>
-              <p className="mt-3 text-muted-foreground text-sm">No categories. No typing. Just results.</p>
-              <p className="mt-4 text-[11px] text-muted-foreground/60">Usually solved in seconds ⚡</p>
+              <p className="mt-3 text-muted-foreground text-sm">
+                No categories. No typing. Just results.
+              </p>
+              <p className="mt-4 text-[11px] text-muted-foreground/60">
+                Usually solved in seconds ⚡
+              </p>
 
               <Button
                 onClick={() => setStep(1)}
@@ -148,45 +166,94 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
               <GlowIcon>
                 <Globe className="w-12 h-12 text-primary" strokeWidth={2.2} />
               </GlowIcon>
-              <h1 className="mt-8 text-2xl font-heading font-bold leading-tight">Understand it your way</h1>
-              <p className="mt-3 text-muted-foreground text-sm">Answers in your language. Instantly.</p>
-              <p className="mt-4 text-[11px] text-muted-foreground/60">Free includes 4 languages. Pro unlocks 24. 🌍</p>
+              <h1 className="mt-8 text-2xl font-heading font-bold leading-tight">
+                Understand it your way
+              </h1>
+              <p className="mt-3 text-muted-foreground text-sm">
+                Answers in your language. Instantly.
+              </p>
 
-              <div className="mt-6 w-full max-w-[260px] flex justify-center relative">
-                <Select value={lang} onValueChange={handleLangChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent
-                    align="center"
-                    sideOffset={10}
-                    className="z-[120] w-52 max-h-64 overflow-y-auto rounded-xl"
-                  >
-                    {ANSWER_LANGUAGES.map((l) => {
-                      const locked = !l.free && !isPremium;
-                      return (
-                        <SelectItem
-                          key={l.code}
-                          value={l.code}
-                          disabled={locked}
-                          className="flex items-center justify-between"
-                        >
-                          <span className="flex items-center gap-2">
-                            {l.label}
-                            {locked && <Lock className="w-3 h-3 text-muted-foreground" />}
-                          </span>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
+              {/* Compact language pill — optional, non-blocking */}
+              <div className="mt-5 relative">
+                <button
+                  type="button"
+                  onClick={() => setLangOpen((v) => !v)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-xs font-medium border border-border/50 transition-colors active:scale-95"
+                >
+                  <span>🌍</span>
+                  <span>{currentLangLabel}</span>
+                  <span className="text-muted-foreground">▼</span>
+                </button>
+
+                <AnimatePresence>
+                  {langOpen && (
+                    <>
+                      {/* Click-away overlay */}
+                      <button
+                        type="button"
+                        aria-label="Close language menu"
+                        onClick={() => setLangOpen(false)}
+                        className="fixed inset-0 z-[110] cursor-default"
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                        transition={{ duration: 0.12 }}
+                        className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-52 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-xl z-[120] p-1 text-left"
+                      >
+                        {ANSWER_LANGUAGES.map((l) => {
+                          const locked = !l.free && !isPremium;
+                          const isActive = l.code === lang;
+                          return (
+                            <button
+                              key={l.code}
+                              type="button"
+                              onClick={() => {
+                                if (locked) {
+                                  toast.message("Pro language", {
+                                    description: "Upgrade to Pro to use this language.",
+                                  });
+                                  return;
+                                }
+                                handleLangChange(l.code);
+                                setLangOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs transition-colors ${
+                                locked
+                                  ? "opacity-60 cursor-not-allowed"
+                                  : "hover:bg-accent"
+                              } ${isActive ? "bg-accent/60" : ""}`}
+                            >
+                              <span>{l.label}</span>
+                              {locked ? (
+                                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                  <Lock className="w-3 h-3" /> Pro
+                                </span>
+                              ) : isActive ? (
+                                <span className="text-[10px] text-primary">●</span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
               </div>
+
+              <p className="mt-3 text-[11px] text-muted-foreground/70">
+                Free includes 4 languages • Pro unlocks 24 🌍
+              </p>
+              <p className="mt-1 text-[10px] text-muted-foreground/50">
+                Change anytime in Profile → Settings
+              </p>
 
               <Button
                 onClick={finish}
                 variant="neonGreenFilled"
                 size="lg"
-                className="mt-6 w-full max-w-[260px] active:scale-[0.97] transition-transform"
+                className="mt-8 w-full max-w-[260px] active:scale-[0.97] transition-transform"
               >
                 Start →
               </Button>
@@ -217,10 +284,48 @@ function GlowIcon({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Sync onboarding state from DB for signed-in users.
+ * If the DB says onboarded=true, mirror to localStorage so we don't reshow.
+ * If DB says false but local says true, push local truth to DB.
+ * Returns true if onboarding should be shown.
+ */
+export async function resolveOnboardingForUser(userId: string): Promise<boolean> {
+  try {
+    const localKey = `studybro_onboarded_${userId}`;
+    const localDone = !!localStorage.getItem(localKey);
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("onboarded" as any)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const dbDone = !!(data as any)?.onboarded;
+
+    if (dbDone) {
+      try { localStorage.setItem(localKey, "1"); } catch {}
+      return false;
+    }
+    if (localDone) {
+      // push local truth to DB
+      supabase.from("profiles").update({ onboarded: true } as any).eq("user_id", userId).then(() => {});
+      return false;
+    }
+    return true;
+  } catch {
+    // Fall back to local-only
+    try {
+      return !localStorage.getItem(`studybro_onboarded_${userId}`);
+    } catch {
+      return false;
+    }
+  }
+}
+
 export function shouldShowOnboarding(userId?: string | null): boolean {
   try {
     if (userId) {
-      // For signed-in users, only the user-scoped key matters.
       return !localStorage.getItem(`studybro_onboarded_${userId}`);
     }
     return !localStorage.getItem(ONBOARDED_KEY_GUEST);
