@@ -78,11 +78,14 @@ const Index = () => {
     setTimeout(() => setScannerOpen(true), 50);
   };
 
-  // Re-evaluate when auth resolves so newly-signed-in users see onboarding
+  // Re-evaluate when auth resolves so newly-signed-in users see onboarding (DB-backed across devices)
   useEffect(() => {
-    if (user?.id && shouldShowOnboarding(user.id)) {
-      setShowOnboarding(true);
-    }
+    if (!user?.id) return;
+    let cancelled = false;
+    resolveOnboardingForUser(user.id).then((show) => {
+      if (!cancelled && show) setShowOnboarding(true);
+    });
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   // Pending image state
