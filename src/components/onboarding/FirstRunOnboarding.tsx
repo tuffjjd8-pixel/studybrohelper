@@ -47,6 +47,7 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
     return candidate;
   }, [isPremium]);
   const [lang, setLang] = useState(initialLang);
+  const [langOpen, setLangOpen] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem(ANSWER_LANG_KEY)) {
@@ -173,46 +174,72 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
               </p>
 
               {/* Compact language pill — optional, non-blocking */}
-              <div className="mt-5">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-xs font-medium border border-border/50 transition-colors active:scale-95"
-                    >
-                      <span>🌍</span>
-                      <span>{currentLangLabel}</span>
-                      <span className="text-muted-foreground">▼</span>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="center"
-                    className="max-h-64 overflow-y-auto w-48"
-                  >
-                    {ANSWER_LANGUAGES.map((l) => {
-                      const locked = !l.free && !isPremium;
-                      return (
-                        <DropdownMenuItem
-                          key={l.code}
-                          onSelect={(e) => {
-                            if (locked) {
-                              e.preventDefault();
-                            }
-                            handleLangChange(l.code);
-                          }}
-                          className="flex items-center justify-between text-xs"
-                        >
-                          <span>{l.label}</span>
-                          {locked ? (
-                            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                              <Lock className="w-3 h-3" /> Pro
-                            </span>
-                          ) : null}
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              <div className="mt-5 relative">
+                <button
+                  type="button"
+                  onClick={() => setLangOpen((v) => !v)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-xs font-medium border border-border/50 transition-colors active:scale-95"
+                >
+                  <span>🌍</span>
+                  <span>{currentLangLabel}</span>
+                  <span className="text-muted-foreground">▼</span>
+                </button>
+
+                <AnimatePresence>
+                  {langOpen && (
+                    <>
+                      {/* Click-away overlay */}
+                      <button
+                        type="button"
+                        aria-label="Close language menu"
+                        onClick={() => setLangOpen(false)}
+                        className="fixed inset-0 z-[110] cursor-default"
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                        transition={{ duration: 0.12 }}
+                        className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-52 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-xl z-[120] p-1 text-left"
+                      >
+                        {ANSWER_LANGUAGES.map((l) => {
+                          const locked = !l.free && !isPremium;
+                          const isActive = l.code === lang;
+                          return (
+                            <button
+                              key={l.code}
+                              type="button"
+                              onClick={() => {
+                                if (locked) {
+                                  toast.message("Pro language", {
+                                    description: "Upgrade to Pro to use this language.",
+                                  });
+                                  return;
+                                }
+                                handleLangChange(l.code);
+                                setLangOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs transition-colors ${
+                                locked
+                                  ? "opacity-60 cursor-not-allowed"
+                                  : "hover:bg-accent"
+                              } ${isActive ? "bg-accent/60" : ""}`}
+                            >
+                              <span>{l.label}</span>
+                              {locked ? (
+                                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                  <Lock className="w-3 h-3" /> Pro
+                                </span>
+                              ) : isActive ? (
+                                <span className="text-[10px] text-primary">●</span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
               </div>
 
               <p className="mt-3 text-[11px] text-muted-foreground/70">
