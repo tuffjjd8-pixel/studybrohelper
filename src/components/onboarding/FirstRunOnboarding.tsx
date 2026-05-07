@@ -2,12 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Globe, X, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ANSWER_LANGUAGES } from "@/components/settings/AnswerLanguageSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -174,7 +168,7 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
               </p>
 
               {/* Compact language pill — optional, non-blocking */}
-              <div className="mt-5 relative">
+              <div className="mt-5 flex w-full flex-col items-center">
                 <button
                   type="button"
                   onClick={() => setLangOpen((v) => !v)}
@@ -187,57 +181,48 @@ export function FirstRunOnboarding({ onFinish, userId, isPremium = false }: Prop
 
                 <AnimatePresence>
                   {langOpen && (
-                    <>
-                      {/* Click-away overlay */}
-                      <button
-                        type="button"
-                        aria-label="Close language menu"
-                        onClick={() => setLangOpen(false)}
-                        className="fixed inset-0 z-[110] cursor-default"
-                      />
-                      <motion.div
-                        initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                        transition={{ duration: 0.12 }}
-                        className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-52 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-xl z-[120] p-1 text-left"
-                      >
-                        {ANSWER_LANGUAGES.map((l) => {
-                          const locked = !l.free && !isPremium;
-                          const isActive = l.code === lang;
-                          return (
-                            <button
-                              key={l.code}
-                              type="button"
-                              onClick={() => {
-                                if (locked) {
-                                  toast.message("Pro language", {
-                                    description: "Upgrade to Pro to use this language.",
-                                  });
-                                  return;
-                                }
-                                handleLangChange(l.code);
-                                setLangOpen(false);
-                              }}
-                              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs transition-colors ${
-                                locked
-                                  ? "opacity-60 cursor-not-allowed"
-                                  : "hover:bg-accent"
-                              } ${isActive ? "bg-accent/60" : ""}`}
-                            >
-                              <span>{l.label}</span>
-                              {locked ? (
-                                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                  <Lock className="w-3 h-3" /> Pro
-                                </span>
-                              ) : isActive ? (
-                                <span className="text-[10px] text-primary">●</span>
-                              ) : null}
-                            </button>
-                          );
-                        })}
-                      </motion.div>
-                    </>
+                    <motion.div
+                      initial={{ opacity: 0, y: -3, scale: 0.99 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -3, scale: 0.99 }}
+                      transition={{ duration: 0.1 }}
+                      className="mt-2 w-52 max-h-[168px] overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover text-popover-foreground shadow-lg p-1 text-left"
+                    >
+                      {ANSWER_LANGUAGES.map((l) => {
+                        const locked = !l.free && !isPremium;
+                        const isActive = l.code === lang;
+                        return (
+                          <button
+                            key={l.code}
+                            type="button"
+                            onClick={() => {
+                              if (locked) {
+                                toast.message("Pro language", {
+                                  description: "Upgrade to Pro to use this language.",
+                                });
+                                return;
+                              }
+                              handleLangChange(l.code);
+                              setLangOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs transition-colors ${
+                              locked
+                                ? "opacity-60 cursor-not-allowed"
+                                : "hover:bg-accent"
+                            } ${isActive ? "bg-accent/60" : ""}`}
+                          >
+                            <span>{l.label}</span>
+                            {locked ? (
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <Lock className="w-3 h-3" /> Pro
+                              </span>
+                            ) : isActive ? (
+                              <span className="text-[10px] text-primary">●</span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
                   )}
                 </AnimatePresence>
               </div>
